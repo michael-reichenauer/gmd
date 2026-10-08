@@ -204,6 +204,15 @@ class FakeGit : IGit
         return Task.FromResult<Result<IReadOnlyList<string>>>(ids.ToList());
     }
 
+    // The commits each text was added or removed in, for the search's 'change:', by text
+    public Dictionary<string, IReadOnlyList<string>> IdsChangingText { get; } = [];
+
+    public Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd)
+    {
+        IReadOnlyList<string> ids = IdsChangingText.TryGetValue(text, out var found) ? found : [];
+        return Task.FromResult<Result<IReadOnlyList<string>>>(ids.ToList());
+    }
+
     public Task<Result<string>> GetRemoteUrlAsync(string wd) => throw new NotSupportedException();
 
     public Task<Result> PushBranchAsync(string name, string wd) => throw new NotSupportedException();

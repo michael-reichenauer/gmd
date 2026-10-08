@@ -10,6 +10,9 @@ interface IGit
 
     // The ids of the commits that changed a file whose path contains the text, for a search
     Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
+
+    // The commits whose changes added or removed the text, in any case ('git log -S')
+    Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
 
     // The commits reachable from the given ids that no branch, tag or stash reaches any more

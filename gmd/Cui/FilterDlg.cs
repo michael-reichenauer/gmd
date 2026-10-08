@@ -218,17 +218,18 @@ class FilterDlg : IFilterDlg
         currentFilter = filter;
 
         var terms = SearchTerms.Parse(filter);
-        if (terms.Files.Count > 0)
+        if (terms.IsAskingGit)
         { // Git is asked, once typing pauses, and what it answers is dropped if typing went on
             await Task.Delay(FileSearchDelay);
             if (!IsStillWanted(filter, session))
                 return;
-            statusLabel.Text = Text.Dark("Searching the changed files ...");
+            var what = terms.Changes.Count > 0 ? "the changes" : "the changed files";
+            statusLabel.Text = Text.Dark($"Searching {what} ...");
         }
 
         // Nothing to search for is the whole log, as is 'file:' while the path is still to be typed
         Server.Repo? filteredRepo = null;
-        if (terms.Words.Count + terms.Files.Count > 0)
+        if (terms.Words.Count > 0 || terms.IsAskingGit)
         {
             var result = await server.GetFilteredRepoAsync(orgRepo, filter, MaxResults);
             if (!IsStillWanted(filter, session))

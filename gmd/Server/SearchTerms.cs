@@ -4,12 +4,17 @@ namespace gmd.Server;
 
 // What was typed into the search, split into the terms that must all match. A "quoted phrase" is
 // one term, spaces and all. A term starting with 'file:' is a path instead, matched against the
-// files each commit changed, which only git can tell and which takes it a moment in a large repo,
-// so it is kept apart from the words matched against what the log already holds. 'file:' alone,
-// as it is while being typed, is no term yet.
-internal record SearchTerms(IReadOnlyList<string> Words, IReadOnlyList<string> Files)
+// files each commit changed, and one starting with 'change:' a text, matched against the changes
+// themselves, i.e. the commits that added or removed it ('git log -S'). Only git can tell those, and
+// it takes a moment in a large repo, so they are kept apart from the words matched against what the
+// log already holds. 'file:' or 'change:' alone, as it is while being typed, is no term yet.
+internal record SearchTerms(IReadOnlyList<string> Words, IReadOnlyList<string> Files, IReadOnlyList<string> Changes)
 {
     const string FilePrefix = "file:";
+    const string ChangePrefix = "change:";
+
+    // The terms git is asked about rather than the log
+    public bool IsAskingGit => Files.Count + Changes.Count > 0;
 
     public static SearchTerms Parse(string filter)
     {
@@ -20,9 +25,14 @@ internal record SearchTerms(IReadOnlyList<string> Words, IReadOnlyList<string> F
         quoted.ForEach(q => modified = modified.Replace($"\"{q}\"", q.Replace(" ", "\n")));
         var terms = modified.Split(' ').Where(p => p != "").Select(p => p.Replace("\n", " ")).ToList();
 
-        var files = terms.Where(IsFile).Select(t => t[FilePrefix.Length..].Trim('"')).Where(t => t != "").ToList();
-        return new SearchTerms(terms.Where(t => !IsFile(t)).ToList(), files);
+        var files = Of(terms, FilePrefix);
+        var changes = Of(terms, ChangePrefix);
+        var words = terms.Where(t => !Is(t, FilePrefix) && !Is(t, ChangePrefix)).ToList();
+        return new SearchTerms(words, files, changes);
     }
 
-    static bool IsFile(string term) => term.StartsWith(FilePrefix, StringComparison.OrdinalIgnoreCase);
+    static List<string> Of(IEnumerable<string> terms, string prefix) =>
+        terms.Where(t => Is(t, prefix)).Select(t => t[prefix.Length..].Trim('"')).Where(t => t != "").ToList();
+
+    static bool Is(string term, string prefix) => term.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 }

@@ -157,6 +157,23 @@ public class FilterDlgTest
         Assert.IsFalse(screen.Contains("Merge branch"), "The merge brought the change in, but made none");
     }
 
+    // 'change:' searches the changes themselves, the commits that added or removed the text, in any
+    // case: 'two' is the line 'More dev work' added to dev.txt
+    [TestMethod]
+    public async Task TestChangeSearchFindsTheCommitsChangingAText()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+
+        gmd.SendText("change:TWO");
+
+        var screen = gmd.WaitFor("1 commit");
+        StringAssert.Contains(screen, "More dev work");
+    }
+
     // A 'file:' search still waiting for git when the search closes is dropped. It used to be shown
     // once git answered, replacing the log the user had gone back to with the results, and the next
     // refresh then showed every branch they were on.

@@ -168,7 +168,8 @@ repository.
 - **See what changed:** `d` on a commit, or on the `©` row for what is not
   committed yet. On a highlighted branch, `d` diffs it to another branch.
 - **Find a commit:** `f` or `/`, and type part of its message, author, id,
-  branch or tag, or `file:` and part of a path.
+  branch or tag, `file:` and part of a path, or `change:` and a text the
+  changes added or removed.
 - **Show another branch:** `Shift-→`, and type part of its name.
 - **Undo a mistake:** **Undo** in the commit menu (`m`) takes back the last
   change of the branch you are on, e.g. a commit, a merge or a pull.
@@ -406,7 +407,9 @@ throw changes away for good ask first.
   (the subject and the body), branch, author, date (yyyy-mm-dd) or tag.
   Every word has to match, a "quoted phrase" matches as a whole, and case
   does not matter. `file:` and a path, e.g. `file:Program.cs`, matches the
-  commits that changed a file with that in its path. `Enter` shows the
+  commits that changed a file with that in its path, and `change:` and a
+  text, e.g. `change:RetryCount`, the commits whose changes added or
+  removed it, which finds where code came from or went. `Enter` shows the
   selected commit and its branch in the log, and `Esc` goes back to where
   you were. After that, `n` and `Shift-N` go to the next and the previous
   match in the log.

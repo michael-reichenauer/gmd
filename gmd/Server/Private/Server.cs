@@ -52,32 +52,36 @@ class Server : IServer
 
     public async Task<Result<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount)
     {
-        var files = SearchTerms.Parse(filter).Files;
-        if (files.Count == 0)
+        var terms = SearchTerms.Parse(filter);
+        if (!terms.IsAskingGit)
             return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount);
 
-        var idsResult = await GetIdsChangingFilesAsync(repo, files, maxCount);
+        var idsResult = await GetIdsAskingGitAsync(repo, terms, maxCount);
         if (idsResult is not IReadOnlySet<string> ids)
-            return new Error("Failed to search the changed files", idsResult.Error);
+            return new Error("Failed to search the changed files and the changes", idsResult.Error);
 
         return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount, ids);
     }
 
-    // The commits that changed files matching every one of the paths, which git is asked for. The
-    // last answer is kept, since the search asks again with every key typed after the path, and
-    // git takes a moment in a large repo.
-    async Task<Result<IReadOnlySet<string>>> GetIdsChangingFilesAsync(
-        Repo repo,
-        IReadOnlyList<string> files,
-        int maxCount
-    )
+    // The commits that changed files matching every one of the paths, and whose changes added or
+    // removed every one of the texts, which git is asked for. The last answer is kept, since the
+    // search asks again with every key typed after them, and git takes a moment in a large repo.
+    async Task<Result<IReadOnlySet<string>>> GetIdsAskingGitAsync(Repo repo, SearchTerms terms, int maxCount)
     {
-        var key = $"{repo.Path}\n{repo.RepoTimeStamp.Ticks}\n{maxCount}\n{string.Join('\n', files)}";
+        var asked = string.Join(
+            '\n',
+            terms.Files.Select(f => $"file:{f}").Concat(terms.Changes.Select(c => $"change:{c}"))
+        );
+        var key = $"{repo.Path}\n{repo.RepoTimeStamp.Ticks}\n{maxCount}\n{asked}";
         if (lastFileSearch is var (lastKey, lastIds) && lastKey == key)
             return new Result<IReadOnlySet<string>>(lastIds);
 
         // All at once, since each is a walk of the whole history
-        var results = await Task.WhenAll(files.Select(file => git.GetIdsChangingFilesAsync(file, maxCount, repo.Path)));
+        var results = await Task.WhenAll(
+            terms
+                .Files.Select(file => git.GetIdsChangingFilesAsync(file, maxCount, repo.Path))
+                .Concat(terms.Changes.Select(text => git.GetIdsChangingTextAsync(text, maxCount, repo.Path)))
+        );
         HashSet<string>? ids = null;
         foreach (var result in results)
         {

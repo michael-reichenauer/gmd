@@ -1807,6 +1807,20 @@ public class GitIntegrationTest
         Assert.AreEqual(0, Value(await repo.Git.GetIdsChangingFilesAsync("nothing", 100, repo.Path)).Count);
     }
 
+    // The search's 'change:' term: the commits that added or removed the text, in any case, and not
+    // one that only touched the line it is on, which the pickaxe counts rather than greps
+    [TestMethod]
+    public async Task TestTheCommitsChangingAText()
+    {
+        var added = await repo.CommitFileAsync("a.cs", "var retryCount = 3;\n", "Add retries");
+        await repo.CommitFileAsync("a.cs", "var retryCount = 5;\n", "More retries");
+        var removed = await repo.CommitFileAsync("a.cs", "var tries = 5;\n", "Rename");
+
+        var ids = Value(await repo.Git.GetIdsChangingTextAsync("RETRYCOUNT", 100, repo.Path));
+
+        CollectionAssert.AreEqual(new[] { removed, added }, ids.ToArray());
+    }
+
     // A diverged branch is refused by 'git pull' until git is told how to join the two sides, which
     // is why gmd asks. Once the answer is saved where git reads it, the pull merges, or rebases the
     // local commit on top of the remote one.

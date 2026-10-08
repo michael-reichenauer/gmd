@@ -50,6 +50,7 @@ static class KeyHints
             new("Enter", "show in the log"),
             new("Esc", "back"),
             new("file:", "search changed files"),
+            new("change:", "search changes"),
         ];
 
     // The side views' lines, drawn by a KeyHintBar of their own. 'Esc close' comes early in each,

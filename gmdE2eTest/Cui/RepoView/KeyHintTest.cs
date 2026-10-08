@@ -122,7 +122,7 @@ public class KeyHintTest
     }
 
     // The filter has the keyboard while it is up, so the line is about the filter, including the
-    // 'file:' term, which nothing else on screen tells of
+    // 'file:' and 'change:' terms, which nothing else on screen tells of
     [TestMethod]
     public async Task TestTheHintsAreAboutTheFilterWhileItIsUp()
     {
@@ -133,7 +133,7 @@ public class KeyHintTest
         gmd.Send("f");
 
         Assert.AreEqual(
-            "↑↓ select  Enter show in the log  Esc back  file: search changed files | ? help",
+            "↑↓ select  Enter show in the log  Esc back  file: search changed files  change: search changes | ? help",
             Hints(gmd.WaitFor("Esc back"))
         );
     }

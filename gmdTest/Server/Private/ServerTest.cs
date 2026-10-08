@@ -150,6 +150,24 @@ public class ServerTest
         CollectionAssert.AreEqual(new[] { "x.cs" }, git.IdsChangingFilesCalls, "Asked once");
     }
 
+    // A 'change:' term is asked of git too, and the commits must match it and every other term
+    [TestMethod]
+    public async Task TestAChangeTermNarrowsTheSearchToTheCommitsChangingIt()
+    {
+        var b = ThreeBranches();
+        var git = new FakeGit();
+        git.IdsChangingText["retry"] = [RepoBuilder.Sha("f1"), RepoBuilder.Sha("c3")];
+        git.IdsChangingFiles["x.cs"] = [RepoBuilder.Sha("f1"), RepoBuilder.Sha("d1"), RepoBuilder.Sha("c3")];
+        var server = b.NewServer(git);
+        var repo = await b.ViewRepoAsync();
+
+        var changes = AssertOk(await server.GetFilteredRepoAsync(repo, "change:retry", 100));
+        var both = AssertOk(await server.GetFilteredRepoAsync(repo, "change:retry file:x.cs work", 100));
+
+        CollectionAssert.AreEqual(new[] { "Feature work", "Third" }, Subjects(changes));
+        CollectionAssert.AreEqual(new[] { "Feature work" }, Subjects(both));
+    }
+
     static string[] Subjects(Repo repo) => repo.ViewCommits.Select(c => c.Subject).ToArray();
 
     // 'Hide all branches' goes back to just the main branch
