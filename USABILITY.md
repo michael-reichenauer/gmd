@@ -277,7 +277,9 @@ Both are reworked, see proposal D.1.
    later.
 4. Light themes, `NO_COLOR`, and branch colors that do not lean on red against green, with the
    Terminal.Gui 2.x port.
-5. A second remote, read only at first: fetch `upstream` and show its branches.
+5. A second remote, read only at first: fetch `upstream` and show its branches. *Postponed
+   (2026-10-08), until the need is met in use:* the case that matters is the fork workflow, and
+   what is known of it is in `MODERNIZATION.md` (deferred).
 
 **C. Polish:**
 
@@ -386,6 +388,8 @@ Bigger features:
   push, a diff of any two commits, search of the changes (`-S`), line history (`log -L`); a merge
   tool in the terminal skipped. S to M each
 - [ ] 19. **A second remote, read only** (B.5): fetch `upstream` and show its branches. L
+  *Postponed (2026-10-08)*, to understand the use from experience first; see `MODERNIZATION.md`
+  (deferred).
 
 Reach:
 
