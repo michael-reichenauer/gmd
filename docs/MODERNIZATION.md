@@ -283,6 +283,20 @@ Add new open issues and findings here as work lands; keep them short and drop th
   every refresh of the repo. Both sorts now leave a place they cannot settle as it is after it has
   been passed once per item, which a comparer with no cycle never needs, and a rename keeps one
   order per pair of branches (`BranchOrder.OnePerPair`). (2026-10-07)
+- A force push could overwrite commits on origin that no one here had seen. *Force Push* and
+  *Rebase and Push onto* ran a bare `--force-with-lease`, whose lease is the remote-tracking branch,
+  and the background fetch moves that: a fetch landing between the screen being drawn and the push
+  let the push through over what it brought in. Both now lease on the remote tip the repo shown had
+  (`PushForceAsync`, `--force-with-lease=refs/heads/<branch>:<sha>`), as Restore origin already did,
+  and a refusal says origin changed since gmd showed it; the unused `PushRefForceAsync`, a plain
+  `--force`, is gone. (2026-10-08)
+- A `~/.gmdconfig` cut short, by a crash in the middle of a write or two gmd instances writing at
+  once, stopped gmd on every start, with a stack trace, until it was found and deleted by hand
+  (`FileStore`, `FailFast` on a file that was not json). A file that cannot be read is now set aside
+  as `.gmdconfig.unreadable` and started anew, a file is written beside itself and renamed over, so
+  it is never half written, and a write reads the file afresh, so two instances no longer drop each
+  other's changes (the recent folders, a word added to the dictionary, the shown branches of a repo
+  open twice). (2026-10-08)
 
 ---
 
@@ -319,10 +333,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   Bugs fixed). Nothing in gmd starts such a thread today.
 - F5 does nothing inside the diff, blame and conflict views, where it only ever worked by falling
   through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
-- *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
-  ref, which gmd's background fetch keeps moving. A fetch that lands between the screen being drawn
-  and the push makes the lease pass over commits the user never saw. Pass the tip the user saw
-  (`--force-with-lease=<branch>:<sha>`).
 - Cmd+C cannot reach a terminal program at all on macOS: the terminal keeps it, the classic key
   protocol cannot express it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile
   binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
@@ -364,12 +374,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   in other worktrees; other worktrees' folders are not watched, so their change counts are up to
   thirty seconds behind; a submodule's `.git` file now makes it a root of its own too, which is right
   but new; the worktree dialog needs about 80 columns.
-- `FileStore` caches each file per process and never re-reads it, so with two gmd instances open
-  (one per worktree, say) every write of `~/.gmdconfig` — the recent folders on each repo open, the
-  git version on start, the update check, a word added to the spelling dictionary — is the writer's
-  stale copy plus its own change, and whichever instance writes last drops what the others saved.
-  `<repo>/.git/.gmdconfig` goes through the same store, so the same holds for a repo opened twice.
-  Re-read the file before writing, or merge the lists.
+- `FileStore` reads a file afresh only to write it (see Bugs fixed), and two instances writing at the
+  same moment can still each read before the other writes, so one change is lost; there is no lock.
+  Two writes of one field, e.g. the shown branches of a repo open twice, are last one wins, as they
+  always were. A write that fails, e.g. on a full disk or a read-only home, still stops gmd.
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
   hardware (the platform checklist in `CONTRIBUTING.md` has it, with the rest that only Windows and
   macOS show). Linux with no display is covered end to end; the tool path was checked with a stand-in
@@ -454,8 +462,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Refactoring roadmap** (from the 2026-09-11 review; A before B before C)
 
-- A, correctness, each with a regression test: `FileStore` (the lost-update bug above, an
-  unsynchronized cache, `FailFast` on a malformed config file); `Threading.AssertIsMainThread`
+- A, correctness, each with a regression test: `FileStore` (*done 2026-10-08:* the lost update, the
+  unsynchronized cache, a malformed file); `Threading.AssertIsMainThread`
   compares thread ids with `>` and so passes on any lower id; 13 `async void` handlers
   (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
   `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both

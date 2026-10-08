@@ -89,7 +89,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                     // rather than inside it, so every push of a branch with a remote was a force push.
                     using (status.Progress($"Force pushing '{branch.NiceNameUnique}'"))
                     {
-                        if (await server.PushCurrentBranchAsync(true, repo.Path) is Error ee)
+                        if (await server.ForcePushBranchAsync(repo.Repo, branch.Name) is Error ee)
                             return new Error($"Failed to push branch:\n{branch.Name}", ee);
                     }
 
