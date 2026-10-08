@@ -1,13 +1,32 @@
 # Gmd
 
+[![Build](https://github.com/michael-reichenauer/gmd/actions/workflows/build-and-release.yml/badge.svg?branch=main)](https://github.com/michael-reichenauer/gmd/actions/workflows/build-and-release.yml)
+[![Release](https://img.shields.io/github/v/release/michael-reichenauer/gmd)](https://github.com/michael-reichenauer/gmd/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/michael-reichenauer/gmd)](LICENSE)
+![Linux, macOS, Windows](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)
+
 Gmd is a Git client for the terminal, on Linux, macOS and Windows. It draws your history as a
 branch graph where **you choose which branches are shown**, so the log stays clean without
 rebasing or squashing. The everyday Git commands are in menus and on single keys, so you don't
 need to remember their syntax.
 
-![Gmd Animation](gmd/doc/Animation.gif)
+![Gmd in a terminal: the branch graph, two hidden branches shown, a diff, a search, a commit and a push](gmd/doc/Animation.gif)
 *Showing two hidden branches, one of them deleted long ago, a commit's diff, a search, then a
 commit, a push and an update of every shown branch.*
+
+## Quick Install
+
+On Linux and macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
+```
+
+On Windows, download and run
+[gmdSetup.exe](https://github.com/michael-reichenauer/gmd/releases/latest/download/gmdSetup.exe).
+
+Then run `gmd` in a Git repository. [Installation](#installation) has the details, and the files to
+install by hand.
 
 ## Why Gmd
 
@@ -122,9 +141,9 @@ Known limits:
 - Only the remote named `origin` is supported.
 - The colors assume a dark terminal: on a light theme gmd is drawn on black.
 - The log reads the latest 30,000 commits.
-- Git's questions, a password, a passphrase or whether to trust a host, are asked in a dialog, but
-  only for what you asked for: the fetch gmd runs in the background asks nothing, and says that `r`
-  fetches and asks. An ssh older than OpenSSH 8.4 (2020) still asks on the terminal.
+- A password, a passphrase or whether to trust a host is asked in a dialog, but only for a command
+  you ran. The fetch gmd runs in the background never asks: when it needs a login, it says so, and
+  `r` fetches and asks. An ssh older than OpenSSH 8.4 (2020) asks on the terminal instead.
 
 ## Gmd and AI Coding Agents
 
@@ -250,7 +269,7 @@ There is no release for Intel Macs. You don't need admin rights or `sudo` on any
 This one command picks the right file for your OS and CPU:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
 ```
 
 It downloads gmd to `~/gmd/gmd`, checks it against the release's checksums, and adds `~/gmd` to
@@ -260,7 +279,7 @@ open a new terminal, or run `. ~/.profile` (`. ~/.zprofile` on macOS).
 To install by hand instead, use the file for your platform from the table above:
 
 ```bash
-curl -sS -L --create-dirs -o ~/gmd/gmd https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux_x64
+curl -fsSL --create-dirs -o ~/gmd/gmd https://github.com/michael-reichenauer/gmd/releases/latest/download/gmd_linux_x64
 chmod +x ~/gmd/gmd
 echo 'export PATH=$PATH:~/gmd' >> ~/.profile
 . ~/.profile
