@@ -719,6 +719,8 @@ message.
   (`Setup/gmd.iss`). Do not drop them from the release workflow. `gmd.exe` is the one the README
   offers, since it runs as it is named. The release notes are written by the workflow
   (`Write release notes`): main's are its section of `CHANGELOG.md`, a preview's what is new on dev.
+  Only the latest five previews are kept (`Prune old previews`), with their tags, except a tag on
+  main's first-parent line, since the change log is made from the version tags there.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
 - `.git-blame-ignore-revs` lists the bulk reformat commits; `./installtools` points

@@ -249,3 +249,29 @@ jobs:
             gmd_linux
             gmd_windows
             SHA256SUMS
+
+      # Every push to dev makes a preview, and the updater only ever uses the newest stable release
+      # and the newest preview (gmd/Installation/Updater.cs), so the Releases page keeps the stable
+      # releases and the latest five previews. A preview's tag goes with it, unless it is on main's
+      # own line, where the change log reads the version tags from (Server/Private/ChangeLog.cs), or
+      # unknown here. Tidying only, so it never fails the run.
+      - name: Prune old previews
+        if: steps.build.outputs.isPublish == 'true'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MAIN_LINE="$(git rev-list --first-parent origin/main)"
+          gh release list --limit 1000 --exclude-drafts --json tagName,isPrerelease,createdAt \
+            --jq '[.[] | select(.isPrerelease)] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' |
+            while read -r TAG; do
+              SHA="$(git rev-parse -q --verify "$TAG^{commit}" || true)"
+              if [ -z "$SHA" ] || grep -qx "$SHA" <<< "$MAIN_LINE"; then
+                echo "Deleting the preview $TAG, keeping its tag"
+                gh release delete "$TAG" --yes || true
+              else
+                echo "Deleting the preview $TAG and its tag"
+                gh release delete "$TAG" --yes --cleanup-tag || true
+              fi
+            done
