@@ -490,6 +490,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Deferred, with the reasoning so it is not redone**
 
+- **The inference measured and published** (product review step 22, postponed 2026-10-08 to the
+  task that improves the inference, so that it is measured before and after). The plan:
+  `InferenceDumpTest` scores only the reflog, which a clone has none of, and merge subjects that
+  name the branch merged into, which check merges alone. Add a score for the ordinary commits: a
+  subject that names the branch merged in ('Merge branch 'x'', 'Merge pull request #n from a/x')
+  says the commits that came in only through that merge are x's. It is partly circular, since the
+  inference uses those subjects as evidence; independent truth is the commits of each pull request
+  from the GitHub API, for a sample. Run it on `--filter=blob:none` clones of a repository per
+  workflow (gitflow-avh, cli/cli and rails for pull requests merged with a merge commit, git/git
+  for topic branches merged by name, Terminal.Gui, sinatra) and on a frozen copy of this repo for
+  the reflog; sort the disagreements into wrong, naming (a branch renamed since) and ambiguous by
+  design; and publish in the README the share of commits on the right branch and the share honestly
+  ambiguous per workflow, with how it was measured, and that squash or rebase merged repositories
+  have nothing to infer. Whether to publish is decided once the numbers are seen.
+
 - **A second remote** (product review step 19, postponed 2026-10-08 to meet the need in use
   first). Why a user has more than one remote, most common first: a fork, `origin` being the
   user's own and `upstream` the original, pushed to never, only fetched to keep `main` up to date
