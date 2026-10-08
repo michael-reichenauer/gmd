@@ -89,7 +89,7 @@ public class StatusMessageTest
         gmd.Send("C-c");
 
         Assert.AreEqual(
-            "Select rows with Shift-↑↓ first, and Ctrl-C copies them",
+            "Select rows with ⇧↑↓ first, and Ctrl-C copies them",
             ScreenText.LastLine(gmd.WaitFor("Select rows"))
         );
     }

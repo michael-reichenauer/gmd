@@ -33,11 +33,11 @@ public class LostWorkRowsTest
     public void TestHeaderAndRow()
     {
         Assert.AreEqual(
-            "Time            Branch              Commits  Lost by   Subject             ",
+            "Time              Branch              Commits  Lost by   Subject        ",
             LostWorkRows.Header(LostWorkRows.MinWidth).ToString()
         );
         Assert.AreEqual(
-            "24-10-15 12:03  feature                   2  deleted   Feature work        ",
+            "2024-10-15 12:03  feature                   2  deleted   Feature work   ",
             LostWorkRows.Row(Work(LostBy.Deleted), LostWorkRows.MinWidth).ToString()
         );
     }
@@ -47,7 +47,7 @@ public class LostWorkRowsTest
     public void TestRowWithNoBranch()
     {
         Assert.AreEqual(
-            "24-10-15 12:03  -                         1  detached  Feature work        ",
+            "2024-10-15 12:03  -                         1  detached  Feature work   ",
             LostWorkRows.Row(Work(LostBy.Detached, branch: "", commits: 1), LostWorkRows.MinWidth).ToString()
         );
     }

@@ -26,6 +26,7 @@ public class BranchUndoTest
     [DataRow(StepKind.Uncommit, "", "Undo Uncommit")]
     [DataRow(StepKind.Reset, "", "Undo Reset")]
     [DataRow(StepKind.Squash, "Squashed", "Undo Squash")]
+    [DataRow(StepKind.Drop, "Debug logging", "Undo Drop 'Debug logging'")]
     [DataRow(StepKind.Other, "", "Undo Last Change")]
     [DataRow(StepKind.Commit, "", "Undo Commit")]
     [DataRow(

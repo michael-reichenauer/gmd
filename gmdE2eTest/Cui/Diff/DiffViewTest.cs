@@ -279,7 +279,8 @@ public class DiffViewTest
         gmd.WaitFor("Diff Menu");
     }
 
-    // The help opens from the diff as from the log view, and closing it is back in the diff
+    // The help opens from the diff as from the log view, at the part about the diff, and closing it
+    // is back in the diff
     [TestMethod]
     [DataRow("?")]
     [DataRow("F1")]
@@ -292,10 +293,54 @@ public class DiffViewTest
         gmd.WaitFor("Added: delta.txt");
 
         gmd.Send(key);
-        gmd.WaitFor("Gmd Help Guide");
+        var help = gmd.WaitFor("## Diff and Blame");
+        Assert.IsFalse(help.Contains("Gmd Help Guide"), "Scrolled to the section, past the top");
         gmd.Send("Escape");
 
-        StringAssert.Contains(gmd.WaitUntilGone("Gmd Help Guide"), "Added: delta.txt", "Back in the diff");
+        StringAssert.Contains(gmd.WaitUntilGone("## Diff and Blame"), "Added: delta.txt", "Back in the diff");
+    }
+
+    // Any two commits, wherever they are: Mark for Diff on one, and Diff with it in the menu of the
+    // other, which diffs the older to the newer. In the menu of 'Add beta', which opens on 'Amend ...'
+    // of the last commit, Mark for Diff is two moves down, past its own Amend and Squash, which are
+    // disabled, and Commit Diff; in the menu of 'Add delta', Diff with is one further.
+    [TestMethod]
+    public async Task TestADiffOfAnyTwoCommits()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var beta = (await repo.GitAsync("rev-parse \":/Add beta\"")).Trim()[..6];
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        for (int i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        PickCommitMenuItem(gmd, 2, "Mark for Diff");
+        Assert.AreEqual(
+            $"Marked {beta} for a diff: Diff with {beta} in the menu of another commit diffs the two",
+            ScreenText.LastLine(gmd.WaitFor($"Marked {beta}"))
+        );
+
+        gmd.Send("Home");
+        gmd.WaitForStable();
+        PickCommitMenuItem(gmd, 3, $"Diff with {beta}");
+
+        var diff = gmd.WaitFor($"Diff {beta} to 17d85b");
+        StringAssert.Contains(diff, "Added: delta.txt");
+        StringAssert.Contains(diff, "Added: gamma.txt", "And what the merge brought in between");
+    }
+
+    static void PickCommitMenuItem(TmuxSession gmd, int moves, string item)
+    {
+        gmd.Send("m");
+        gmd.WaitFor(item);
+        for (int i = 0; i < moves; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
     }
 
     // A range diff is the changes the selected commits made, which it only is for commits of one
@@ -320,7 +365,7 @@ public class DiffViewTest
         SelectTwoRowsFrom(gmd, 2);
         gmd.Send("C-d");
         Assert.AreEqual(
-            "The selected commits are on different branches: select commits of one branch",
+            "The selected commits are on different branches: Mark for Diff in the commit menu diffs any two",
             ScreenText.LastLine(gmd.WaitFor("different branches"))
         );
 

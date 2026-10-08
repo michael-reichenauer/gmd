@@ -1,5 +1,7 @@
+using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
+using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -42,6 +44,11 @@ class BlameView : IBlameView
     record BlameState(string Path, string Reference, int Index, int RowStartX);
 
     readonly IHelpDlg helpDlg;
+    readonly Config config;
+    KeyHintBar? hintBar;
+
+    // The bottom row, for the key hints, unless they are turned off
+    int HintsHeight => hintBar != null ? 1 : 0;
 
     public BlameView(
         IBlameService blameService,
@@ -50,10 +57,12 @@ class BlameView : IBlameView
         IDiffView diffView,
         IClipboardService clipboard,
         Func<ICommitDetailsView> newDetailsView,
-        IHelpDlg helpDlg
+        IHelpDlg helpDlg,
+        Config config
     )
     {
         this.helpDlg = helpDlg;
+        this.config = config;
         this.blameService = blameService;
         this.server = server;
         this.progress = progress;
@@ -97,21 +106,41 @@ class BlameView : IBlameView
             ColorScheme = ColorSchemes.Border,
         };
 
+        hintBar = config.ShowKeyHints
+            ? new KeyHintBar(
+                () =>
+                    KeyHints.ForBlame(
+                        isShowDetails,
+                        CurrentRow?.Commit.PreviousId is not (null or ""),
+                        backStack.Count > 0
+                    ),
+                () => null
+            )
+            : null;
+
         contentView = new ContentView(OnGetContent)
         {
             X = 0,
             Y = 2,
             Width = Dim.Fill(),
-            Height = Dim.Fill(),
+            Height = Dim.Fill(HintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
             IsCursorMargin = false,
             IsCustomShowSelection = true,
         };
 
+        // Above the key hints, as the log view has its details
         detailsView = newDetailsView();
+        detailsView.View.Y = Pos.AnchorEnd(CommitDetailsView.ContentHeight + HintsHeight);
 
         blameView.Add(header, border, contentView, detailsView.View);
+        if (hintBar is KeyHintBar bar)
+        {
+            blameView.Add(bar);
+            // 'p' and Backspace are offered for the line's commit, and for having stepped back
+            contentView.CurrentIndexChange += () => bar.SetNeedsDisplay();
+        }
         RegisterShortcuts(contentView);
         detailsView.View.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
         detailsView.View.RegisterKeyHandler(Key.Enter, ToggleDetails);
@@ -130,8 +159,9 @@ class BlameView : IBlameView
         // Letters in both cases, since the menu writes them in upper case. The view is modal (see
         // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
         view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
-        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show()); // The help, as in every view
-        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show());
+        // The help, as in every view, at the part about this one
+        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show(HelpDlg.DiffSection));
+        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show(HelpDlg.DiffSection));
 
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
@@ -148,11 +178,15 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-CommitDetailsView.ContentHeight));
         view.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(CommitDetailsView.ContentHeight));
         view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
-        view.RegisterLetterHandler(Key.i, CycleDetails);
+        view.RegisterLetterHandler(Key.g, CycleDetails); // The gutter
         view.RegisterLetterHandler(Key.d, ShowLineCommitDiff);
+        view.RegisterLetterHandler(Key.l, ShowLineHistory);
         view.RegisterLetterHandler(Key.p, BlamePrevious);
         view.RegisterKeyHandler(Key.Backspace, Back);
-        view.RegisterLetterHandler(Key.c, CopyLineSha);
+        // The line's commit id and message, as 'i' and Shift-I copy a commit's in the log view, so
+        // one case each rather than both
+        view.RegisterKeyHandler(Key.i, CopyLineId);
+        view.RegisterKeyHandler(Key.I, CopyLineMessage);
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
@@ -236,13 +270,13 @@ class BlameView : IBlameView
 
         if (isShowDetails)
         {
-            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight);
+            contentView.Height = Dim.Fill(CommitDetailsView.ContentHeight + HintsHeight);
             detailsView.View.Height = CommitDetailsView.ContentHeight;
             OnCurrentIndexChange();
         }
         else
         {
-            contentView.Height = Dim.Fill();
+            contentView.Height = Dim.Fill(HintsHeight);
             detailsView.View.Height = 0;
             contentView.IsFocus = true;
             detailsView.View.IsFocus = false;
@@ -250,6 +284,7 @@ class BlameView : IBlameView
 
         contentView.SetNeedsDisplay();
         detailsView.View.SetNeedsDisplay();
+        hintBar?.SetNeedsDisplay(); // Enter shows or hides the details
     }
 
     // Focus moves to the details so a long commit message can be scrolled, as in the log view.
@@ -327,6 +362,63 @@ class BlameView : IBlameView
         contentView.SetNeedsDisplay();
     }
 
+    // The lines a line history is of: the selected ones, or the current one, as indexes
+    (int First, int Last) HistoryLines =>
+        IsSelected
+            ? (contentView.SelectStartIndex, contentView.SelectStartIndex + contentView.SelectCount - 1)
+            : (contentView.CurrentIndex, contentView.CurrentIndex);
+
+    string HistoryName()
+    {
+        var (first, last) = HistoryLines;
+        return first == last ? $"History of Line {first + 1}" : $"History of Lines {first + 1}-{last + 1}";
+    }
+
+    // Every commit that changed the selected lines, or the current one, each with the diff of those
+    // lines alone ('git log -L'), shown as a file history is: how they came to be as they are, where
+    // the blame says only who changed each last. The lines are numbered as the file was blamed, and
+    // for the working tree git counts them in the last commit, so a file with changes not committed,
+    // which can have moved them, is refused rather than shown the history of other lines.
+    async void ShowLineHistory()
+    {
+        if (CurrentRow == null)
+            return;
+        var path = blame.Path;
+        if (blame.Reference == "" && IsChanged(path))
+        {
+            UI.InfoMessage(
+                "History of Lines",
+                $"'{path}' has changes not committed, which can move its lines:\n"
+                    + "commit or stash them first, or blame the file from a commit."
+            );
+            return;
+        }
+
+        var (first, last) = HistoryLines;
+        var (firstLine, lastLine) = (blame.Lines[first].LineNbr, blame.Lines[last].LineNbr);
+        var reference = blame.Reference;
+        DiffReload reload = _ => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, repo.Path);
+        Server.CommitDiff[] diffs;
+        using (progress.Show())
+        {
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not Server.CommitDiff[] loaded)
+            {
+                UI.ErrorMessage($"Failed to get the history of the lines\n{diffsResult.Error.AllMessages()}");
+                return;
+            }
+            diffs = loaded;
+        }
+
+        diffView.Show(diffs, repo.Path, reload);
+        contentView.SetNeedsDisplay();
+    }
+
+    bool IsChanged(string path) =>
+        repo.Status.ModifiedFiles.Contains(path)
+        || repo.Status.RenamedTargetFiles.Contains(path)
+        || repo.Status.AddedFiles.Contains(path);
+
     // Blames the file as it was before the current line's commit, which is how a reformat or a
     // rename is stepped past to the change that actually matters. The porcelain 'previous' key is
     // used rather than '<sha>^' and the same path, since it carries the name before a rename.
@@ -400,13 +492,29 @@ class BlameView : IBlameView
         contentView.ClearSelection();
     }
 
-    void CopyLineSha()
+    void CopyLineId()
     {
         var row = CurrentRow;
         if (row == null || row.Commit.IsUncommitted)
             return;
 
         if (clipboard.Set(row.Commit.Id) is Error e)
+            UI.ErrorMessage(e.AllMessages());
+    }
+
+    // The whole message, which the blame does not have, only its subject: the shown log has it, as
+    // for the details pane (OnCurrentIndexChange), and the subject is the fallback for a commit
+    // beyond the log's cap
+    void CopyLineMessage()
+    {
+        var row = CurrentRow;
+        if (row == null || row.Commit.IsUncommitted)
+            return;
+
+        var message = repo.CommitById.TryGetValue(row.Commit.Id, out var commit)
+            ? commit.Message.TrimEnd()
+            : row.Commit.Subject;
+        if (clipboard.Set(message) is Error e)
             UI.ErrorMessage(e.AllMessages());
     }
 
@@ -426,6 +534,7 @@ class BlameView : IBlameView
                     () => ShowLineCommitDiff(),
                     () => c != null
                 )
+                .Item(HistoryName(), "l", () => ShowLineHistory(), () => c != null)
                 .Item(
                     hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()})" : "Blame Previous Version",
                     "p",
@@ -436,11 +545,12 @@ class BlameView : IBlameView
                 .Separator()
                 .SubMenu("Scroll to Commit", "", GetScrollToItems())
                 .Item("Commit Details", "Enter", () => ToggleDetails())
-                .Item($"Gutter Detail ({details})", "i", () => CycleDetails())
+                .Item($"Gutter Detail ({details})", "g", () => CycleDetails())
                 .Item("Reset Horizontal Scroll", "", () => ResetScroll(), () => rowStartX > 0)
                 .Separator()
                 .Item("Copy Selected Lines", "Ctrl-C", () => OnCopy(), () => IsSelected)
-                .Item("Copy Commit Id of Line", "c", () => CopyLineSha(), () => c != null && !c.IsUncommitted)
+                .Item("Copy Commit Id of Line", "i", () => CopyLineId(), () => c != null && !c.IsUncommitted)
+                .Item("Copy Commit Message of Line", "⇧i", () => CopyLineMessage(), () => c != null && !c.IsUncommitted)
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
     }

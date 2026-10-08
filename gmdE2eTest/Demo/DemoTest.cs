@@ -12,6 +12,7 @@ namespace gmdE2eTest.Demo;
 // The story: a repository where only your own branch and main are shown, two other branches
 // brought in (one from the branch menu, one from the marker where it was merged), a look at a
 // commit and its diff, a search, and then committing, pushing and updating the other branches.
+// A caption under the screen says what each part shows (DemoRecording.Caption).
 [TestClass]
 public class DemoTest
 {
@@ -37,15 +38,20 @@ public class DemoTest
 
         // The log: the current branch and main, and ┣╮ markers where hidden branches come and go
         gmd.WaitFor("Initial project setup");
+        demo.Caption(
+            "Only your branch and main are shown: the short marks on main are where hidden branches come and go"
+        );
         demo.Frame(3.5, "log");
 
-        // Shift → opens the branch menu, and 'Active' lists the branches still in use
+        // Shift-→ opens the Show Branch menu, and 'Active' lists the branches still in use
         gmd.Send("S-Right");
-        gmd.WaitFor("Open Branch");
+        gmd.WaitFor("Show Branch (type to find)");
+        demo.Caption("⇧→ shows another branch: type to find it, or pick it from a list");
         demo.Frame(1.2, "menu");
         Press(gmd, demo, "Down", 0.6);
         gmd.Send("Right");
         gmd.WaitFor("Show All Active");
+        demo.Caption("Active lists the branches still worked on");
         demo.Frame(1.5, "active");
 
         // Down past 'Show All Active', bugfix/cart-total, feature/dark-mode and feature/login
@@ -53,10 +59,12 @@ public class DemoTest
             Press(gmd, demo, "Down", i < 3 ? 0.35 : 1);
         gmd.Send("Enter");
         gmd.WaitFor("Search by category");
+        demo.Caption("feature/search is shown, in a column and a color of its own");
         demo.Frame(3, "search-shown");
 
         // Down to where feature/checkout was merged, left to highlight main there, and enter
         // shows the branch that came in, which was deleted since and so is drawn in gray
+        demo.Caption("Enter where a branch was merged shows it, even one deleted long ago, drawn in gray");
         for (int i = 0; i < 7; i++)
             Press(gmd, demo, "Down", i < 6 ? 0.2 : 0.8);
         Press(gmd, demo, "Left", 0.8);
@@ -66,6 +74,7 @@ public class DemoTest
 
         // Right off the branches to the commit, which showing the branch moved to, up to a commit
         // on feature/search, and its details and diff
+        demo.Caption("Enter shows the details of a commit, and d its diff");
         Press(gmd, demo, "Right", 0.3);
         Press(gmd, demo, "Right", 0.5);
         for (int i = 0; i < 7; i++)
@@ -75,9 +84,11 @@ public class DemoTest
         demo.Frame(2.5, "details");
         gmd.Send("d");
         gmd.WaitFor("Modified: src/search.js");
+        demo.Caption("The diff, side by side");
         demo.Frame(4, "diff");
         gmd.Send("Escape");
         gmd.WaitUntilGone("Modified: src/search.js");
+        demo.Caption("");
         demo.Frame(0.8);
         gmd.Send("Enter");
         gmd.WaitUntilGone("Children:");
@@ -86,11 +97,13 @@ public class DemoTest
         // Search: the log narrows to the matching commits as you type
         gmd.Send("f");
         gmd.WaitFor("Filter Commits");
+        demo.Caption("f searches: the log narrows to the matching commits as you type");
         demo.Frame(0.8, "filter");
         demo.Type("cart", 0.25);
         demo.Frame(2.5, "filtered");
         gmd.Send("Escape");
         gmd.WaitUntilGone("Filter Commits");
+        demo.Caption("");
         demo.Frame(1);
 
         // Commit the work in progress, push it, and update main, which was behind origin. From the
@@ -98,18 +111,22 @@ public class DemoTest
         Press(gmd, demo, "Home", 0.8);
         gmd.Send("c");
         gmd.WaitFor("Commit 1 change");
+        demo.Caption("c commits the changes, with the files to commit ticked");
         demo.Frame(1, "commit-dialog");
         demo.Type("Add password reset link", 0.08);
         demo.Frame(1);
         gmd.Send("M-o");
         gmd.WaitUntilGone("Commit 1 change");
         gmd.WaitUntilGone("uncommitted changes");
+        demo.Caption("Committed: ▲ says it is not pushed yet");
         demo.Frame(2.5, "committed");
         gmd.Send("p");
         gmd.WaitUntilGone("▲");
+        demo.Caption("p pushed it");
         demo.Frame(2.5, "pushed");
         gmd.Send("U");
         gmd.WaitUntilGone("▼");
+        demo.Caption("⇧u pulled every shown branch: main, which was behind origin (▼), is up to date");
         demo.Frame(3.5, "updated");
 
         demo.Save(CastPath);
@@ -131,8 +148,8 @@ public class DemoTest
     static string Rewrite(string screen, string repoPath)
     {
         var today = DateTime.UtcNow;
-        var dates = string.Join("|", new[] { today.AddDays(-1), today }.Select(d => d.ToString("yy-MM-dd")));
-        var now = DemoRepo.Now.ToString("yy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        var dates = string.Join("|", new[] { today.AddDays(-1), today }.Select(d => d.ToString("yyyy-MM-dd")));
+        var now = DemoRepo.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
         screen = screen.Replace(repoPath, $"/{DemoRepo.RelativePath}");
         return Regex.Replace(screen, $@"\b({dates}) \d\d:\d\d\b", now);

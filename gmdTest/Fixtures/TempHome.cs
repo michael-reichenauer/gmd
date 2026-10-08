@@ -37,12 +37,17 @@ sealed class TempHome : IDisposable
     // The key-hint line is off unless asked for. It is the bottom row of the screen, so with it on
     // every snapshot of a whole screen would be the rows it asserts, then thirty blank ones, then
     // the hints; the tests about the hints turn it on.
-    static string ConfigJson(bool isKeyHints) =>
+    //
+    // The tip about hidden branches, which the first repository with some shows on the status line
+    // for fifteen seconds, is taken as told unless asked for, for the same reason: it is drawn over
+    // the bottom row, and every test opens a repository for the first time.
+    static string ConfigJson(bool isKeyHints, bool isHiddenBranchesTip) =>
         $$"""
             {
               "CheckUpdates": false,
               "AutoUpdate": false,
-              "ShowKeyHints": {{(isKeyHints ? "true" : "false")}}
+              "ShowKeyHints": {{(isKeyHints ? "true" : "false")}},
+              "IsHiddenBranchesTold": {{(isHiddenBranchesTip ? "false" : "true")}}
             }
             """;
 
@@ -51,11 +56,11 @@ sealed class TempHome : IDisposable
     // The folder to point HOME at
     public string Path { get; }
 
-    public static TempHome Create(bool isKeyHints = false)
+    public static TempHome Create(bool isKeyHints = false, bool isHiddenBranchesTip = false)
     {
         var path = IOPath.Join(IOPath.GetTempPath(), $"{FolderPrefix}{Guid.NewGuid():N}");
         var home = new TempHome(path);
-        home.Init(isKeyHints);
+        home.Init(isKeyHints, isHiddenBranchesTip);
         return home;
     }
 
@@ -85,7 +90,7 @@ sealed class TempHome : IDisposable
             Log.Warn($"Failed to delete temp home '{Path}', {e}");
     }
 
-    void Init(bool isKeyHints)
+    void Init(bool isKeyHints, bool isHiddenBranchesTip)
     {
         // All three have to exist before gmd starts: ConfigLogger's static constructor writes
         // the log file and fails fast if it cannot
@@ -93,6 +98,6 @@ sealed class TempHome : IDisposable
         Directory.CreateDirectory(IOPath.Join(Path, ".config"));
         Directory.CreateDirectory(IOPath.Join(Path, "tmp"));
 
-        File.WriteAllText(IOPath.Join(Path, ".gmdconfig"), ConfigJson(isKeyHints));
+        File.WriteAllText(IOPath.Join(Path, ".gmdconfig"), ConfigJson(isKeyHints, isHiddenBranchesTip));
     }
 }

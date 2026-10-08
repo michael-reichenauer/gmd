@@ -195,10 +195,15 @@ class RepoCommands : IRepoCommands
             return Result.Ok;
         });
 
+    // Discard All Changes and Ignored Files, in the commit menu's Undo. The question lists what
+    // would be deleted, as git's dry run of the same clean has it.
     public void CleanWorkingFolder() =>
         Do(async () =>
         {
-            if (!Confirm.CleanWorkingFolder())
+            var toDeleteResult = await server.GetFilesToCleanAsync(repo.Path);
+            if (toDeleteResult is not IReadOnlyList<string> toDelete)
+                return new Error("Failed to list the files to delete", toDeleteResult.Error);
+            if (!Confirm.CleanWorkingFolder(toDelete))
                 return Result.Ok;
 
             if (await server.CleanWorkingFolderAsync(repo.Path) is Error e)
@@ -307,7 +312,7 @@ class RepoCommands : IRepoCommands
             + $"{FileList(s.ConflictsFiles)}\n\n"
             + "Resolve them in the diff of the uncommitted changes, where Enter\n"
             + $"on a file opens it, then {finish}.\n"
-            + "Shift-M opens the repo menu, to abort it later.";
+            + "⇧m opens the repo menu, to abort it later.";
 
         var choice = UI.InfoMessage(
             $"{name} Stopped on Conflicts",
@@ -444,14 +449,19 @@ class RepoCommands : IRepoCommands
 
     void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 
+    // The id or the message of the commit on the cursor's row (i, Shift-I), the commonest things
+    // copied from a log. The uncommitted changes have neither yet.
     public void CopyCommitId() =>
         Do(async () =>
         {
             await Task.Yield();
             var commit = repo.RowCommit;
+            if (commit.IsUncommitted)
+                return new Notice(WhyNoCopy);
             if (clipboard.Set(commit.Id) is Error e)
                 return new Error("Failed to copy the commit id", e);
 
+            status.Info($"Copied the id of {commit.Sid}");
             return Result.Ok;
         });
 
@@ -460,9 +470,14 @@ class RepoCommands : IRepoCommands
         {
             await Task.Yield();
             var commit = repo.RowCommit;
+            if (commit.IsUncommitted)
+                return new Notice(WhyNoCopy);
             if (clipboard.Set(commit.Message.TrimEnd()) is Error e)
                 return new Error("Failed to copy the commit message", e);
 
+            status.Info($"Copied the message of {commit.Sid}");
             return Result.Ok;
         });
+
+    internal const string WhyNoCopy = "The uncommitted changes are no commit yet: move to one first";
 }

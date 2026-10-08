@@ -29,11 +29,11 @@ public class KeyHintTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
 
 
 
@@ -56,13 +56,13 @@ public class KeyHintTest
 
         gmd.Send("Left");
         Assert.AreEqual(
-            "main:  m menu  e merge from  ⇧e merge to  d diff  b new branch | ? help",
-            Hints(gmd.WaitFor("merge from"))
+            "main:  m menu  e merge into main  ⇧e merge main into  d diff  b new branch | ? help",
+            Hints(gmd.WaitFor("merge into main"))
         );
 
         gmd.Send("Down");
         Assert.AreEqual(
-            "main:  m menu  e merge from  ⇧e merge to  Enter show/hide  d diff  b new branch | ? help",
+            "main:  m menu  e merge into main  ⇧e merge main into  Enter show/hide  d diff  b new branch | ? help",
             Hints(gmd.WaitFor("show/hide"))
         );
 
@@ -87,11 +87,11 @@ public class KeyHintTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
 
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             Id:         17d85ba889a1084f912c412d0ce435c9d7a36f53  ({repo})
@@ -122,7 +122,7 @@ public class KeyHintTest
     }
 
     // The filter has the keyboard while it is up, so the line is about the filter, including the
-    // 'file:' term, which nothing else on screen tells of
+    // 'file:' and 'change:' terms, which nothing else on screen tells of
     [TestMethod]
     public async Task TestTheHintsAreAboutTheFilterWhileItIsUp()
     {
@@ -133,7 +133,7 @@ public class KeyHintTest
         gmd.Send("f");
 
         Assert.AreEqual(
-            "↑↓ select  Enter show in the log  Esc back  file: search changed files | ? help",
+            "↑↓ select  Enter show in the log  Esc back  file: search changed files  change: search changes | ? help",
             Hints(gmd.WaitFor("Esc back"))
         );
     }
@@ -162,5 +162,22 @@ public class KeyHintTest
     }
 
     // The hints, with the stretch of border between them and the help written ' | '
+    // The diff view has a line of its own, as do blame and the resolver (see their tests): its keys,
+    // the way back first, and nothing about the log, which is behind it and takes no keys
+    [TestMethod]
+    public async Task TestTheDiffHasHintsOfItsOwn()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
+        gmd.WaitFor("d diff");
+
+        gmd.Send("d");
+
+        Assert.AreEqual(
+            "m menu  Esc close  + - context  s to file  ←→ columns | ? help",
+            Hints(gmd.WaitFor("Esc close"))
+        );
+    }
+
     static string Hints(string screen) => Regex.Replace(ScreenText.LastLine(screen), " ─+ ", " | ");
 }

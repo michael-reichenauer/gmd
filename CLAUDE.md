@@ -148,15 +148,17 @@ Key types and flow:
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
   on — what most keys act on — as state and index math with no view, so it is unit testable.
   `KeyHints.cs` decides the key-hint line at the bottom, the keys that do something where the
-  cursor is, again with no view; `KeyHintBar` draws it. When a key's behavior changes, check the
-  hint for it.
+  cursor is, again with no view; `KeyHintBar` draws it. The diff, blame and conflict views have a
+  `KeyHintBar` of their own (`KeyHints.ForDiff`, `ForBlame`, `ForConflict`). When a key's behavior
+  changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
   `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`,
   run through `CommandRunner`), menus into `*Menu.cs`.
   A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
   reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
-  its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"Shift-P"` for P,
-  the help does the same, and the key-hint line writes a shifted letter as `⇧p`. Item names are
+  its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"⇧p"` for P, as the
+  key-hint line writes it, and so are the keys named in status messages and in the reasons a greyed
+  out item gives; the help and the README write `Shift-P` in their text. Item names are
   plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
 - `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
   branch graph.
@@ -168,7 +170,7 @@ Key types and flow:
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
   `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally. `ListDlg` is
   the dialog of a list to pick a row from, with a button and a key per action (Worktrees, Recover
-  Lost Commits, Restore Deleted Branch); the rows are drawn by a `*Rows` class beside the dialog.
+  Lost Commits, Restore Deleted Branch, Tags); the rows are drawn by a `*Rows` class beside the dialog.
 - Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
   WeCantSpell.Hunspell over the SCOWL en_US dictionary embedded from `gmd/doc/spelling/` (or the
   user's own, `Config.SpellDictionary`; added words go to `Config.SpellWords`), and `SpellScanner`
@@ -616,7 +618,8 @@ The same machinery records the README's animation, `gmd/doc/Animation.gif`, whic
 re-records. `gmdE2eTest/Demo/DemoTest.cs` is the script: an end-to-end test in all but asserting,
 run only when `./demo` names a cast file for it (skipped otherwise), on `DemoRepo`, a repository
 made to look like a team's. `DemoRecording` turns the settled screens into an asciicast, each shown
-for as long as the script says rather than as long as it took, and `./demo` renders that with agg,
+for as long as the script says rather than as long as it took, with a caption bar under them that
+says what the frames show, and `./demo` renders that with agg,
 which `./installtools` installs with its fonts. Everything is pinned, including what would differ
 between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
 byte for byte the same and the GIF only changes when what gmd draws does. When gmd's UI changes in
@@ -644,7 +647,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `BlameColumns` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
@@ -690,6 +693,16 @@ message.
   call, because a `rebase --continue` opening the user's editor would hang gmd behind the terminal
   it owns. It is done there and not per command line because `GIT_EDITOR` beats
   `-c core.editor=…`, so a flag is silently ineffective for any user who has that set.
+- **No git process gmd starts can ask on the terminal either.** `Cmd.NeverAskOnTheTerminal` sets
+  `GIT_TERMINAL_PROMPT=0` and `SSH_ASKPASS_REQUIRE=force` with gmd itself as `SSH_ASKPASS`, and
+  stdin is a pipe closed at once: a passphrase prompt drawn over the UI took the keys typed for gmd.
+  gmd started as the askpass (`GMD_ASKPASS=1`, checked first thing in `Main`) asks the gmd that ran
+  the git, over a named pipe with a token (`Askpass`, `AskpassServer`), which shows `LoginDlg` and
+  sends the answer back. A command run in the background must not raise a dialog by itself: start
+  it inside `using (Askpass.NeverAsk())` (an AsyncLocal, so it reaches `Cmd` through the awaits),
+  as the background fetch and the metadata sync are. What failed is said on stderr, where
+  `LoginError` finds it; wrap every remote command's result in `LoginError.ToLogin`, and show
+  remote errors with `LoginError.Text`. CONTRIBUTING.md has how to try the dialog by hand.
 - **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
   resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the
   `GitDirPath` (HEAD, the index, a stopped merge) and the `CommonDirPath` (refs, config,
@@ -724,4 +737,5 @@ message.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
   once `./test` passes, so that the git log and its diffs are the review. Push only when asked.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (embedded into the
-  binary as a resource) needs updating too.
+  binary as a resource) needs updating too, and the known limits under *Is Gmd for You?* in the
+  README when one of them is lifted. The development half of the old README is `CONTRIBUTING.md`.

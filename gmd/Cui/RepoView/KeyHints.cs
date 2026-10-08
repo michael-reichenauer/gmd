@@ -50,6 +50,49 @@ static class KeyHints
             new("Enter", "show in the log"),
             new("Esc", "back"),
             new("file:", "search changed files"),
+            new("change:", "search changes"),
+        ];
+
+    // The side views' lines, drawn by a KeyHintBar of their own. 'Esc close' comes early in each,
+    // since getting back to the log is the first thing to know in a view that covers it.
+    public static IReadOnlyList<KeyHint> ForDiff(bool isUncommitted, bool hasConflicts)
+    {
+        List<KeyHint> hints = [Menu, new("Esc", "close")];
+        if (hasConflicts)
+            hints.Add(new("Enter", "resolve"));
+        if (isUncommitted)
+            hints.Add(new("c", "commit"));
+        hints.AddRange([new("+ -", "context"), new("s", "to file")]);
+        if (isUncommitted)
+            hints.Add(new("u", "discard"));
+        hints.Add(new("←→", "columns"));
+        return hints;
+    }
+
+    public static IReadOnlyList<KeyHint> ForBlame(bool isDetailsShown, bool hasPrevious, bool canGoBack)
+    {
+        List<KeyHint> hints = [Menu, new("Esc", "close"), new("Enter", isDetailsShown ? "hide details" : "details")];
+        hints.Add(new("d", "diff"));
+        hints.Add(new("l", "line history"));
+        if (hasPrevious)
+            hints.Add(new("p", "previous"));
+        if (canGoBack)
+            hints.Add(new("Backspace", "back"));
+        hints.AddRange([new("i", "copy id"), new("g", "gutter")]);
+        return hints;
+    }
+
+    // 1, 2, 3, 4 and 0 are said by the resolver's own result pane, for the conflict under the cursor
+    public static IReadOnlyList<KeyHint> ForConflict() =>
+        [
+            Menu,
+            new("Esc", "close"),
+            new("] [", "next, previous"),
+            new("s", "save"),
+            new("e", "edit"),
+            new("b", "ancestor"),
+            new("a", "whole file"),
+            new("u", "clear"),
         ];
 
     // The hints on one line of the given width, set into the border: as many as fit, from the left,
@@ -157,16 +200,19 @@ static class KeyHints
         if (isOnRow)
             hints.Add(Menu);
 
+        // Worded as the merge items are, naming the current branch, so 'merge into main' says the
+        // same in either case: e merges a branch into the current one
+        var current = repo.Repo.CurrentBranch().ShortNiceUniqueName();
         if (branch.IsCurrent)
         {
             if (status.IsOk)
-                hints.AddRange([new("e", "merge from"), new("⇧e", "merge to")]);
+                hints.AddRange([new("e", $"merge into {current}"), new("⇧e", $"merge {current} into")]);
         }
         else
         {
             hints.Add(new("s", "switch"));
             if (status.IsOk)
-                hints.Add(new("e", "merge"));
+                hints.Add(new("e", $"merge into {current}"));
         }
 
         // Enter shows or hides the branches meeting at the commit, the branch itself too at its tip

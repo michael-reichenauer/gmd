@@ -22,6 +22,7 @@ public class MenuShortcutsTest
         CollectionAssert.AreEqual(new[] { (Key)'?', Key.F1 }, Keys("?, F1"));
         CollectionAssert.AreEqual(new[] { Key.D1 }, Keys("1"));
         CollectionAssert.AreEqual(new[] { (Key)'+' }, Keys("+"));
+        CollectionAssert.AreEqual(new[] { (Key)'E' }, Keys("⇧e"), "As the menus write a shifted letter");
         CollectionAssert.AreEqual(new[] { Key.C | Key.CtrlMask }, Keys("Ctrl-C"));
         CollectionAssert.AreEqual(new[] { Key.W | Key.AltMask }, Keys("Alt-W"));
         CollectionAssert.AreEqual(new[] { Key.F7 }, Keys("F7"));
@@ -33,7 +34,9 @@ public class MenuShortcutsTest
     public void TestWhatIsNotAKeyOfTheMenuGivesNone()
     {
         CollectionAssert.AreEqual(new[] { Key.q }, Keys("Q, Esc"), "Esc closes the menu");
-        foreach (var shortcut in new[] { "", "Enter", "Esc", "Esc ", "←", "→", "Shift →", "'M R'", "(no suggestions)" })
+        foreach (
+            var shortcut in new[] { "", "Enter", "Esc", "Esc ", "←", "→", "⇧→", "Shift-→", "'M R'", "(no suggestions)" }
+        )
             Assert.AreEqual(0, Keys(shortcut).Length, $"'{shortcut}' should give no key");
     }
 
@@ -53,7 +56,7 @@ public class MenuShortcutsTest
     [TestMethod]
     public void TestAShiftLetterIsItsOwnItem()
     {
-        var keys = MenuShortcuts.Of([Item("Push All Branches", "Shift-P"), Item("Push", "P")]);
+        var keys = MenuShortcuts.Of([Item("Push All Branches", "⇧p"), Item("Push", "P")]);
 
         Assert.AreEqual(1, keys[Key.p]);
         Assert.AreEqual(0, keys[Key.P]);
@@ -65,13 +68,7 @@ public class MenuShortcutsTest
     [TestMethod]
     public void TestADisabledItemKeepsItsKey()
     {
-        var keys = MenuShortcuts.Of([
-            Item("Push", "P"),
-            Item("Push All Branches", "Shift-P") with
-            {
-                IsDisabled = true,
-            },
-        ]);
+        var keys = MenuShortcuts.Of([Item("Push", "P"), Item("Push All Branches", "⇧p") with { IsDisabled = true }]);
 
         Assert.AreEqual(0, keys[Key.p]);
         Assert.AreEqual(1, keys[Key.P], "The greyed out item, which says why");

@@ -155,11 +155,22 @@ class FakeGit : IGit
     public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
         throw new NotSupportedException();
+
+    public Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    ) => throw new NotSupportedException();
 
     public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
         throw new NotSupportedException();
@@ -198,6 +209,15 @@ class FakeGit : IGit
     {
         IdsChangingFilesCalls.Add(pathText);
         IReadOnlyList<string> ids = IdsChangingFiles.TryGetValue(pathText, out var found) ? found : [];
+        return Task.FromResult<Result<IReadOnlyList<string>>>(ids.ToList());
+    }
+
+    // The commits each text was added or removed in, for the search's 'change:', by text
+    public Dictionary<string, IReadOnlyList<string>> IdsChangingText { get; } = [];
+
+    public Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd)
+    {
+        IReadOnlyList<string> ids = IdsChangingText.TryGetValue(text, out var found) ? found : [];
         return Task.FromResult<Result<IReadOnlyList<string>>>(ids.ToList());
     }
 
@@ -310,6 +330,15 @@ class FakeGit : IGit
 
     public Task<Result> CleanWorkingFolderAsync(string wd) => throw new NotSupportedException();
 
+    public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result> AutosquashAsync(string baseId, string wd) => throw new NotSupportedException();
+
+    public Task<Result> DropCommitAsync(string id, string wd) => throw new NotSupportedException();
+
+    public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) => throw new NotSupportedException();
 
     public Task<Result> UncommitLastCommitAsync(string wd) => throw new NotSupportedException();
@@ -321,6 +350,8 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => throw new NotSupportedException();
 
     public Task<Result> StashPopAsync(string name, string wd) => throw new NotSupportedException();
+
+    public Task<Result> StashApplyAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> StashDropAsync(string name, string wd) => throw new NotSupportedException();
 
@@ -335,6 +366,9 @@ class FakeGit : IGit
     public Task<Result> RemoveTagAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> PushTagAsync(string name, string wd) => throw new NotSupportedException();
+
+    public Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd) =>
+        throw new NotSupportedException();
 
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => throw new NotSupportedException();
 

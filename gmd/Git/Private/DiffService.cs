@@ -8,6 +8,13 @@ interface IDiffService
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    );
     Task<Result<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
     Task<Result<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
     Task<Result> RunDiffToolAsync(string path, string wd);
@@ -118,6 +125,28 @@ class DiffService : IDiffService
         {
             Message = "Uncommitted changes",
         };
+    }
+
+    // Every commit that changed the lines, newest first, each with the diff of those lines alone, as
+    // they were in the file at the reference, or at HEAD for "": 'git log -L', which follows the
+    // lines through the changes above them that moved them. It has no context lines to ask for.
+    public async Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    )
+    {
+        var args = $"log --date=iso \"-L{firstLine},{lastLine}:{path}\" {reference}".TrimEnd();
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
+
+        var commitDiffs = ParseCommitDiffs(output, path, false);
+        if (!commitDiffs.Any())
+            return new Error("Failed to parse the history of the lines");
+        return commitDiffs.ToArray();
     }
 
     public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)

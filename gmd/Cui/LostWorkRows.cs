@@ -13,14 +13,15 @@ namespace gmd.Cui;
 //     24-10-15 12:01  main                      1  amend     Second
 static class LostWorkRows
 {
-    const int TimeWidth = 16;
+    const int TimeWidth = 18; // 'yyyy-MM-dd HH:mm' and two spaces
     const int BranchWidth = 20;
     const int CommitsWidth = 9;
     const int LostByWidth = 10;
     const int FixedWidth = TimeWidth + BranchWidth + CommitsWidth + LostByWidth;
 
-    // Narrower than this and the subject column has no room to say anything
-    public const int MinWidth = FixedWidth + 20;
+    // Narrower than this and the subject column has no room to say anything. The dialog is six wider,
+    // and fits an 80 column terminal, the classic size.
+    public const int MinWidth = FixedWidth + 15;
 
     public static Text Header(int width) =>
         Text.Dark("Time".Max(TimeWidth, true))
@@ -32,7 +33,7 @@ static class LostWorkRows
 
     public static Text Row(LostWork work, int width)
     {
-        var time = work.Time.ToString("yy-MM-dd HH:mm", CultureInfo.InvariantCulture).Max(TimeWidth, true);
+        var time = work.Time.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture).Max(TimeWidth, true);
         var branch = (work.BranchName != "" ? work.BranchName : "-").Max(BranchWidth - 1, true) + " ";
         var commits = $"{work.CommitIds.Count}".PadLeft(CommitsWidth - 2) + "  ";
         var lostBy = LostByName(work.LostBy).Max(LostByWidth, true);

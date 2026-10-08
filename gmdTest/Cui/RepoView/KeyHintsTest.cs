@@ -89,7 +89,7 @@ public class KeyHintsTest
         var hoover = HooverOn(view, "dev", "d1");
 
         Assert.AreEqual(
-            "dev:  m menu  s switch  e merge  Enter show/hide  h hide  d diff  p push  b new branch",
+            "dev:  m menu  s switch  e merge into main  Enter show/hide  h hide  d diff  p push  b new branch",
             Hints(view, hoover)
         );
     }
@@ -102,7 +102,10 @@ public class KeyHintsTest
         var view = await ViewOf(Ahead());
         var hoover = HooverOn(view, "main", "l1");
 
-        Assert.AreEqual("main:  m menu  e merge from  ⇧e merge to  d diff  p push  b new branch", Hints(view, hoover));
+        Assert.AreEqual(
+            "main:  m menu  e merge into main  ⇧e merge main into  d diff  p push  b new branch",
+            Hints(view, hoover)
+        );
     }
 
     // Merging and diffing a branch need a clean working tree, so with changes they give way to
@@ -159,6 +162,37 @@ public class KeyHintsTest
 
     // The line: the border, the hints from the left, the border on to the help at the right, and what
     // does not fit dropped from the end rather than cut, so every hint shown is whole
+    // The diff, blame and conflict views have lines of their own, each its view's keys, the way back
+    // to the log early on. The diff offers commit and discard for the uncommitted changes only, and
+    // Enter for a conflict; blame offers 'p' for a line with an older version and Backspace after
+    // stepping back to one.
+    [TestMethod]
+    public void TestTheSideViewsHaveHintsOfTheirOwn()
+    {
+        static string Line(IReadOnlyList<KeyHint> hints) => string.Join("  ", hints.Select(h => $"{h.Key} {h.Text}"));
+
+        Assert.AreEqual(
+            "m menu  Esc close  + - context  s to file  ←→ columns",
+            Line(KeyHints.ForDiff(isUncommitted: false, hasConflicts: false))
+        );
+        Assert.AreEqual(
+            "m menu  Esc close  Enter resolve  c commit  + - context  s to file  u discard  ←→ columns",
+            Line(KeyHints.ForDiff(isUncommitted: true, hasConflicts: true))
+        );
+        Assert.AreEqual(
+            "m menu  Esc close  Enter details  d diff  l line history  i copy id  g gutter",
+            Line(KeyHints.ForBlame(isDetailsShown: false, hasPrevious: false, canGoBack: false))
+        );
+        Assert.AreEqual(
+            "m menu  Esc close  Enter hide details  d diff  l line history  p previous  Backspace back  i copy id  g gutter",
+            Line(KeyHints.ForBlame(isDetailsShown: true, hasPrevious: true, canGoBack: true))
+        );
+        Assert.AreEqual(
+            "m menu  Esc close  ] [ next, previous  s save  e edit  b ancestor  a whole file  u clear",
+            Line(KeyHints.ForConflict())
+        );
+    }
+
     [TestMethod]
     public void TestTheLineDropsTheHintsThatDoNotFit()
     {

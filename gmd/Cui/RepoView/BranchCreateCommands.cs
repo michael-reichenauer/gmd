@@ -289,14 +289,15 @@ class BranchCreateCommands : IBranchCreateCommands
             s =>
             {
                 s.Branches = s.Branches.Select(Renamed).Distinct().ToList();
-                s.BranchOrders = s
-                    .BranchOrders.Select(b => new BranchOrder
+                // Renamed, two orders can be of one pair, or of a branch against itself
+                s.BranchOrders = BranchOrder.OnePerPair(
+                    s.BranchOrders.Select(b => new BranchOrder
                     {
                         Branch = Renamed(b.Branch),
                         Other = Renamed(b.Other),
                         Order = b.Order,
                     })
-                    .ToList();
+                );
 
                 // Remove and add, and not Select() as above, since a stale color of the new name
                 // would otherwise make the dictionary have two equal keys

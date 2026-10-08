@@ -12,7 +12,7 @@ interface IFindBranchDlg
 }
 
 // Finds a branch by typing part of its name, for a repo with more branches than a menu can list:
-// the Open Branch menu opens it with the first letter typed in it. The list narrows as the name is
+// the Show Branch menu opens it with the first letter typed in it. The list narrows as the name is
 // typed, see BranchFinder for what matches and in what order; ↑ ↓ pick one, and Enter or a click
 // shows it. The text field has the keyboard, so the dialog takes the keys that move in the list
 // before the field sees them, as the commit filter does.

@@ -21,6 +21,11 @@ class Program
 
     static async Task<int> Main(string[] args)
     {
+        // Started by ssh or git to ask the user something, see Askpass. First of all, since what
+        // follows writes the log and the config, which belong to the gmd that started the git
+        if (Askpass.IsAsked)
+            return Askpass.Answer(args);
+
         var t = Timing.Start();
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
@@ -44,8 +49,26 @@ class Program
 
         Log.Info($"Done, running for {t}");
         ConfigLogger.CloseAsync().Wait();
+
+        if (ExceptionHandling.Failure is string failure)
+        {
+            Console.Error.WriteLine(CrashMessage(failure, ConfigLogger.FilePath));
+            return 1;
+        }
         return 0;
     }
+
+    // What a crash says, once the terminal is given back, where gmd used to end without a word, as
+    // if it had simply quit. The log is begun anew on every start, so it is to be copied first.
+    internal static string CrashMessage(string failure, string logPath) =>
+        $"""
+            gmd stopped on an unexpected error, sorry: {failure}
+
+            What happened is in the log, which the next start of gmd begins anew, so copy it first:
+              {logPath}
+            Please report the problem, with the log and the version (gmd --version), at:
+              {Project.ProblemUrl}
+            """;
 
     internal Program(IMainView mainView, IGit git, Config config)
     {
@@ -76,7 +99,7 @@ class Program
 
     bool HandleUIMainLoopError(Exception e)
     {
-        Log.Exception(e, "Error in UI main loop");
+        ExceptionHandling.OnMainLoopException(e);
         ConfigLogger.CloseAsync().Wait();
         return false; // End loop after error
     }

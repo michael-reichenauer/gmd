@@ -22,11 +22,14 @@ interface ICommitCommands
     void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
     void ShowDiff(string commitId, string commitId2, bool isFromCommit = false);
+    void MarkForDiff(string commitId);
+    void DiffWithMarked(string commitId);
     void ShowFileHistory();
     void BlameFile();
 
     void Stash();
     void StashPop(string name);
+    void StashApply(string name);
     void StashDiff(string name);
     void StashDrop(string name);
 
@@ -36,10 +39,13 @@ interface ICommitCommands
     void UndoUncommittedFile(string path);
     void UndoUncommittedFiles(IReadOnlyList<string> paths);
     void SquashCommits(string id1, string id2);
+    void AmendOlderCommit(string id);
+    void DropCommit(string id);
     void CherryPick();
 
     void AddTag();
     void DeleteTag(string name);
+    void ShowTags();
     bool CanUncommitLastCommit();
     bool CanUndoUncommitted();
     void ToggleDetails();
@@ -58,6 +64,8 @@ class CommitCommands : ICommitCommands
     readonly IAddTagDlg addTagDlg;
     readonly IAddStashDlg addStashDlg;
     readonly IRepoView repoView;
+    readonly ITagsDlg tagsDlg;
+    readonly DiffMark diffMark;
 
     public CommitCommands(
         IProgress progress,
@@ -70,7 +78,9 @@ class CommitCommands : ICommitCommands
         IBlameView blameView,
         IAddTagDlg addTagDlg,
         IAddStashDlg addStashDlg,
-        IRepoView repoView
+        IRepoView repoView,
+        ITagsDlg tagsDlg,
+        DiffMark diffMark
     )
     {
         this.progress = progress;
@@ -84,6 +94,8 @@ class CommitCommands : ICommitCommands
         this.addTagDlg = addTagDlg;
         this.addStashDlg = addStashDlg;
         this.repoView = repoView;
+        this.tagsDlg = tagsDlg;
+        this.diffMark = diffMark;
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -147,7 +159,7 @@ class CommitCommands : ICommitCommands
 
         if (!isAmend && repo.Repo.Status.IsOk)
             return CommitResult.NothingToCommit;
-        if (isAmend && !repo.Repo.CurrentCommit().IsAhead)
+        if (isAmend && !CommitRewrite.IsNotPushed(repo.Repo, repo.Repo.CurrentCommit()))
             return CommitResult.NothingToCommit;
 
         if (repo.Repo.CurrentBranch().IsDetached == true)
@@ -163,13 +175,19 @@ class CommitCommands : ICommitCommands
         if (!await CheckBinaryOrLargeAddedFilesAsync())
             return CommitResult.Cancelled;
 
-        if (!commitDlg.Show(repo, isAmend, commits, out var message))
+        if (!commitDlg.Show(repo, isAmend, commits, out var message, out var paths))
             return CommitResult.Cancelled;
 
-        // A pre-commit hook can make a commit take a while, e.g. one that formats the code
+        // A pre-commit hook can make a commit take a while, e.g. one that formats the code. The
+        // files left unticked in the dialog are left as they are, so with some unticked only the
+        // ticked ones are committed.
         using (status.Progress(isAmend ? "Amending the last commit" : $"Committing to '{CurrentBranchName()}'"))
         {
-            if (await server.CommitAllChangesAsync(message, isAmend, repo.Path) is Error e)
+            var committed =
+                paths == null
+                    ? await server.CommitAllChangesAsync(message, isAmend, repo.Path)
+                    : await server.CommitFilesAsync(message, isAmend, paths, repo.Path);
+            if (committed is Error e)
                 return new Error($"Failed to commit", e);
         }
 
@@ -230,7 +248,9 @@ class CommitCommands : ICommitCommands
             }
             if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id2].BranchPrimaryName)
             {
-                status.Notice("The selected commits are on different branches: select commits of one branch");
+                status.Notice(
+                    "The selected commits are on different branches: Mark for Diff in the commit menu diffs any two"
+                );
                 return;
             }
         }
@@ -282,6 +302,36 @@ class CommitCommands : ICommitCommands
                     Refresh();
                 }
             });
+            return Result.Ok;
+        });
+
+    public void MarkForDiff(string commitId)
+    {
+        diffMark.Set(repo.Path, commitId);
+        var sid = commitId.Sid();
+        status.Info($"Marked {sid} for a diff: Diff with {sid} in the menu of another commit diffs the two");
+    }
+
+    // The changes from the older of the two commits to the newer, whichever is marked, i.e. what
+    // changed on the way from the one to the other, as 'git diff <older> <newer>'
+    public void DiffWithMarked(string commitId) =>
+        Do(async () =>
+        {
+            var markedId = diffMark.IdIn(repo.Path);
+            if (markedId == "" || !repo.Repo.CommitById.TryGetValue(markedId, out var marked))
+                return new Notice("No commit is marked for a diff: Mark for Diff in the commit menu marks one");
+            var commit = repo.Repo.CommitById[commitId];
+
+            var (older, newer) = marked.GitIndex > commit.GitIndex ? (marked, commit) : (commit, marked);
+            var message = $"Diff {older.Sid} to {newer.Sid}";
+            var reload = DiffReloads.Single(n =>
+                server.GetPreviewMergeDiffAsync(older.Id, newer.Id, message, n, repo.Path)
+            );
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not CommitDiff[] diffs)
+                return new Error("Failed to get diff", diffsResult.Error);
+
+            diffView.Show(diffs[0], newer.Id, repo.Path, reload, ConflictState.None);
             return Result.Ok;
         });
 
@@ -362,6 +412,22 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
+            return Result.Ok;
+        });
+
+    // As Stash Pop, and keeps the stash, which is said, since nothing else shows it
+    public void StashApply(string name) =>
+        Do(async () =>
+        {
+            if (!repo.Repo.Status.IsOk)
+                return new Notice(Why.Changes);
+
+            if (await server.StashApplyAsync(name, repo.Path) is Error e)
+                return new Error($"Failed to apply stash {name}", e);
+
+            Refresh();
+            var message = repo.Repo.Stashes.FirstOrDefault(s => s.Name == name)?.Message ?? name;
+            status.Info($"Applied '{message}' and kept the stash: Stash Drop removes it");
             return Result.Ok;
         });
 
@@ -484,19 +550,67 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
+    // An older commit, given a new message, the changes in the files ticked, or both, in the commit
+    // dialog. Opened from the menu as Commit is, with a moment's delay, see CommitFromMenu.
+    public void AmendOlderCommit(string id) =>
+        UI.AddTimeout(
+            TimeSpan.FromMilliseconds(100),
+            (_) =>
+            {
+                Do(() => AmendOlderCommitAsync(id));
+                return false;
+            }
+        );
+
+    async Task<Result> AmendOlderCommitAsync(string id)
+    {
+        var commit = repo.Repo.CommitById[id];
+        if (CommitRewrite.WhyNotAmend(repo.Repo, commit) is var whyNot && whyNot != "")
+            return new Notice(whyNot);
+
+        if (!commitDlg.ShowAmend(repo, commit, out var message, out var paths))
+            return Result.Ok;
+
+        using (status.Progress($"Amending {commit.Sid}"))
+        {
+            if (await server.AmendOlderCommitAsync(repo.Repo, id, message, paths) is Error e)
+                return new Error($"Failed to amend {commit.Sid}", e);
+        }
+
+        Refresh();
+        status.Info($"Amended '{message.Split('\n')[0].Trim()}' on '{CurrentBranchName()}': Undo takes it back");
+        return Result.Ok;
+    }
+
+    // Takes a commit out of the current branch, asked first, since its changes go with it
+    public void DropCommit(string id) =>
+        Do(async () =>
+        {
+            var commit = repo.Repo.CommitById[id];
+            if (CommitRewrite.WhyNotDrop(repo.Repo, commit) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+            if (!Confirm.DropCommit(commit.Sid, commit.Subject, CurrentBranchName()))
+                return Result.Ok;
+
+            using (status.Progress($"Dropping {commit.Sid}"))
+            {
+                if (await server.DropCommitAsync(repo.Repo, id) is Error e)
+                    return new Error($"Failed to drop {commit.Sid}", e);
+            }
+
+            Refresh();
+            status.Info($"Dropped '{commit.Subject}' from '{CurrentBranchName()}': Undo brings it back");
+            return Result.Ok;
+        });
+
     public bool CanUncommitLastCommit()
     {
         if (!repo.Repo.ViewCommits.Any())
             return false;
 
-        var c = repo.Repo.ViewCommits[0];
-        var b = repo.Repo.BranchByName[repo.Repo.ViewCommits[0].BranchName];
-
-        // The clean tree is required of both halves, not just of 'is ahead'. Without the
-        // parentheses '&&' binds tighter than '||', so a branch that was never pushed offered this
-        // with changes in the tree — and with changes the top row is the virtual uncommitted commit
-        // rather than a commit, so the reset would have taken back a row the user was not on.
-        return repo.Repo.Status.IsOk && (c.IsAhead || (!b.IsRemote && b.RemoteName == ""));
+        // A clean tree, since with changes the top row is the virtual uncommitted commit rather than
+        // a commit, so the reset would take back a row the user was not on
+        return repo.Repo.Status.IsOk && CommitRewrite.IsNotPushed(repo.Repo, repo.Repo.ViewCommits[0]);
     }
 
     public void UndoUncommittedFile(string path) =>
@@ -551,17 +665,17 @@ class CommitCommands : ICommitCommands
             if (commit.IsUncommitted)
                 return new Notice("A tag is put on a commit: move to one first");
 
-            if (addTagDlg.Show() is not TagInfo tag)
+            if (addTagDlg.Show(isPushable) is not TagInfo tag)
                 return Result.Ok;
 
             if (tag.message == "")
             {
-                if (await server.AddTagAsync(tag.name, commit.Id, isPushable, repo.Path) is Error e)
+                if (await server.AddTagAsync(tag.name, commit.Id, tag.isPush, repo.Path) is Error e)
                     return new Error($"Failed to add tag {tag.name}", e);
             }
             else
             {
-                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, isPushable, repo.Path);
+                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, tag.isPush, repo.Path);
                 if (added is Error e)
                     return new Error($"Failed to add tag {tag.name} '{tag.message}'", e);
             }
@@ -573,21 +687,65 @@ class CommitCommands : ICommitCommands
     public void DeleteTag(string name) =>
         Do(async () =>
         {
-            var commit = repo.RowCommit;
-            var branch = repo.Repo.BranchByName[commit.BranchName];
-            var isPushable = branch.IsRemote || branch.RemoteName != "";
+            var tagsResult = await server.GetTagsAsync(repo.Path);
+            if (tagsResult is not IReadOnlyList<RepoTag> tags)
+                return new Error("Failed to read the tags", tagsResult.Error);
+            if (tags.FirstOrDefault(t => t.Name == name) is not RepoTag tag)
+                return new Notice($"There is no tag '{name}' any more");
 
-            if (!Confirm.RemoveTag(name, isPushable))
+            return await RemoveTagAsync(tag);
+        });
+
+    // Every tag, to show its commit, push it or remove it, see TagsDlg
+    public void ShowTags() =>
+        Do(async () =>
+        {
+            var tagsResult = await server.GetTagsAsync(repo.Path);
+            if (tagsResult is not IReadOnlyList<RepoTag> tags)
+                return new Error("Failed to read the tags", tagsResult.Error);
+            if (tags.Count == 0)
+                return new Notice("There are no tags: Add Tag in the Tag menu puts one on a commit");
+
+            var hasOrigin = repo.Repo.AllBranches.Any(b => b.IsRemote);
+            if (tagsDlg.Show(TagRows.Items(tags, repo.Repo, hasOrigin)) is not TagChoice choice)
                 return Result.Ok;
 
-            if (await server.RemoveTagAsync(name, isPushable, repo.Path) is Error e)
+            var tag = choice.Item.Tag;
+            switch (choice.Action)
             {
-                return new Error($"Failed to delete tag {name}", e);
+                case TagAction.Show:
+                    Refresh(choice.Item.Commit!.BranchName, tag.CommitId);
+                    return Result.Ok;
+                case TagAction.Push:
+                    using (status.Progress($"Pushing the tag '{tag.Name}'"))
+                    {
+                        if (await server.PushTagAsync(tag.Name, repo.Path) is Error e)
+                            return new Error($"Failed to push the tag {tag.Name}", e);
+                    }
+                    status.Info(TagRows.Pushed(tag.Name));
+                    return Result.Ok;
+                default:
+                    return await RemoveTagAsync(tag);
             }
-
-            RefreshAndFetch();
-            return Result.Ok;
         });
+
+    // Removes a tag, asked first, and on origin too when origin has it, which gmd's record of origin's
+    // tags says, rather than whether the branch of its commit has a remote branch, as it used to
+    async Task<Result> RemoveTagAsync(RepoTag tag)
+    {
+        if (!Confirm.RemoveTag(tag.Name, tag.IsOnOrigin))
+            return Result.Ok;
+
+        using (status.Progress($"Removing the tag '{tag.Name}'"))
+        {
+            if (await server.RemoveTagAsync(tag.Name, tag.IsOnOrigin, repo.Path) is Error e)
+                return new Error($"Failed to remove the tag {tag.Name}", e);
+        }
+
+        Refresh();
+        status.Info(TagRows.Removed(tag));
+        return Result.Ok;
+    }
 
     public void ShowFileHistory() =>
         Do(async () =>

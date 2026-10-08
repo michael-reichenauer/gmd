@@ -1,3 +1,4 @@
+using gmd.Git;
 using gmd.Git.Private;
 using gmdTest.Utils;
 
@@ -131,6 +132,72 @@ public class CommitServiceTest
         Assert.AreEqual(1, cmd.Calls.Count, "The commit is not attempted");
     }
 
+    // No paths is no files: an empty commit, which carries the new message of an older commit amended
+    // with no file. Never a pathspec file with nothing in it, which git takes as no pathspec at all,
+    // i.e. everything.
+    [TestMethod]
+    public async Task TestCommitOfNoFilesCommitsNothing()
+    {
+        var cmd = new FakeCmd("");
+
+        await new CommitService(cmd).CommitFilesAsync("The message", false, [], wd);
+
+        CollectionAssert.AreEqual(new[] { "commit --only --allow-empty -m \"The message\"" }, ArgsOf(cmd));
+    }
+
+    // The amend of an older commit folds the 'amend!' commit into it with git's own --autosquash,
+    // from its parent, or from the start for the first commit, which has none
+    [TestMethod]
+    [DataRow("a1^", "rebase -i --autosquash --autostash --empty=drop a1^")]
+    [DataRow("", "rebase -i --autosquash --autostash --empty=drop --root")]
+    public async Task TestAutosquash(string baseId, string args)
+    {
+        var cmd = new FakeCmd("");
+
+        AssertOk(await new CommitService(cmd).AutosquashAsync(baseId, wd));
+
+        CollectionAssert.AreEqual(new[] { args }, ArgsOf(cmd));
+    }
+
+    [TestMethod]
+    public async Task TestDropCommitReplaysTheNewerOnesOntoItsParent()
+    {
+        var cmd = new FakeCmd("");
+
+        AssertOk(await new CommitService(cmd).DropCommitAsync("a1", wd));
+
+        CollectionAssert.AreEqual(new[] { "rebase --empty=drop --onto a1^ a1" }, ArgsOf(cmd));
+    }
+
+    // A rewrite that conflicts stops part way, which the command runner shows as the conflicts, with
+    // the way on, rather than as an error
+    [TestMethod]
+    public async Task TestARewriteThatConflictsIsAConflict()
+    {
+        var cmd = new FakeCmd((_, _, _) => FakeCmd.Problems("CONFLICT (content): Merge conflict in a.txt", 1));
+        var service = new CommitService(cmd);
+
+        Assert.IsInstanceOfType<ConflictError>(AssertError(await service.AutosquashAsync("a1^", wd)));
+        Assert.IsInstanceOfType<ConflictError>(AssertError(await service.DropCommitAsync("a1", wd)));
+    }
+
+    [TestMethod]
+    public async Task TestTheRefsContainingACommit()
+    {
+        var cmd = new FakeCmd("refs/heads/main\nrefs/remotes/origin/main\nrefs/tags/v1\n");
+
+        var refs = AssertOk(await new CommitService(cmd).GetRefsContainingAsync("a1", wd));
+
+        CollectionAssert.AreEqual(
+            new[] { "refs/heads/main", "refs/remotes/origin/main", "refs/tags/v1" },
+            refs.ToArray()
+        );
+        Assert.AreEqual(
+            "for-each-ref --contains a1 --format=%(refname) refs/heads refs/remotes refs/tags",
+            cmd.Calls[0].Args
+        );
+    }
+
     // Undo of all changes also removes untracked files, but not ignored ones
     [TestMethod]
     public async Task TestUndoAllUncommittedChanges()
@@ -151,6 +218,18 @@ public class CommitServiceTest
         await new CommitService(cmd).CleanWorkingFolderAsync(wd);
 
         CollectionAssert.AreEqual(new[] { "reset --hard", "clean -fxd" }, ArgsOf(cmd));
+    }
+
+    // What the clean would delete is git's dry run of the same clean, a folder once rather than its files
+    [TestMethod]
+    public async Task TestTheFilesToCleanAreTheDryRunOfTheClean()
+    {
+        var cmd = new FakeCmd("Would remove .env\nWould remove bin/\nWould remove notes.txt\n");
+
+        var files = AssertOk(await new CommitService(cmd).GetFilesToCleanAsync(wd));
+
+        CollectionAssert.AreEqual(new[] { ".env", "bin/", "notes.txt" }, files.ToArray());
+        CollectionAssert.AreEqual(new[] { "clean -n -x -d" }, ArgsOf(cmd));
     }
 
     [TestMethod]

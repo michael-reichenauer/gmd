@@ -30,20 +30,20 @@ public class DeletedBranchesDlgTest
         // A later run of gmd has the record too. The time is when it was deleted, i.e. now.
         using var again = TmuxSession.StartGmd(repo);
         again.WaitFor("Initial");
-        OpenRestoreDeletedBranch(again);
+        OpenRestoreDeletedBranch(again, 3);
 
         // The deleted branch is still drawn, gray, since it was shown, and the list has the one row
         ScreenText.AssertEqual(
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣   ● Add delta                                                     (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣│    Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┃╰┲   More dev work                                                         (~dev) af3ee6 Test User      24-10-15 12:03
-            ┃╭┺   Work on dev                                                                  d997ad Test User      24-10-15 12:02
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            ┣   ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣│    Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┃╰┲   More dev work                                                       (~dev) af3ee6 Test User      2024-10-15 12:03
+            ┃╭┺   Work on dev                                                                d997ad Test User      2024-10-15 12:02
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
 
 
 
@@ -52,9 +52,9 @@ public class DeletedBranchesDlgTest
 
 
                       ╭ Restore Deleted Branch ──────────────────────────────────────────────────────────────────────────╮
-                      │  Time            Branch              Deleted        Subject                                      │
+                      │  Time              Branch              Deleted        Subject                                    │
                       │ ┌──────────────────────────────────────────────────────────────────────────────────────────────┐ │
-                      │ │NN-NN-NN NN:NN  dev                 local          More dev work                              │ │
+                      │ │NNNN-NN-NN NN:NN  dev                 local          More dev work                            │ │
                       │ └──────────────────────────────────────────────────────────────────────────────────────────────┘ │
                       │  Restore creates 'dev' at af3ee6 again                                                           │
                       │ [ Restore ]                                                                           [ Close ]  │
@@ -73,7 +73,7 @@ public class DeletedBranchesDlgTest
     // Deleted here and on origin, as the delete dialog does by default for a branch with a remote
     // branch, and restored on both. That is a push, so the sides are asked for first, as the delete
     // asked for them. Here 'Add zeta' is on top, not pushed, so the merge row is one further down, and
-    // the commit menu opens on 'Amend ...', so Undo is two moves away rather than one.
+    // the commit menu opens on 'Amend ...', so Undo is three moves away.
     [TestMethod]
     public async Task TestRestoreABranchDeletedHereAndOnOrigin()
     {
@@ -99,7 +99,7 @@ public class DeletedBranchesDlgTest
 
         using var again = TmuxSession.StartGmd(repo);
         again.WaitFor("Initial");
-        OpenRestoreDeletedBranch(again, 2);
+        OpenRestoreDeletedBranch(again, 3);
         again.WaitFor("and pushes 'origin/dev' back");
         again.Send("Enter");
 
@@ -160,9 +160,10 @@ public class DeletedBranchesDlgTest
         gmd.WaitUntilGone("Delete Local");
     }
 
-    // Undo is the given number of moves down the commit menu, and in it the cursor starts on 'Undo
-    // Commit', main's last change, so the item is two moves down, past 'Recover Lost Commits ...'
-    static void OpenRestoreDeletedBranch(TmuxSession gmd, int movesToUndo = 1)
+    // Undo is the given number of moves down the commit menu, three where it opens on 'Amend ...',
+    // i.e. the last commit is not pushed, past 'Commit Diff' and 'Mark for Diff', and in it the cursor starts on 'Undo Commit', main's last change,
+    // so the item is two moves down, past 'Recover Lost Commits ...'
+    static void OpenRestoreDeletedBranch(TmuxSession gmd, int movesToUndo)
     {
         gmd.Send("m");
         gmd.WaitFor("Commit ...");

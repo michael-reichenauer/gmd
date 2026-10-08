@@ -213,6 +213,8 @@ class Cmd : ICmd
                     FileName = path,
                     Arguments = args,
                     UseShellExecute = false,
+                    // A pipe closed at once rather than gmd's terminal, see NeverAskOnTheTerminal
+                    RedirectStandardInput = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
@@ -224,6 +226,7 @@ class Cmd : ICmd
             using (process)
             {
                 NeverOpenAnEditor(process.StartInfo);
+                NeverAskOnTheTerminal(process.StartInfo, $"{path} {args}");
                 InEnglish(process.StartInfo);
                 foreach (var (name, value) in environment ?? Empty)
                 {
@@ -237,6 +240,7 @@ class Cmd : ICmd
                 process.ErrorDataReceived += (sender, args) => errorLines.Add(args.Data ?? "");
 
                 process.Start();
+                process.StandardInput.Close();
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
@@ -284,6 +288,65 @@ class Cmd : ICmd
     {
         info.Environment["GIT_EDITOR"] = "true";
         info.Environment["GIT_SEQUENCE_EDITOR"] = "true"; // The todo list of an interactive rebase
+    }
+
+    // Never lets git, or the ssh it runs, ask the user anything on the terminal, which gmd owns. A
+    // passphrase question from the fetch gmd runs on opening a repository was drawn over the UI and
+    // scrolled it a row, took the keys typed for gmd as its answer, and waited for an Enter that the
+    // raw terminal sends as '\r', while a prompt reading a line waits for '\n'; a push waited behind
+    // it as long (USABILITY.md, the product review). Git and ssh open /dev/tty themselves, so a
+    // redirected stdin alone does not stop them:
+    //
+    // - GIT_TERMINAL_PROMPT=0 stops git's own user name and password prompt.
+    // - SSH_ASKPASS_REQUIRE=force (OpenSSH 8.4 and later) sends ssh's passphrase and host key
+    //   questions to SSH_ASKPASS instead of the terminal: the user's own if they have one, a window
+    //   of its own, or else gmd itself (Askpass), which asks in a dialog of this gmd. Git asks
+    //   SSH_ASKPASS too when there is no GIT_ASKPASS. A user's GIT_ASKPASS is kept, which is how
+    //   VS Code's terminal shows git's prompts in a window of VS Code.
+    //
+    // Where the askpass asks, the channel of this gmd (AskpassServer), is only given to a command
+    // that may ask, i.e. not one run in the background (Askpass.NeverAsk). One that may not fails
+    // instead, and LoginError says a login is needed.
+    //
+    // A credential helper is not a prompt and is untouched by all of this, so a login stored in one,
+    // Git Credential Manager included, works as before, and one that stores what is typed stores
+    // what is typed in the dialog. An older ssh ignores SSH_ASKPASS_REQUIRE and still asks on the
+    // terminal.
+    static void NeverAskOnTheTerminal(ProcessStartInfo info, string command)
+    {
+        info.Environment["GIT_TERMINAL_PROMPT"] = "0";
+        info.Environment["SSH_ASKPASS_REQUIRE"] = "force";
+        info.Environment.Remove(Askpass.ChannelVariable);
+
+        var hasOwn = info.Environment.TryGetValue("SSH_ASKPASS", out var own) && !string.IsNullOrEmpty(own);
+        if (hasOwn || AskpassProgram is not string gmd)
+            return;
+
+        info.Environment["SSH_ASKPASS"] = gmd;
+        info.Environment[Askpass.Variable] = "1";
+        if (Askpass.Channel is (string name, string token) && Askpass.IsAskingAllowed)
+        {
+            info.Environment[Askpass.ChannelVariable] = name;
+            info.Environment[Askpass.TokenVariable] = token;
+            info.Environment[Askpass.CommandVariable] = command.Length > 100 ? $"{command[..99]}…" : command;
+            info.Environment[Askpass.IdVariable] = Guid.NewGuid().ToString("N");
+        }
+    }
+
+    // The program ssh runs as its askpass: gmd itself, or, when the dotnet host runs gmd.dll, as the
+    // debugger does, the gmd beside the dll, since ssh runs a program and gives it no arguments but
+    // the question
+    static readonly string? AskpassProgram = GetAskpassProgram();
+
+    static string? GetAskpassProgram()
+    {
+        if (Environment.ProcessPath is not string path)
+            return null;
+        if (Path.GetFileNameWithoutExtension(path) != "dotnet")
+            return path;
+
+        var gmd = Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "gmd.exe" : "gmd");
+        return File.Exists(gmd) ? gmd : null;
     }
 
     // Git's messages in English, whatever language the user has set. gmd tells what happened by

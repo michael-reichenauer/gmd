@@ -58,14 +58,14 @@ class RepoMenu : IRepoMenu
             .Items.Items(GetOperationItems())
             .Item(
                 "Pull All Branches",
-                "Shift-U",
+                "⇧u",
                 () => repo.BranchCmds.PullAllBranches(),
                 () => isStatusOK,
                 () => Why.Changes
             )
             .Item(
                 "Push All Branches",
-                "Shift-P",
+                "⇧p",
                 () => repo.BranchCmds.PushAllBranches(),
                 () => !repo.Repo.Status.IsMerging,
                 () => Why.InProgress
@@ -80,13 +80,12 @@ class RepoMenu : IRepoMenu
             )
             .Item(
                 "Previous Match",
-                "Shift-N",
+                "⇧n",
                 () => repo.BranchCmds.ShowSearchMatch(-1),
                 () => repo.SearchMatches.IsActive,
                 () => NoSearch
             )
             .Item("Refresh", "r", () => cmds.RefreshAndFetch())
-            .Item("Clean Working Folder", "", () => cmds.CleanWorkingFolder())
             .Item("Worktrees ...", "w", () => repo.BranchCmds.ShowWorktrees())
             .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
             .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())

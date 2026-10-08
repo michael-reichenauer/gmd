@@ -35,8 +35,8 @@ static class ScreenText
     // The ESC that starts every color sequence in an escaped capture
     const char Escape = '\u001b';
 
-    // 'yy-MM-dd HH:mm', as RepoWriter.WriteTime writes it
-    static readonly Regex TimeRegex = new(@"\d\d-\d\d-\d\d \d\d:\d\d");
+    // 'yyyy-MM-dd HH:mm', as RepoWriter.WriteTime writes it
+    static readonly Regex TimeRegex = new(@"\d\d\d\d-\d\d-\d\d \d\d:\d\d");
 
     // The whole screen: the repository path replaced, every line right trimmed and the trailing
     // blank lines dropped
@@ -60,7 +60,7 @@ static class ScreenText
     // rather than a commit date. It is row-targeted rather than whole-screen deliberately — the
     // commit rows on the same screen do have pinned times, and those are worth asserting.
     public static string MaskTimes(string screen, string onRowsWith) =>
-        Join(screen.Split('\n').Select(l => l.Contains(onRowsWith) ? TimeRegex.Replace(l, "NN-NN-NN NN:NN") : l));
+        Join(screen.Split('\n').Select(l => l.Contains(onRowsWith) ? TimeRegex.Replace(l, "NNNN-NN-NN NN:NN") : l));
 
     // The color of every character on the screen as one letter each, lined up under the text of
     // Of(), which is what GraphText.ColorsOf does for the graph column alone. Takes an escaped

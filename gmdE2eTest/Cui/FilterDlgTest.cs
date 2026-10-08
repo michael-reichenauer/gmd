@@ -28,9 +28,9 @@ public class FilterDlgTest
             Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
             Gmd 3 commits, 2 branches, 4e73d2 (main)                                      Search: dev                          ] X │
             ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-             ╰╊   More dev work                                                          (dev) af3ee6 Test User      24-10-15 12:03
-              ┗   Work on dev                                                                  d997ad Test User      24-10-15 12:02
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+             ╰╊   More dev work                                                        (dev) af3ee6 Test User      2024-10-15 12:03
+              ┗   Work on dev                                                                d997ad Test User      2024-10-15 12:02
             """,
             gmd.WaitFor("More dev work"),
             repo.Path
@@ -60,7 +60,7 @@ public class FilterDlgTest
             Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
             Gmd 0 commits, 0 branches, ffffff (<none>)                                    Search: zzzznothing                  ] X │
             ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-            ┏   <... No commits matching filter ...>                                 (~<none>) ffffff                NN-NN-NN NN:NN
+            ┏   <... No commits matching filter ...>                               (~<none>) ffffff                NNNN-NN-NN NN:NN
             """,
             ScreenText.MaskTimes(
                 ScreenText.Of(gmd.WaitFor("No commits matching filter"), repo.Path),
@@ -128,7 +128,7 @@ public class FilterDlgTest
         gmd.WaitFor("Match 3 of 3");
         gmd.Send("n");
         Assert.AreEqual(
-            "No more matches for 'dev' below: Shift-N goes back up",
+            "No more matches for 'dev' below: ⇧n goes back up",
             ScreenText.LastLine(gmd.WaitFor("No more matches"))
         );
         gmd.Send("N");
@@ -155,6 +155,23 @@ public class FilterDlgTest
         StringAssert.Contains(screen, "More dev work");
         StringAssert.Contains(screen, "Work on dev");
         Assert.IsFalse(screen.Contains("Merge branch"), "The merge brought the change in, but made none");
+    }
+
+    // 'change:' searches the changes themselves, the commits that added or removed the text, in any
+    // case: 'two' is the line 'More dev work' added to dev.txt
+    [TestMethod]
+    public async Task TestChangeSearchFindsTheCommitsChangingAText()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("f");
+        gmd.WaitFor("Filter Commits");
+
+        gmd.SendText("change:TWO");
+
+        var screen = gmd.WaitFor("1 commit");
+        StringAssert.Contains(screen, "More dev work");
     }
 
     // A 'file:' search still waiting for git when the search closes is dropped. It used to be shown

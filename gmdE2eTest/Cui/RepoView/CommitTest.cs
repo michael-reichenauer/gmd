@@ -29,12 +29,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ©2                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣   ©2 uncommitted changes                                                (● main)                       NN-NN-NN NN:NN
-            ┣  ● Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣   ©2 uncommitted changes                                              (● main)                       NNNN-NN-NN NN:NN
+            ┣  ● Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.MaskTimes(ScreenText.Of(gmd.WaitFor("Initial"), repo.Path), "uncommitted")
         );
@@ -78,7 +78,7 @@ public class CommitTest
                                    │┌──────────────────────────────────────────────────────────────────────┐│
                                    ││                                                                      ││
             """,
-            ScreenText.Rows(dialog, repo.Path, 11, 6)
+            ScreenText.Rows(dialog, repo.Path, 9, 6)
         );
 
         // The subject field has the focus, so the message is simply typed, and Enter presses the
@@ -94,12 +94,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add epsilon                                                          (● main) 2d0391 Test User      24-10-15 12:07
-            ┣    Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add epsilon                                                        (● main) 2d0391 Test User      2024-10-15 12:07
+            ┣    Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -135,7 +135,8 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.SendText("Some body text");
         gmd.WaitFor("Some body text");
-        gmd.Send("Tab"); // And on to the OK button, since Enter in the body is a newline
+        gmd.Send("Tab"); // And on to the file list, since Enter in the body is a newline; the list
+        // leaves Enter to the dialog, i.e. OK
         gmd.WaitForStable();
         gmd.Send("Enter");
 
@@ -143,6 +144,35 @@ public class CommitTest
         Assert.AreEqual("Add epsilon\n\nSome body text", await repo.GitAsync("log --format=%B -1"));
         // The log view has no caret, so the dialog's must not outlive it
         Assert.IsFalse(gmd.IsCursorVisible, "The caret should be hidden again once the dialog has closed");
+    }
+
+    // The commit dialog lists the files, all ticked, and a file unticked with Space is left out of
+    // the commit, as it is, uncommitted. The heading counts what is still ticked.
+    [TestMethod]
+    public async Task TestAnUntickedFileIsLeftUncommitted()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("c");
+        var dialog = gmd.WaitFor("Files, Space");
+        StringAssert.Contains(dialog, "◙ M alpha.txt");
+        StringAssert.Contains(dialog, "◙ A epsilon.txt");
+
+        gmd.SendText("Add epsilon only");
+        gmd.WaitFor("Add epsilon only");
+        gmd.Send("Tab"); // Into the message body
+        gmd.WaitForStable();
+        gmd.Send("Tab"); // And the file list, on its first file
+        gmd.WaitForStable();
+        gmd.Send("Space");
+        dialog = gmd.WaitFor("Commit 1 of 2 changes on 'main'");
+        StringAssert.Contains(dialog, "□ M alpha.txt");
+        gmd.Send("M-o");
+
+        gmd.WaitFor("Committed to 'main'");
+        Assert.AreEqual("epsilon.txt", (await repo.GitAsync("show --name-only --format= HEAD")).Trim());
+        Assert.AreEqual(" M alpha.txt", (await repo.GitAsync("status --porcelain")).TrimEnd(), "Left as it was");
     }
 
     // Escape cancels the dialog, and cancelling has to leave the repository alone. Note that the
@@ -249,12 +279,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add epsilon                                                          (● main) 2d0391 Test User      24-10-15 12:07
-            ┣    Add delta                                                              [v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add epsilon                                                        (● main) 2d0391 Test User      2024-10-15 12:07
+            ┣    Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -301,12 +331,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Add zeta                                                            (● main) 4dd1e9 Test User      24-10-15 12:07
-            ┣╯    Add delta                                                     (^/main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+             ╭┺ ●▲Add zeta                                                          (● main) 4dd1e9 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("Initial"),
             repo.Path
@@ -339,12 +369,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Add zeta amended                                                    (● main) 9df2d6 Test User      24-10-15 12:07
-            ┣╯    Add delta                                                     (^/main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+             ╭┺ ●▲Add zeta amended                                                  (● main) 9df2d6 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -385,12 +415,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣─┺ ● Add zeta                                                         (^)(● main) 4dd1e9 Test User      24-10-15 12:07
-            ┣     Add delta                                                             [v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                                 4e73d2 Test User      24-10-15 12:05
-            ┣     Add gamma                                                                    4a15fb Test User      24-10-15 12:04
-            ┣╯    Add beta                                                                     dd7891 Test User      24-10-15 12:01
-            ┗     Initial                                                                      9dc406 Test User      24-10-15 12:00
+            ┣─┺ ● Add zeta                                                       (^)(● main) 4dd1e9 Test User      2024-10-15 12:07
+            ┣     Add delta                                                           [v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
+            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(screen, repo.Path, 0, 8)
         );
@@ -402,11 +432,12 @@ public class CommitTest
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
     // working tree. Reached through the commit menu's Undo sub menu.
     //
-    // On a clean tree the menu opens with the cursor already on 'Commit Diff' — 'Commit ...'
-    // and 'Amend ...' are both disabled, and Menu.Show starts on the first item that is not — so
-    // 'Undo' is one move away rather than three. In it the cursor starts on 'Undo Commit', the last
-    // change of the branch, and 'Discard Changes in a File' is disabled, so 'Uncommit Last Commit' is
-    // four moves down, past 'Recover Lost Commits ...', 'Restore Deleted Branch ...' and 'Revert Commit'.
+    // On a clean tree the menu opens with the cursor on 'Amend ...' — 'Commit ...' is disabled, and
+    // Menu.Show starts on the first item that is not — so 'Undo' is three moves away, past 'Commit
+    // Diff' and 'Mark for Diff'. In it the cursor starts on 'Undo Commit', the last change of the branch, and 'Discard
+    // Changes in a File' is disabled, and so is 'Drop 17d85b', since the tag v1.0 is on the commit,
+    // so 'Uncommit Last Commit' is four moves down, past 'Recover Lost Commits ...', 'Restore Deleted
+    // Branch ...' and 'Revert Commit'.
     [TestMethod]
     public async Task TestUncommitTheLastCommit()
     {
@@ -416,8 +447,11 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        gmd.Send("Down");
-        gmd.WaitForStable();
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
         gmd.Send("Right");
         gmd.WaitFor("Uncommit");
         for (var i = 0; i < 4; i++)
@@ -435,7 +469,9 @@ public class CommitTest
 
     // Undo of the branch's last change, named after it, and Undo again, which redoes it. The undo of
     // a commit leaves its changes in the working tree, as Uncommit does; the redo commits them back.
-    // With the changes there 'Commit ...' is enabled, so the second time 'Undo' is two moves away.
+    // 'Undo' is three moves from 'Amend ...', where the menu opens, past 'Commit Diff' and 'Mark for
+    // Diff'. The second time, on the uncommitted row, 'Commit ...' is enabled and 'Mark for Diff' is
+    // not, so it is three again.
     [TestMethod]
     public async Task TestUndoTheLastCommitAndRedoIt()
     {
@@ -445,8 +481,11 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        gmd.Send("Down");
-        gmd.WaitForStable();
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
         gmd.Send("Right");
         gmd.WaitFor("Undo Commit 'Add delta'");
         gmd.Send("Enter");
@@ -459,7 +498,7 @@ public class CommitTest
         gmd.WaitFor("uncommitted");
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 2; i++)
+        for (var i = 0; i < 3; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -471,6 +510,105 @@ public class CommitTest
         gmd.WaitFor("Redid the commit 'Add delta' on 'main'");
         Assert.AreEqual("Add delta", await repo.GitAsync("log --format=%s -1"));
         Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+    }
+
+    // An older commit not pushed yet is amended from its own commit menu, in the commit dialog with its
+    // message, and the commits after it are replayed on it. The menu opens on 'Amend ...', which is
+    // the 'a' key's and amends the last commit, with this commit's own right below it.
+    [TestMethod]
+    public async Task TestAmendAnOlderCommit()
+    {
+        using var repo = await ThreeFilesAsync();
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..6];
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(3));
+        gmd.WaitFor("Add one");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor($"Amend {sid} ...");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor($"Amend {sid} on 'main':"), "[Add two");
+        gmd.SendText(", reworded");
+        gmd.WaitFor("Add two, reworded");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Amended 'Add two, reworded'");
+        Assert.AreEqual("Amended 'Add two, reworded' on 'main': Undo takes it back", ScreenText.LastLine(screen));
+        Assert.AreEqual("Add three\nAdd two, reworded\nAdd one", (await repo.GitAsync("log --format=%s")).Trim());
+    }
+
+    // Dropping a commit asks first, with No the default, then takes it and its changes out of the
+    // branch, and it is Undo's last change, which brings it back. Undo is four moves from where the
+    // menu opens, past this commit's own Amend, 'Commit Diff' and 'Mark for Diff'; Drop is four into it, past 'Recover
+    // Lost Commits ...', 'Restore Deleted Branch ...' and 'Revert Commit'.
+    [TestMethod]
+    public async Task TestDropACommitAndUndoIt()
+    {
+        using var repo = await ThreeFilesAsync();
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..6];
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(3));
+        gmd.WaitFor("Add one");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        void PickDrop()
+        {
+            gmd.Send("m");
+            gmd.WaitFor($"Amend {sid} ...");
+            OpenSubMenu(gmd, 4, "Recover Lost Commits");
+            for (int i = 0; i < 4; i++)
+            {
+                gmd.Send("Down");
+                gmd.WaitForStable();
+            }
+            gmd.Send("Enter");
+            gmd.WaitFor("Drop the commit from 'main'?");
+        }
+
+        PickDrop();
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Drop the commit");
+        Assert.AreEqual("Add three\nAdd two\nAdd one", (await repo.GitAsync("log --format=%s")).Trim(), "Not dropped");
+
+        PickDrop();
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Dropped 'Add two'");
+        Assert.AreEqual("Dropped 'Add two' from 'main': Undo brings it back", ScreenText.LastLine(screen));
+        Assert.AreEqual("Add three\nAdd one", (await repo.GitAsync("log --format=%s")).Trim());
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, "two.txt")));
+
+        // From the top row, the last commit, which has no Amend of its own besides 'Amend ...'
+        gmd.Send("Home");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        OpenSubMenu(gmd, 3, "Undo Drop 'Add two'");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Undid the drop of 'Add two' on 'main'");
+        Assert.AreEqual("Add three\nAdd two\nAdd one", (await repo.GitAsync("log --format=%s")).Trim());
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, "two.txt")));
+    }
+
+    // Three commits of a file each, none pushed, so that one can be amended or dropped without the
+    // ones after it conflicting
+    static async Task<TempRepo> ThreeFilesAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        string[] names = ["one", "two", "three"];
+        for (int i = 0; i < names.Length; i++)
+        {
+            var name = names[i];
+            await repo.CommitFileAtAsync($"{name}.txt", $"{name}\n", $"Add {name}", TempRepo.BaseTime.AddMinutes(i));
+        }
+        return repo;
     }
 
     // Squashing a range of commits into one. The range is a shift-selection of two rows, which is
@@ -486,16 +624,9 @@ public class CommitTest
         gmd.Send("S-Down");
         gmd.WaitForStable();
 
+        // The menu opens on Squash, the first item it enables, and the item names the range it would
+        // squash, which is how it says a selection was picked up
         gmd.Send("m");
-        gmd.WaitFor("Commit Diff");
-        for (var i = 0; i < 2; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
-        gmd.Send("Right");
-
-        // The item names the range it would squash, which is how it says a selection was picked up
         gmd.WaitFor("Squash c02add...8332dd");
         gmd.Send("Enter");
 
@@ -509,11 +640,11 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▼2, ▲1                                               (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Commit number 02                                                    (● main) 96a909 Test User      24-10-15 12:04
-            ┣│   ▼Commit number 03                                                    (^/main) c02add Test User      24-10-15 12:03
-            ┣│   ▼Commit number 02                                                             8332dd Test User      24-10-15 12:02
-            ┣╯    Commit number 01                                                             5692a8 Test User      24-10-15 12:01
-            ┗     Commit number 00                                                             a823b7 Test User      24-10-15 12:00
+             ╭┺ ●▲Commit number 02                                                  (● main) 96a909 Test User      2024-10-15 12:04
+            ┣│   ▼Commit number 03                                                  (^/main) c02add Test User      2024-10-15 12:03
+            ┣│   ▼Commit number 02                                                           8332dd Test User      2024-10-15 12:02
+            ┣╯    Commit number 01                                                           5692a8 Test User      2024-10-15 12:01
+            ┗     Commit number 00                                                           a823b7 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("▲"),
             repo.Path
@@ -547,15 +678,15 @@ public class CommitTest
         gmd.Send("S-Down");
         gmd.WaitForStable();
 
+        // The menu opens on 'Amend ...', the last commit not being pushed, and Squash is two below it,
+        // past the amend of the commit the cursor is on
         gmd.Send("m");
-        gmd.WaitFor("Commit Diff");
+        gmd.WaitFor("Amend 8332dd ...");
         for (var i = 0; i < 2; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
         }
-        gmd.Send("Right");
-        gmd.WaitFor("Squash c02add...8332dd");
         gmd.Send("Enter");
 
         gmd.WaitFor("Squash c02add...8332dd on 'main'");
@@ -581,8 +712,10 @@ public class CommitTest
     // a commit that is not on the current branch (rb != cb). One move up is 'Add gamma' on main,
     // and it is a move that lands there whether the cursor started on row 0 or row 1.
     //
-    // Then seven moves down to it. The menu opens on 'Commit Diff' — with nothing to commit,
-    // 'Commit ...' and 'Amend ...' are both disabled and Menu.Show starts on the first that is not.
+    // Then eight moves down to it. The menu opens on 'Amend ...', of dev's last commit, which is not
+    // pushed — with nothing to commit, 'Commit ...' is disabled and Menu.Show starts on the first
+    // that is not — and the amend of 'Add gamma', which is not on dev, and 'Squash ...', with nothing
+    // selected, are disabled and skipped.
     [TestMethod]
     public async Task TestCherryPickACommitFromAnotherBranch()
     {
@@ -594,7 +727,7 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Cherry Pick into dev");
-        for (var i = 0; i < 7; i++)
+        for (var i = 0; i < 8; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -612,10 +745,10 @@ public class CommitTest
             """
              Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-              ┣ ● Add gamma                                                            (● dev) b03776 Test User      24-10-15 12:03
-            ┣ ┃   Add gamma                                                             (main) de2e9a Test User      24-10-15 12:02
-            ┃╭┺   Work on dev                                                                  ee3602 Test User      24-10-15 12:01
-            ┗╯    Initial                                                                      9dc406 Test User      24-10-15 12:00
+              ┣ ● Add gamma                                                          (● dev) b03776 Test User      2024-10-15 12:03
+            ┣ ┃   Add gamma                                                           (main) de2e9a Test User      2024-10-15 12:02
+            ┃╭┺   Work on dev                                                                ee3602 Test User      2024-10-15 12:01
+            ┗╯    Initial                                                                    9dc406 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 6)
         );
@@ -638,9 +771,10 @@ public class CommitTest
     // Stashing, i.e. the menu, the dialog behind it and what the log view says afterwards. The
     // 'ß' is drawn nowhere else, so this is the only cover WriteBlankOrStash has at any tier.
     //
-    // Four moves down to 'Stash' rather than five: 'Amend ...' is disabled without a remote to be
-    // ahead of, and OnCursorDown skips it. With a clean tree it is three, since 'Stash Changes'
-    // being disabled changes what is enabled above as well — see TestStashPopBringsTheChangesBack.
+    // Four moves down to 'Stash' rather than six: 'Squash ...' is disabled with nothing selected,
+    // and so is 'Mark for Diff' on the uncommitted row, and OnCursorDown skips them. With a clean
+    // tree it is four too, from 'Amend ...', 'Commit ...' being disabled and 'Mark for Diff' not —
+    // see TestStashPopBringsTheChangesBack.
     [TestMethod]
     public async Task TestStashPutsTheChangesAsideAndMarksTheCommit()
     {
@@ -668,11 +802,11 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ß1                                                   (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣ ß● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣ ß● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
             """,
             gmd.WaitUntilGone("uncommitted"),
             repo.Path
@@ -682,8 +816,9 @@ public class CommitTest
         Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "The working tree is clean again");
     }
 
-    // And back again. Three moves rather than four, since a clean tree disables 'Stash Changes',
-    // which is also why 'Stash Pop' is where the cursor lands when the sub menu opens.
+    // And back again. Four moves, from 'Amend ...', where the menu opens on a clean tree. A clean
+    // tree disables 'Stash Changes' too, which is why 'Stash Pop' is where the cursor lands when
+    // the sub menu opens.
     [TestMethod]
     public async Task TestStashPopBringsTheChangesBack()
     {
@@ -693,7 +828,7 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -716,16 +851,49 @@ public class CommitTest
         );
     }
 
+    // Applying a stash is popping it but keeping it, which is said on the status line, since nothing
+    // else on the screen shows that it is still there. Stash Apply is right below Stash Pop, which is
+    // where the cursor lands, as in the test above.
+    [TestMethod]
+    public async Task TestStashApplyKeepsTheStash()
+    {
+        using var repo = await E2eRepo.CreateWithStashAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenCommitSubMenu(gmd, 4, "Stash Pop");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitFor("stashed work");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Applied 'stashed work'");
+        Assert.AreEqual(
+            "Applied 'stashed work' and kept the stash: Stash Drop removes it",
+            ScreenText.LastLine(screen)
+        );
+        Assert.AreEqual("stash@{0}: On main: stashed work", await repo.GitAsync("stash list"), "Still there");
+        Assert.AreEqual(
+            """
+             M alpha.txt
+            ?? epsilon.txt
+            """,
+            await repo.GitAsync("status --porcelain"),
+            "The changes are back, as with a pop"
+        );
+    }
+
     // Dropping a stash asks first, with No the default: its changes exist nowhere else. Stash Drop is
-    // two below Stash Pop, which is where the cursor lands, as in the test above.
+    // three below Stash Pop, which is where the cursor lands, as in the test above, past Stash Apply
+    // and Stash Diff.
     [TestMethod]
     public async Task TestStashDropAsksFirst()
     {
         using var repo = await E2eRepo.CreateWithStashAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
-        OpenCommitSubMenu(gmd, 3, "Stash Pop");
-        for (int i = 0; i < 2; i++)
+        OpenCommitSubMenu(gmd, 4, "Stash Pop");
+        for (int i = 0; i < 3; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -748,7 +916,7 @@ public class CommitTest
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
-        OpenCommitSubMenu(gmd, 4, "Add Tag");
+        OpenCommitSubMenu(gmd, 5, "Add Tag");
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Right");
@@ -762,12 +930,48 @@ public class CommitTest
         Assert.AreEqual("v1.0", await repo.GitAsync("tag"), "Still there");
     }
 
+    // Discarding all changes and the ignored files makes the folder as a fresh clone has it, which
+    // also deletes what git ignores on purpose, such as a .env file of secrets. So the question
+    // lists what would be deleted, git's dry run of the clean, and No is the default.
+    [TestMethod]
+    public async Task TestDiscardingTheIgnoredFilesListsThemAndAsksFirst()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.CommitFileAtAsync(".gitignore", ".env\nbin/\n", "Ignore secrets", TempRepo.BaseTime.AddMinutes(7));
+        File.WriteAllText(Path.Join(repo.Path, ".env"), "TOKEN=secret\n");
+        Directory.CreateDirectory(Path.Join(repo.Path, "bin"));
+        File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Ignore secrets");
+
+        OpenCommitSubMenu(gmd, 3, "Recover Lost Commits");
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        var question = gmd.WaitFor("as a fresh clone");
+        StringAssert.Contains(question, "Discard All Changes and Ignored Files");
+        StringAssert.Contains(question, "  .env");
+        StringAssert.Contains(question, "  bin/");
+
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("as a fresh clone");
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".env")), "No is the default, so nothing is deleted");
+    }
+
     // Opens the commit menu of the current row and the sub menu 'moves' down from the first
     // enabled item, one key per Send since a menu redraw drops what was sent behind it
     static void OpenCommitSubMenu(TmuxSession gmd, int moves, string firstItem)
     {
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
+        OpenSubMenu(gmd, moves, firstItem);
+    }
+
+    // The sub menu that many moves down the open menu
+    static void OpenSubMenu(TmuxSession gmd, int moves, string firstItem)
+    {
         for (int i = 0; i < moves; i++)
         {
             gmd.Send("Down");

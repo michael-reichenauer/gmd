@@ -165,7 +165,7 @@ class BlameService : IBlameService
         if (cw.Date > 0)
         {
             // The time of an uncommitted line is 'now', which says nothing, so it is left blank
-            var date = isRunStart && !c.IsUncommitted ? c.AuthorTime.ToString("yy-MM-dd") : "";
+            var date = isRunStart && !c.IsUncommitted ? c.AuthorTime.ToString("yyyy-MM-dd") : "";
             text.Dark(Txt(date, cw.Date)).Dark(" ");
         }
     }

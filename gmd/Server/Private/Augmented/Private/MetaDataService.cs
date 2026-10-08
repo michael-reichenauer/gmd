@@ -204,8 +204,14 @@ class MetaDataService : IMetaDataService
         if (local is not MetaData localMetaData)
             return local.Error;
 
-        // Pull latest data from remote server
-        if (await git.PullValueAsync(metaDataKey, path) is Error pullError)
+        // Pull latest data from remote server. Never asking for a login, since it runs beside the fetch
+        // or push the user asked for, which asks: one question per command, and it is best effort.
+        Result pulled;
+        using (Askpass.NeverAsk())
+        {
+            pulled = await git.PullValueAsync(metaDataKey, path);
+        }
+        if (pulled is Error pullError)
         {
             // Could not pull remote value,
             if (IsNoRemoteKey(pullError))
@@ -259,7 +265,9 @@ class MetaDataService : IMetaDataService
             return Result.Ok;
         }
 
+        // Never asking for a login, as the pull above
         using (Timing.Start())
+        using (Askpass.NeverAsk())
         {
             await git.PushValueAsync(metaDataKey, path);
             return Result.Ok;

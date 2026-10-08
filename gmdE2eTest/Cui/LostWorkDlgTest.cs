@@ -8,8 +8,8 @@ namespace gmdE2eTest.Cui;
 [TestClass]
 public class LostWorkDlgTest
 {
-    // In the commit menu's Undo the cursor starts on 'Undo Uncommit', the reset, so the item is one
-    // move down
+    // The commit menu opens on 'Amend ...', the last commit not being pushed, so Undo is three moves
+    // down, past 'Commit Diff' and 'Mark for Diff'. In it the cursor starts on 'Undo Uncommit', the reset, so the item is one move down.
     [TestMethod]
     public async Task TestRecoverACommitAResetLeftBehind()
     {
@@ -21,8 +21,11 @@ public class LostWorkDlgTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        gmd.Send("Down");
-        gmd.WaitForStable();
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
         gmd.Send("Right");
         gmd.WaitFor("Recover Lost Commits");
         gmd.Send("Down");
@@ -35,11 +38,11 @@ public class LostWorkDlgTest
             """
              Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                      (● main)[v1.0] 17d85b Test User      24-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                  4e73d2 Test User      24-10-15 12:05
-            ┣    Add gamma                                                                     4a15fb Test User      24-10-15 12:04
-            ┣╯   Add beta                                                                      dd7891 Test User      24-10-15 12:01
-            ┗    Initial                                                                       9dc406 Test User      24-10-15 12:00
+            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
+            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
 
 
 
@@ -50,9 +53,9 @@ public class LostWorkDlgTest
 
 
                  ╭ Recover Lost Commits ──────────────────────────────────────────────────────────────────────────────────────╮
-                 │  Time            Branch              Commits  Lost by   Subject                                            │
+                 │  Time              Branch              Commits  Lost by   Subject                                          │
                  │ ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
-                 │ │24-10-15 12:07  main                      1  reset     Lost work                                        │ │
+                 │ │2024-10-15 12:07  main                      1  reset     Lost work                                      │ │
                  │ └────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
                  │  cd56a3 by Test User: left behind on 'main' by a reset                                                     │
                  │ [ Diff ]  [ Create Branch ... ]                                                                 [ Close ]  │

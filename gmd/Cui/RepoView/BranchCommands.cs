@@ -206,7 +206,7 @@ class BranchCommands : IBranchCommands
         SetRepoAttCommit(newRepo, showCommitId);
     }
 
-    // Finds a branch by name, starting from what was typed in the Open Branch menu, and shows it, as
+    // Finds a branch by name, starting from what was typed in the Show Branch menu, and shows it, as
     // picking it in that menu does. A branch already shown is scrolled to.
     public void FindBranch(string text)
     {
@@ -263,7 +263,7 @@ class BranchCommands : IBranchCommands
 
         status.Notice(
             direction > 0
-                ? $"No more matches for '{search.Filter}' below: Shift-N goes back up"
+                ? $"No more matches for '{search.Filter}' below: ⇧n goes back up"
                 : $"No more matches for '{search.Filter}' above: n goes down"
         );
     }

@@ -31,9 +31,9 @@ public class RepoWriterTest
     {
         Assert.AreEqual(
             """
-            ┣┬┺ ● Merge branch 'dev' into main                                      (^)(● main) c30000 Test Author    24-10-15 12:00
-            ┣     Second                                                                        c20000 Test Author    24-10-15 11:58
-            ┗╯    Initial                                                                       c10000 Test Author    24-10-15 11:57
+            ┣┬┺ ● Merge branch 'dev' into main                                    (^)(● main) c30000 Test Author    2024-10-15 12:00
+            ┣     Second                                                                      c20000 Test Author    2024-10-15 11:58
+            ┗╯    Initial                                                                     c10000 Test Author    2024-10-15 11:57
             """,
             Page(await View(), 120)
         );
@@ -44,21 +44,21 @@ public class RepoWriterTest
     [TestMethod]
     public async Task TestTheWidestArmKeepsTheSidAndTheFullAuthorAndTime()
     {
-        StringAssert.EndsWith(FirstRow(await View(), 116), "c30000 Test Author    24-10-15 12:00");
+        StringAssert.EndsWith(FirstRow(await View(), 116), "c30000 Test Author    2024-10-15 12:00");
     }
 
     [TestMethod]
     public async Task TestOneColumnNarrowerCutsTheAuthorAndTheTime()
     {
-        StringAssert.EndsWith(FirstRow(await View(), 115), "c30000 Test Auth 24-10-15");
-        StringAssert.EndsWith(FirstRow(await View(), 106), "c30000 Test Auth 24-10-15", "Still the same arm");
+        StringAssert.EndsWith(FirstRow(await View(), 115), "c30000 Test Auth 2024-10-15");
+        StringAssert.EndsWith(FirstRow(await View(), 106), "c30000 Test Auth 2024-10-15", "Still the same arm");
     }
 
     [TestMethod]
     public async Task TestNarrowerStillDropsTheSid()
     {
-        StringAssert.EndsWith(FirstRow(await View(), 105), "Test Auth 24-10-15");
-        StringAssert.EndsWith(FirstRow(await View(), 76), "Test Auth 24-10-15", "Still the same arm");
+        StringAssert.EndsWith(FirstRow(await View(), 105), "Test Auth 2024-10-15");
+        StringAssert.EndsWith(FirstRow(await View(), 76), "Test Auth 2024-10-15", "Still the same arm");
     }
 
     [TestMethod]
@@ -91,7 +91,7 @@ public class RepoWriterTest
     {
         var row = FirstRow(await View(), 115);
 
-        StringAssert.EndsWith(row, "Test Auth 24-10-15");
+        StringAssert.EndsWith(row, "Test Auth 2024-10-15");
         Assert.IsFalse(row.EndsWith('┅'), "The time is cut to look like a date, with nothing saying so");
     }
 
@@ -102,8 +102,8 @@ public class RepoWriterTest
     {
         Assert.AreEqual(
             """
-            ┣     Second                                                                        c20000 Test Author    24-10-15 11:58
-            ┗╯    Initial                                                                       c10000 Test Author    24-10-15 11:57
+            ┣     Second                                                                      c20000 Test Author    2024-10-15 11:58
+            ┗╯    Initial                                                                     c10000 Test Author    2024-10-15 11:57
             """,
             Page(await View(), 120, firstRow: 1, count: 2)
         );

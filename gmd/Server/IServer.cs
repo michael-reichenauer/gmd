@@ -49,14 +49,23 @@ interface IServer
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> StashAsync(string message, string wd);
     Task<Result> StashPopAsync(string name, string wd);
+    Task<Result> StashApplyAsync(string name, string wd);
 
     // Git commands
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
     Task<Result> FetchAsync(string wd);
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
+    Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    );
     Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);
     Task<Result<CommitDiff>> GetPreviewMergeDiffAsync(
         string sha1,
@@ -112,6 +121,7 @@ interface IServer
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
     Task<Result> UndoCommitAsync(string id, int parent, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
@@ -137,11 +147,18 @@ interface IServer
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result> StashDropAsync(string name, string wd);
     Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
-    Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd);
-    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool hasRemoteBranch, string wd);
-    Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
+    Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd);
+    Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd);
+    Task<Result<IReadOnlyList<RepoTag>>> GetTagsAsync(string wd);
+    Task<Result> PushTagAsync(string name, string wd);
     Task<Result> SwitchToCommitAsync(string commitId, string wd);
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
+
+    // An older commit not pushed yet, given a new message and the changes in the paths, none for a
+    // new message alone, or taken out of the branch
+    Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths);
+    Task<Result> DropCommitAsync(Repo repo, string id);
 }
 
 // A change the file monitor saw, with when it was told of the last of the changes it reports,

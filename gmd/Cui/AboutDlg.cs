@@ -33,11 +33,16 @@ class AboutDlg : IAboutDlg
             : Build.Version() < latest ? $"{latest.Txt()} {typeText} is available"
             : "This is the latest version";
 
+        // Where to find out more and to report a problem, with the log a report needs
         var msg =
             $"Version: {gmdVersion.Txt()} ({gmdSha}) \n"
             + $"Built:   {gmdBuildTime}\n"
             + $"Updates: {updates}\n"
-            + $"Git:     {gitVersion} ";
+            + $"Git:     {gitVersion} \n"
+            + "\n"
+            + $"Project: {Project.Url}\n"
+            + $"Issues:  {Project.IssuesUrl}\n"
+            + $"Log:     {ConfigLogger.FilePath}";
 
         UI.InfoMessage("About", msg);
     }

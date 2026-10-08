@@ -26,7 +26,8 @@ static class MenuShortcuts
         Key.F12,
     ];
 
-    // The keys a shortcut stands for. "C" is 'c', "Shift-E" is 'E', "], N" is ']' or 'n', and "Ctrl-C",
+    // The keys a shortcut stands for. "c" is 'c', "⇧e" is 'E', as the menus write a shifted letter
+    // the way the key-hint line does ("Shift-E" is read as 'E' too), "], n" is ']' or 'n', and "Ctrl-C",
     // "Alt-C", "F7" and "Backspace" are those keys. What a menu itself uses (Enter, Esc and the
     // arrows) gives none, and neither does what is not a key: some menus use the column for other
     // things, such as the initials of the author of a branch.
@@ -39,10 +40,9 @@ static class MenuShortcuts
 
     // The item each key picks: the first item showing it. A letter picks its item in both cases,
     // since the column writes letters in upper case and that is what gets pressed, unless another
-    // item shows the upper case one as "Shift-...", which is then a command of its own. A greyed out
-    // item keeps its keys, which then say why it is greyed out rather than run anything: 'P' on a
-    // menu whose "Shift-P" is greyed out must not fall back to the item showing "P", a different
-    // command.
+    // item shows the upper case one as "⇧...", which is then a command of its own. A greyed out item
+    // keeps its keys, which then say why it is greyed out rather than run anything: 'P' on a menu
+    // whose "⇧p" is greyed out must not fall back to the item showing "p", a different command.
     public static IReadOnlyDictionary<Key, int> Of(IReadOnlyList<MenuItem> items)
     {
         Dictionary<Key, int> keys = [];
@@ -52,7 +52,7 @@ static class MenuShortcuts
                 keys.TryAdd(key, i);
         }
 
-        // After every item, so that a "Shift-..." further down the menu wins over the upper case
+        // After every item, so that a "⇧..." further down the menu wins over the upper case
         for (int i = 0; i < items.Count; i++)
         {
             foreach (var key in KeysOf(items[i].Shortcut).Where(k => k is >= Key.a and <= Key.z))
@@ -72,6 +72,8 @@ static class MenuShortcuts
             return char.IsLetter(part[0]) ? (Key)char.ToLowerInvariant(part[0]) : (Key)part[0];
         }
 
+        if (part.Length == 2 && part[0] == '⇧' && char.IsLetter(part[1]))
+            return (Key)char.ToUpperInvariant(part[1]);
         if (part.StartsWith("Shift-") && part.Length == 7 && char.IsLetter(part[6]))
             return (Key)char.ToUpperInvariant(part[6]);
         if (part.StartsWith("Ctrl-") && part.Length == 6 && char.IsLetter(part[5]))

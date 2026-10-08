@@ -103,6 +103,8 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.b, () => CreateBranch());
         commitsView.RegisterKeyHandler(Key.d, OnKeyD);
         commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => CommitCmds.ShowCurrentRowDiff());
+        commitsView.RegisterKeyHandler(Key.i, () => Cmd.CopyCommitId());
+        commitsView.RegisterKeyHandler(Key.I, () => Cmd.CopyCommitMessage());
         commitsView.RegisterKeyHandler(Key.p, OnKeyP);
         commitsView.RegisterKeyHandler(Key.P, () => BranchCmds.PushAllBranches());
         commitsView.RegisterKeyHandler(Key.u, OnKeyU);
@@ -118,7 +120,6 @@ class RepoViewInput
         // build run from the source
         if (Build.IsDevInstance())
             commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
-        commitsView.RegisterKeyHandler(Key.D5, () => BranchCmds.SetBranchManuallyAsync());
 
         commitsView.RegisterKeyHandler(Key.y, () => BranchCmds.ShowBranch(ServerRepo.CurrentBranch().Name, false));
         commitsView.RegisterKeyHandler(Key.s, OnKeyS);
@@ -503,7 +504,7 @@ class RepoViewInput
         var selection = commitsView.Selection;
         if (selection.IsEmpty)
         {
-            status.Notice("Select rows with Shift-↑↓ first, and Ctrl-C copies them");
+            status.Notice("Select rows with ⇧↑↓ first, and Ctrl-C copies them");
             return;
         }
 

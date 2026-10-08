@@ -67,6 +67,16 @@ public class BranchOrder
     public string Branch { get; set; } = "";
     public string Other { get; set; } = "";
     public int Order { get; set; } = 0;
+
+    // One order per pair of branches, the first, which is the one the sort goes by for the pair as
+    // it is named first (ViewRepoCreater.CompareBranches), and none of a branch against itself. A
+    // move replaces the order of its pair, but a rename can leave two of one pair, e.g. each branch
+    // after the other, which no order satisfies and which hung the sort, see Sorter.
+    public static List<BranchOrder> OnePerPair(IEnumerable<BranchOrder> orders) =>
+        orders
+            .Where(o => o.Branch != o.Other)
+            .DistinctBy(o => string.CompareOrdinal(o.Branch, o.Other) < 0 ? (o.Branch, o.Other) : (o.Other, o.Branch))
+            .ToList();
 }
 
 interface IRepoConfig

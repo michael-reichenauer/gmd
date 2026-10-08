@@ -58,18 +58,30 @@ static class Confirm
         );
     }
 
-    internal static bool CleanWorkingFolder() =>
-        Ask(
-            "Clean Working Folder",
-            """
-            Reset the working folder to the last commit?
+    // The folder as a fresh clone would have it, which is what this is for: no leftover file that
+    // git ignores can then make a build or a test pass that would fail elsewhere. The ignored files
+    // are also the ones a user may mean to keep, e.g. a .env file of secrets, and the ones least in
+    // view, so the question lists what goes rather than only naming the kinds.
+    internal static bool CleanWorkingFolder(IReadOnlyList<string> toDelete)
+    {
+        var listed = toDelete.Take(MaxListedPaths).Select(p => $"  {p}");
+        string[] more = toDelete.Count > MaxListedPaths ? [$"  ... and {toDelete.Count - MaxListedPaths} more"] : [];
+        var deleted =
+            toDelete.Count == 0
+                ? "There is no such file here now."
+                : "These are deleted:\n\n" + string.Join("\n", listed.Concat(more));
 
-            Every uncommitted change is undone, and every untracked
-            file is deleted, including the files git ignores,
-            such as build output and local settings.
-            This cannot be undone.
-            """
+        return Ask(
+            "Discard All Changes and Ignored Files",
+            "Make the working folder as a fresh clone of the last commit?\n\n"
+                + "Every uncommitted change is undone, and every file git does\n"
+                + "not track is deleted, the files it ignores too: secrets such\n"
+                + "as .env files, local settings, dependencies, build output.\n\n"
+                + deleted
+                + "\n\nNone of it can be brought back, not by Undo, nor by Recover\n"
+                + "Lost Commits, since git never had it."
         );
+    }
 
     internal static bool DropStash(string message) =>
         Ask(
@@ -89,6 +101,21 @@ static class Confirm
             isOnRemote
                 ? $"Remove the tag '{name}'?\n\nIt is deleted on origin as well, for everyone."
                 : $"Remove the tag '{name}'?"
+        );
+
+    // Undo brings a dropped commit back, but a slip of the finger should not need it: the commit's
+    // changes leave the branch with it, and later commits are rewritten
+    internal static bool DropCommit(string sid, string subject, string branchName) =>
+        Ask(
+            "Drop Commit",
+            $"""
+            Drop the commit from '{branchName}'?
+
+              {sid} {subject}
+
+            Its changes leave the branch with it, and the commits
+            after it are rewritten without it. Undo brings it back.
+            """
         );
 
     // Putting a remote branch back as it was before a force push, which is one in turn, for everyone

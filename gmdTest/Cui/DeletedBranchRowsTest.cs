@@ -25,19 +25,19 @@ public class DeletedBranchRowsTest
     public void TestHeaderAndRows()
     {
         Assert.AreEqual(
-            "Time            Branch              Deleted        Subject             ",
+            "Time              Branch              Deleted        Subject             ",
             DeletedBranchRows.Header(DeletedBranchRows.MinWidth).ToString()
         );
         Assert.AreEqual(
-            "24-10-15 12:03  feature             local, remote  Feature work        ",
+            "2024-10-15 12:03  feature             local, remote  Feature work        ",
             DeletedBranchRows.Row(Deleted(true, true), DeletedBranchRows.MinWidth).ToString()
         );
         Assert.AreEqual(
-            "24-10-15 12:03  feature             local          Feature work        ",
+            "2024-10-15 12:03  feature             local          Feature work        ",
             DeletedBranchRows.Row(Deleted(true, false), DeletedBranchRows.MinWidth).ToString()
         );
         Assert.AreEqual(
-            "24-10-15 12:03  feature             remote         Feature work        ",
+            "2024-10-15 12:03  feature             remote         Feature work        ",
             DeletedBranchRows.Row(Deleted(false, true), DeletedBranchRows.MinWidth).ToString()
         );
     }

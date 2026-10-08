@@ -1807,6 +1807,35 @@ public class GitIntegrationTest
         Assert.AreEqual(0, Value(await repo.Git.GetIdsChangingFilesAsync("nothing", 100, repo.Path)).Count);
     }
 
+    // The search's 'change:' term: the commits that added or removed the text, in any case, and not
+    // one that only touched the line it is on, which the pickaxe counts rather than greps
+    [TestMethod]
+    public async Task TestTheCommitsChangingAText()
+    {
+        var added = await repo.CommitFileAsync("a.cs", "var retryCount = 3;\n", "Add retries");
+        await repo.CommitFileAsync("a.cs", "var retryCount = 5;\n", "More retries");
+        var removed = await repo.CommitFileAsync("a.cs", "var tries = 5;\n", "Rename");
+
+        var ids = Value(await repo.Git.GetIdsChangingTextAsync("RETRYCOUNT", 100, repo.Path));
+
+        CollectionAssert.AreEqual(new[] { removed, added }, ids.ToArray());
+    }
+
+    // The history of lines: the commits that changed them, followed past a change above them that
+    // moved them, and not the ones that changed only other lines
+    [TestMethod]
+    public async Task TestTheHistoryOfLines()
+    {
+        await repo.CommitFileAsync("a.txt", "one\ntwo\n", "Add lines");
+        await repo.CommitFileAsync("a.txt", "one\nTWO\n", "Change two");
+        await repo.CommitFileAsync("a.txt", "zero\none\nTWO\n", "Add a line above");
+        await repo.CommitFileAsync("a.txt", "zero\nONE\nTWO\n", "Change one");
+
+        var history = Value(await repo.Git.GetLineHistoryAsync("a.txt", 3, 3, "", repo.Path));
+
+        CollectionAssert.AreEqual(new[] { "Change two", "Add lines" }, history.Select(d => d.Message).ToArray());
+    }
+
     // A diverged branch is refused by 'git pull' until git is told how to join the two sides, which
     // is why gmd asks. Once the answer is saved where git reads it, the pull merges, or rebases the
     // local commit on top of the remote one.
@@ -1839,6 +1868,51 @@ public class GitIntegrationTest
     }
 
     // Unwraps a result, failing the test with the git error if the command failed
+    // The dry run is read by git's own words ("Would remove ..."), so this is the canary for them: an
+    // ignored file, an ignored folder named once, an untracked file, and the tracked ones left out
+    [TestMethod]
+    public async Task TestTheFilesToCleanAreTheIgnoredAndUntrackedOnes()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAsync(".gitignore", ".env\nbin/\n", "Ignore");
+        File.WriteAllText(Path.Join(repo.Path, ".env"), "TOKEN=secret\n");
+        Directory.CreateDirectory(Path.Join(repo.Path, "bin"));
+        File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
+        File.WriteAllText(Path.Join(repo.Path, "notes.txt"), "untracked\n");
+
+        var files = Value(await repo.Git.GetFilesToCleanAsync(repo.Path));
+
+        CollectionAssert.AreEquivalent(new[] { ".env", "bin/", "notes.txt" }, files.ToArray());
+    }
+
+    // A commit of some files only, as the commit dialog's checklist makes it: the ticked files are
+    // committed, a new one and a deleted one as well, and every other change is left uncommitted.
+    // A path is literal: 'file*.txt' would match 'file1.txt' too as a pattern.
+    [TestMethod]
+    public async Task TestCommitFilesCommitsThoseFilesOnly()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("A file name with '*' in it");
+
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAsync("file1.txt", "one\n", "Add file1");
+        await repo.CommitFileAsync("file*.txt", "star\n", "Add file*");
+        await repo.CommitFileAsync("gone.txt", "gone\n", "Add gone");
+        File.WriteAllText(Path.Join(repo.Path, "file1.txt"), "one changed\n");
+        File.WriteAllText(Path.Join(repo.Path, "file*.txt"), "star changed\n");
+        File.WriteAllText(Path.Join(repo.Path, "new.txt"), "new\n");
+        File.Delete(Path.Join(repo.Path, "gone.txt"));
+
+        Ok(await repo.Git.CommitFilesAsync("Some of it", false, ["file*.txt", "new.txt", "gone.txt"], repo.Path));
+
+        Assert.AreEqual("Some of it", await repo.GitAsync("log -1 --format=%s"));
+        Assert.AreEqual(
+            "M\tfile*.txt\nD\tgone.txt\nA\tnew.txt",
+            (await repo.GitAsync("show --name-status --format= HEAD")).Trim()
+        );
+        Assert.AreEqual(" M file1.txt", (await repo.GitAsync("status --porcelain")).TrimEnd(), "Left as it was");
+    }
+
     static T Value<T>(Result<T> result)
         where T : notnull => AssertOk(result, "Git failed");
 

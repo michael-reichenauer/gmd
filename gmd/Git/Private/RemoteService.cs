@@ -65,7 +65,7 @@ class RemoteService : IRemoteService
         // single-branch clone stays one, and --prune prunes exactly what a plain fetch would.
         var refSpecs = (await GetConfiguredFetchRefSpecsAsync(wd)).Append(TagService.FetchRefSpec);
         var args = $"fetch --force --prune --tags origin {string.Join(' ', refSpecs)}";
-        if (await cmd.RunAsync("git", args, wd, true) is Error e)
+        if (LoginError.ToLogin(await cmd.RunAsync("git", args, wd, true)) is Error e)
             return e;
 
         // Only after a fetch that worked: a failed fetch says nothing about what the remote has
@@ -91,21 +91,23 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         string refs = $"refs/heads/{name}:refs/heads/{name}";
         var args = $"push --porcelain origin --set-upstream {refs}";
-        return await cmd.RunAsync("git", args, wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
     public async Task<Result> PushCurrentBranchAsync(bool isForce, string wd)
     {
         var force = isForce ? " --force-with-lease" : "";
         var args = $"push{force}";
-        return await cmd.RunAsync("git", args, wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
     public async Task<Result> PullCurrentBranchAsync(string wd)
     {
         var args = $"pull";
         // var args = $"pull --ff --no-rebase";
-        return ConflictError.ToConflict(await cmd.RunAsync("git", args, wd), "The pull stopped on conflicts");
+        return LoginError.ToLogin(
+            ConflictError.ToConflict(await cmd.RunAsync("git", args, wd), "The pull stopped on conflicts")
+        );
     }
 
     // Whether git has been told how a pull joins a branch that has diverged from its remote, by
@@ -144,14 +146,14 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         var refs = $"{name}:{name}";
         var args = $"fetch origin {refs}";
-        return await cmd.RunAsync("git", args, wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
     public async Task<Result> DeleteRemoteBranchAsync(string name, string wd)
     {
         name = TrimRemotePrefix(name);
         var args = $"push --porcelain origin --delete {name}";
-        return await cmd.RunAsync("git", args, wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
     public async Task<Result> PushRefForceAsync(string name, string wd)
@@ -159,7 +161,7 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
         var args = $"push --porcelain origin --set-upstream --force {refs}";
-        return await cmd.RunAsync("git", args, wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
     // Puts a remote branch back at a commit it was at, a force push, but only while it is still where
@@ -171,7 +173,7 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         var args =
             $"push --porcelain --force-with-lease=refs/heads/{name}:{expectedId} origin {oldId}:refs/heads/{name}";
-        return await cmd.RunAsync("git", args, wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
     public async Task<Result> PullRefAsync(string name, string wd)
@@ -179,22 +181,30 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         string refs = $"{name}:{name}";
         var args = $"fetch origin {refs}";
-        return await cmd.RunAsync("git", args, wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
     public async Task<Result> CloneAsync(string uri, string path, string wd)
     {
         var args = $"clone {uri} \"{path}\"";
-        return await cmd.RunAsync("git", args, wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
+    // Pushes a tag, and notes it in gmd's record of the remote's tags (TagService.TrackedRemoteTagsRef)
+    // as the fetch would, so that what is on origin is known before the next fetch
     public async Task<Result> PushTagAsync(string name, string wd)
     {
-        return await cmd.RunAsync("git", $"push --porcelain origin {name}", wd);
+        var pushed = LoginError.ToLogin(await cmd.RunAsync("git", $"push --porcelain origin refs/tags/{name}", wd));
+        if (pushed is Error e)
+            return e;
+        return await cmd.RunAsync("git", $"update-ref {TagService.TrackedRemoteTagsRef}{name} refs/tags/{name}", wd);
     }
 
+    // Deletes a tag on the remote. gmd's record of the remote's tags keeps it until the next fetch,
+    // which then sees it gone, as it would a tag someone else deleted, and prunes the local tag of the
+    // name, which gmd has removed first anyway (AugmentedService.RemoveTagAsync).
     public async Task<Result> DeleteRemoteTagAsync(string name, string wd)
     {
-        return await cmd.RunAsync("git", $"push --porcelain origin --delete {name}", wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", $"push --porcelain origin --delete refs/tags/{name}", wd));
     }
 }

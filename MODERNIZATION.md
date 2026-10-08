@@ -267,6 +267,22 @@ Add new open issues and findings here as work lands; keep them short and drop th
     question.
   - A failed clone or init from the start menu left a blank screen, and a click beside the start
     menu quit gmd.
+- A git command that wanted a passphrase, a password or whether to trust a host asked on gmd's own
+  terminal: the fetch on opening drew the question over the bottom row and scrolled the screen a
+  row, the keys typed for gmd went to it as the answer, and a push waited behind it for an Enter
+  the raw terminal never sends (product review, `USABILITY.md`, 2026-10-07). Git now has nothing to
+  ask on (`Cmd.NeverAskOnTheTerminal`), ssh asks gmd itself as its askpass (`Askpass`), which
+  answers nothing, and the failure says what to do instead (`LoginError`).
+- A crash ended gmd without a word, as if it had simply quit, and with exit code 0
+  (`ExceptionHandling.Shutdown`, whose dialog was commented out). Once Terminal.Gui has given the
+  terminal back, `Main` now says what failed, where the log is, that the next start begins it
+  anew, and where to report it (`Program.CrashMessage`), and exits with 1; About has the project's
+  links and the log's path. Tried with a throw on the main loop and in a background task.
+- User branch orders that contradicted each other, each branch after the other as a rename could
+  leave them, or a after b after c after a, made `Sorter.Sort` swap forever, and so gmd hang on
+  every refresh of the repo. Both sorts now leave a place they cannot settle as it is after it has
+  been passed once per item, which a comparer with no cycle never needs, and a rename keeps one
+  order per pair of branches (`BranchOrder.OnePerPair`). (2026-10-07)
 
 ---
 
@@ -275,21 +291,43 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **Product**
 
 - `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
-  small bugs found along the way.
+  small bugs found along the way; and the product review's (2026-10-07), A to D.
+- Git's questions are asked in gmd's login dialog (product review step 17): ssh, and git, which asks
+  `SSH_ASKPASS` when it has no `GIT_ASKPASS`, run gmd as the askpass, which asks the gmd that ran the
+  git over a named pipe (`Askpass`, `AskpassServer`, `LoginDlg`). What is left:
+  - What already works without asking is untouched: any credential helper, since a helper is not a
+    prompt (Git Credential Manager included, which on Windows and macOS opens a window of its own or
+    the browser); an ssh key in the ssh agent; and the user's own `GIT_ASKPASS`, `core.askPass` or
+    `SSH_ASKPASS`, e.g. VS Code's, which asks in a window of VS Code when gmd runs in its terminal.
+  - Still asked on the terminal: an OpenSSH older than 8.4, which ignores `SSH_ASKPASS_REQUIRE`.
+    Starting git in a session of its own, with no controlling terminal (`setsid`), would cover it
+    on Linux and macOS, but .NET's `Process` has no option for that.
+  - Not tried on Windows: Git for Windows' ssh running `gmd.exe` as the askpass, and the named pipe,
+    which .NET makes a Windows pipe there rather than a socket.
+  - The metadata sync never asks (`MetaDataService`, `Askpass.NeverAsk`), so that a fetch or a push
+    asks once rather than twice; with neither an agent nor a credential helper, the shared branch
+    structure is then not synced at all.
+  - Push All runs one push per branch, each a command of its own, so each asks, and a Cancel stops
+    only the one.
+  - Git Credential Manager without a window (Linux over ssh, or `credential.guiPrompt` false) asks on
+    the terminal, e.g. its device code flow, and reads `GIT_TERMINAL_PROMPT` like git does, so it
+    fails instead; the advice then is to log in once with git in a terminal, after which GCM has the
+    token stored. Showing GCM's own prompts in gmd would need GCM to ask an askpass, which as far as
+    its documentation says it does not.
+- An exception on a thread of its own, rather than on the UI main loop or in a task, ends the
+  process in `AppDomain.UnhandledException` before `Main` gets to say so (see the crash fix under
+  Bugs fixed). Nothing in gmd starts such a thread today.
 - F5 does nothing inside the diff, blame and conflict views, where it only ever worked by falling
   through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
 - *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
   ref, which gmd's background fetch keeps moving. A fetch that lands between the screen being drawn
   and the push makes the lease pass over commits the user never saw. Pass the tip the user saw
   (`--force-with-lease=<branch>:<sha>`).
-- `DeleteTag` deletes a tag on origin whenever the branch of the row's commit has a remote, not
-  when origin actually has the tag, so the question may say 'on origin as well' for a tag that was
-  never pushed.
-- `CopyCommitId` / `CopyCommitMessage` are implemented on `IRepoCommands` but no key or menu item
-  calls them. A commit-menu entry would also give macOS users a copy without Ctrl+C. Cmd+C cannot
-  reach a terminal program at all: the terminal keeps it, the classic key protocol cannot express
-  it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile binding of Cmd+C to hex
-  `0x03` is the workaround.
+- Cmd+C cannot reach a terminal program at all on macOS: the terminal keeps it, the classic key
+  protocol cannot express it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile
+  binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
+  no Ctrl+C: `i` and `Shift-I` copy them, as the commit menu's *Copy Commit Id* and *Copy Commit
+  Message* do (2026-10-07).
 - `BlameView.ScrollToCommit` calls `SetCurrentIndex` before `ScrollToShowIndex`, which puts the
   cursor on the last visible row rather than the target. Scroll first, then set the cursor.
 - `UILabel.Text`'s setter sizes the label from the text it is *replacing*, so a header that grows is
@@ -333,8 +371,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `<repo>/.git/.gmdconfig` goes through the same store, so the same holds for a repo opened twice.
   Re-read the file before writing, or merge the lists.
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
-  hardware. Linux with no display is covered end to end; the tool path was checked with a stand-in
+  hardware (the platform checklist in `CONTRIBUTING.md` has it, with the rest that only Windows and
+  macOS show). Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
+- Squash still resets the branch and cherry-picks the newer commits back one by one
+  (`AugmentedService.SquashCommits`), so a conflict stops it half done: the branch already reset, a
+  cherry-pick stopped, and its `squash-backup-…` branch left behind. Amend and Drop of an older
+  commit are git's own rebase instead (`AutosquashAsync`, `DropCommitAsync`), which a conflict stops
+  cleanly for the resolver and Continue or Abort; Squash could be the same, as `fixup!` commits and
+  `--autosquash`, with the message given to the first. The rewrites that are rebases recorded for
+  Undo only when they finish in one go: one stopped on a conflict and continued is named by the
+  reflog, i.e. Undo Rebase, which leaves an Amend's `amend!` commit, a second Undo.
 
 **Inference pipeline**
 
@@ -390,8 +437,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (each branch tested for overlap against every placed one), the sort by column 0.4 s (Sorter, whose
   order of equal columns is the drawing), `SetGraph` 0.3 s. Only after the user asks for all branches
   (asked to confirm above 20), but then every refresh pays it.
-- User branch orders that contradict each other (each after the other, which a rename can leave)
-  make `Sorter.Sort` loop forever, and the overload too, since it makes the same swaps.
 - Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
   the shown names with a list `Contains`, thousands times thousands once all are shown.
 - `CommitBranchService.DetermineCommitBranch` builds a `branchNames` string no one reads, for every
@@ -445,6 +490,37 @@ Add new open issues and findings here as work lands; keep them short and drop th
   seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
 
 **Deferred, with the reasoning so it is not redone**
+
+- **The inference measured and published** (product review step 22, postponed 2026-10-08 to the
+  task that improves the inference, so that it is measured before and after). The plan:
+  `InferenceDumpTest` scores only the reflog, which a clone has none of, and merge subjects that
+  name the branch merged into, which check merges alone. Add a score for the ordinary commits: a
+  subject that names the branch merged in ('Merge branch 'x'', 'Merge pull request #n from a/x')
+  says the commits that came in only through that merge are x's. It is partly circular, since the
+  inference uses those subjects as evidence; independent truth is the commits of each pull request
+  from the GitHub API, for a sample. Run it on `--filter=blob:none` clones of a repository per
+  workflow (gitflow-avh, cli/cli and rails for pull requests merged with a merge commit, git/git
+  for topic branches merged by name, Terminal.Gui, sinatra) and on a frozen copy of this repo for
+  the reflog; sort the disagreements into wrong, naming (a branch renamed since) and ambiguous by
+  design; and publish in the README the share of commits on the right branch and the share honestly
+  ambiguous per workflow, with how it was measured, and that squash or rebase merged repositories
+  have nothing to infer. Whether to publish is decided once the numbers are seen.
+
+- **A second remote** (product review step 19, postponed 2026-10-08 to meet the need in use
+  first). Why a user has more than one remote, most common first: a fork, `origin` being the
+  user's own and `upstream` the original, pushed to never, only fetched to keep `main` up to date
+  (the daily loop: fetch upstream, bring its `main` into one's own, push that to the fork); another
+  contributor's fork, added for a while to try a pull request's branch; a move or a mirror of the
+  repository on another host; a deploy remote, push only (`git push heroku main`); a vendor's
+  repository, to merge its releases into a patched copy; and a clone on another machine, or an
+  agent's own clone, to fetch its branches from. The fork loop is the one for gmd's audiences, and
+  it needs no push to the second remote: fetch every remote, show another remote's branches as the
+  remote copies of the local ones ('main is 5 behind upstream'), and merge `upstream/main` with the
+  merges there are. What makes it large is the inference, which assumes `origin/` where it names
+  branches and pairs them with their remote copies (`BranchNameService`, `WorkRepo`, `ReflogWitness`,
+  `RemoteService.TrimRemotePrefix`, and `main` detection, which would see `upstream/main` as a third
+  line), and is held to before/after dumps on real repositories. Fetch and push of a chosen remote,
+  for the other cases, is a separate and smaller change. Today gmd fetches and pushes `origin` only.
 
 - **Terminal.Gui 1.x → 2.x.** When, not if. For: v1 is frozen (last commit June 2025); true color
   would lift the five-color branch palette, which a tool built on showing many branches runs out of;
@@ -703,6 +779,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Terminal.Gui 1.x and the UI**
 
+- A dialog with keys of its own (`UIDialog`'s `CustomDialog`) used to override `ProcessHotKey`
+  without calling the base, so its views got no hot keys at all, and `ContentView` takes its keys as
+  hot keys: a list in such a dialog never ticked or moved, however it was focused. It found nothing
+  until the commit dialog got its file list (2026-10-07); the dialog's keys go first now, then its
+  views'.
 - Blocking the main loop (`.Result`, `.Wait()`) deadlocks: the `SynchronizationContext` posts every
   continuation to the loop being blocked. Load before the view opens and pass the data in.
 - `SetFocus()` does not move the keyboard, and `ContentView.ProcessHotKey` returns early without

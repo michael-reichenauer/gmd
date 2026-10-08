@@ -6,7 +6,8 @@ rebasing or squashing. The everyday Git commands are in menus and on single keys
 need to remember their syntax.
 
 ![Gmd Animation](gmd/doc/Animation.gif)
-*Gmd in action.*
+*Showing two hidden branches, one of them deleted long ago, a commit's diff, a search, then a
+commit, a push and an update of every shown branch.*
 
 ## Why Gmd
 
@@ -18,11 +19,130 @@ Gmd leaves the history as it is and lets you choose what to look at. A developer
 Showing or hiding a branch is instant and can be undone at any time, with `Backspace`. It works like
 a squash merge that you can take back, and it never touches the history.
 
-Git does not record which branch a commit was made on. Gmd works that out from the branch
-structure and the merge messages, and draws each branch in its own column and color. When it
-cannot tell, it marks the branch as ambiguous, and you can set it by hand.
+Here is a small repository with five branches, and a sixth merged and deleted, as
+`git log --graph --oneline --decorate --all` shows it:
+
+```text
+* 4c13bbd (origin/main) Update dependencies
+| * 1d99d6a (HEAD -> feature/login) Show login errors
+| * b826c09 (origin/feature/login) Remember me option
+| *   101b39e Merge branch 'main' into feature/login
+| |\
+| |/
+|/|
+| * f617b05 Validate email and password
+| * 4309d4b Add login page
+| | * 83d45d5 (origin/feature/dark-mode, feature/dark-mode) Add theme toggle
+| | * 09c5518 Add dark theme
+| |/
+|/|
+* |   ddf6a02 (tag: v1.1, main) Merge branch 'bugfix/cart-total'
+|\ \
+| |/
+|/|
+| * beb669c (origin/bugfix/cart-total, bugfix/cart-total) Fix rounding of cart total
+|/
+| * 6fd3597 (origin/feature/search, feature/search) Highlight search matches
+| * 6e028ff Search by category
+| * 669997e Add search box
+|/
+* 744dfa8 (tag: v1.0) Add install steps to README
+*   f36ef44 Merge branch 'feature/checkout'
+|\
+| * 5ca9760 Add checkout form
+| * 2ecfa80 Add shopping cart
+* | 6584425 Add product images
+|/
+* 471dc10 Add product catalog
+* 9e1fe92 Initial project setup
+```
+
+And here as gmd first shows it, while you work on `feature/login`: your branch and `main`, each in
+a column of its own, and the other branches hidden.
+
+```text
+      ┣  ©1 uncommitted change                    (● feature/login)
+┣     ┃  ▼Update dependencies                              (^/main)
+┃    ╭┺ ●▲Show login errors
+┃   ┣╯    Remember me option                      (^/feature/login)
+┃  ╭╊     Merge branch 'main' into feature/login
+┣┴┺╯┃     Merge branch 'bugfix/cart-total'             (main)[v1.1]
+┃   ┣     Validate email and password
+┃  ╭┺     Add login page
+┣┴─╯      Add install steps to README                        [v1.0]
+┣╮        Merge branch 'feature/checkout'
+┣         Add product images
+┣╯        Add product catalog
+┗         Initial project setup
+```
+
+Git does not record which branch a commit was made on. Gmd works that out from your reflog, the
+merge messages and the branch structure, which is how `feature/checkout`, merged and deleted long
+ago, still has commits of its own that can be shown. When it cannot tell, it marks the branch as
+ambiguous, and you can set it by hand.
+
+## Reading the Graph
+
+In the picture above, and in color on the screen:
+
+- **`main` runs down the left** (`┣`, down to `┗` for its first commit), and each branch has a
+  column of its own to the right of the branch it was made from, here `feature/login`.
+- **A branch and its copy on origin** are two columns side by side, origin's on the left: `▼`
+  marks a commit to pull (`Update dependencies`, on `^/main`) and `▲` a commit to push
+  (`Show login errors`). `^` is short for origin.
+- **`●` is the commit you have checked out** and `(● feature/login)` the branch you are on.
+  `©1 uncommitted change` is what you have not committed yet.
+- **The thin lines between the columns** join a commit to a parent in another column: `╮` down to
+  `╰` where a branch was merged into the one on its left, and `╭` down to `╯` where it was made
+  from the one on its left, or had that one merged into it.
+- **The dark marks beside `main`** (`┣╮`, `┣╯`, `┴`) are hidden branches merged in or made at
+  that commit. A click there, or `←` to highlight `main` on that row and `Enter`, shows them, and
+  `Shift-→` lists every branch to show.
+
+The help, on the `?` key, starts with the same tour of the screen, including the top bar.
+
+## Is Gmd for You?
+
+Gmd works best when:
+
+- Branches are **merged with merge commits**: git-flow, pull requests merged with a merge commit,
+  long-lived release branches. Each merge records which branch came in, which is what keeps a
+  branch's column after the branch itself is deleted. Gmd's own merges always make one.
+- Many branches exist at once, your team's or your AI agents', and you want to follow a few.
+- You work in a terminal, including over ssh and in containers.
+
+It has less to show when every pull request is **squash merged or rebase merged**: `main` is then a
+straight line, the branches leave nothing behind once deleted, and there is little to hide. Gmd is
+still a complete terminal client there, just not a different one.
+
+Known limits:
+
+- A commit takes whole files: the commit dialog lists them, all ticked, to untick what is to be
+  left out. There is no staging of single lines or hunks.
+- Only the remote named `origin` is supported.
+- The colors assume a dark terminal: on a light theme gmd is drawn on black.
+- The log reads the latest 30,000 commits.
+- Git's questions, a password, a passphrase or whether to trust a host, are asked in a dialog, but
+  only for what you asked for: the fetch gmd runs in the background asks nothing, and says that `r`
+  fetches and asks. An ssh older than OpenSSH 8.4 (2020) still asks on the terminal.
+
+## Gmd and AI Coding Agents
+
+Coding agents such as Claude Code work in branches and worktrees of their own, often several at
+once. Gmd keeps that readable rather than letting it flood the log:
+
+- ✦ in the top bar counts the hidden branches with something new, an agent's new branch included,
+  and a click lists them, without showing them all.
+- `w` lists the worktrees, which ones have uncommitted changes, which are in use by a running
+  Claude Code session, and whose branches are merged. Open, add or remove them there.
+- A branch checked out in another worktree is marked `⌂`, and `s` on it opens that worktree.
+- When something goes wrong, **Undo** takes back the last change of a branch (a commit, a merge,
+  a rebase, a reset), **Recover Lost Commits** finds the work a reset or a rebase left behind,
+  and **Restore Deleted Branch** brings back a branch deleted by mistake.
 
 ## Features
+
+**See what matters**
 
 - **Branch visibility**: show and hide branches, pick them from lists of recent, active, your
   own or deleted branches or find one by typing part of its name, and see markers where hidden
@@ -31,20 +151,37 @@ cannot tell, it marks the branch as ambiguous, and you can set it by hand.
 - **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches. The
   context shown around the changes can be widened for one file at a time, up to the whole file.
 - **Blame** that groups lines by the commit that last changed them and shades each commit by its
-  age. You can step back to the version before a commit to get past a reformat or a rename.
+  age. You can step back to the version before a commit to get past a reformat or a rename, or see
+  every commit that changed the lines you select.
+- **Search** of the messages, the changed files and the changes themselves, stepping through the
+  matches in the log.
+- **Diff any two commits**, wherever they are in the log.
+
+**Do it without the syntax**
+
+- **Everyday Git**: commit all the changes or the files you tick (with spell check), push and pull
+  (every shown branch at once if you like), merge in either direction, create, rename and delete
+  branches, tags (a list of them, to push or remove), stash, cherry pick, and file history.
+- **Tidy up before you push**: amend any commit not pushed yet, with a new message or the changes
+  you tick, drop one, or squash several, and Undo takes each back.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to
   each other, with the common ancestor at hand, and when you are done you can continue, skip or
   abort the operation.
-- **Everyday Git without the syntax**: commit (with spell check), amend, push and pull (every
-  shown branch at once if you like), merge in either direction, create, rename and delete
-  branches, tags, stash, squash, cherry pick, undo and uncommit, file history, and search of the
-  messages and the changed files, stepping through the matches in the log.
+- **Worktrees**: see every worktree of a repository and which ones have uncommitted changes, and
+  open, add or remove them.
 - **Open in the browser**: a branch, a commit or the repository on GitHub, GitLab, Bitbucket, Azure
   DevOps or Gitea, or the page for a pull request into the branch the branch was made from.
-- **Worktrees**: see every worktree of a repository and which ones have uncommitted changes, and
-  open, add or remove them. This includes the worktrees Claude Code creates.
-- **Keyboard and mouse**: every command is in a context menu, the common ones also have a
-  single-key shortcut, and the mouse works for highlighting, menus and switching branches.
+
+**A way back**
+
+- **Undo** the last change of a branch, whether it was made in gmd or not, and redo it.
+- **Recover lost commits** that no branch has any more, and **restore deleted branches**.
+- Commands that would throw work away ask first.
+
+**Anywhere**
+
+- **Keyboard and mouse**: every command is in a menu, the common ones also have a single-key
+  shortcut, and the mouse works for highlighting, menus and switching branches.
 - **Works over SSH and in containers**: when no clipboard tool is available, gmd copies through
   the terminal instead (OSC 52), if the terminal supports it, and a link it has no browser to open
   in is copied the same way.
@@ -64,6 +201,15 @@ gmd
 Started outside a repository, gmd opens a menu of your recent repositories, where you can also
 browse to a repository, clone one or create a new one. `gmd -d <path>` opens the repository at
 `<path>`, and `gmd --help` lists all the command-line options.
+
+Your first five minutes:
+
+1. The log shows `main` and the branch you are on. The dark marks beside `main` are the hidden
+   branches.
+2. `Shift-→` and type part of a branch's name to show it. `Backspace` takes it back.
+3. `←` and `→` highlight a branch, and `m` opens its menu, which has every command and its key.
+4. `d` shows the diff of a commit, `c` commits and `p` pushes.
+5. `?` opens the help, which starts with how to read the screen.
 
 A few keys to start with:
 
@@ -85,7 +231,8 @@ when you press `?`.
 ## Installation
 
 Gmd is one self-contained executable, so you don't need to install .NET. It does need `git` on
-the `PATH`. Every release on the [releases page](https://github.com/michael-reichenauer/gmd/releases)
+the `PATH`, and a terminal with a dark theme and a font with box-drawing characters, which most
+have. Every release on the [releases page](https://github.com/michael-reichenauer/gmd/releases)
 has these files:
 
 | Platform              | File                                                  |
@@ -149,74 +296,33 @@ why it needs no `sudo` when gmd is in your home folder. The **Config ...** dialo
 update check off, update automatically, or allow preview releases, which are built from the
 `dev` branch.
 
-## Development
+## What Gmd Stores and Sends
 
-Gmd is written in C# for .NET 10 on [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) 1.x.
-It runs the `git` command line for everything and uses no Git library. The code is layered, and
-each layer calls only the one below it:
+- `~/.gmdconfig`: your settings and recent repositories.
+- `.gmdconfig` in each repository's `.git` folder: which branches are shown, their colors and
+  their order.
+- `refs/gmd-metadata-key-value/data` in a repository: the branches you set by hand, and what your
+  reflog says about where commits were made, kept for when the reflog has expired. It is pushed
+  to origin only when the shared branch structure is turned on.
+- `~/gmd.log`: a log of what gmd does, started afresh each time it runs.
 
-```text
-gmd/Cui/                         Terminal.Gui views, dialogs, menus and the branch graph
-gmd/Server/                      The repository model the UI shows, i.e. the branches you chose
-gmd/Server/Private/Augmented/    Works out which branch each commit belongs to
-gmd/Git/                         One service per area of git, each running the git command line
-```
+Over the network, gmd runs git's own fetches and pushes to origin (a fetch every five minutes, to
+keep the ▼ counts current), and asks GitHub for the latest release every hour, which **Config ...**
+turns off. Nothing else is sent: there is no telemetry.
 
-[CLAUDE.md](CLAUDE.md) describes the architecture, the conventions and the tests in depth. It is
-written for Claude Code but is just as useful to read yourself. [MODERNIZATION.md](MODERNIZATION.md)
-lists the open issues, and [USABILITY.md](USABILITY.md) is a review of the user experience with
-proposals for improving it.
+## Problems and Feedback
 
-### Setting up
+[Report a problem](https://github.com/michael-reichenauer/gmd/issues/new?template=bug_report.yml)
+or [suggest something](https://github.com/michael-reichenauer/gmd/issues/new?template=suggestion.yml)
+in the issues, where the forms ask for what helps: for a problem, the version from **About** in the
+repo menu or from `gmd --version`, and the log. `~/gmd.log` is the first place to look when something goes
+wrong; **About** shows where it is, and if gmd itself fails, it says so when it ends, with the same
+links. The log is begun anew on every start, so copy it before starting gmd again.
 
-The easiest way is the devcontainer, locally in VS Code with Docker or in GitHub Codespaces. It
-installs both .NET SDKs, and `./installtools` then adds the tools that the scripts and the
-end-to-end tests use (tmux, lnav, agg).
+## Contributing
 
-To set up a machine yourself you need:
-
-- The **.NET 11 SDK**, a preview until .NET 11 is released and pinned in `global.json`. Its C# 15
-  compiler is what the `Result` union type needs. [UPGRADING.md](UPGRADING.md) has the steps for
-  when .NET 11 is released.
-- The **.NET 10 runtime**, since gmd targets `net10.0` and the tests run on it.
-- **git**, and **tmux** for the end-to-end tests.
-
-### Scripts
-
-| Script             | What it does                                                               |
-| ------------------ | -------------------------------------------------------------------------- |
-| `./run [args]`     | Run gmd from source                                                        |
-| `./test`           | Run all tests (about 35 s); `--filter "TestCategory!=Integration"` runs only the fast ones (about 1 s) |
-| `./build`          | Run the tests, audit the packages and publish the executables for every platform |
-| `./build -l`       | The same, but publish only for Linux (x64 and arm64), which is much faster |
-| `./log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
-| `./updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
-| `./installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
-| `./demo`           | Re-record the animation above, by running a scripted session in tmux     |
-
-On Windows, `run.bat`, `build.bat` (`-w` builds Windows only) and `log.bat` do the same.
-
-`./build` publishes each platform as a self-contained, single-file executable, for example:
-
-```bash
-dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
-```
-
-The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`. The runtimes released are
-`linux-x64`, `linux-arm64`, `osx-arm64` and `win-x64`.
-
-### Conventions
-
-- **Formatting** belongs to [CSharpier](https://csharpier.com). VS Code formats on save, a Debug
-  build formats the code, and CI checks it. Don't format by hand.
-- **Branches**: `main` holds the releases and `dev` the pre-releases, and CI publishes a GitHub
-  release on every push to either one. A release from `main` gets the next minor version, in a
-  release commit CI adds to `main`, so pull `main` before merging into it and merge it back into
-  `dev` afterwards. Work on a feature branch and target `dev`.
-- **Tests** go with every bug fix. The unit tests are in `gmdTest/`, laid out like `gmd/`, and the
-  end-to-end tests, which drive the real executable in tmux, are in `gmdE2eTest/`.
-- **`CHANGELOG.md` is generated** from the git history by `gmd --updatechangelog`, in CI's release
-  commit on `main`, so don't edit it by hand.
+[CONTRIBUTING.md](CONTRIBUTING.md) describes how gmd is built, how to set up a machine for it, the
+scripts and the conventions.
 
 ## Third-party components
 

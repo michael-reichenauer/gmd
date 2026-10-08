@@ -94,9 +94,8 @@ static class E2eRepo
     }
 
     // The same shape with an 'origin' remote next door, everything pushed to it except one commit
-    // on top. That last part is the point: amend is only offered for a commit that is still ahead
-    // of the remote (CommitCommands.Commit checks CurrentCommit().IsAhead), i.e. one that has not
-    // been published yet and can still be rewritten.
+    // on top. That last part is the point: amend is only offered for a commit that is not pushed yet
+    // (CommitRewrite.IsNotPushed), i.e. one that has not been published and can still be rewritten.
     //
     // Note that this is the only fixture here with a remote, so it is also the only one whose
     // screens carry the ahead marker and the local/remote branch tips.

@@ -87,6 +87,14 @@ class AugmentedService : IAugmentedService
         }
     }
 
+    public async Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd)
+    {
+        using (fileMonitor.Pause())
+        {
+            return await git.CommitFilesAsync(message, isAmend, paths, wd);
+        }
+    }
+
     // The worktrees read on their own: the list, and the status of each of the others, which a
     // freshly read repo does not have (its counts are unknown until this is called), so that a
     // status run in another worktree never delays showing this one. Only the worktrees change; the
@@ -459,6 +467,105 @@ class AugmentedService : IAugmentedService
         return Result.Ok;
     }
 
+    // Gives an older commit of the current branch, one not pushed yet, a new message and the changes
+    // in these files, none for a new message alone. It is git's own way of doing it: an 'amend!'
+    // commit carrying both is made on top, and a rebase with --autosquash folds it into the commit
+    // and replays the newer ones after it. The changes left out stay as they are, put aside and back
+    // by the rebase. A later commit that conflicts with the changes stops the rebase there, to be
+    // continued or aborted as any rebase; an abort leaves the 'amend!' commit on top, which Undo
+    // takes back to uncommitted changes.
+    //
+    // What the menu checks (CommitRewrite) is checked here against git too, since the commits are
+    // rewritten: a commit on origin already, or one another branch or a tag is on, is left as it is.
+    public async Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths)
+    {
+        var commit = repo.CommitById[id];
+        var checkResult = await CheckRewritableAsync(repo, commit);
+        if (checkResult is not Branch local)
+            return new Error($"Cannot amend {commit.Sid}", checkResult.Error);
+
+        using (fileMonitor.Pause())
+        {
+            // git matches the 'amend!' subject with the first commit of the rebase of that subject,
+            // which is this one, since the rebase starts at it
+            var amendMessage = $"amend! {commit.Subject}\n\n{message}";
+            if (await git.CommitFilesAsync(amendMessage, false, paths, repo.Path) is Error commitError)
+                return new Error($"Failed to commit the changes to amend {commit.Sid} with", commitError);
+
+            var baseId = commit.ParentIds.Count == 0 ? "" : $"{id}^";
+            if (await git.AutosquashAsync(baseId, repo.Path) is Error rebaseError)
+                return new Error($"Failed to amend {commit.Sid}", rebaseError);
+
+            // Two moves of the branch, the 'amend!' commit and the rebase, recorded as one change
+            RecordStep(
+                repo,
+                local.Name,
+                new RecordedStep
+                {
+                    Kind = nameof(StepKind.Amend),
+                    Name = message.Split('\n')[0].Trim(),
+                    BeforeId = repo.CurrentCommit().Id,
+                    Moves = 2,
+                }
+            );
+        }
+        return Result.Ok;
+    }
+
+    // Takes an older commit of the current branch, one not pushed yet, out of the branch: the newer
+    // commits are replayed onto its parent. One that conflicts without it stops the rebase there.
+    public async Task<Result> DropCommitAsync(Repo repo, string id)
+    {
+        var commit = repo.CommitById[id];
+        var checkResult = await CheckRewritableAsync(repo, commit);
+        if (checkResult is not Branch local)
+            return new Error($"Cannot drop {commit.Sid}", checkResult.Error);
+        if (commit.ParentIds.Count == 0)
+            return new Error("The first commit cannot be dropped");
+
+        using (fileMonitor.Pause())
+        {
+            if (await git.DropCommitAsync(id, repo.Path) is Error dropError)
+                return new Error($"Failed to drop {commit.Sid}", dropError);
+
+            RecordStep(
+                repo,
+                local.Name,
+                new RecordedStep
+                {
+                    Kind = nameof(StepKind.Drop),
+                    Name = commit.Subject.Trim(),
+                    BeforeId = repo.CurrentCommit().Id,
+                    Moves = 1,
+                }
+            );
+        }
+        return Result.Ok;
+    }
+
+    // The current local branch, when only it has the commit: no remote branch, i.e. it is not pushed,
+    // and no other branch or tag, which would be left on the old commits. Asked of git rather than
+    // taken from the repo read, since the commits are rewritten.
+    async Task<Result<Branch>> CheckRewritableAsync(Repo repo, Commit commit)
+    {
+        var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote && !b.IsDetached);
+        if (local == null)
+            return new Error("Not on a branch");
+
+        var refsResult = await git.GetRefsContainingAsync(commit.Id, repo.Path);
+        if (refsResult is not IReadOnlyList<string> refs)
+            return refsResult.Error;
+        if (!refs.Contains($"refs/heads/{local.Name}"))
+            return new Error($"{commit.Sid} is not on '{local.NiceNameUnique}'");
+        if (refs.FirstOrDefault(r => r.StartsWith("refs/remotes/")) is string remote)
+            return new Error($"{commit.Sid} is on '{remote["refs/remotes/".Length..]}' already, i.e. pushed");
+        if (refs.FirstOrDefault(r => r.StartsWith("refs/tags/")) is string tag)
+            return new Error($"The tag '{tag["refs/tags/".Length..]}' is on {commit.Sid} or a commit after it");
+        if (refs.FirstOrDefault(r => r != $"refs/heads/{local.Name}") is string other)
+            return new Error($"'{other["refs/heads/".Length..]}' is on {commit.Sid} or a commit after it");
+        return local;
+    }
+
     // Takes back the last change of a branch, or redoes the change an undo took back. The current
     // branch is reset in the way that loses nothing uncommitted, see UndoStep.Mode, and any other is
     // just moved, unless it is checked out in another worktree, whose files would no longer match.
@@ -822,43 +929,37 @@ class AugmentedService : IAugmentedService
 
     public Task<Result> PushMetaDataAsync(string wd) => metaDataService.PushMetaDataAsync(wd);
 
-    public async Task<Result> AddTagAsync(string name, string commitId, bool hasRemoteBranch, string wd)
+    public async Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd)
     {
         using (fileMonitor.Pause())
         {
             if (await git.AddTagAsync(name, commitId, wd) is Error e)
                 return e;
-            if (!hasRemoteBranch)
+            if (!isPush)
                 return Result.Ok;
             return await git.PushTagAsync(name, wd);
         }
     }
 
-    public async Task<Result> AddAnnotatedTagAsync(
-        string name,
-        string message,
-        string commitId,
-        bool hasRemoteBranch,
-        string wd
-    )
+    public async Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd)
     {
         using (fileMonitor.Pause())
         {
             if (await git.AddAnnotatedTagAsync(name, message, commitId, wd) is Error e)
                 return e;
-            if (!hasRemoteBranch)
+            if (!isPush)
                 return Result.Ok;
             return await git.PushTagAsync(name, wd);
         }
     }
 
-    public async Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd)
+    public async Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd)
     {
         using (fileMonitor.Pause())
         {
             if (await git.RemoveTagAsync(name, wd) is Error e)
                 return e;
-            if (!hasRemoteBranch)
+            if (!isOnOrigin)
                 return Result.Ok;
             return await git.DeleteRemoteTagAsync(name, wd);
         }

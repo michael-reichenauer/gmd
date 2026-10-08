@@ -35,7 +35,7 @@ public class CommitDlgTest
         gmd.WaitFor("2 misspelled words");
         Assert.AreEqual(
             "                       -DWWW rrrrrrrrr rrrr                                D                    m",
-            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1),
+            ScreenText.ColorRows(gmd.CaptureColors(), 12, 1),
             "The pause finished 'issu', with no space typed after it"
         );
 
@@ -47,7 +47,7 @@ public class CommitDlgTest
         gmd.WaitForStable();
         Assert.AreEqual(
             "                       -Drrrrrrrr WWW rrrrrr                                                   Dm",
-            ScreenText.ColorRows(gmd.CaptureColors(), 16, 1)
+            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1)
         );
 
         gmd.Send("F7");
@@ -62,19 +62,19 @@ public class CommitDlgTest
                                    ││             │Add 'brnach' to dictionary │                            ││
                                    ││             │Ignore                     │                            ││
             """,
-            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 16, 8)
+            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 14, 8)
         );
 
         gmd.Send("Enter");
         gmd.WaitFor("Sumerize the branch");
         Assert.AreEqual(
             "                       -Drrrrrrrr WWW WWWWWW                                                   Dm",
-            ScreenText.ColorRows(gmd.CaptureColors(), 16, 1)
+            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1)
         );
         // The caret is back once the menu has closed, right after the replaced word. The menu had
         // hidden it, and closing a modal used to leave it hidden until focus moved away and back.
         Assert.IsTrue(gmd.IsCursorVisible, "The caret should show again after the spelling menu closed");
-        Assert.AreEqual((44, 16), gmd.CursorPosition, "The caret should be right after the replaced word");
+        Assert.AreEqual((44, 14), gmd.CursorPosition, "The caret should be right after the replaced word");
 
         gmd.Send("C-g");
         ScreenText.AssertEqual(
@@ -84,7 +84,7 @@ public class CommitDlgTest
                                    │││Mesmerizer                   │                                       ││
                                    │││Summarize                    │                                       ││
             """,
-            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 16, 4)
+            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 14, 4)
         );
         gmd.Send("Escape");
         gmd.WaitUntilGone("Spelling");
@@ -125,7 +125,7 @@ public class CommitDlgTest
                                    ││                   │Redo                     Ctrl-Y│                  ││
                                    ││                   ╰───────────────────────────────╯                  ││
             """,
-            ScreenText.Rows(gmd.WaitFor("Select All"), repo.Path, 14, 11)
+            ScreenText.Rows(gmd.WaitFor("Select All"), repo.Path, 12, 11)
         );
         gmd.Send("Escape");
         gmd.WaitUntilGone("Select All");
@@ -154,10 +154,10 @@ public class CommitDlgTest
                                    ││             │Cut                         Alt-W│                      ││
                                    │└─ 3 misspelle│Paste                      Ctrl-Y│estions ──────────────┘│
                                    │              │Undo                       Ctrl-Z│                       │
-                                   ╰──────────────│Redo                       Ctrl-R│───────────────────────╯
-                                                  ╰─────────────────────────────────╯
+                                   │ Files, Space │Redo                       Ctrl-R│a all:                 │
+                                   │ ◙ M alpha.txt╰─────────────────────────────────╯                       │
             """,
-            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 16, 14)
+            ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 14, 14)
         );
 
         gmd.Send("Enter"); // The first suggestion replaces the word
@@ -182,7 +182,7 @@ public class CommitDlgTest
                                    ││                   │Redo                     Ctrl-R│                  ││
                                    │└─ 2 misspelled word╰───────────────────────────────╯ons ──────────────┘│
             """,
-            ScreenText.Rows(gmd.WaitFor("Spelling Suggestions"), repo.Path, 16, 11)
+            ScreenText.Rows(gmd.WaitFor("Spelling Suggestions"), repo.Path, 14, 11)
         );
 
         // ... which does what F7 does: the misspelled word at or after the caret, wrapping around
@@ -194,7 +194,7 @@ public class CommitDlgTest
                                    │││Mesmerizer                   │                                       ││
                                    │││Summarize                    │                                       ││
             """,
-            ScreenText.Rows(gmd.WaitFor("Summarize"), repo.Path, 16, 4)
+            ScreenText.Rows(gmd.WaitFor("Summarize"), repo.Path, 14, 4)
         );
         gmd.Send("Escape");
         gmd.WaitUntilGone("Summarize");
@@ -215,7 +215,7 @@ public class CommitDlgTest
         gmd.WaitFor("Commit 2 changes");
         Assert.AreEqual(
             "                       │└──────────────────────────────────────────────────────────────────────┘│",
-            ScreenText.Rows(gmd.WaitForStable(), repo.Path, 26, 1),
+            ScreenText.Rows(gmd.WaitForStable(), repo.Path, 24, 1),
             "Nothing typed yet, so the plain edge"
         );
 
@@ -224,11 +224,11 @@ public class CommitDlgTest
             """
                                    │└─ 2 misspelled words, F7 or right-click for suggestions ──────────────┘│
             """,
-            ScreenText.Rows(gmd.WaitFor("2 misspelled words"), repo.Path, 26, 1)
+            ScreenText.Rows(gmd.WaitFor("2 misspelled words"), repo.Path, 24, 1)
         );
         Assert.AreEqual(
             "                       -DD r rrrrrrrrrr rrrrrD DD DD DDDDDDDDDDD DDD DDDDDDDDDDD DDDDDDDDDDDDDDDm",
-            ScreenText.ColorRows(gmd.CaptureColors(), 26, 1),
+            ScreenText.ColorRows(gmd.CaptureColors(), 24, 1),
             "The count is red, the rest of the edge dark"
         );
 
@@ -246,7 +246,7 @@ public class CommitDlgTest
             """
                                    │└─ 3 misspelled words, F7 or right-click for suggestions ──────────────┘│
             """,
-            ScreenText.Rows(gmd.WaitFor("3 misspelled words"), repo.Path, 26, 1)
+            ScreenText.Rows(gmd.WaitFor("3 misspelled words"), repo.Path, 24, 1)
         );
     }
 
@@ -267,7 +267,7 @@ public class CommitDlgTest
         gmd.WaitFor("Add gmd to the list");
         Assert.AreEqual(
             "                       -DWWW rrr WW WWW WWWW                               D                    m",
-            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1)
+            ScreenText.ColorRows(gmd.CaptureColors(), 12, 1)
         );
 
         gmd.Send("C-g");
@@ -280,7 +280,7 @@ public class CommitDlgTest
         gmd.WaitUntilGone("Spelling");
         Assert.AreEqual(
             "                       -DWWW WWW WW WWW WWWW                               D                    m",
-            ScreenText.ColorRows(gmd.CaptureColors(), 14, 1)
+            ScreenText.ColorRows(gmd.CaptureColors(), 12, 1)
         );
 
         var config = File.ReadAllText(Path.Join(gmd.Home, ".gmdconfig"));

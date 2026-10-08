@@ -31,10 +31,10 @@ public class BlameViewTest
             """
             Blame  alpha.txt  @7e09a8   4 lines, 2 commits
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┌ 65480e Test User   24-10-15 │   1┃one
-            └                             │   2┃two
-            ┌ 7e09a8 Test User   24-10-15 │   3┃CHANGED
-            └                             │   4┃FOUR
+            ┌ 65480e Test User   2024-10-15 │   1┃one
+            └                               │   2┃two
+            ┌ 7e09a8 Test User   2024-10-15 │   3┃CHANGED
+            └                               │   4┃FOUR
             """,
             ScreenText.Rows(gmd.WaitFor("CHANGED"), repo.Path, 0, 6)
         );
@@ -141,6 +141,84 @@ public class BlameViewTest
     // 'Blame File ...' is the second last item of the commit menu, so 'End' and two 'Up' is the
     // steadier walk to it than counting downwards past the items OnCursorDown skips. One key per
     // Send with a wait after each, since a menu redraw drops whatever was sent behind it.
+    // 'i' copies the line's commit id and Shift-I its whole message, as they copy a commit's in the
+    // log view; the message from the log, since the blame has only its subject. 'g' steps the
+    // gutter's detail down, the author first.
+    [TestMethod]
+    public async Task TestCopyTheLineCommitIdAndMessage()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\n", "Add lines\n\nA body line.", t.AddMinutes(7));
+
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("two");
+
+        gmd.Send("i");
+        var id = gmd.WaitForClipboard();
+        Assert.AreEqual(await repo.GitAsync("rev-parse HEAD"), id);
+
+        gmd.Send("I");
+        Assert.AreEqual("Add lines\n\nA body line.", gmd.WaitForClipboard(previous: id));
+
+        gmd.Send("g");
+        gmd.WaitUntilGone("Test User"); // The author is dropped first
+    }
+
+    // The key hints of the blame view, on its bottom row as the log has them: 'p' for a line whose
+    // commit changed an older version, and the details pane opening above the line
+    [TestMethod]
+    public async Task TestBlameHasHintsOfItsOwn()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\n", "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "one\nTWO\n", "Change a line", t.AddMinutes(8));
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("TWO");
+        gmd.Send("Down");
+
+        var hints = ScreenText.LastLine(gmd.WaitFor("p previous")).TrimStart('─', ' ');
+        StringAssert.StartsWith(
+            hints,
+            "m menu  Esc close  Enter details  d diff  l line history  p previous  i copy id  g gutter ─"
+        );
+        StringAssert.EndsWith(hints, "? help");
+
+        gmd.Send("Enter");
+        var screen = gmd.WaitFor("hide details");
+        StringAssert.Contains(screen, "Id:", "The details are shown");
+        StringAssert.Contains(ScreenText.LastLine(screen), "Enter hide details", "With the hints still under them");
+    }
+
+    // 'l' shows every commit that changed the current line, newest first, each with the diff of that
+    // line alone: here the second line of alpha.txt, added as 'two' and then made 'TWO', and not the
+    // commit that made the file, which made only the first line
+    [TestMethod]
+    public async Task TestTheHistoryOfALine()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "alpha\ntwo\n", "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "alpha\nTWO\n", "Change a line", t.AddMinutes(8));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("TWO");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("l");
+
+        var history = gmd.WaitFor("Change a line");
+        StringAssert.Contains(history, "Add lines");
+        Assert.IsFalse(history.Contains("Initial"), "The commit that made the file did not make this line");
+    }
+
     static void OpenBlameOf(TmuxSession gmd, string path)
     {
         gmd.Send("m");
