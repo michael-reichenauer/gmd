@@ -255,6 +255,19 @@ public class LogServiceTest
         StringAssert.EndsWith(cmd.Calls[0].Args, "--max-count=50 -- \":(icase)*gmd/Cui x*\"");
     }
 
+    // The pickaxe, in any case, with the text as typed but for a '"', which would end the argument
+    [TestMethod]
+    public async Task TestTheChangeSearchIsThePickaxe()
+    {
+        var cmd = new FakeCmd($"{Id1}\n{Id2}\n");
+        var log = new LogService(cmd);
+
+        var ids = AssertOk(await log.GetIdsChangingTextAsync("retry \"count", 50, "/wd"));
+
+        CollectionAssert.AreEqual(new[] { Id1, Id2 }, ids.ToArray());
+        Assert.AreEqual("log --all -i -S\"retry count\" --format=%H --max-count=50", cmd.Calls[0].Args);
+    }
+
     // The ids are given in chunks a Windows command line holds, each walked with everything kept
     // taken away, and a commit two chunks both reach is listed once
     [TestMethod]

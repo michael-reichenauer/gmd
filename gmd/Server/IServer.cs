@@ -49,6 +49,7 @@ interface IServer
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> StashAsync(string message, string wd);
     Task<Result> StashPopAsync(string name, string wd);
+    Task<Result> StashApplyAsync(string name, string wd);
 
     // Git commands
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
@@ -58,6 +59,13 @@ interface IServer
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    );
     Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);
     Task<Result<CommitDiff>> GetPreviewMergeDiffAsync(
         string sha1,
@@ -141,7 +149,9 @@ interface IServer
     Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
     Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd);
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd);
-    Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
+    Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd);
+    Task<Result<IReadOnlyList<RepoTag>>> GetTagsAsync(string wd);
+    Task<Result> PushTagAsync(string name, string wd);
     Task<Result> SwitchToCommitAsync(string commitId, string wd);
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
 

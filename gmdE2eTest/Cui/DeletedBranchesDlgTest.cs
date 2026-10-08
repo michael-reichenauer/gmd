@@ -30,7 +30,7 @@ public class DeletedBranchesDlgTest
         // A later run of gmd has the record too. The time is when it was deleted, i.e. now.
         using var again = TmuxSession.StartGmd(repo);
         again.WaitFor("Initial");
-        OpenRestoreDeletedBranch(again, 2);
+        OpenRestoreDeletedBranch(again, 3);
 
         // The deleted branch is still drawn, gray, since it was shown, and the list has the one row
         ScreenText.AssertEqual(
@@ -73,7 +73,7 @@ public class DeletedBranchesDlgTest
     // Deleted here and on origin, as the delete dialog does by default for a branch with a remote
     // branch, and restored on both. That is a push, so the sides are asked for first, as the delete
     // asked for them. Here 'Add zeta' is on top, not pushed, so the merge row is one further down, and
-    // the commit menu opens on 'Amend ...', so Undo is two moves away rather than one.
+    // the commit menu opens on 'Amend ...', so Undo is three moves away.
     [TestMethod]
     public async Task TestRestoreABranchDeletedHereAndOnOrigin()
     {
@@ -99,7 +99,7 @@ public class DeletedBranchesDlgTest
 
         using var again = TmuxSession.StartGmd(repo);
         again.WaitFor("Initial");
-        OpenRestoreDeletedBranch(again, 2);
+        OpenRestoreDeletedBranch(again, 3);
         again.WaitFor("and pushes 'origin/dev' back");
         again.Send("Enter");
 
@@ -160,8 +160,8 @@ public class DeletedBranchesDlgTest
         gmd.WaitUntilGone("Delete Local");
     }
 
-    // Undo is the given number of moves down the commit menu, two where it opens on 'Amend ...', i.e.
-    // the last commit is not pushed, and in it the cursor starts on 'Undo Commit', main's last change,
+    // Undo is the given number of moves down the commit menu, three where it opens on 'Amend ...',
+    // i.e. the last commit is not pushed, past 'Commit Diff' and 'Mark for Diff', and in it the cursor starts on 'Undo Commit', main's last change,
     // so the item is two moves down, past 'Recover Lost Commits ...'
     static void OpenRestoreDeletedBranch(TmuxSession gmd, int movesToUndo)
     {

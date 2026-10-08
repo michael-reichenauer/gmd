@@ -151,14 +151,17 @@ once. Gmd keeps that readable rather than letting it flood the log:
 - **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches. The
   context shown around the changes can be widened for one file at a time, up to the whole file.
 - **Blame** that groups lines by the commit that last changed them and shades each commit by its
-  age. You can step back to the version before a commit to get past a reformat or a rename.
-- **Search** of the messages and the changed files, stepping through the matches in the log.
+  age. You can step back to the version before a commit to get past a reformat or a rename, or see
+  every commit that changed the lines you select.
+- **Search** of the messages, the changed files and the changes themselves, stepping through the
+  matches in the log.
+- **Diff any two commits**, wherever they are in the log.
 
 **Do it without the syntax**
 
 - **Everyday Git**: commit all the changes or the files you tick (with spell check), push and pull
   (every shown branch at once if you like), merge in either direction, create, rename and delete
-  branches, tags, stash, cherry pick, and file history.
+  branches, tags (a list of them, to push or remove), stash, cherry pick, and file history.
 - **Tidy up before you push**: amend any commit not pushed yet, with a new message or the changes
   you tick, drop one, or squash several, and Undo takes each back.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to

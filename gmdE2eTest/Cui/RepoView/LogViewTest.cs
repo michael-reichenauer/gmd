@@ -552,6 +552,7 @@ public class LogViewTest
             ┣╯   Add│Amend ...                         a  │                                  dd7891 Test User      2024-10-15 12:01
             ┗    Ini│Squash ...                           │                                  9dc406 Test User      2024-10-15 12:00
                     │Commit Diff                       d  │
+                    │Mark for Diff                        │
                     │Undo                                >│
                     │Stash                               >│
                     │Tag                                 >│
@@ -619,6 +620,7 @@ public class LogViewTest
         var branches = gmd.WaitForStable();
         Assert.AreEqual(
             """
+                     │Open Commit in Browser               │
                      │Full File History ...                │
                      │Blame File ...                       │
                      │─────────────────────────────────────│╭ Branches ───────────────────╮
@@ -643,20 +645,20 @@ public class LogViewTest
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                     │Copy Commit Id                    i  │                               ╭ dev ──────────────────────────────╮
-                     │Copy Commit Message              ⇧i  │                               │Switch to Branch                s  │
-                     │Open Commit in Browser               │                               │Merge dev into main             e  │
-                     │Full File History ...                │                               │Merge main into dev            ⇧e  │
-                     │Blame File ...                       │                               │Rebase and Push onto              >│
-                     │─────────────────────────────────────│╭ Branches ───────────────────╮│Hide Branch                     h  │
-                     │Branches                            >││●   main                    >││Pull                            u  │
-                     │Repo Menu                        ⇧m >││    dev                     >││Push                            p  │
-                     ╰─────────────────────────────────────╯│─────────────────────────────││Create Branch ...               b  │
-                                                            │Show Branch              ⇧→ >││Create Worktree ...                │
-                                                            │Hide All Branches            ││Rename Branch ...                  │
-                                                            │Undo Show 'dev'   Backspace  ││Delete Branch ...                  │
-                                                            ╰─────────────────────────────╯│Undo Commit 'More dev work'        │
-                                                                                           │Diff Branch to                  d >│
+                     │Commit Details                Enter  │                               ╭ dev ──────────────────────────────╮
+                     │Copy Commit Id                    i  │                               │Switch to Branch                s  │
+                     │Copy Commit Message              ⇧i  │                               │Merge dev into main             e  │
+                     │Open Commit in Browser               │                               │Merge main into dev            ⇧e  │
+                     │Full File History ...                │                               │Rebase and Push onto              >│
+                     │Blame File ...                       │                               │Hide Branch                     h  │
+                     │─────────────────────────────────────│╭ Branches ───────────────────╮│Pull                            u  │
+                     │Branches                            >││●   main                    >││Push                            p  │
+                     │Repo Menu                        ⇧m >││    dev                     >││Create Branch ...               b  │
+                     ╰─────────────────────────────────────╯│─────────────────────────────││Create Worktree ...                │
+                                                            │Show Branch              ⇧→ >││Rename Branch ...                  │
+                                                            │Hide All Branches            ││Delete Branch ...                  │
+                                                            │Undo Show 'dev'   Backspace  ││Undo Commit 'More dev work'        │
+                                                            ╰─────────────────────────────╯│Diff Branch to                  d >│
                                                                                            │Change Branch Color             g  │
                                                                                            │Open in Browser                    │
                                                                                            │Create Pull Request in Browser     │

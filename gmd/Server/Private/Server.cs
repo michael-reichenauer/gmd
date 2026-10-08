@@ -52,32 +52,36 @@ class Server : IServer
 
     public async Task<Result<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount)
     {
-        var files = SearchTerms.Parse(filter).Files;
-        if (files.Count == 0)
+        var terms = SearchTerms.Parse(filter);
+        if (!terms.IsAskingGit)
             return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount);
 
-        var idsResult = await GetIdsChangingFilesAsync(repo, files, maxCount);
+        var idsResult = await GetIdsAskingGitAsync(repo, terms, maxCount);
         if (idsResult is not IReadOnlySet<string> ids)
-            return new Error("Failed to search the changed files", idsResult.Error);
+            return new Error("Failed to search the changed files and the changes", idsResult.Error);
 
         return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount, ids);
     }
 
-    // The commits that changed files matching every one of the paths, which git is asked for. The
-    // last answer is kept, since the search asks again with every key typed after the path, and
-    // git takes a moment in a large repo.
-    async Task<Result<IReadOnlySet<string>>> GetIdsChangingFilesAsync(
-        Repo repo,
-        IReadOnlyList<string> files,
-        int maxCount
-    )
+    // The commits that changed files matching every one of the paths, and whose changes added or
+    // removed every one of the texts, which git is asked for. The last answer is kept, since the
+    // search asks again with every key typed after them, and git takes a moment in a large repo.
+    async Task<Result<IReadOnlySet<string>>> GetIdsAskingGitAsync(Repo repo, SearchTerms terms, int maxCount)
     {
-        var key = $"{repo.Path}\n{repo.RepoTimeStamp.Ticks}\n{maxCount}\n{string.Join('\n', files)}";
+        var asked = string.Join(
+            '\n',
+            terms.Files.Select(f => $"file:{f}").Concat(terms.Changes.Select(c => $"change:{c}"))
+        );
+        var key = $"{repo.Path}\n{repo.RepoTimeStamp.Ticks}\n{maxCount}\n{asked}";
         if (lastFileSearch is var (lastKey, lastIds) && lastKey == key)
             return new Result<IReadOnlySet<string>>(lastIds);
 
         // All at once, since each is a walk of the whole history
-        var results = await Task.WhenAll(files.Select(file => git.GetIdsChangingFilesAsync(file, maxCount, repo.Path)));
+        var results = await Task.WhenAll(
+            terms
+                .Files.Select(file => git.GetIdsChangingFilesAsync(file, maxCount, repo.Path))
+                .Concat(terms.Changes.Select(text => git.GetIdsChangingTextAsync(text, maxCount, repo.Path)))
+        );
         HashSet<string>? ids = null;
         foreach (var result in results)
         {
@@ -281,6 +285,20 @@ class Server : IServer
     public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
         var diffs = await git.GetFileDiffAsync(path, contextLines, wd);
+        if (diffs is not Git.CommitDiff[] gitCommitDiffs)
+            return diffs.Error;
+        return converter.ToCommitDiffs(gitCommitDiffs);
+    }
+
+    public async Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    )
+    {
+        var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, wd);
         if (diffs is not Git.CommitDiff[] gitCommitDiffs)
             return diffs.Error;
         return converter.ToCommitDiffs(gitCommitDiffs);
@@ -528,6 +546,8 @@ class Server : IServer
 
     public Task<Result> StashPopAsync(string name, string wd) => git.StashPopAsync(name, wd);
 
+    public Task<Result> StashApplyAsync(string name, string wd) => git.StashApplyAsync(name, wd);
+
     public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
         var diffResult = await git.GetStashDiffAsync(name, contextLines, wd);
@@ -553,8 +573,24 @@ class Server : IServer
     public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd) =>
         augmentedService.AddAnnotatedTagAsync(name, message, commitId, isPush, wd);
 
-    public Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
-        augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);
+    public Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd) =>
+        augmentedService.RemoveTagAsync(name, isOnOrigin, wd);
+
+    // Every tag, and whether origin has it. A record of origin's tags that cannot be read is taken as
+    // none on origin, which a Push then corrects, rather than as no tags at all.
+    public async Task<Result<IReadOnlyList<RepoTag>>> GetTagsAsync(string wd)
+    {
+        var tagsTask = git.GetTagsAsync(wd);
+        var originTask = git.GetTrackedRemoteTagsAsync(wd);
+        await Task.WhenAll(tagsTask, originTask);
+        if (tagsTask.Result is not IReadOnlyList<Git.Tag> tags)
+            return tagsTask.Result.Error;
+        var origin = originTask.Result is IReadOnlyDictionary<string, string> o ? o : new Dictionary<string, string>();
+
+        return new Result<IReadOnlyList<RepoTag>>(RepoTag.Of(tags, origin));
+    }
+
+    public Task<Result> PushTagAsync(string name, string wd) => git.PushTagAsync(name, wd);
 
     public Task<Result> SwitchToCommitAsync(string commitId, string wd) => git.CheckoutAsync(commitId, wd);
 

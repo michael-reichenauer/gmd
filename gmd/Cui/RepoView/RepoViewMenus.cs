@@ -27,11 +27,11 @@ class RepoViewMenus : IRepoViewMenus
     readonly ICommitMenu commitMenu;
     readonly IBranchMenu branchMenu;
 
-    internal RepoViewMenus(IViewRepo repo, Config config, IConfigDlg configDlg)
+    internal RepoViewMenus(IViewRepo repo, Config config, IConfigDlg configDlg, DiffMark diffMark)
     {
         repoMenu = new RepoMenu(repo, repo.Cmds, config, configDlg);
         branchMenu = new BranchMenu(repoMenu, repo);
-        commitMenu = new CommitMenu(repoMenu, branchMenu, repo);
+        commitMenu = new CommitMenu(repoMenu, branchMenu, repo, diffMark);
     }
 
     public void ShowRepoMenu(int x, int y) => repoMenu.Show(x, y);

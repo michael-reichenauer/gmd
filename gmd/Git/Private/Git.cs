@@ -81,6 +81,9 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd) =>
         logService.GetIdsChangingFilesAsync(pathText, maxCount, wd);
 
+    public Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd) =>
+        logService.GetIdsChangingTextAsync(text, maxCount, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
         logService.GetFileAsync(reference, wd);
 
@@ -101,6 +104,14 @@ internal class Git : IGit
 
     public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
         diffService.GetFileDiffAsync(path, contextLines, wd);
+
+    public Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    ) => diffService.GetLineHistoryAsync(path, firstLine, lastLine, reference, wd);
 
     public Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd) =>
         blameService.GetBlameAsync(path, reference, wd);
@@ -266,6 +277,8 @@ internal class Git : IGit
 
     public Task<Result> StashPopAsync(string name, string wd) => stashService.PopAsync(name, wd);
 
+    public Task<Result> StashApplyAsync(string name, string wd) => stashService.ApplyAsync(name, wd);
+
     public Task<Result> StashDropAsync(string name, string wd) => stashService.DropAsync(name, wd);
 
     public Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
@@ -288,6 +301,9 @@ internal class Git : IGit
         commitService.ResetBranchAsync(name, toId, fromId, isKeep, wd);
 
     public Task<Result> PushTagAsync(string name, string wd) => remoteService.PushTagAsync(name, wd);
+
+    public Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd) =>
+        tagService.GetTrackedRemoteTagsAsync(wd);
 
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => remoteService.DeleteRemoteTagAsync(name, wd);
 

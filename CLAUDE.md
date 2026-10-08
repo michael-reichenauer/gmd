@@ -170,7 +170,7 @@ Key types and flow:
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
   `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally. `ListDlg` is
   the dialog of a list to pick a row from, with a button and a key per action (Worktrees, Recover
-  Lost Commits, Restore Deleted Branch); the rows are drawn by a `*Rows` class beside the dialog.
+  Lost Commits, Restore Deleted Branch, Tags); the rows are drawn by a `*Rows` class beside the dialog.
 - Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
   WeCantSpell.Hunspell over the SCOWL en_US dictionary embedded from `gmd/doc/spelling/` (or the
   user's own, `Config.SpellDictionary`; added words go to `Config.SpellWords`), and `SpellScanner`
@@ -646,7 +646,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

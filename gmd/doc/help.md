@@ -168,7 +168,8 @@ repository.
 - **See what changed:** `d` on a commit, or on the `©` row for what is not
   committed yet. On a highlighted branch, `d` diffs it to another branch.
 - **Find a commit:** `f` or `/`, and type part of its message, author, id,
-  branch or tag, or `file:` and part of a path.
+  branch or tag, `file:` and part of a path, or `change:` and a text the
+  changes added or removed.
 - **Show another branch:** `Shift-→`, and type part of its name.
 - **Undo a mistake:** **Undo** in the commit menu (`m`) takes back the last
   change of the branch you are on, e.g. a commit, a merge or a pull.
@@ -406,7 +407,9 @@ throw changes away for good ask first.
   (the subject and the body), branch, author, date (yyyy-mm-dd) or tag.
   Every word has to match, a "quoted phrase" matches as a whole, and case
   does not matter. `file:` and a path, e.g. `file:Program.cs`, matches the
-  commits that changed a file with that in its path. `Enter` shows the
+  commits that changed a file with that in its path, and `change:` and a
+  text, e.g. `change:RetryCount`, the commits whose changes added or
+  removed it, which finds where code came from or went. `Enter` shows the
   selected commit and its branch in the log, and `Esc` goes back to where
   you were. After that, `n` and `Shift-N` go to the next and the previous
   match in the log.
@@ -428,6 +431,17 @@ throw changes away for good ask first.
 - **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
   squash them into one commit with a new message.
+- **Tags** (in the commit menu's **Tag** menu):
+  **Add Tag ...** (`t`) puts a tag on the commit, and pushes it to origin
+  unless its box is unticked. **Tags ...** lists every tag, newest commit
+  first, and whether origin has it: **Show** moves the log to the tag's
+  commit, **Push** pushes a tag origin does not have, and **Remove** removes
+  it, on origin too when origin has it, asked first.
+- **Stash** (in the commit menu, and `ß` in the top bar):
+  **Stash Changes ...** puts the uncommitted changes aside, new files too.
+  **Stash Pop** brings a stash back and drops it, **Stash Apply** brings it
+  back and keeps it, e.g. for the same changes on another branch as well,
+  and **Stash Diff** and **Stash Drop** show it and throw it away.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on
@@ -459,6 +473,11 @@ a widened file says what it is showing. The menu has the same two, as
 **More Context** and **Less Context**, naming the file they would act on
 and what it would then show.
 
+Rows selected with `Shift-↑↓` and `d` diff the commits of a range on one
+branch. Any two commits, wherever they are, are diffed with **Mark for
+Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
+other: the changes from the older of the two to the newer.
+
 Within the diff: `r` re-reads it from git, `s` scrolls to a file, `u`
 discards the changes of an uncommitted file, `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
@@ -479,7 +498,9 @@ and marked `©`.
 Within the blame: `Enter` toggles the commit details of the current line,
 the same pane the log view shows, which follows the cursor as you move down
 the lines (`Tab` moves into it to scroll a long message). `d` shows the
-diff of the current line's commit, `p` blames the version before it (so a
+diff of the current line's commit, `l` the history of the lines selected
+with `Shift-↑↓`, or of the current one: every commit that changed them,
+with the diff of those lines alone, `p` blames the version before it (so a
 reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column

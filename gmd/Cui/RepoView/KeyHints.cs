@@ -50,6 +50,7 @@ static class KeyHints
             new("Enter", "show in the log"),
             new("Esc", "back"),
             new("file:", "search changed files"),
+            new("change:", "search changes"),
         ];
 
     // The side views' lines, drawn by a KeyHintBar of their own. 'Esc close' comes early in each,
@@ -72,6 +73,7 @@ static class KeyHints
     {
         List<KeyHint> hints = [Menu, new("Esc", "close"), new("Enter", isDetailsShown ? "hide details" : "details")];
         hints.Add(new("d", "diff"));
+        hints.Add(new("l", "line history"));
         if (hasPrevious)
             hints.Add(new("p", "previous"));
         if (canGoBack)

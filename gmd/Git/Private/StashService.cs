@@ -4,6 +4,7 @@ interface IStashService
 {
     Task<Result> StashAsync(string message, string wd);
     Task<Result> PopAsync(string name, string wd);
+    Task<Result> ApplyAsync(string name, string wd);
     Task<Result> DropAsync(string name, string wd);
     Task<Result<IReadOnlyList<Stash>>> ListAsync(string wd);
     Task<Result<CommitDiff>> GetDiffAsync(string name, int contextLines, string wd);
@@ -31,6 +32,12 @@ class StashService : IStashService
     public async Task<Result> PopAsync(string name, string wd)
     {
         return await cmd.RunAsync("git", $"stash pop {name}", wd);
+    }
+
+    // As pop, but keeps the stash, e.g. to put the same changes on another branch too
+    public async Task<Result> ApplyAsync(string name, string wd)
+    {
+        return await cmd.RunAsync("git", $"stash apply {name}", wd);
     }
 
     public async Task<Result> DropAsync(string name, string wd)

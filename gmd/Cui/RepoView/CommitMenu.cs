@@ -15,12 +15,14 @@ class CommitMenu : ICommitMenu
     readonly IBranchMenu branchMenu;
     readonly IViewRepo repo;
     readonly ICommitCommands cmds;
+    readonly DiffMark diffMark;
 
-    public CommitMenu(IRepoMenu repoMenu, IBranchMenu branchMenu, IViewRepo repo)
+    public CommitMenu(IRepoMenu repoMenu, IBranchMenu branchMenu, IViewRepo repo, DiffMark diffMark)
     {
         this.repoMenu = repoMenu;
         this.branchMenu = branchMenu;
         this.repo = repo;
+        this.diffMark = diffMark;
         this.cmds = repo.CommitCmds;
     }
 
@@ -61,15 +63,13 @@ class CommitMenu : ICommitMenu
             // else and named a rebase that it is not
             .Items(GetSquashItems())
             .Item("Commit Diff", "d", () => cmds.ShowCurrentRowDiff())
+            // Any two commits, which a range selected with ⇧↑↓ is only for commits of one branch
+            .Item("Mark for Diff", "", () => cmds.MarkForDiff(c.Id), () => !c.IsUncommitted, () => NoCommit)
+            .Items(GetDiffWithMarkedItems(c))
             .SubMenu("Undo", "", GetCommitUndoItems())
             .SubMenu("Stash", "", GetStashMenuItems())
-            .SubMenu(
-                "Tag",
-                "",
-                GetTagItems(),
-                () => c.Id != Repo.UncommittedId,
-                () => "A tag is put on a commit: move to one first"
-            )
+            // On any row, since its list of every tag is not about the commit
+            .SubMenu("Tag", "", GetTagItems())
             .Item(
                 "Create Branch from Commit ...",
                 "b",
@@ -230,6 +230,24 @@ class CommitMenu : ICommitMenu
         );
     }
 
+    const string NoCommit = "The uncommitted changes are no commit: move to one first";
+
+    // The diff of this commit with the one marked for a diff, once one is
+    IEnumerable<MenuItem> GetDiffWithMarkedItems(Commit c)
+    {
+        var markedId = diffMark.IdIn(repo.Path);
+        if (markedId == "" || !repo.Repo.CommitById.ContainsKey(markedId))
+            return [];
+
+        return Menu.Items.Item(
+            $"Diff with {Sid(markedId)}",
+            "",
+            () => cmds.DiffWithMarked(c.Id),
+            () => !c.IsUncommitted && c.Id != markedId,
+            () => c.IsUncommitted ? NoCommit : "This is the commit marked: Diff with it in the menu of another one"
+        );
+    }
+
     // Squashes the commits selected with Shift-↑↓, which the item names once there are some
     IEnumerable<MenuItem> GetSquashItems()
     {
@@ -273,6 +291,14 @@ class CommitMenu : ICommitMenu
                 () => repo.Status.IsOk,
                 () => !repo.Status.IsOk ? Why.Changes : NoStashes
             )
+            // Pop, but the stash is kept, e.g. for the same changes on another branch as well
+            .SubMenu(
+                "Stash Apply",
+                "",
+                GetStashApplyItems(),
+                () => repo.Status.IsOk,
+                () => !repo.Status.IsOk ? Why.Changes : NoStashes
+            )
             .SubMenu("Stash Diff", "", GetStashDiffItems(), whyNot: () => NoStashes)
             .SubMenu("Stash Drop", "", GetStashDropItems(), whyNot: () => NoStashes);
 
@@ -287,10 +313,14 @@ class CommitMenu : ICommitMenu
                 () => !repo.RowCommit.IsUncommitted,
                 () => "A tag is put on a commit: move to one first"
             )
-            .SubMenu("Remove Tag", "", GetDeleteTagItems(), whyNot: () => "The commit has no tags");
+            .SubMenu("Remove Tag", "", GetDeleteTagItems(), whyNot: () => "The commit has no tags")
+            .Item("Tags ...", "", () => cmds.ShowTags());
 
     IEnumerable<MenuItem> GetStashPopItems() =>
         repo.Repo.Stashes.Select(s => Menu.Item($"{s.Message}", "", () => cmds.StashPop(s.Name)));
+
+    IEnumerable<MenuItem> GetStashApplyItems() =>
+        repo.Repo.Stashes.Select(s => Menu.Item($"{s.Message}", "", () => cmds.StashApply(s.Name)));
 
     IEnumerable<MenuItem> GetStashDropItems() =>
         repo.Repo.Stashes.Select(s => Menu.Item($"{s.Message}", "", () => cmds.StashDrop(s.Name)));

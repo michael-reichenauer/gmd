@@ -1807,6 +1807,35 @@ public class GitIntegrationTest
         Assert.AreEqual(0, Value(await repo.Git.GetIdsChangingFilesAsync("nothing", 100, repo.Path)).Count);
     }
 
+    // The search's 'change:' term: the commits that added or removed the text, in any case, and not
+    // one that only touched the line it is on, which the pickaxe counts rather than greps
+    [TestMethod]
+    public async Task TestTheCommitsChangingAText()
+    {
+        var added = await repo.CommitFileAsync("a.cs", "var retryCount = 3;\n", "Add retries");
+        await repo.CommitFileAsync("a.cs", "var retryCount = 5;\n", "More retries");
+        var removed = await repo.CommitFileAsync("a.cs", "var tries = 5;\n", "Rename");
+
+        var ids = Value(await repo.Git.GetIdsChangingTextAsync("RETRYCOUNT", 100, repo.Path));
+
+        CollectionAssert.AreEqual(new[] { removed, added }, ids.ToArray());
+    }
+
+    // The history of lines: the commits that changed them, followed past a change above them that
+    // moved them, and not the ones that changed only other lines
+    [TestMethod]
+    public async Task TestTheHistoryOfLines()
+    {
+        await repo.CommitFileAsync("a.txt", "one\ntwo\n", "Add lines");
+        await repo.CommitFileAsync("a.txt", "one\nTWO\n", "Change two");
+        await repo.CommitFileAsync("a.txt", "zero\none\nTWO\n", "Add a line above");
+        await repo.CommitFileAsync("a.txt", "zero\nONE\nTWO\n", "Change one");
+
+        var history = Value(await repo.Git.GetLineHistoryAsync("a.txt", 3, 3, "", repo.Path));
+
+        CollectionAssert.AreEqual(new[] { "Change two", "Add lines" }, history.Select(d => d.Message).ToArray());
+    }
+
     // A diverged branch is refused by 'git pull' until git is told how to join the two sides, which
     // is why gmd asks. Once the answer is saved where git reads it, the pull merges, or rebases the
     // local commit on top of the remote one.

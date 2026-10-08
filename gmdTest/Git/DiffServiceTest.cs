@@ -466,6 +466,23 @@ public class DiffServiceTest
         Assert.AreEqual(DiffMode.DiffAdded, commitDiffs[1].FileDiffs[0].DiffMode);
     }
 
+    // 'git log -L', whose output is a log of patches like a file's history, so it parses the same.
+    // The range and the path are one argument, quoted, since a path may have spaces, and the history
+    // starts at the version blamed, or at HEAD.
+    [TestMethod]
+    public async Task TestTheHistoryOfLines()
+    {
+        var cmd = new FakeCmd(FileLogOutput);
+        var service = new DiffService(cmd);
+
+        var commitDiffs = AssertOk(await service.GetLineHistoryAsync("my dir/a.txt", 3, 7, "abc123", "/wd"));
+        AssertOk(await service.GetLineHistoryAsync("a.txt", 1, 1, "", "/wd"));
+
+        Assert.AreEqual(2, commitDiffs.Length);
+        Assert.AreEqual("log --date=iso \"-L3,7:my dir/a.txt\" abc123", cmd.Calls[0].Args);
+        Assert.AreEqual("log --date=iso \"-L1,1:a.txt\"", cmd.Calls[1].Args);
+    }
+
     [TestMethod]
     public async Task TestOutputWithoutCommitLineIsError()
     {

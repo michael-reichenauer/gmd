@@ -433,8 +433,8 @@ public class CommitTest
     // working tree. Reached through the commit menu's Undo sub menu.
     //
     // On a clean tree the menu opens with the cursor on 'Amend ...' — 'Commit ...' is disabled, and
-    // Menu.Show starts on the first item that is not — so 'Undo' is two moves away, past 'Commit
-    // Diff'. In it the cursor starts on 'Undo Commit', the last change of the branch, and 'Discard
+    // Menu.Show starts on the first item that is not — so 'Undo' is three moves away, past 'Commit
+    // Diff' and 'Mark for Diff'. In it the cursor starts on 'Undo Commit', the last change of the branch, and 'Discard
     // Changes in a File' is disabled, and so is 'Drop 17d85b', since the tag v1.0 is on the commit,
     // so 'Uncommit Last Commit' is four moves down, past 'Recover Lost Commits ...', 'Restore Deleted
     // Branch ...' and 'Revert Commit'.
@@ -447,7 +447,7 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 2; i++)
+        for (var i = 0; i < 3; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -469,8 +469,9 @@ public class CommitTest
 
     // Undo of the branch's last change, named after it, and Undo again, which redoes it. The undo of
     // a commit leaves its changes in the working tree, as Uncommit does; the redo commits them back.
-    // 'Undo' is two moves away, past 'Amend ...', where the menu opens, and 'Commit Diff'. With the
-    // changes there 'Commit ...' is enabled as well, so the second time it is three.
+    // 'Undo' is three moves from 'Amend ...', where the menu opens, past 'Commit Diff' and 'Mark for
+    // Diff'. The second time, on the uncommitted row, 'Commit ...' is enabled and 'Mark for Diff' is
+    // not, so it is three again.
     [TestMethod]
     public async Task TestUndoTheLastCommitAndRedoIt()
     {
@@ -480,7 +481,7 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 2; i++)
+        for (var i = 0; i < 3; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -541,8 +542,8 @@ public class CommitTest
     }
 
     // Dropping a commit asks first, with No the default, then takes it and its changes out of the
-    // branch, and it is Undo's last change, which brings it back. Undo is three moves from where the
-    // menu opens, past this commit's own Amend and 'Commit Diff'; Drop is four into it, past 'Recover
+    // branch, and it is Undo's last change, which brings it back. Undo is four moves from where the
+    // menu opens, past this commit's own Amend, 'Commit Diff' and 'Mark for Diff'; Drop is four into it, past 'Recover
     // Lost Commits ...', 'Restore Deleted Branch ...' and 'Revert Commit'.
     [TestMethod]
     public async Task TestDropACommitAndUndoIt()
@@ -558,7 +559,7 @@ public class CommitTest
         {
             gmd.Send("m");
             gmd.WaitFor($"Amend {sid} ...");
-            OpenSubMenu(gmd, 3, "Recover Lost Commits");
+            OpenSubMenu(gmd, 4, "Recover Lost Commits");
             for (int i = 0; i < 4; i++)
             {
                 gmd.Send("Down");
@@ -588,7 +589,7 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        OpenSubMenu(gmd, 2, "Undo Drop 'Add two'");
+        OpenSubMenu(gmd, 3, "Undo Drop 'Add two'");
         gmd.Send("Enter");
 
         gmd.WaitFor("Undid the drop of 'Add two' on 'main'");
@@ -711,7 +712,7 @@ public class CommitTest
     // a commit that is not on the current branch (rb != cb). One move up is 'Add gamma' on main,
     // and it is a move that lands there whether the cursor started on row 0 or row 1.
     //
-    // Then seven moves down to it. The menu opens on 'Amend ...', of dev's last commit, which is not
+    // Then eight moves down to it. The menu opens on 'Amend ...', of dev's last commit, which is not
     // pushed — with nothing to commit, 'Commit ...' is disabled and Menu.Show starts on the first
     // that is not — and the amend of 'Add gamma', which is not on dev, and 'Squash ...', with nothing
     // selected, are disabled and skipped.
@@ -726,7 +727,7 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Cherry Pick into dev");
-        for (var i = 0; i < 7; i++)
+        for (var i = 0; i < 8; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -770,9 +771,10 @@ public class CommitTest
     // Stashing, i.e. the menu, the dialog behind it and what the log view says afterwards. The
     // 'ß' is drawn nowhere else, so this is the only cover WriteBlankOrStash has at any tier.
     //
-    // Four moves down to 'Stash' rather than five: 'Squash ...' is disabled with nothing selected,
-    // and OnCursorDown skips it. With a clean tree it is three, since the menu opens on 'Amend ...'
-    // then, 'Commit ...' being disabled — see TestStashPopBringsTheChangesBack.
+    // Four moves down to 'Stash' rather than six: 'Squash ...' is disabled with nothing selected,
+    // and so is 'Mark for Diff' on the uncommitted row, and OnCursorDown skips them. With a clean
+    // tree it is four too, from 'Amend ...', 'Commit ...' being disabled and 'Mark for Diff' not —
+    // see TestStashPopBringsTheChangesBack.
     [TestMethod]
     public async Task TestStashPutsTheChangesAsideAndMarksTheCommit()
     {
@@ -814,7 +816,7 @@ public class CommitTest
         Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "The working tree is clean again");
     }
 
-    // And back again. Three moves, from 'Amend ...', where the menu opens on a clean tree. A clean
+    // And back again. Four moves, from 'Amend ...', where the menu opens on a clean tree. A clean
     // tree disables 'Stash Changes' too, which is why 'Stash Pop' is where the cursor lands when
     // the sub menu opens.
     [TestMethod]
@@ -826,7 +828,7 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -849,16 +851,49 @@ public class CommitTest
         );
     }
 
+    // Applying a stash is popping it but keeping it, which is said on the status line, since nothing
+    // else on the screen shows that it is still there. Stash Apply is right below Stash Pop, which is
+    // where the cursor lands, as in the test above.
+    [TestMethod]
+    public async Task TestStashApplyKeepsTheStash()
+    {
+        using var repo = await E2eRepo.CreateWithStashAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenCommitSubMenu(gmd, 4, "Stash Pop");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitFor("stashed work");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Applied 'stashed work'");
+        Assert.AreEqual(
+            "Applied 'stashed work' and kept the stash: Stash Drop removes it",
+            ScreenText.LastLine(screen)
+        );
+        Assert.AreEqual("stash@{0}: On main: stashed work", await repo.GitAsync("stash list"), "Still there");
+        Assert.AreEqual(
+            """
+             M alpha.txt
+            ?? epsilon.txt
+            """,
+            await repo.GitAsync("status --porcelain"),
+            "The changes are back, as with a pop"
+        );
+    }
+
     // Dropping a stash asks first, with No the default: its changes exist nowhere else. Stash Drop is
-    // two below Stash Pop, which is where the cursor lands, as in the test above.
+    // three below Stash Pop, which is where the cursor lands, as in the test above, past Stash Apply
+    // and Stash Diff.
     [TestMethod]
     public async Task TestStashDropAsksFirst()
     {
         using var repo = await E2eRepo.CreateWithStashAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
-        OpenCommitSubMenu(gmd, 3, "Stash Pop");
-        for (int i = 0; i < 2; i++)
+        OpenCommitSubMenu(gmd, 4, "Stash Pop");
+        for (int i = 0; i < 3; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -881,7 +916,7 @@ public class CommitTest
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
-        OpenCommitSubMenu(gmd, 4, "Add Tag");
+        OpenCommitSubMenu(gmd, 5, "Add Tag");
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Right");
@@ -909,7 +944,7 @@ public class CommitTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Ignore secrets");
 
-        OpenCommitSubMenu(gmd, 2, "Recover Lost Commits");
+        OpenCommitSubMenu(gmd, 3, "Recover Lost Commits");
         gmd.Send("End");
         gmd.WaitForStable();
         gmd.Send("Enter");

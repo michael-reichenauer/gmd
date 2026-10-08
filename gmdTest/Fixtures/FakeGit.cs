@@ -164,6 +164,14 @@ class FakeGit : IGit
     public Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    ) => throw new NotSupportedException();
+
     public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
         throw new NotSupportedException();
 
@@ -201,6 +209,15 @@ class FakeGit : IGit
     {
         IdsChangingFilesCalls.Add(pathText);
         IReadOnlyList<string> ids = IdsChangingFiles.TryGetValue(pathText, out var found) ? found : [];
+        return Task.FromResult<Result<IReadOnlyList<string>>>(ids.ToList());
+    }
+
+    // The commits each text was added or removed in, for the search's 'change:', by text
+    public Dictionary<string, IReadOnlyList<string>> IdsChangingText { get; } = [];
+
+    public Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd)
+    {
+        IReadOnlyList<string> ids = IdsChangingText.TryGetValue(text, out var found) ? found : [];
         return Task.FromResult<Result<IReadOnlyList<string>>>(ids.ToList());
     }
 
@@ -334,6 +351,8 @@ class FakeGit : IGit
 
     public Task<Result> StashPopAsync(string name, string wd) => throw new NotSupportedException();
 
+    public Task<Result> StashApplyAsync(string name, string wd) => throw new NotSupportedException();
+
     public Task<Result> StashDropAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd) =>
@@ -347,6 +366,9 @@ class FakeGit : IGit
     public Task<Result> RemoveTagAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> PushTagAsync(string name, string wd) => throw new NotSupportedException();
+
+    public Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd) =>
+        throw new NotSupportedException();
 
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => throw new NotSupportedException();
 

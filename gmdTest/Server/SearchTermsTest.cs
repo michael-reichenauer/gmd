@@ -25,13 +25,27 @@ public class SearchTermsTest
         CollectionAssert.AreEqual(new[] { "Program.cs", "my dir/a b.txt" }, terms.Files.ToArray());
     }
 
+    // A 'change:' term is a text the changes of a commit added or removed, which git is asked about
+    [TestMethod]
+    public void TestAChangeTermIsAText()
+    {
+        var terms = SearchTerms.Parse("fix change:RetryCount Change:\"retry count\" file:a.cs");
+
+        CollectionAssert.AreEqual(new[] { "fix" }, terms.Words.ToArray());
+        CollectionAssert.AreEqual(new[] { "RetryCount", "retry count" }, terms.Changes.ToArray());
+        CollectionAssert.AreEqual(new[] { "a.cs" }, terms.Files.ToArray());
+        Assert.IsTrue(terms.IsAskingGit);
+    }
+
     // As it is while the path is still being typed, which must not search every file
     [TestMethod]
     public void TestFileAloneIsNoTermYet()
     {
-        var terms = SearchTerms.Parse("file:");
+        var terms = SearchTerms.Parse("file: change:");
 
         Assert.AreEqual(0, terms.Words.Count);
         Assert.AreEqual(0, terms.Files.Count);
+        Assert.AreEqual(0, terms.Changes.Count);
+        Assert.IsFalse(terms.IsAskingGit);
     }
 }

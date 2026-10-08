@@ -323,9 +323,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   ref, which gmd's background fetch keeps moving. A fetch that lands between the screen being drawn
   and the push makes the lease pass over commits the user never saw. Pass the tip the user saw
   (`--force-with-lease=<branch>:<sha>`).
-- `DeleteTag` deletes a tag on origin whenever the branch of the row's commit has a remote, not
-  when origin actually has the tag, so the question may say 'on origin as well' for a tag that was
-  never pushed.
 - Cmd+C cannot reach a terminal program at all on macOS: the terminal keeps it, the classic key
   protocol cannot express it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile
   binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need

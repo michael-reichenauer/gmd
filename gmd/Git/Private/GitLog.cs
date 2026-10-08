@@ -9,6 +9,7 @@ internal interface ILogService
     Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
     Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
+    Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetUnreachableCommitsAsync(
         IReadOnlyList<string> ids,
         IReadOnlyList<string> alsoReached,
@@ -54,6 +55,20 @@ internal class LogService : ILogService
     {
         var text = pathText.Replace("\"", "").Replace('\\', '/');
         var args = $"log --all --full-history --no-merges --format=%H --max-count={maxCount} -- \":(icase)*{text}*\"";
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
+
+        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).ToList();
+    }
+
+    // The ids of the commits whose changes added or removed the text, in any case, newest first, for
+    // a search of the changes: 'git log -S', the pickaxe, which counts the text in each file before
+    // and after a commit, so a line that only moved is not a change of it. The text is what the user
+    // typed, so a '"' would end the argument.
+    public async Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd)
+    {
+        var args = $"log --all -i -S\"{text.Replace("\"", "")}\" --format=%H --max-count={maxCount}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;

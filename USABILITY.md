@@ -113,7 +113,11 @@ Ranked by how soon someone new meets the gap.
 7. **Smaller gaps:** a stash apply that keeps the stash; a list of the tags, and pushing them; the
    history of a range of lines (`git log -L`) and a search of the changes themselves (`-S`); a diff
    of any two commits; a merge tool that runs in the terminal, such as vimdiff, whose screen is
-   captured rather than shown.
+   captured rather than shown. *Done (2026-10-08), all but the terminal merge tool, which a tool
+   with a window of its own already covers, as does gmd's own resolver:* Stash Apply beside Stash
+   Pop; Tags ... in the Tag menu, a list of every tag with whether origin has it, to show, push or
+   remove; Mark for Diff and Diff with in the commit menu; `change:` in the search; and `l` in the
+   blame, the history of the lines.
 
 Not needed by the audiences above: submodule and LFS commands, bisect, patches, and pull requests
 through the services' APIs.
@@ -378,9 +382,9 @@ Bigger features:
 - [x] 17. **Ask for the password in a dialog** (A.1, the better half): gmd as `SSH_ASKPASS`, which
   git asks too, asking in a dialog of the gmd that started git. What is left, Git Credential
   Manager included, is in `MODERNIZATION.md` (open issues, Product). M
-- [ ] 18. **The smaller gaps** (part 2, item 7), each to pick or skip: stash apply, a tag list and
-  push, a diff of any two commits, search of the changes (`-S`), line history (`log -L`), a merge
-  tool in the terminal. S to M each
+- [x] 18. **The smaller gaps** (part 2, item 7), each to pick or skip: stash apply, a tag list and
+  push, a diff of any two commits, search of the changes (`-S`), line history (`log -L`); a merge
+  tool in the terminal skipped. S to M each
 - [ ] 19. **A second remote, read only** (B.5): fetch `upstream` and show its branches. L
 
 Reach:
