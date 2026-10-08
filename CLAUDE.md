@@ -20,7 +20,7 @@ scripts/run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
 scripts/test [args]    # dotnet test gmd.sln "$@": gmdTest and gmdE2eTest (~1 min with the build)
                        #   --filter "TestCategory!=Integration"  fast tests only (~1100 tests, ~1 s)
                        #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~55 s)
-scripts/build          # full release: test + package audit + publish all platforms (slow)
+scripts/build          # full release: test + package audit + publish all platforms into artifacts/
 scripts/build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 scripts/log            # tail the runtime log with lnav (~/gmd.log)
 scripts/updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major

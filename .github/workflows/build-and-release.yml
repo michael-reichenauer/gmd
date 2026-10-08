@@ -171,7 +171,7 @@ jobs:
         run: |
           echo Build on branch: ${{ github.ref }}
           scripts/build
-          VERSION="$(./gmd_linux_x64 --version)"
+          VERSION="$(artifacts/gmd_linux_x64 --version)"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo Version: $VERSION
           RELEASE_VERSION="${{ steps.release.outputs.version }}"
@@ -194,12 +194,15 @@ jobs:
       # original asset names: the built-in updater falls back to the first and updates Windows from
       # the second (see gmd/Installation/Updater.cs), and so does the installer (Setup/gmd.iss).
       # 'gmd.exe' is the one to download by hand, since it runs as it is named. SHA256SUMS is the
-      # checksums of all of them, which install.sh checks its download against.
+      # checksums of all of them, which install.sh checks its download against. All of them are in
+      # artifacts/, where scripts/build publishes, and SHA256SUMS is made there so that it names them
+      # by the bare asset names install.sh looks for.
       - name: Prepare release assets
         if: steps.build.outputs.isPublish == 'true'
+        working-directory: artifacts
         run: |
           cp gmd_linux_x64 gmd_linux
-          cp gmd/Installation/installer/gmdSetup.exe gmdSetup.exe
+          cp ../gmd/Installation/installer/gmdSetup.exe gmdSetup.exe
           sha256sum gmd_linux_x64 gmd_linux_arm64 gmd_osx_arm64 gmd.exe gmdSetup.exe gmd_linux gmd_windows > SHA256SUMS
           cat SHA256SUMS
 
@@ -257,14 +260,14 @@ jobs:
           prerelease: ${{ steps.build.outputs.isPreRelease == 'true' }}
           body_path: notes.md
           files: |
-            gmd_linux_x64
-            gmd_linux_arm64
-            gmd_osx_arm64
-            gmd.exe
-            gmdSetup.exe
-            gmd_linux
-            gmd_windows
-            SHA256SUMS
+            artifacts/gmd_linux_x64
+            artifacts/gmd_linux_arm64
+            artifacts/gmd_osx_arm64
+            artifacts/gmd.exe
+            artifacts/gmdSetup.exe
+            artifacts/gmd_linux
+            artifacts/gmd_windows
+            artifacts/SHA256SUMS
 
       # Every push to dev makes a preview, and the updater only ever uses the newest stable release
       # and the newest preview (gmd/Installation/Updater.cs), so the Releases page keeps the stable

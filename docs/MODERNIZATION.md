@@ -471,9 +471,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `*RowService`; `[SingleInstance]` is matched by the attribute's name string and `FileStore` uses
   `Activator.CreateInstance`; the vulnerability grep in `scripts/build` never fails the build,
   `scripts/log.bat` hard-codes one user's home, `scripts/installtools` sets `safe.directory` to
-  `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`, `gmd_linux` and
-  `gmd_osx` are missing from `.gitignore`. (`run.bat` dropping its arguments was fixed when the
-  scripts moved into `scripts/`.)
+  `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`. (`run.bat`
+  dropping its arguments was fixed when the scripts moved into `scripts/`, and `gmd_linux` and
+  `gmd_osx` missing from `.gitignore` when the build moved its output into `artifacts/`, which is
+  ignored.)
 - B, build and CI: grow `Directory.Build.props` to the shared properties (`TargetFramework`,
   `Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`) and add
   `Directory.Packages.props`, since warnings never fail a build today and the `warning`-severity

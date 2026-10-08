@@ -54,7 +54,8 @@ do the same.
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 ```
 
-The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`. The runtimes released are
+The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`, and `scripts/build` copies
+each one into `artifacts/` under the name it is released as. The runtimes released are
 `linux-x64`, `linux-arm64`, `osx-arm64` and `win-x64`.
 
 ## Conventions
