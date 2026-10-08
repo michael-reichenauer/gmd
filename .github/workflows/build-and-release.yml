@@ -114,17 +114,33 @@ jobs:
       # gmd/Program.cs and regenerates CHANGELOG.md with the new version heading the notes of the
       # merge, and it is what is built, tagged and released. It is pushed only once the tests have
       # passed, see 'Push release commit'. Dev releases keep the minor version they have.
+      # A major.minor raised by hand above the latest release, as to 1.0, is released as it is
+      # written rather than raised again. The latest release is GitHub's, which is never a preview,
+      # whereas the nearest version tag in git can be one.
       - name: Create release commit (main)
         id: release
         if: github.ref == 'refs/heads/main'
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          MAJOR="$(sed -n 's/^ *public const int MajorVersion = \([0-9]*\);.*/\1/p' gmd/Program.cs)"
           MINOR="$(sed -n 's/^ *public const int MinorVersion = \([0-9]*\);.*/\1/p' gmd/Program.cs)"
-          if [ -z "$MINOR" ]; then
-            echo "Error: no 'public const int MinorVersion = <n>;' in gmd/Program.cs"
+          if [ -z "$MAJOR" ] || [ -z "$MINOR" ]; then
+            echo "Error: no 'public const int MajorVersion/MinorVersion = <n>;' in gmd/Program.cs"
             exit 1
           fi
-          sed -i "s/public const int MinorVersion = $MINOR;/public const int MinorVersion = $((MINOR + 1));/" gmd/Program.cs
+          LATEST="$(gh release view --json tagName --jq .tagName)"
+          IFS=. read -r LATEST_MAJOR LATEST_MINOR _ <<< "${LATEST#v}"
+          if [ -z "$LATEST_MAJOR" ] || [ -z "$LATEST_MINOR" ]; then
+            echo "Error: no version in the latest release '$LATEST'"
+            exit 1
+          fi
+          if [ "$MAJOR" -gt "$LATEST_MAJOR" ] || { [ "$MAJOR" -eq "$LATEST_MAJOR" ] && [ "$MINOR" -gt "$LATEST_MINOR" ]; }; then
+            echo "Keeping $MAJOR.$MINOR, raised by hand above the latest release $LATEST"
+          else
+            sed -i "s/public const int MinorVersion = $MINOR;/public const int MinorVersion = $((MINOR + 1));/" gmd/Program.cs
+          fi
 
           # The same version as the release build below, which has the same Program.cs and build time
           dotnet build gmd/gmd.csproj -v quiet --nologo

@@ -61,7 +61,8 @@ The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`. The runt
 - **Branches**: `main` holds the releases and `dev` the pre-releases, and CI publishes a GitHub
   release on every push to either one. A release from `main` gets the next minor version, in a
   release commit CI adds to `main`, so pull `main` before merging into it and merge it back into
-  `dev` afterwards. Work on a feature branch and target `dev`.
+  `dev` afterwards. A version raised by hand in `gmd/Program.cs`, a new major, is released as it is
+  written. Work on a feature branch and target `dev`.
 - **Tests** go with every bug fix. The unit tests are in `gmdTest/`, laid out like `gmd/`, and the
   end-to-end tests, which drive the real executable in tmux, are in `gmdE2eTest/`.
 - **`CHANGELOG.md` is generated** from the git history by `gmd --updatechangelog`, in CI's release

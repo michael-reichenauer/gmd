@@ -682,7 +682,10 @@ message.
   components are derived from build time in `Build.cs`. Major is hand-edited; the minor is raised by
   CI. A push to `main` makes a **release commit** (`Release v<version>`) on top of it, which raises
   `MinorVersion` by one and regenerates `CHANGELOG.md`, and that commit is built, tagged and
-  released, and pushed only once the tests pass. Dev releases keep the minor they have. So pull
+  released, and pushed only once the tests pass. A major.minor raised by hand above the latest
+  release (as 0.97 to 1.0) is released as written, not raised again; the latest release is
+  GitHub's, read with `gh`, since a version tag in git can be a preview's. Dev releases keep the
+  minor they have. So pull
   `main` before merging `dev` into it, and merge `main` into `dev` after a release: until then dev's
   pre-releases are numbered below the stable release, and the updater offers a preview only when it
   is newer.
