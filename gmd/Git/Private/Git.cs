@@ -291,6 +291,9 @@ internal class Git : IGit
 
     public Task<Result> PushTagAsync(string name, string wd) => remoteService.PushTagAsync(name, wd);
 
+    public Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd) =>
+        tagService.GetTrackedRemoteTagsAsync(wd);
+
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => remoteService.DeleteRemoteTagAsync(name, wd);
 
     public Task<Result<IReadOnlyList<Worktree>>> GetWorktreesAsync(string wd) => worktreeService.ListAsync(wd);

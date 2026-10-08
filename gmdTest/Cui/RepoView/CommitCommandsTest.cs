@@ -101,6 +101,7 @@ public class CommitCommandsTest
             null!,
             null!,
             null!,
+            null!,
             null!
         );
 

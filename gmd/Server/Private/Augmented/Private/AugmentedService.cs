@@ -953,13 +953,13 @@ class AugmentedService : IAugmentedService
         }
     }
 
-    public async Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd)
+    public async Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd)
     {
         using (fileMonitor.Pause())
         {
             if (await git.RemoveTagAsync(name, wd) is Error e)
                 return e;
-            if (!hasRemoteBranch)
+            if (!isOnOrigin)
                 return Result.Ok;
             return await git.DeleteRemoteTagAsync(name, wd);
         }

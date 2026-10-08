@@ -142,7 +142,9 @@ interface IServer
     Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
     Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd);
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd);
-    Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd);
+    Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd);
+    Task<Result<IReadOnlyList<RepoTag>>> GetTagsAsync(string wd);
+    Task<Result> PushTagAsync(string name, string wd);
     Task<Result> SwitchToCommitAsync(string commitId, string wd);
     Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
 

@@ -132,6 +132,9 @@ interface IGit
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
     Task<Result> RemoveTagAsync(string name, string wd);
     Task<Result> PushTagAsync(string name, string wd);
+
+    // The tags origin had at the last fetch, or that gmd pushed since, as name -> object id
+    Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd);
     Task<Result> DeleteRemoteTagAsync(string name, string wd);
     Task<Result> ResetHardUntilCommitAsync(string id, string wd);
 

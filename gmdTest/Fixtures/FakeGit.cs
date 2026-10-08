@@ -350,6 +350,9 @@ class FakeGit : IGit
 
     public Task<Result> PushTagAsync(string name, string wd) => throw new NotSupportedException();
 
+    public Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> ResetHardUntilCommitAsync(string id, string wd) => throw new NotSupportedException();

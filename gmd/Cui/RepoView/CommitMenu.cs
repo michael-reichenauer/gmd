@@ -63,13 +63,8 @@ class CommitMenu : ICommitMenu
             .Item("Commit Diff", "d", () => cmds.ShowCurrentRowDiff())
             .SubMenu("Undo", "", GetCommitUndoItems())
             .SubMenu("Stash", "", GetStashMenuItems())
-            .SubMenu(
-                "Tag",
-                "",
-                GetTagItems(),
-                () => c.Id != Repo.UncommittedId,
-                () => "A tag is put on a commit: move to one first"
-            )
+            // On any row, since its list of every tag is not about the commit
+            .SubMenu("Tag", "", GetTagItems())
             .Item(
                 "Create Branch from Commit ...",
                 "b",
@@ -295,7 +290,8 @@ class CommitMenu : ICommitMenu
                 () => !repo.RowCommit.IsUncommitted,
                 () => "A tag is put on a commit: move to one first"
             )
-            .SubMenu("Remove Tag", "", GetDeleteTagItems(), whyNot: () => "The commit has no tags");
+            .SubMenu("Remove Tag", "", GetDeleteTagItems(), whyNot: () => "The commit has no tags")
+            .Item("Tags ...", "", () => cmds.ShowTags());
 
     IEnumerable<MenuItem> GetStashPopItems() =>
         repo.Repo.Stashes.Select(s => Menu.Item($"{s.Message}", "", () => cmds.StashPop(s.Name)));

@@ -190,13 +190,24 @@ class RemoteService : IRemoteService
         return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
+    // Pushes a tag, and notes it in gmd's record of the remote's tags (TagService.TrackedRemoteTagsRef)
+    // as the fetch would, so that what is on origin is known before the next fetch
     public async Task<Result> PushTagAsync(string name, string wd)
     {
-        return LoginError.ToLogin(await cmd.RunAsync("git", $"push --porcelain origin {name}", wd));
+        var pushed = LoginError.ToLogin(await cmd.RunAsync("git", $"push --porcelain origin refs/tags/{name}", wd));
+        if (pushed is Error e)
+            return e;
+        return await cmd.RunAsync("git", $"update-ref {TagService.TrackedRemoteTagsRef}{name} refs/tags/{name}", wd);
     }
 
+    // Deletes a tag on the remote, and from gmd's record of the remote's tags, as the fetch would
     public async Task<Result> DeleteRemoteTagAsync(string name, string wd)
     {
-        return LoginError.ToLogin(await cmd.RunAsync("git", $"push --porcelain origin --delete {name}", wd));
+        var deleted = LoginError.ToLogin(
+            await cmd.RunAsync("git", $"push --porcelain origin --delete refs/tags/{name}", wd)
+        );
+        if (deleted is Error e)
+            return e;
+        return await cmd.RunAsync("git", $"update-ref -d {TagService.TrackedRemoteTagsRef}{name}", wd);
     }
 }

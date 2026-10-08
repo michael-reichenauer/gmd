@@ -43,6 +43,7 @@ interface ICommitCommands
 
     void AddTag();
     void DeleteTag(string name);
+    void ShowTags();
     bool CanUncommitLastCommit();
     bool CanUndoUncommitted();
     void ToggleDetails();
@@ -61,6 +62,7 @@ class CommitCommands : ICommitCommands
     readonly IAddTagDlg addTagDlg;
     readonly IAddStashDlg addStashDlg;
     readonly IRepoView repoView;
+    readonly ITagsDlg tagsDlg;
 
     public CommitCommands(
         IProgress progress,
@@ -73,7 +75,8 @@ class CommitCommands : ICommitCommands
         IBlameView blameView,
         IAddTagDlg addTagDlg,
         IAddStashDlg addStashDlg,
-        IRepoView repoView
+        IRepoView repoView,
+        ITagsDlg tagsDlg
     )
     {
         this.progress = progress;
@@ -87,6 +90,7 @@ class CommitCommands : ICommitCommands
         this.addTagDlg = addTagDlg;
         this.addStashDlg = addStashDlg;
         this.repoView = repoView;
+        this.tagsDlg = tagsDlg;
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -646,21 +650,65 @@ class CommitCommands : ICommitCommands
     public void DeleteTag(string name) =>
         Do(async () =>
         {
-            var commit = repo.RowCommit;
-            var branch = repo.Repo.BranchByName[commit.BranchName];
-            var isPushable = branch.IsRemote || branch.RemoteName != "";
+            var tagsResult = await server.GetTagsAsync(repo.Path);
+            if (tagsResult is not IReadOnlyList<RepoTag> tags)
+                return new Error("Failed to read the tags", tagsResult.Error);
+            if (tags.FirstOrDefault(t => t.Name == name) is not RepoTag tag)
+                return new Notice($"There is no tag '{name}' any more");
 
-            if (!Confirm.RemoveTag(name, isPushable))
+            return await RemoveTagAsync(tag);
+        });
+
+    // Every tag, to show its commit, push it or remove it, see TagsDlg
+    public void ShowTags() =>
+        Do(async () =>
+        {
+            var tagsResult = await server.GetTagsAsync(repo.Path);
+            if (tagsResult is not IReadOnlyList<RepoTag> tags)
+                return new Error("Failed to read the tags", tagsResult.Error);
+            if (tags.Count == 0)
+                return new Notice("There are no tags: Add Tag in the Tag menu puts one on a commit");
+
+            var hasOrigin = repo.Repo.AllBranches.Any(b => b.IsRemote);
+            if (tagsDlg.Show(TagRows.Items(tags, repo.Repo, hasOrigin)) is not TagChoice choice)
                 return Result.Ok;
 
-            if (await server.RemoveTagAsync(name, isPushable, repo.Path) is Error e)
+            var tag = choice.Item.Tag;
+            switch (choice.Action)
             {
-                return new Error($"Failed to delete tag {name}", e);
+                case TagAction.Show:
+                    Refresh(choice.Item.Commit!.BranchName, tag.CommitId);
+                    return Result.Ok;
+                case TagAction.Push:
+                    using (status.Progress($"Pushing the tag '{tag.Name}'"))
+                    {
+                        if (await server.PushTagAsync(tag.Name, repo.Path) is Error e)
+                            return new Error($"Failed to push the tag {tag.Name}", e);
+                    }
+                    status.Info(TagRows.Pushed(tag.Name));
+                    return Result.Ok;
+                default:
+                    return await RemoveTagAsync(tag);
             }
-
-            RefreshAndFetch();
-            return Result.Ok;
         });
+
+    // Removes a tag, asked first, and on origin too when origin has it, which gmd's record of origin's
+    // tags says, rather than whether the branch of its commit has a remote branch, as it used to
+    async Task<Result> RemoveTagAsync(RepoTag tag)
+    {
+        if (!Confirm.RemoveTag(tag.Name, tag.IsOnOrigin))
+            return Result.Ok;
+
+        using (status.Progress($"Removing the tag '{tag.Name}'"))
+        {
+            if (await server.RemoveTagAsync(tag.Name, tag.IsOnOrigin, repo.Path) is Error e)
+                return new Error($"Failed to remove the tag {tag.Name}", e);
+        }
+
+        Refresh();
+        status.Info(TagRows.Removed(tag));
+        return Result.Ok;
+    }
 
     public void ShowFileHistory() =>
         Do(async () =>

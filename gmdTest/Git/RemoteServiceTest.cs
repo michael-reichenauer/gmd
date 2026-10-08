@@ -223,14 +223,37 @@ public class RemoteServiceTest
         );
     }
 
+    // The tag by its full ref, so a branch of the same name is not pushed instead, and gmd's record of
+    // origin's tags is updated as the next fetch would, so that the tag list says it is on origin
     [TestMethod]
     public async Task TestPushAndDeleteTag()
     {
-        Assert.AreEqual("push --porcelain origin v1.0", await ArgsOf(s => s.PushTagAsync("v1.0", "/wd")));
-        Assert.AreEqual(
-            "push --porcelain origin --delete v1.0",
-            await ArgsOf(s => s.DeleteRemoteTagAsync("v1.0", "/wd"))
+        static async Task<string[]> CallsOf(Func<RemoteService, Task<Result>> run)
+        {
+            var cmd = new FakeCmd("");
+            AssertOk(await run(NewService(cmd)));
+            return cmd.Calls.Select(c => c.Args).ToArray();
+        }
+
+        CollectionAssert.AreEqual(
+            new[] { "push --porcelain origin refs/tags/v1.0", "update-ref refs/gmdtags/origin/v1.0 refs/tags/v1.0" },
+            await CallsOf(s => s.PushTagAsync("v1.0", "/wd"))
         );
+        CollectionAssert.AreEqual(
+            new[] { "push --porcelain origin --delete refs/tags/v1.0", "update-ref -d refs/gmdtags/origin/v1.0" },
+            await CallsOf(s => s.DeleteRemoteTagAsync("v1.0", "/wd"))
+        );
+    }
+
+    // A push that fails leaves the record as it was
+    [TestMethod]
+    public async Task TestAFailedTagPushIsNotRecorded()
+    {
+        var cmd = new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: could not read from remote"));
+
+        AssertError(await NewService(cmd).PushTagAsync("v1.0", "/wd"));
+
+        Assert.AreEqual(1, cmd.Calls.Count);
     }
 
     [TestMethod]

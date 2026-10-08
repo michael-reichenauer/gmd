@@ -555,8 +555,24 @@ class Server : IServer
     public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd) =>
         augmentedService.AddAnnotatedTagAsync(name, message, commitId, isPush, wd);
 
-    public Task<Result> RemoveTagAsync(string name, bool hasRemoteBranch, string wd) =>
-        augmentedService.RemoveTagAsync(name, hasRemoteBranch, wd);
+    public Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd) =>
+        augmentedService.RemoveTagAsync(name, isOnOrigin, wd);
+
+    // Every tag, and whether origin has it. A record of origin's tags that cannot be read is taken as
+    // none on origin, which a Push then corrects, rather than as no tags at all.
+    public async Task<Result<IReadOnlyList<RepoTag>>> GetTagsAsync(string wd)
+    {
+        var tagsTask = git.GetTagsAsync(wd);
+        var originTask = git.GetTrackedRemoteTagsAsync(wd);
+        await Task.WhenAll(tagsTask, originTask);
+        if (tagsTask.Result is not IReadOnlyList<Git.Tag> tags)
+            return tagsTask.Result.Error;
+        var origin = originTask.Result is IReadOnlyDictionary<string, string> o ? o : new Dictionary<string, string>();
+
+        return new Result<IReadOnlyList<RepoTag>>(RepoTag.Of(tags, origin));
+    }
+
+    public Task<Result> PushTagAsync(string name, string wd) => git.PushTagAsync(name, wd);
 
     public Task<Result> SwitchToCommitAsync(string commitId, string wd) => git.CheckoutAsync(commitId, wd);
 

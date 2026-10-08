@@ -428,6 +428,12 @@ throw changes away for good ask first.
 - **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
   squash them into one commit with a new message.
+- **Tags** (in the commit menu's **Tag** menu):
+  **Add Tag ...** (`t`) puts a tag on the commit, and pushes it to origin
+  unless its box is unticked. **Tags ...** lists every tag, newest commit
+  first, and whether origin has it: **Show** moves the log to the tag's
+  commit, **Push** pushes a tag origin does not have, and **Remove** removes
+  it, on origin too when origin has it, asked first.
 - **Stash** (in the commit menu, and `ß` in the top bar):
   **Stash Changes ...** puts the uncommitted changes aside, new files too.
   **Stash Pop** brings a stash back and drops it, **Stash Apply** brings it
