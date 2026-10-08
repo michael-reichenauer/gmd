@@ -46,6 +46,7 @@ class ApplicationBar : View, IApplicationBar
     readonly List<Text> items = [];
     GraphBranch branch = null!;
     Rect bounds = Rect.Empty;
+    bool isUpdateShown;
 
     public View View => this;
 
@@ -85,18 +86,27 @@ class ApplicationBar : View, IApplicationBar
 
         UpdateView();
 
-        // Repeating, so the update available indicator appears on an idle repo as well. The other
-        // callers of UpdateView() are all driven by activity (SetRepo, SetBranch, a resize), and
-        // an idle gmd left open is exactly when a new release turns up.
+        // Not here: the constructor runs before there is a main loop to add a timer to, since
+        // Program.Main builds the DI graph before Application.Init, and a timer added then is
+        // silently never run. Initialized is raised when the application is run.
+        Initialized += (_, _) => StartUpdateTimer();
+    }
+
+    // Repeating, so the update available indicator appears on an idle repo as well. The other
+    // callers of UpdateView() are all driven by activity (SetRepo, SetBranch, a resize), and an
+    // idle gmd left open is exactly when a new release turns up. Even at startup the update check
+    // often ends after the repo is shown, and then ⇓ waited for whatever redrew the bar next, while
+    // the menu said so at once. Redrawn only when the indicator changes, not every five seconds.
+    void StartUpdateTimer() =>
         UI.AddTimeout(
             TimeSpan.FromSeconds(5),
             (_) =>
             {
-                UpdateView();
+                if (config.Releases.IsUpdateAvailable() != isUpdateShown)
+                    UpdateView();
                 return true;
             }
         );
-    }
 
     // Called when clicking on the label
     void OnLabelMouseClicked(MouseEventArgs e)
@@ -230,7 +240,8 @@ class ApplicationBar : View, IApplicationBar
 
     void UpdateView()
     {
-        items[(int)ApplicationBarItem.Update] = GetUpdateText();
+        isUpdateShown = config.Releases.IsUpdateAvailable();
+        items[(int)ApplicationBarItem.Update] = isUpdateShown ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Space] = GetSpace();
 
         label.Text = Common.Text.Add(items);
@@ -249,8 +260,6 @@ class ApplicationBar : View, IApplicationBar
         var path = repo.Path.Length <= maxRepoLength ? repo.Path : $"┅{repo.Path[^maxRepoLength..]}";
         return Common.Text.Dark($"{path}, ");
     }
-
-    Text GetUpdateText() => config.Releases.IsUpdateAvailable() ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
 
     void SetCurrentBranch(Server.Repo repo)
     {

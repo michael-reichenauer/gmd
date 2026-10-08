@@ -826,7 +826,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - The highlight and selection are drawn on the columns after the graph only, and a highlighted row
   colors its spaces where an ordinary one does not. Read color snapshots with that in mind.
 - `Program.Main` resolves the DI graph before `Application.Init()`, so no constructor may touch
-  the main loop. The container is a runtime dependency with no test: after touching registration,
+  the main loop. `UI.AddTimeout` there does not fail, it is silently never run (`Typing` relies on
+  the no-op): the application bar's timer for ⇓ was, so a release found after startup went unshown;
+  it starts on the view's `Initialized` now. The container is a runtime dependency with no test: after touching registration,
   start the app, because `--version` returns before the UI half of the graph is built.
 - The union result (C# 15, RC1 compiler): a pattern whose type is a type parameter cannot declare a
   variable (CS8780), so generic helpers match `Value` directly; a tuple cannot be bound by name either,
