@@ -498,7 +498,9 @@ and marked `©`.
 Within the blame: `Enter` toggles the commit details of the current line,
 the same pane the log view shows, which follows the cursor as you move down
 the lines (`Tab` moves into it to scroll a long message). `d` shows the
-diff of the current line's commit, `p` blames the version before it (so a
+diff of the current line's commit, `l` the history of the lines selected
+with `Shift-↑↓`, or of the current one: every commit that changed them,
+with the diff of those lines alone, `p` blames the version before it (so a
 reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column

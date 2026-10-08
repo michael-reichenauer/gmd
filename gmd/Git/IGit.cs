@@ -35,6 +35,15 @@ interface IGit
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+
+    // The commits that changed the lines of the file at the reference, or HEAD for "", newest first
+    Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    );
     Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);
     Task<Result<CommitDiff>> GetPreviewMergeDiffAsync(
         string sha1,

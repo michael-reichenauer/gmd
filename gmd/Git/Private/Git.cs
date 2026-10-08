@@ -105,6 +105,14 @@ internal class Git : IGit
     public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
         diffService.GetFileDiffAsync(path, contextLines, wd);
 
+    public Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    ) => diffService.GetLineHistoryAsync(path, firstLine, lastLine, reference, wd);
+
     public Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd) =>
         blameService.GetBlameAsync(path, reference, wd);
 

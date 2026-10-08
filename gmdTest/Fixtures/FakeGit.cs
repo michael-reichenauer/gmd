@@ -164,6 +164,14 @@ class FakeGit : IGit
     public Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    ) => throw new NotSupportedException();
+
     public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
         throw new NotSupportedException();
 

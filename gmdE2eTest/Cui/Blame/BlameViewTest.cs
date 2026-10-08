@@ -183,13 +183,40 @@ public class BlameViewTest
         gmd.Send("Down");
 
         var hints = ScreenText.LastLine(gmd.WaitFor("p previous")).TrimStart('─', ' ');
-        StringAssert.StartsWith(hints, "m menu  Esc close  Enter details  d diff  p previous  i copy id  g gutter ─");
+        StringAssert.StartsWith(
+            hints,
+            "m menu  Esc close  Enter details  d diff  l line history  p previous  i copy id  g gutter ─"
+        );
         StringAssert.EndsWith(hints, "? help");
 
         gmd.Send("Enter");
         var screen = gmd.WaitFor("hide details");
         StringAssert.Contains(screen, "Id:", "The details are shown");
         StringAssert.Contains(ScreenText.LastLine(screen), "Enter hide details", "With the hints still under them");
+    }
+
+    // 'l' shows every commit that changed the current line, newest first, each with the diff of that
+    // line alone: here the second line of alpha.txt, added as 'two' and then made 'TWO', and not the
+    // commit that made the file, which made only the first line
+    [TestMethod]
+    public async Task TestTheHistoryOfALine()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "alpha\ntwo\n", "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "alpha\nTWO\n", "Change a line", t.AddMinutes(8));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("TWO");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("l");
+
+        var history = gmd.WaitFor("Change a line");
+        StringAssert.Contains(history, "Add lines");
+        Assert.IsFalse(history.Contains("Initial"), "The commit that made the file did not make this line");
     }
 
     static void OpenBlameOf(TmuxSession gmd, string path)

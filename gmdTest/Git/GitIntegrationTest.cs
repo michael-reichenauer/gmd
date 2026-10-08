@@ -1821,6 +1821,21 @@ public class GitIntegrationTest
         CollectionAssert.AreEqual(new[] { removed, added }, ids.ToArray());
     }
 
+    // The history of lines: the commits that changed them, followed past a change above them that
+    // moved them, and not the ones that changed only other lines
+    [TestMethod]
+    public async Task TestTheHistoryOfLines()
+    {
+        await repo.CommitFileAsync("a.txt", "one\ntwo\n", "Add lines");
+        await repo.CommitFileAsync("a.txt", "one\nTWO\n", "Change two");
+        await repo.CommitFileAsync("a.txt", "zero\none\nTWO\n", "Add a line above");
+        await repo.CommitFileAsync("a.txt", "zero\nONE\nTWO\n", "Change one");
+
+        var history = Value(await repo.Git.GetLineHistoryAsync("a.txt", 3, 3, "", repo.Path));
+
+        CollectionAssert.AreEqual(new[] { "Change two", "Add lines" }, history.Select(d => d.Message).ToArray());
+    }
+
     // A diverged branch is refused by 'git pull' until git is told how to join the two sides, which
     // is why gmd asks. Once the answer is saved where git reads it, the pull merges, or rebases the
     // local commit on top of the remote one.

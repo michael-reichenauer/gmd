@@ -180,11 +180,11 @@ public class KeyHintsTest
             Line(KeyHints.ForDiff(isUncommitted: true, hasConflicts: true))
         );
         Assert.AreEqual(
-            "m menu  Esc close  Enter details  d diff  i copy id  g gutter",
+            "m menu  Esc close  Enter details  d diff  l line history  i copy id  g gutter",
             Line(KeyHints.ForBlame(isDetailsShown: false, hasPrevious: false, canGoBack: false))
         );
         Assert.AreEqual(
-            "m menu  Esc close  Enter hide details  d diff  p previous  Backspace back  i copy id  g gutter",
+            "m menu  Esc close  Enter hide details  d diff  l line history  p previous  Backspace back  i copy id  g gutter",
             Line(KeyHints.ForBlame(isDetailsShown: true, hasPrevious: true, canGoBack: true))
         );
         Assert.AreEqual(

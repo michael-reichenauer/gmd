@@ -180,6 +180,7 @@ class BlameView : IBlameView
         view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
         view.RegisterLetterHandler(Key.g, CycleDetails); // The gutter
         view.RegisterLetterHandler(Key.d, ShowLineCommitDiff);
+        view.RegisterLetterHandler(Key.l, ShowLineHistory);
         view.RegisterLetterHandler(Key.p, BlamePrevious);
         view.RegisterKeyHandler(Key.Backspace, Back);
         // The line's commit id and message, as 'i' and Shift-I copy a commit's in the log view, so
@@ -361,6 +362,63 @@ class BlameView : IBlameView
         contentView.SetNeedsDisplay();
     }
 
+    // The lines a line history is of: the selected ones, or the current one, as indexes
+    (int First, int Last) HistoryLines =>
+        IsSelected
+            ? (contentView.SelectStartIndex, contentView.SelectStartIndex + contentView.SelectCount - 1)
+            : (contentView.CurrentIndex, contentView.CurrentIndex);
+
+    string HistoryName()
+    {
+        var (first, last) = HistoryLines;
+        return first == last ? $"History of Line {first + 1}" : $"History of Lines {first + 1}-{last + 1}";
+    }
+
+    // Every commit that changed the selected lines, or the current one, each with the diff of those
+    // lines alone ('git log -L'), shown as a file history is: how they came to be as they are, where
+    // the blame says only who changed each last. The lines are numbered as the file was blamed, and
+    // for the working tree git counts them in the last commit, so a file with changes not committed,
+    // which can have moved them, is refused rather than shown the history of other lines.
+    async void ShowLineHistory()
+    {
+        if (CurrentRow == null)
+            return;
+        var path = blame.Path;
+        if (blame.Reference == "" && IsChanged(path))
+        {
+            UI.InfoMessage(
+                "History of Lines",
+                $"'{path}' has changes not committed, which can move its lines:\n"
+                    + "commit or stash them first, or blame the file from a commit."
+            );
+            return;
+        }
+
+        var (first, last) = HistoryLines;
+        var (firstLine, lastLine) = (blame.Lines[first].LineNbr, blame.Lines[last].LineNbr);
+        var reference = blame.Reference;
+        DiffReload reload = _ => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, repo.Path);
+        Server.CommitDiff[] diffs;
+        using (progress.Show())
+        {
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not Server.CommitDiff[] loaded)
+            {
+                UI.ErrorMessage($"Failed to get the history of the lines\n{diffsResult.Error.AllMessages()}");
+                return;
+            }
+            diffs = loaded;
+        }
+
+        diffView.Show(diffs, repo.Path, reload);
+        contentView.SetNeedsDisplay();
+    }
+
+    bool IsChanged(string path) =>
+        repo.Status.ModifiedFiles.Contains(path)
+        || repo.Status.RenamedTargetFiles.Contains(path)
+        || repo.Status.AddedFiles.Contains(path);
+
     // Blames the file as it was before the current line's commit, which is how a reformat or a
     // rename is stepped past to the change that actually matters. The porcelain 'previous' key is
     // used rather than '<sha>^' and the same path, since it carries the name before a rename.
@@ -476,6 +534,7 @@ class BlameView : IBlameView
                     () => ShowLineCommitDiff(),
                     () => c != null
                 )
+                .Item(HistoryName(), "l", () => ShowLineHistory(), () => c != null)
                 .Item(
                     hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()})" : "Blame Previous Version",
                     "p",

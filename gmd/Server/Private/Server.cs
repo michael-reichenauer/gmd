@@ -290,6 +290,20 @@ class Server : IServer
         return converter.ToCommitDiffs(gitCommitDiffs);
     }
 
+    public async Task<Result<CommitDiff[]>> GetLineHistoryAsync(
+        string path,
+        int firstLine,
+        int lastLine,
+        string reference,
+        string wd
+    )
+    {
+        var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, wd);
+        if (diffs is not Git.CommitDiff[] gitCommitDiffs)
+            return diffs.Error;
+        return converter.ToCommitDiffs(gitCommitDiffs);
+    }
+
     public async Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd)
     {
         var blame = await git.GetBlameAsync(path, reference, wd);

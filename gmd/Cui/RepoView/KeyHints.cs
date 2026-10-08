@@ -73,6 +73,7 @@ static class KeyHints
     {
         List<KeyHint> hints = [Menu, new("Esc", "close"), new("Enter", isDetailsShown ? "hide details" : "details")];
         hints.Add(new("d", "diff"));
+        hints.Add(new("l", "line history"));
         if (hasPrevious)
             hints.Add(new("p", "previous"));
         if (canGoBack)
