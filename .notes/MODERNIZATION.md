@@ -17,7 +17,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   macOS), Autofac 9, DiffPlex 1.9, MSTest 4. Four unused packages and all stale .NET 7 references
   removed.
 - CSharpier is the single formatter: on save, on build and in CI. `.editorconfig` holds
-  only naming and non-layout rules. `.git-blame-ignore-revs` hides the bulk reformat from blame.
+  only naming and non-layout rules. (A `.git-blame-ignore-revs` hid the bulk reformat from blame
+  for a while; it was dropped as not worth keeping, since old lines are seldom blamed.)
 - CI runs on every branch: a fast test job for feature branches and pull requests, the full
   multi-platform build and release for `main`/`dev`. `scripts/build` now fails when a publish fails, and
   `build.bat` mirrors it.

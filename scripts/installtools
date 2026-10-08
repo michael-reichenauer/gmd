@@ -50,8 +50,12 @@ echo "setting working folder as safe in git config ..."
 git config --global --add safe.directory /workspaces/gmd
 
 echo ""
-echo "Ignoring bulk reformat commits in git blame ..."
-git config blame.ignoreRevsFile .git-blame-ignore-revs
+echo "Remove the git blame setting that skipped the bulk reformat ..."
+# .git-blame-ignore-revs is gone, and git blame fails outright while the setting once made here
+# names a file that is not there.
+if git config --get blame.ignoreRevsFile >/dev/null; then
+  git config --unset blame.ignoreRevsFile
+fi
 
 echo ""
 echo "Adding dotnet tools to PATH ..."

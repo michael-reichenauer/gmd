@@ -731,8 +731,6 @@ message.
   main's first-parent line, since the change log is made from the version tags there.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
-- `.git-blame-ignore-revs` lists the bulk reformat commits; `scripts/installtools` points
-  `blame.ignoreRevsFile` at it.
 - `Utils/GlobPatterns/` is vendored third-party-style code. CSharpier formats it like
   everything else, but do not restructure its logic; `.editorconfig` keeps analyzers quiet there.
 
