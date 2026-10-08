@@ -6,7 +6,7 @@ namespace gmdTest.Utils;
 // The tool chain is the part of copying that can be tested without a clipboard: which tools are
 // offered for a platform and a session, in which order, what is piped to them, and what happens
 // when one of them is missing. Whether the text really ends up on the clipboard afterwards cannot
-// be faked — that is what the tmux end-to-end test and the manual checks in docs/MODERNIZATION.md are
+// be faked — that is what the tmux end-to-end test and the manual checks in .notes/MODERNIZATION.md are
 // for.
 [TestClass]
 public class ClipboardServiceTest

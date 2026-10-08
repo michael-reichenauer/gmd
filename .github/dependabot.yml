@@ -1,7 +1,7 @@
 # Weekly pull requests into dev for the NuGet packages, the dotnet tools and the GitHub Actions, the
 # minor and patch updates of each grouped into one, so CSharpier's tool and MSBuild package move
 # together. Terminal.Gui 2 replaces most of the API gmd uses, so that move is a port of its own
-# rather than a pull request (docs/MODERNIZATION.md).
+# rather than a pull request (.notes/MODERNIZATION.md).
 version: 2
 updates:
   - package-ecosystem: nuget

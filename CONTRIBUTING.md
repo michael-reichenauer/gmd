@@ -12,9 +12,10 @@ gmd/Git/                         One service per area of git, each running the g
 ```
 
 [CLAUDE.md](CLAUDE.md) describes the architecture, the conventions and the tests in depth. It is
-written for Claude Code but is just as useful to read yourself. [MODERNIZATION.md](docs/MODERNIZATION.md)
-lists the open issues, and [USABILITY.md](docs/USABILITY.md) is a review of the user experience with
-proposals for improving it.
+written for Claude Code but is just as useful to read yourself. The working notes are in `.notes/`:
+[MODERNIZATION.md](.notes/MODERNIZATION.md) lists the open issues, and
+[USABILITY.md](.notes/USABILITY.md) is a review of the user experience with proposals for improving
+it.
 
 ## Setting up
 

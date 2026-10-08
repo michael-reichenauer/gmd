@@ -202,7 +202,7 @@ Both are reworked, see proposal D.1.
   hour unless that is turned off; and the tags of Add Tag, above. There is no telemetry. People ask
   this before they run a tool on their work, and the README should answer it.
 - **Can others contribute?** Building needs a preview .NET 11 SDK, for the C# 15 unions, until .NET
-  11 is released (`UPGRADING.md`).
+  11 is released (`docs/UPGRADING.md`).
 - **Can it be found?** "gmd" is hard to search for. A tagline, the repository's GitHub topics and the
   lists of terminal tools are how people come across a tool like this.
 

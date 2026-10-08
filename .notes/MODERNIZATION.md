@@ -450,7 +450,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `CommitBranchService.DetermineCommitBranch` builds a `branchNames` string no one reads, for every
   commit: about 10 ms of 30,000.
 
-**The union result, at .NET 11 GA (November 2026)** — the steps are in `UPGRADING.md`
+**The union result, at .NET 11 GA (November 2026)** — the steps are in `docs/UPGRADING.md`
 
 - Set `LangVersion` to `15`. If the target framework moves to net11.0 (an STS release, where
   net10.0 is LTS), delete `gmd/Utils/UnionPolyfill.cs` and the explicit `LangVersion` too. When

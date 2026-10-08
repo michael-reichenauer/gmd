@@ -9,7 +9,7 @@ namespace gmdTest;
 //
 // The encoding is in UTC: the times are written as UTC ("…T00:00:00Z") and read as UTC, so the
 // version a gmd computes for itself is the one CI tagged its release with, whatever the time zone
-// of the machine it runs on. See docs/MODERNIZATION.md.
+// of the machine it runs on. See .notes/MODERNIZATION.md.
 [TestClass]
 public class BuildTest
 {
