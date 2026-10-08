@@ -470,6 +470,11 @@ a widened file says what it is showing. The menu has the same two, as
 **More Context** and **Less Context**, naming the file they would act on
 and what it would then show.
 
+Rows selected with `Shift-↑↓` and `d` diff the commits of a range on one
+branch. Any two commits, wherever they are, are diffed with **Mark for
+Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
+other: the changes from the older of the two to the newer.
+
 Within the diff: `r` re-reads it from git, `s` scrolls to a file, `u`
 discards the changes of an uncommitted file, `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the

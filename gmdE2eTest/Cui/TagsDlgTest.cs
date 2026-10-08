@@ -41,13 +41,13 @@ public class TagsDlgTest
         StringAssert.Contains(gmd.WaitFor("on origin too"), "v1.0 on 17d85b of 'main', on origin too");
     }
 
-    // Tag is four moves down the commit menu, which opens on 'Amend ...' since 'Add zeta' is not
-    // pushed, and Tags is one below Add Tag in it, Remove Tag being disabled on a commit with no tag
+    // Tag is five moves down the commit menu, which opens on 'Amend ...' since 'Add zeta' is not
+    // pushed, past 'Commit Diff', 'Mark for Diff', Undo and Stash, and Tags is one below Add Tag in it, Remove Tag being disabled on a commit with no tag
     static void OpenTags(TmuxSession gmd)
     {
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 5; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();

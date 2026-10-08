@@ -22,6 +22,8 @@ interface ICommitCommands
     void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
     void ShowDiff(string commitId, string commitId2, bool isFromCommit = false);
+    void MarkForDiff(string commitId);
+    void DiffWithMarked(string commitId);
     void ShowFileHistory();
     void BlameFile();
 
@@ -63,6 +65,7 @@ class CommitCommands : ICommitCommands
     readonly IAddStashDlg addStashDlg;
     readonly IRepoView repoView;
     readonly ITagsDlg tagsDlg;
+    readonly DiffMark diffMark;
 
     public CommitCommands(
         IProgress progress,
@@ -76,7 +79,8 @@ class CommitCommands : ICommitCommands
         IAddTagDlg addTagDlg,
         IAddStashDlg addStashDlg,
         IRepoView repoView,
-        ITagsDlg tagsDlg
+        ITagsDlg tagsDlg,
+        DiffMark diffMark
     )
     {
         this.progress = progress;
@@ -91,6 +95,7 @@ class CommitCommands : ICommitCommands
         this.addStashDlg = addStashDlg;
         this.repoView = repoView;
         this.tagsDlg = tagsDlg;
+        this.diffMark = diffMark;
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -243,7 +248,9 @@ class CommitCommands : ICommitCommands
             }
             if (repo.Repo.CommitById[id1].BranchPrimaryName != repo.Repo.CommitById[id2].BranchPrimaryName)
             {
-                status.Notice("The selected commits are on different branches: select commits of one branch");
+                status.Notice(
+                    "The selected commits are on different branches: Mark for Diff in the commit menu diffs any two"
+                );
                 return;
             }
         }
@@ -295,6 +302,36 @@ class CommitCommands : ICommitCommands
                     Refresh();
                 }
             });
+            return Result.Ok;
+        });
+
+    public void MarkForDiff(string commitId)
+    {
+        diffMark.Set(repo.Path, commitId);
+        var sid = commitId.Sid();
+        status.Info($"Marked {sid} for a diff: Diff with {sid} in the menu of another commit diffs the two");
+    }
+
+    // The changes from the older of the two commits to the newer, whichever is marked, i.e. what
+    // changed on the way from the one to the other, as 'git diff <older> <newer>'
+    public void DiffWithMarked(string commitId) =>
+        Do(async () =>
+        {
+            var markedId = diffMark.IdIn(repo.Path);
+            if (markedId == "" || !repo.Repo.CommitById.TryGetValue(markedId, out var marked))
+                return new Notice("No commit is marked for a diff: Mark for Diff in the commit menu marks one");
+            var commit = repo.Repo.CommitById[commitId];
+
+            var (older, newer) = marked.GitIndex > commit.GitIndex ? (marked, commit) : (commit, marked);
+            var message = $"Diff {older.Sid} to {newer.Sid}";
+            var reload = DiffReloads.Single(n =>
+                server.GetPreviewMergeDiffAsync(older.Id, newer.Id, message, n, repo.Path)
+            );
+            var diffsResult = await reload(DiffContext.Default);
+            if (diffsResult is not CommitDiff[] diffs)
+                return new Error("Failed to get diff", diffsResult.Error);
+
+            diffView.Show(diffs[0], newer.Id, repo.Path, reload, ConflictState.None);
             return Result.Ok;
         });
 

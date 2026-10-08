@@ -8,8 +8,8 @@ namespace gmdE2eTest.Cui;
 [TestClass]
 public class LostWorkDlgTest
 {
-    // The commit menu opens on 'Amend ...', the last commit not being pushed, so Undo is two moves
-    // down. In it the cursor starts on 'Undo Uncommit', the reset, so the item is one move down.
+    // The commit menu opens on 'Amend ...', the last commit not being pushed, so Undo is three moves
+    // down, past 'Commit Diff' and 'Mark for Diff'. In it the cursor starts on 'Undo Uncommit', the reset, so the item is one move down.
     [TestMethod]
     public async Task TestRecoverACommitAResetLeftBehind()
     {
@@ -21,7 +21,7 @@ public class LostWorkDlgTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 2; i++)
+        for (var i = 0; i < 3; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
