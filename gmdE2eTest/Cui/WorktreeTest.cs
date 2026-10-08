@@ -21,7 +21,7 @@ public class WorktreeTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●dev, ⌂1                                                    (main) [Ϙ Search] ? X
+             Gmd {repo}, ●dev, ⌂1                                            commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣   ⌂ Add delta                                                   (⌂ main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05

@@ -218,7 +218,7 @@ class RepoViewInput
             case ApplicationBarItem.HiddenNews:
                 Menus.ShowHiddenNewsMenu(x - 5, y);
                 break;
-            case ApplicationBarItem.BranchName:
+            case ApplicationBarItem.Row:
                 Menus.ShowOpenBranchMenu(x - 5, y);
                 break;
             case ApplicationBarItem.Stash:
@@ -679,10 +679,7 @@ class RepoViewInput
     void SetHooverBranch(GraphBranch branch, int index)
     {
         if (hoover.SetBranch(branch, index, Repo.CurrentIndex))
-        {
-            applicationBarView.SetBranch(branch);
             commitsView.SetNeedsDisplay();
-        }
     }
 
     void ClearHoover()

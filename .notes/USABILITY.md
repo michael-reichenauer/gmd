@@ -651,6 +651,11 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 4. **Keys act on the keyboard highlight,** not on wherever the mouse happens to rest. At least,
    label the target in the top bar (`▸ dev`). *The label is done (2026-09-25),* on the key-hint line,
    which starts with the highlighted branch's name (`dev:  s switch …`); the mouse still moves it.
+   *Since (2026-10-08):* with no branch highlighted it starts with the row's commit and its branch
+   (`commit on dev:`, `changes on main:` on the uncommitted row), the name in the branch's color, and
+   the top bar's `(dev)` is gone. That one named whichever had moved last of the row and the
+   highlight, in the parentheses that mark a tip in the log, so it read as neither. With the key
+   hints off the bar says `commit on dev`, the row's only, and leaves it out when it is too narrow.
 5. **Don't require a clean tree to push.** For merge and switch, offer "stash, do it, pop".
    *Done (2026-09-25):* push only waits for a merge or rebase in progress, and says the changes
    stay local; a switch git refuses over the changes offers Stash and Switch. Merge and pull still

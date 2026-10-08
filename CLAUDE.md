@@ -57,9 +57,14 @@ home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `Rec
 **truncates `~/gmd.log`**, and **deletes `~/.gmdstate*`**. None of those paths can be redirected —
 `ConfigService`, `ConfigLogger` and `Upgrader` all anchor on `SpecialFolder.UserProfile` with no
 override — so `HOME` is the only lever, and on Unix it also isolates `~/.gitconfig` from the git
-commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well: `Build.IsDevInstance()`
-only recognizes `gmd.dll` and `dotnet`, so the *built binary is not a dev instance* and really does
-call the GitHub releases API on startup.
+commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well. The built binary *is* a
+dev instance — `Build.IsDevInstance()` looks for `gmd.dll` on the command line, and .NET puts the
+entry assembly there even when the apphost starts it — so it never starts the regular update check,
+but the start menu and saving the Config dialog still call the GitHub releases API
+(`Updater.CheckUpdateAvailableAsync` skips only the `dotnet` host). Being a dev instance also means
+it never reports an update, so ⇓ in the application bar and the release menu items cannot be seen
+with it; a published single-file build (`dotnet publish -r <rid> -p:PublishSingleFile=true`) is
+not one.
 
 `script -qfc "stty rows 45 cols 140; <cmd>" /dev/null` is the fallback when tmux is missing: a pty,
 but only the raw byte stream, which is redraw *traffic* rather than a screen and so is poor to
@@ -598,10 +603,10 @@ Seven traps worth knowing before adding one:
   log with `ScreenText.Rows` and the message with `ScreenText.LastLine`, as `PushPullTest` does.
 - For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`, and `p` / `u`, which
   act on the current branch when nothing is hoovered), **the application bar does not tell you what
-  the hoover is on** (the key-hint line does, by name, but it is off in these tests) — it is set
-  both by the hoover and by the current row's branch, so an operation that moves the row leaves it
-  naming the wrong one. Press `m` and read the `Branch: <name>` menu title; that is the only
-  readout from outside. And expect the hoover to stay
+  the hoover is on** (the key-hint line does, by name, but it is off in these tests) — with the
+  hints off, its `commit on main` at the right names the current row's commit and its branch, never
+  the hoover. Press `m` and read the `Branch: <name>` menu title; that is the only readout from
+  outside. And expect the hoover to stay
   where it was after a command rather than follow what appeared: after `Enter` opens a branch it is
   still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
 - **A letter sent to an open menu picks the item showing it** (`MenuShortcuts`), as Enter would.

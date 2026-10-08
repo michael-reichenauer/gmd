@@ -27,7 +27,7 @@ public class CommitTest
         // screen that has to be masked. The commit rows below it keep their pinned times.
         Assert.AreEqual(
             """
-             Gmd {repo}, ●main, ©2                                                   (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main, ©2                                          changes on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣   ©2 uncommitted changes                                              (● main)                       NNNN-NN-NN NN:NN
             ┣  ● Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
@@ -92,7 +92,7 @@ public class CommitTest
         var committed = gmd.WaitUntilGone("uncommitted changes");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add epsilon                                                        (● main) 2d0391 Test User      2024-10-15 12:07
             ┣    Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
@@ -277,7 +277,7 @@ public class CommitTest
         var committed = gmd.WaitUntilGone("uncommitted changes");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add epsilon                                                        (● main) 2d0391 Test User      2024-10-15 12:07
             ┣    Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
@@ -329,7 +329,7 @@ public class CommitTest
         // and '(^/main)' is origin/main, still on the commit below it
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭┺ ●▲Add zeta                                                          (● main) 4dd1e9 Test User      2024-10-15 12:07
             ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
@@ -367,7 +367,7 @@ public class CommitTest
         var committed = gmd.WaitFor("Add zeta amended");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭┺ ●▲Add zeta amended                                                  (● main) 9df2d6 Test User      2024-10-15 12:07
             ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
@@ -413,7 +413,7 @@ public class CommitTest
         var screen = gmd.WaitFor("Only a commit not yet pushed can be amended");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣─┺ ● Add zeta                                                       (^)(● main) 4dd1e9 Test User      2024-10-15 12:07
             ┣     Add delta                                                           [v1.0] 17d85b Test User      2024-10-15 12:06
@@ -638,7 +638,7 @@ public class CommitTest
         // clearest possible illustration of why squashing pushed commits is the wrong way round.
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main, ▼2, ▲1                                               (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main, ▼2, ▲1                                       commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭┺ ●▲Commit number 02                                                  (● main) 96a909 Test User      2024-10-15 12:04
             ┣│   ▼Commit number 03                                                  (^/main) c02add Test User      2024-10-15 12:03
@@ -743,7 +743,7 @@ public class CommitTest
         var committed = gmd.WaitUntilGone("uncommitted");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
+             Gmd {repo}, ●dev                                                 commit on dev [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
               ┣ ● Add gamma                                                          (● dev) b03776 Test User      2024-10-15 12:03
             ┣ ┃   Add gamma                                                           (main) de2e9a Test User      2024-10-15 12:02
@@ -800,7 +800,7 @@ public class CommitTest
         // the 'ß'. The application bar counts it too, where the change count used to be.
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main, ß1                                                   (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main, ß1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣ ß● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05

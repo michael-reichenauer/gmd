@@ -20,7 +20,7 @@ enum ApplicationBarItem
     Stash,
     Worktrees,
     Space,
-    BranchName,
+    Row,
     Search,
     Help,
     Close,
@@ -30,7 +30,10 @@ interface IApplicationBar
 {
     View View { get; }
     event Action<int, int, ApplicationBarItem> ItemClicked;
-    void SetBranch(GraphBranch branch);
+
+    // The commit on the row and its branch ('commit on dev'), at the right, or nothing, since the
+    // key-hint line names it while it is shown
+    void SetRow(Text name);
 
     // The repo, and how many hidden branches have something the user has not seen
     void SetRepo(Server.Repo repo, int hiddenNewsCount);
@@ -44,8 +47,9 @@ class ApplicationBar : View, IApplicationBar
 
     readonly UILabel label;
     readonly List<Text> items = [];
-    GraphBranch branch = null!;
+    Text rowName = Common.Text.Empty;
     Rect bounds = Rect.Empty;
+    bool isUpdateShown;
 
     public View View => this;
 
@@ -85,18 +89,27 @@ class ApplicationBar : View, IApplicationBar
 
         UpdateView();
 
-        // Repeating, so the update available indicator appears on an idle repo as well. The other
-        // callers of UpdateView() are all driven by activity (SetRepo, SetBranch, a resize), and
-        // an idle gmd left open is exactly when a new release turns up.
+        // Not here: the constructor runs before there is a main loop to add a timer to, since
+        // Program.Main builds the DI graph before Application.Init, and a timer added then is
+        // silently never run. Initialized is raised when the application is run.
+        Initialized += (_, _) => StartUpdateTimer();
+    }
+
+    // Repeating, so the update available indicator appears on an idle repo as well. The other
+    // callers of UpdateView() are all driven by activity (SetRepo, SetBranch, a resize), and an
+    // idle gmd left open is exactly when a new release turns up. Even at startup the update check
+    // often ends after the repo is shown, and then ⇓ waited for whatever redrew the bar next, while
+    // the menu said so at once. Redrawn only when the indicator changes, not every five seconds.
+    void StartUpdateTimer() =>
         UI.AddTimeout(
             TimeSpan.FromSeconds(5),
             (_) =>
             {
-                UpdateView();
+                if (config.Releases.IsUpdateAvailable() != isUpdateShown)
+                    UpdateView();
                 return true;
             }
         );
-    }
 
     // Called when clicking on the label
     void OnLabelMouseClicked(MouseEventArgs e)
@@ -216,21 +229,29 @@ class ApplicationBar : View, IApplicationBar
         return text.Dark($"{others.Count}");
     }
 
-    public void SetBranch(GraphBranch branch)
+    // Not in parentheses, which in the log mark a branch tip, and only ever the row's: a branch
+    // highlighted with ← → or the mouse is named on the key-hint line, as what the keys act on
+    public void SetRow(Text name)
     {
-        if (this.branch == branch)
+        Text item = name.Length > 0 ? Common.Text.Add(name).Dark(" ") : Common.Text.Empty;
+        if (item.Fragments.SequenceEqual(rowName.Fragments))
             return;
-        this.branch = branch;
 
-        items[(int)ApplicationBarItem.BranchName] =
-            branch != null ? Common.Text.Color(branch.Color, $"({branch.B.NiceNameUnique}) ") : Common.Text.Empty;
-
+        rowName = item;
         UpdateView();
     }
 
     void UpdateView()
     {
-        items[(int)ApplicationBarItem.Update] = GetUpdateText();
+        isUpdateShown = config.Releases.IsUpdateAvailable();
+        items[(int)ApplicationBarItem.Update] = isUpdateShown ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
+
+        // The row's name is the one item left out when the bar is too narrow for it, rather than the
+        // search, the help and the close at the end being cut off; the commit details name it too
+        items[(int)ApplicationBarItem.Row] = rowName;
+        items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
+        if (items.Sum(t => t.Length) > bounds.Width - 1)
+            items[(int)ApplicationBarItem.Row] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Space] = GetSpace();
 
         label.Text = Common.Text.Add(items);
@@ -238,7 +259,6 @@ class ApplicationBar : View, IApplicationBar
 
     Text GetSpace()
     {
-        items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         var count = items.Sum(t => t.Length);
         var space = new string(' ', Math.Max(0, bounds.Width - count - 1));
         return Common.Text.White(space);
@@ -249,8 +269,6 @@ class ApplicationBar : View, IApplicationBar
         var path = repo.Path.Length <= maxRepoLength ? repo.Path : $"┅{repo.Path[^maxRepoLength..]}";
         return Common.Text.Dark($"{path}, ");
     }
-
-    Text GetUpdateText() => config.Releases.IsUpdateAvailable() ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
 
     void SetCurrentBranch(Server.Repo repo)
     {

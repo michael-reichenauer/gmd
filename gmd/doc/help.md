@@ -80,7 +80,7 @@ branch from it and `h` hides it. With no branch highlighted, `m`, `d` and
 
 ### The Top Bar
 
-    Gmd ┅/acme-store, ●main, ©2, ▼1, ▲1, ✦3, ß1, ⌂1  (dev) [Ϙ Search] ? X
+    Gmd ┅/acme-store, ●main, ©2, ▼1, ▲1, ✦3, ß1, ⌂1        [Ϙ Search] ? X
 
 Each item can be clicked:
 
@@ -96,12 +96,16 @@ Each item can be clicked:
 | ✦3             | Hidden branches with something new: list them        |
 | ß1             | Stashes: the stash menu                              |
 | ⌂1             | Other worktrees, yellow if one has changes (also w)  |
-| (dev)          | The highlighted branch, or the row's: show a branch  |
+| commit on dev  | With key hints off, the row's commit: show a branch  |
 | Ϙ Search ? X   | Search (also f), help (also ?), and quit             |
 
 The line at the bottom shows the keys that do something where the cursor
 is, and changes as it moves; the diff, blame and conflict views have one of
-their own. **Config ...** in the repo menu turns them off.
+their own. It starts with what the keys act on: the highlighted branch,
+`dev:`, or else the commit on the row and the branch it is on,
+`commit on dev:` (`changes on main:` on the uncommitted row).
+**Config ...** in the repo menu turns the lines off, and the top bar then
+names the commit on the row instead, at its right.
 While a commit, push or pull runs it says what is being done, in cyan. For
 a few seconds after a command it says what the command did, or why a key
 or a greyed out menu item did nothing, and in red when a fetch failed.

@@ -5,6 +5,9 @@ namespace gmd.Cui.RepoView;
 
 record KeyHint(string Key, string Text);
 
+// A hint with no key, naming what the keys act on, drawn in the colors it is given
+record LabelHint(Text Label) : KeyHint("", Label.ToString());
+
 // The key-hint line at the bottom of the log view: the few keys that do something useful where
 // the cursor is, so that the keys are learned by using gmd rather than by reading the help first.
 // What is useful depends on what is under the cursor (a commit, the uncommitted changes, a
@@ -14,8 +17,9 @@ record KeyHint(string Key, string Text);
 // A key is written the way it is typed, and a shifted one with '⇧', so '⇧p' is Shift-P, which is a
 // different command from 'p'.
 // The hints are listed most useful first, which is also the order they are dropped in, from the
-// end, when the line is too narrow for all of them. 'm menu' leads, since every command is in a
-// menu, and '? help' is always kept, at the right.
+// end, when the line is too narrow for all of them. The line starts with what the keys act on
+// ('dev:' for a highlighted branch, 'commit on dev:' for the row), so it is the last to go, then
+// 'm menu', since every command is in a menu, and '? help' is always kept, at the right.
 //
 // The line is drawn as the log's bottom border, in the color of the line under the application bar,
 // with the hints set into it, so that it reads as the frame of the log and not as one more row of
@@ -161,7 +165,7 @@ static class KeyHints
         var status = repo.Status;
         var isUncommitted = repo.RowCommit.IsUncommitted;
         var isConflicts = isUncommitted && status.Conflicted > 0;
-        List<KeyHint> hints = [Menu];
+        List<KeyHint> hints = [new LabelHint(RowName(repo).White(":")), Menu];
 
         if (!status.IsOk)
             hints.Add(CommitHint(status));
@@ -196,7 +200,8 @@ static class KeyHints
         var isOnRow = repo
             .Graph.GetRowBranches(repo.CurrentIndex)
             .Any(b => b.B.PrimaryName == hoover.BranchPrimaryName);
-        List<KeyHint> hints = [Label($"{primary.NiceNameUnique}:")];
+        var color = repo.Graph.BranchByName(hoover.BranchName).Color;
+        List<KeyHint> hints = [new LabelHint(Text.Color(color, primary.NiceNameUnique).White(":"))];
         if (isOnRow)
             hints.Add(Menu);
 
@@ -260,13 +265,21 @@ static class KeyHints
             yield return new("u", "pull");
     }
 
-    // A hint with no key is a label, e.g. the name of the branch the keys act on
-    static KeyHint Label(string text) => new("", text);
+    // What the keys act on with no branch highlighted: the commit on the row, or on the uncommitted
+    // row the changes, with the branch it is on, in the color of the branch's line in the graph.
+    // The application bar names it instead when the key-hint line is turned off.
+    public static TextBuilder RowName(IViewRepo repo)
+    {
+        var commit = repo.RowCommit;
+        var branch = repo.Graph.BranchByName(commit.BranchName);
+        return Text.White(commit.IsUncommitted ? "changes on " : "commit on ")
+            .Color(branch.Color, branch.B.NiceNameUnique);
+    }
 
     static void Add(TextBuilder text, KeyHint hint)
     {
-        if (hint.Key == "")
-            text.White(hint.Text);
+        if (hint is LabelHint label)
+            text.Add(label.Label);
         else
             text.Cyan(hint.Key).Dark($" {hint.Text}");
     }

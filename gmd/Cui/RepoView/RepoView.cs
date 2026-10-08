@@ -366,10 +366,21 @@ class RepoView : IRepoView, IRepoViewInputHost
         commitsView.Height = Dim.Fill(detailsHeight + hintsHeight);
         commitDetailsView.View.Y = Pos.AnchorEnd(CommitDetailsView.ContentHeight + hintsHeight);
         commitDetailsView.View.Height = detailsHeight;
+        UpdateRowName();
 
         commitsView.SetNeedsDisplay();
         commitDetailsView.View.SetNeedsDisplay();
         keyHintBar.SetNeedsDisplay();
+    }
+
+    // The commit on the row and its branch are named first on the key-hint line, and in the
+    // application bar when the line is turned off
+    void UpdateRowName()
+    {
+        if (repo.CurrentIndex < 0 || repo.CurrentIndex >= repo.Repo.ViewCommits.Count)
+            return; // No repo shown yet
+
+        applicationBarView.SetRow(config.ShowKeyHints ? Text.Empty : KeyHints.RowName(repo));
     }
 
     // A status message is shown on the key-hint line, and over the last row of the log when the key
@@ -736,13 +747,12 @@ class RepoView : IRepoView, IRepoViewInputHost
         if (repo.CurrentIndex < 0)
             return;
 
-        var commit = repo.RowCommit;
-        var branch = repo.Graph.BranchByName(commit.BranchName);
-        applicationBarView.SetBranch(branch);
+        UpdateRowName();
 
         if (isShowDetails)
         {
-            commitDetailsView.Set(repo.Repo, commit, branch.B);
+            var commit = repo.RowCommit;
+            commitDetailsView.Set(repo.Repo, commit, repo.Graph.BranchByName(commit.BranchName).B);
         }
     }
 

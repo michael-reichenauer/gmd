@@ -826,7 +826,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - The highlight and selection are drawn on the columns after the graph only, and a highlighted row
   colors its spaces where an ordinary one does not. Read color snapshots with that in mind.
 - `Program.Main` resolves the DI graph before `Application.Init()`, so no constructor may touch
-  the main loop. The container is a runtime dependency with no test: after touching registration,
+  the main loop. `UI.AddTimeout` there does not fail, it is silently never run (`Typing` relies on
+  the no-op): the application bar's timer for ⇓ was, so a release found after startup went unshown;
+  it starts on the view's `Initialized` now. The container is a runtime dependency with no test: after touching registration,
   start the app, because `--version` returns before the UI half of the graph is built.
 - The union result (C# 15, RC1 compiler): a pattern whose type is a type parameter cannot declare a
   variable (CS8780), so generic helpers match `Value` directly; a tuple cannot be bound by name either,
@@ -874,8 +876,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   wrong end of its wakeup pipe, so `poll()` reported readable forever. Fixed upstream in 1.18.0
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.
 - The .NET 10 SDK's terminal logger swallows VSTest output entirely, so `-tl:false` is passed
-  everywhere. `Build.IsDevInstance()` is false for the built binary, which therefore really does
-  call the GitHub releases API unless `CheckUpdates` is off.
+  everywhere.
+- `Build.IsDevInstance()` is *true* for the Debug build's apphost, since .NET puts the entry
+  assembly, `gmd.dll`, on `Environment.CommandLine` however it is started; only a published
+  single-file build is not one. So the end-to-end tests can never show ⇓ or the release menu items,
+  yet the start menu and saving the Config dialog still call the GitHub releases API
+  (`Updater.CheckUpdateAvailableAsync` skips only the `dotnet` host) unless `CheckUpdates` is off.
+  It was long written down the other way round; the log of a run says `Dev instance, no update check`.
 - A raw string literal keeps the line endings of its source file, so a CRLF checkout on Windows
   turned every multi-line expected value in the tests into `\r\n` and failed 80 of them, the tag
   parser's included (`TrimSuffix("^{}")` no longer matched). `.gitattributes` now checks out LF on

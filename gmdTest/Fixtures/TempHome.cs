@@ -27,12 +27,13 @@ sealed class TempHome : IDisposable
     // ever deleted
     const string FolderPrefix = "gmdTest-home-";
 
-    // Seeded so the updater never runs. Not optional: RepoView starts the update checker on
-    // every startup, and Build.IsDevInstance() is false for the apphost these tests drive (it
-    // only recognizes 'gmd.dll' and 'dotnet'), so without this the built binary really does call
-    // the GitHub releases API. That is a network dependency in CI, and a released version newer
-    // than the test build would put a '⇓' in the application bar and extra items in the repo
-    // menu, mid-test.
+    // Seeded so the updater never calls GitHub. Not optional, although the apphost these tests
+    // drive is a dev instance: Build.IsDevInstance() finds 'gmd.dll' on the command line, since
+    // .NET puts the entry assembly there even when the apphost starts it. So RepoView's regular
+    // update check never runs, and no update is ever reported (no '⇓' in the application bar, no
+    // release items in the menus), but the start menu and saving the Config dialog check all the
+    // same (Updater.CheckUpdateAvailableAsync skips only the 'dotnet' host), and without this they
+    // would call the GitHub releases API: a network dependency in CI.
     //
     // The key-hint line is off unless asked for. It is the bottom row of the screen, so with it on
     // every snapshot of a whole screen would be the rows it asserts, then thirty blank ones, then
