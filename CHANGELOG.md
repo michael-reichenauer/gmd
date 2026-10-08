@@ -1,7 +1,40 @@
 # Change Log for Gmd
 --------------------
 
-136 releases:
+137 releases:
+
+## [v0.96.1439.476] - 2026-10-08
+- Restructure the help: the screen first, then tasks, then reference
+- Correct the help's description of the lines between branch columns
+- Rework the README for new users, and move development to CONTRIBUTING
+- Say what failed when gmd crashes, and where to report it
+- Say once that branches are hidden, and how to show one
+- Give the Show Branch menu one name, and its key one spelling
+- Name both branches in the merge items
+- Copy the commit id and message with i and Shift-I
+- Show in Add Tag that it pushes the tag, and let it be left out
+- Write the year in full in the dates
+- Name the sides in the resolver's status line
+- Copy a blamed line's commit with i and Shift-I, as in the log
+- Take the duplicate items out of the branch and commit menus
+- Stop the branch sort from hanging on orders that contradict each other
+- Move Clean Working Folder to Undo, and list what it deletes
+- Write shifted keys as ⇧ in the menus, as the key-hint line does
+- Give the diff, blame and conflict views key-hint lines of their own
+- Make the help easier to get around: sections, height, and where it opens
+- Let the views of a dialog with keys of its own have their hot keys
+- Choose which files to commit, in a checklist in the commit dialog
+- Re-record the animation for the commit dialog's file list
+- Amend or drop an older commit with git's own rebase, recorded for Undo
+- Amend and Drop of any commit not pushed yet, from its commit menu
+- Ask git's and ssh's questions in a login dialog
+- Say how to try the login dialog by hand, and what is left of it
+- Stash Apply, which brings a stash back and keeps it
+- List every tag, and push or remove one from the list
+- Diff any two commits: Mark for Diff, then Diff with it
+- Search the changes themselves with change:
+- The history of lines, from the blame view
+- Captions in the demo animation, saying what each part shows and with which key
 
 ## [v0.95.1438.449] - 2026-10-07
 - Make Ctrl-A in the commit dialog add only the subjects of the merged commits
