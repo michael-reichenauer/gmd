@@ -243,10 +243,10 @@ A few keys to start with:
 | `?`       | Help, with every key and symbol                           |
 | `q`       | Quit                                                      |
 
-The line at the bottom of the screen shows the keys that do something where the cursor is, and
-changes as it moves. The [help guide](gmd/doc/help.md) covers the rest, and `?` in gmd opens it, the
-version of it that goes with the gmd you run. Where there is no browser to open, e.g. over ssh,
-gmd copies the link instead.
+The line at the bottom of the screen names what the cursor is on, e.g. `commit on dev:`, and shows
+the keys that do something there, changing as it moves. The [help guide](gmd/doc/help.md) covers the
+rest, and `?` in gmd opens it, the version of it that goes with the gmd you run. Where there is no
+browser to open, e.g. over ssh, gmd copies the link instead.
 
 ## Installation
 

@@ -28,7 +28,7 @@ public class BranchTest
         // swallows exactly that error, and this is what pins that it still does
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
@@ -65,7 +65,7 @@ public class BranchTest
         // The new branch is current and drawn as its own column, branching out of main
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●feature                                                    (main) [Ϙ Search] ? X
+             Gmd {repo}, ●feature                                            commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣─┺ ● Add delta                                          (main)(● feature)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
@@ -169,7 +169,7 @@ public class BranchTest
         // The branch is drawn under its new name, in the same column and with the same commits
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (dev2) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on dev2 [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣   ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
@@ -285,7 +285,7 @@ public class BranchTest
         // The new tag is drawn next to the one the fixture already has, on the current row
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                              (● main)[v1.0][v2.0] 17d85b Test User      2024-10-15 12:06
             ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
@@ -374,7 +374,7 @@ public class BranchTest
         // since the message about the 's' above may still be on the bottom row.
         Assert.AreEqual(
             """
-             Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
+             Gmd {repo}, ●dev                                                 commit on dev [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣     Add delta                                                     (main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
@@ -449,7 +449,7 @@ public class BranchTest
         var committed = gmd.WaitUntilGone("uncommitted changes");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●dev                                                         (dev) [Ϙ Search] ? X
+             Gmd {repo}, ●dev                                                 commit on dev [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭╊ ● Merge branch 'main' into dev                                       (● dev) 60e4d8 Test User      2024-10-15 12:07
             ┣╯┃   Add delta                                                     (main)[v1.0] 17d85b Test User      2024-10-15 12:06
@@ -547,7 +547,7 @@ public class BranchTest
         // Back on main, which is where it started, with the merge commit on dev
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭╊   Merge branch 'main' into dev                                         (dev) 60e4d8 Test User      2024-10-15 12:07
             ┣╯┃ ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06

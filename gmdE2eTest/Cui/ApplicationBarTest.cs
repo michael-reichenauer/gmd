@@ -84,6 +84,37 @@ public class ApplicationBarTest
         Assert.IsFalse(gmd.WaitFor("agent (new branch)").Contains("✦1"), "Seen once listed");
     }
 
+    // At the right, with the key hints off, the commit on the row and its branch, which the hint line
+    // names when it is on (KeyHintTest). It was '(dev)', in parentheses like a branch tip in the log,
+    // and named whichever had moved last of the row and the branch highlighted with ← → or the mouse.
+    // Now it is only ever the row's, here 'dev' while 'main' is highlighted, as 'm' shows it is.
+    [TestMethod]
+    public async Task TestTheBarNamesTheRowsCommitRatherThanTheHighlightedBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        // Down to the merge, ← to the branch it merged, Enter to show it, as in LogViewTest
+        foreach (var key in new[] { "Down", "Left", "Enter" })
+        {
+            gmd.Send(key);
+            gmd.WaitForStable();
+        }
+        gmd.WaitFor("More dev work");
+
+        // To 'More dev work', dev's tip, which main's line passes, and ← ← highlights main, at the
+        // left of the row, whatever was highlighted before
+        foreach (var key in new[] { "Home", "Down", "Down", "Down", "Left", "Left" })
+        {
+            gmd.Send(key);
+            gmd.WaitForStable();
+        }
+
+        StringAssert.Contains(ScreenText.Rows(gmd.WaitForStable(), repo.Path, 0, 1), " commit on dev [Ϙ Search]");
+        gmd.Send("m");
+        gmd.WaitFor("Branch: main");
+    }
+
     // The line under the bar spans the terminal however wide it is. It was a label of 200 line chars,
     // which stopped short of the right edge on a wide terminal.
     [TestMethod]

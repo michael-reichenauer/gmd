@@ -26,7 +26,7 @@ public class PushPullTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main, ▲1                                                   (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭┺ ●▲Add zeta                                                          (● main) 4dd1e9 Test User      2024-10-15 12:07
             ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
@@ -44,7 +44,7 @@ public class PushPullTest
         var screen = gmd.WaitUntilGone("▲");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣─┺ ● Add zeta                                                       (^)(● main) 4dd1e9 Test User      2024-10-15 12:07
             ┣     Add delta                                                           [v1.0] 17d85b Test User      2024-10-15 12:06
@@ -195,7 +195,7 @@ public class PushPullTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main, ▼1                                                   (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main, ▼1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣    ▼Add zeta                                                          (^/main) 4dd1e9 Test User      2024-10-15 12:07
             ┣─┺ ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
@@ -213,7 +213,7 @@ public class PushPullTest
         var screen = gmd.WaitUntilGone("▼");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣─┺ ● Add zeta                                                       (^)(● main) 4dd1e9 Test User      2024-10-15 12:07
             ┣     Add delta                                                           [v1.0] 17d85b Test User      2024-10-15 12:06
@@ -246,7 +246,7 @@ public class PushPullTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●work, ▼2, ▲1                                               (main) [Ϙ Search] ? X
+             Gmd {repo}, ●work, ▼2, ▲1                                       commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭┺      ▲Main local                                                                 (main) 801397 Test User 2024-10-15
             ┣│       ▼Main remote                                                              (^/main) 292075 Test User 2024-10-15
@@ -288,7 +288,7 @@ public class PushPullTest
         var updated = gmd.WaitUntilGone("Pull All Branches");
         Assert.AreEqual(
             """
-             Gmd {repo}, ●work, ▼1, ▲1                                               (main) [Ϙ Search] ? X
+             Gmd {repo}, ●work, ▼1, ▲1                                       commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭┺      ▲Main local                                                                 (main) 801397 Test User 2024-10-15
             ┣│       ▼Main remote                                                              (^/main) 292075 Test User 2024-10-15

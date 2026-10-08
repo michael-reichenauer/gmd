@@ -22,7 +22,7 @@ public class LogViewTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
@@ -181,7 +181,8 @@ public class LogViewTest
     }
 
     // RepoWriter.ColumnWidths drops the sid, author and time columns below a commit width of 70.
-    // A whole arm of that calculation, with no other coverage.
+    // A whole arm of that calculation, with no other coverage. The application bar is too narrow for
+    // 'commit on main' as well, which it leaves out rather than cut off the search, '?' and 'X'.
     [TestMethod]
     public async Task TestNarrowWidthDropsTheSidAuthorAndTimeColumns()
     {
@@ -190,7 +191,7 @@ public class LogViewTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main     (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main            [Ϙ Search] ? X
             ──────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                         (● main)[v1.0]
             ┣╮   Merge branch 'dev' into main
@@ -222,7 +223,7 @@ public class LogViewTest
         // 10 columns it is given; a fixture with a longer author name would be needed to see that.
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                              (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                      commit on main [Ϙ Search] ? X
             ───────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                             (● main)[v1.0] Test User 2024-10-15
             ┣╮   Merge branch 'dev' into main                                         Test User 2024-10-15
@@ -245,7 +246,7 @@ public class LogViewTest
         // narrower than the full arm the other tests here run at, and the only difference is this.
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                               (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                       commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                       (● main)[v1.0] 17d85b Test User 2024-10-15
             ┣╮   Merge branch 'dev' into main                                                   4e73d2 Test User 2024-10-15
@@ -270,7 +271,8 @@ public class LogViewTest
 
         // Read it against the picture in TestStartupShowsTheLogView, which it lines up with from
         // row 2 down. Row 0 is the application bar: ' Gmd ' bright magenta, the repo path dark,
-        // the current branch magenta, '[Ϙ Search]' dark, ' ? ' bright cyan. Row 1 is its border.
+        // the current branch magenta, 'commit on' white and 'main' magenta for the row's commit,
+        // '[Ϙ Search]' dark, ' ? ' bright cyan. Row 1 is its border.
         // Then one row per commit: the graph rune in the branch color, the subject white, the
         // '[v1.0]' tag green, the sid cyan and the author and time dark.
         //
@@ -281,7 +283,7 @@ public class LogViewTest
         // time are white rather than dark, because the highlight lifts them.
         Assert.AreEqual(
             """
-             mmm DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD WMMMM                                                       MMMMMM DD DDDDDDD c W
+             mmm DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD WMMMM                                               WWWWWW WW MMMM DD DDDDDDD c W
             mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
             M  W WWW WWWWW                                                    MW MMMMMGGGGGG CCCCCC WWWW WWWW      WWWWWWWWWW WWWWW
             MD   WWWWW WWWWWW WWWWW WWWW WWWW                                                CCCCCC DDDD DDDD      DDDDDDDDDD DDDDD
@@ -353,7 +355,7 @@ public class LogViewTest
 
         // The first page, with the scrollbar drawn at the right edge
         var first = """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣ ● Commit number 29                                                    (● main) a579ec Test User      2024-10-15 12:29┃
             ┣   Commit number 28                                                             a20764 Test User      2024-10-15 12:28┃
@@ -377,7 +379,7 @@ public class LogViewTest
         gmd.Send("PageDown");
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣   Commit number 20                                                             bc3421 Test User      2024-10-15 12:20
             ┣   Commit number 19                                                             7f6574 Test User      2024-10-15 12:19
@@ -398,7 +400,7 @@ public class LogViewTest
         gmd.Send("End");
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣   Commit number 09                                                             36b6fd Test User      2024-10-15 12:09
             ┣   Commit number 08                                                             f2a4f4 Test User      2024-10-15 12:08
@@ -545,7 +547,7 @@ public class LogViewTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮   Mer╭ Commit: 17d85b ─────────────────────╮                                  4e73d2 Test User      2024-10-15 12:05
@@ -725,7 +727,7 @@ public class LogViewTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                        (dev) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                                commit on dev [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣   ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05

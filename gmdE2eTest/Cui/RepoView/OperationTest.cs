@@ -30,7 +30,7 @@ public class OperationTest
         // The application bar says what is in progress, and the box what stopped and how to go on
         Assert.AreEqual(
             """
-             Gmd Merging: 1 conflict {repo}, ●main, ©1                               (main) [Ϙ Search] ? X
+             Gmd Merging: 1 conflict {repo}, ●main, ©1                       commit on main [Ϙ Search] ? X
             """,
             ScreenText.Rows(screen, repo.Path, 0, 1)
         );

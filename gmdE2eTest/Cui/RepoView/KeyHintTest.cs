@@ -17,8 +17,9 @@ public class KeyHintTest
 {
     const int Height = 12;
 
-    // The bottom row, below the log, set into a border like the one under the application bar, with
-    // the menu first, since every command is in a menu, and help at the right
+    // The bottom row, below the log, set into a border like the one under the application bar. It
+    // starts with what the keys act on, the commit on the row and its branch, which the application
+    // bar then leaves out, then the menu, since every command is in a menu, and help at the right.
     [TestMethod]
     public async Task TestTheKeyHintsAreOnTheBottomRow()
     {
@@ -27,7 +28,7 @@ public class KeyHintTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                                              [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
@@ -38,7 +39,7 @@ public class KeyHintTest
 
 
 
-            ────────── m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch ────────────────── ? help ──
+            ────────── commit on main:  m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch ─ ? help ──
             """,
             gmd.WaitFor("d diff"),
             repo.Path
@@ -68,7 +69,7 @@ public class KeyHintTest
 
         gmd.Send("Right");
         Assert.AreEqual(
-            "m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch | ? help",
+            "commit on main:  m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch | ? help",
             Hints(gmd.WaitFor("Enter details"))
         );
     }
@@ -85,7 +86,7 @@ public class KeyHintTest
 
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                                              [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
@@ -104,7 +105,7 @@ public class KeyHintTest
             Add delta
 
 
-            ────────── m menu  d diff  Enter hide details  ←→ branch  ⇧→ show branch  f search  b new branch ───────────── ? help ──
+            ────────── commit on main:  m menu  d diff  Enter hide details  ←→ branch  ⇧→ show branch  f search ────────── ? help ──
             """,
             gmd.WaitFor("hide details"),
             repo.Path
@@ -118,7 +119,7 @@ public class KeyHintTest
         using var repo = await E2eRepo.CreateWithChangesAsync();
         using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
 
-        StringAssert.StartsWith(Hints(gmd.WaitFor("c commit")), "m menu  c commit  d diff  ");
+        StringAssert.StartsWith(Hints(gmd.WaitFor("c commit")), "changes on main:  m menu  c commit  d diff  ");
     }
 
     // The filter has the keyboard while it is up, so the line is about the filter, including the
@@ -158,7 +159,7 @@ public class KeyHintTest
         var screen = gmd.WaitFor("Enter details");
         Assert.IsTrue(gmd.IsRunning, "gmd is still running");
         Assert.IsFalse(screen.Contains("Add feature"), "The branch is gone");
-        StringAssert.StartsWith(Hints(screen), "m menu  d diff  Enter details");
+        StringAssert.StartsWith(Hints(screen), "commit on main:  m menu  d diff  Enter details");
     }
 
     // The hints, with the stretch of border between them and the help written ' | '

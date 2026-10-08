@@ -36,7 +36,7 @@ public class LostWorkDlgTest
         // the list says what became of it
         ScreenText.AssertEqual(
             """
-             Gmd {repo}, ●main                                                       (main) [Ϙ Search] ? X
+             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
             ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05

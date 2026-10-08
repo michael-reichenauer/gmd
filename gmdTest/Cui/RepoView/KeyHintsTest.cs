@@ -17,7 +17,7 @@ public class KeyHintsTest
         var view = await ViewOf(Fixture());
 
         Assert.AreEqual(
-            "m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch",
+            "commit on main:  m menu  d diff  Enter details  ←→ branch  ⇧→ show branch  f search  b new branch",
             Hints(view)
         );
     }
@@ -31,6 +31,24 @@ public class KeyHintsTest
         StringAssert.Contains(Hints(view, isDetailsShown: true), "Enter hide details");
     }
 
+    // With no branch highlighted, the line starts with the commit on the row and the branch it is on,
+    // which the application bar used to show, unlabelled, in parentheses like a branch tip. The name
+    // is in the color of the branch's line in the graph, as a highlighted branch's name is.
+    [TestMethod]
+    public async Task TestTheRowsCommitIsNamedWithItsBranchInItsColor()
+    {
+        var view = await ViewOf(Fixture(), "dev");
+        view.CurrentIndex = view.Repo.CommitById[RepoBuilder.Sha("d1")].ViewIndex;
+
+        StringAssert.StartsWith(Hints(view), "commit on dev:  m menu  ");
+        var devColor = ColorOf(Line(view), "dev");
+        Assert.AreEqual(view.Graph.BranchByName("dev").Color, devColor);
+
+        var mainColor = ColorOf(Line(view, HooverOn(view, "main", "c3")), "main");
+        Assert.AreEqual(view.Graph.BranchByName("main").Color, mainColor);
+        Assert.AreNotEqual(devColor, mainColor, "The two branches in one color would prove nothing");
+    }
+
     // Uncommitted changes put committing first, wherever the cursor is, since 'c' commits from any
     // row. On the uncommitted row itself there is no commit to make a branch from.
     [TestMethod]
@@ -38,7 +56,10 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Fixture().WithStatus(modified: 1));
 
-        Assert.AreEqual("m menu  c commit  d diff  Enter details  ←→ branch  ⇧→ show branch  f search", Hints(view));
+        Assert.AreEqual(
+            "changes on main:  m menu  c commit  d diff  Enter details  ←→ branch  ⇧→ show branch  f search",
+            Hints(view)
+        );
     }
 
     // A merge stopped on conflicts: the diff of the uncommitted row is where they are resolved
@@ -47,7 +68,7 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Fixture().WithStatus(conflicted: 1, operation: GitOp.Merge, isFinishedByCommit: true));
 
-        StringAssert.StartsWith(Hints(view), "m menu  c commit  ⇧m abort…  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "changes on main:  m menu  c commit  ⇧m abort…  d resolve  ");
     }
 
     // A rebase is finished by continuing it, not by a commit, and 'c' offers that instead
@@ -58,7 +79,7 @@ public class KeyHintsTest
             Fixture().WithStatus(conflicted: 1, operation: GitOp.Rebase, isFinishedByCommit: false)
         );
 
-        StringAssert.StartsWith(Hints(view), "m menu  c continue  ⇧m abort…  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "changes on main:  m menu  c continue  ⇧m abort…  d resolve  ");
     }
 
     // 'p' and 'u' only while the current branch has something to push or pull
@@ -263,6 +284,10 @@ public class KeyHintsTest
 
     static string Hints(FakeViewRepo view, Hoover? hoover = null, bool isDetailsShown = false) =>
         Hints(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), isDetailsShown));
+
+    // The line as drawn, colors and all
+    static Text Line(FakeViewRepo view, Hoover? hoover = null) =>
+        KeyHints.ToText(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), false), 140);
 
     // A hint with no key is a label, e.g. the branch the keys act on
     static string Hints(IReadOnlyList<KeyHint> hints) =>

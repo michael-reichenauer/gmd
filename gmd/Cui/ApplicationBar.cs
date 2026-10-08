@@ -20,7 +20,7 @@ enum ApplicationBarItem
     Stash,
     Worktrees,
     Space,
-    BranchName,
+    Row,
     Search,
     Help,
     Close,
@@ -30,7 +30,10 @@ interface IApplicationBar
 {
     View View { get; }
     event Action<int, int, ApplicationBarItem> ItemClicked;
-    void SetBranch(GraphBranch branch);
+
+    // The commit on the row and its branch ('commit on dev'), at the right, or nothing, since the
+    // key-hint line names it while it is shown
+    void SetRow(Text name);
 
     // The repo, and how many hidden branches have something the user has not seen
     void SetRepo(Server.Repo repo, int hiddenNewsCount);
@@ -44,7 +47,7 @@ class ApplicationBar : View, IApplicationBar
 
     readonly UILabel label;
     readonly List<Text> items = [];
-    GraphBranch branch = null!;
+    Text rowName = Common.Text.Empty;
     Rect bounds = Rect.Empty;
     bool isUpdateShown;
 
@@ -226,15 +229,15 @@ class ApplicationBar : View, IApplicationBar
         return text.Dark($"{others.Count}");
     }
 
-    public void SetBranch(GraphBranch branch)
+    // Not in parentheses, which in the log mark a branch tip, and only ever the row's: a branch
+    // highlighted with ← → or the mouse is named on the key-hint line, as what the keys act on
+    public void SetRow(Text name)
     {
-        if (this.branch == branch)
+        Text item = name.Length > 0 ? Common.Text.Add(name).Dark(" ") : Common.Text.Empty;
+        if (item.Fragments.SequenceEqual(rowName.Fragments))
             return;
-        this.branch = branch;
 
-        items[(int)ApplicationBarItem.BranchName] =
-            branch != null ? Common.Text.Color(branch.Color, $"({branch.B.NiceNameUnique}) ") : Common.Text.Empty;
-
+        rowName = item;
         UpdateView();
     }
 
@@ -242,6 +245,13 @@ class ApplicationBar : View, IApplicationBar
     {
         isUpdateShown = config.Releases.IsUpdateAvailable();
         items[(int)ApplicationBarItem.Update] = isUpdateShown ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
+
+        // The row's name is the one item left out when the bar is too narrow for it, rather than the
+        // search, the help and the close at the end being cut off; the commit details name it too
+        items[(int)ApplicationBarItem.Row] = rowName;
+        items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
+        if (items.Sum(t => t.Length) > bounds.Width - 1)
+            items[(int)ApplicationBarItem.Row] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Space] = GetSpace();
 
         label.Text = Common.Text.Add(items);
@@ -249,7 +259,6 @@ class ApplicationBar : View, IApplicationBar
 
     Text GetSpace()
     {
-        items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
         var count = items.Sum(t => t.Length);
         var space = new string(' ', Math.Max(0, bounds.Width - count - 1));
         return Common.Text.White(space);

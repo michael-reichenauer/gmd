@@ -603,10 +603,10 @@ Seven traps worth knowing before adding one:
   log with `ScreenText.Rows` and the message with `ScreenText.LastLine`, as `PushPullTest` does.
 - For the keys that act on the hoovered branch (`s`, `e`, `b`, `m`, `h`, `g`, and `p` / `u`, which
   act on the current branch when nothing is hoovered), **the application bar does not tell you what
-  the hoover is on** (the key-hint line does, by name, but it is off in these tests) — it is set
-  both by the hoover and by the current row's branch, so an operation that moves the row leaves it
-  naming the wrong one. Press `m` and read the `Branch: <name>` menu title; that is the only
-  readout from outside. And expect the hoover to stay
+  the hoover is on** (the key-hint line does, by name, but it is off in these tests) — with the
+  hints off, its `commit on main` at the right names the current row's commit and its branch, never
+  the hoover. Press `m` and read the `Branch: <name>` menu title; that is the only readout from
+  outside. And expect the hoover to stay
   where it was after a command rather than follow what appeared: after `Enter` opens a branch it is
   still on the branch it was on, which is why `s` straight after looks like a dropped keystroke.
 - **A letter sent to an open menu picks the item showing it** (`MenuShortcuts`), as Enter would.
