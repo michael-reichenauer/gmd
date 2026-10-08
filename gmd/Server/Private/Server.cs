@@ -346,7 +346,12 @@ class Server : IServer
         }
     }
 
-    public Task<Result> PushCurrentBranchAsync(bool isForce, string wd) => git.PushCurrentBranchAsync(isForce, wd);
+    public Task<Result> ForcePushBranchAsync(Repo repo, string name)
+    {
+        var branch = repo.BranchByName[name];
+        var remoteTipId = repo.BranchByName.TryGetValue(branch.RemoteName, out var remote) ? remote.TipId : "";
+        return git.PushForceAsync(branch.Name, branch.RemoteName, remoteTipId, repo.Path);
+    }
 
     public Task<Result> PullCurrentBranchAsync(string wd) => git.PullCurrentBranchAsync(wd);
 

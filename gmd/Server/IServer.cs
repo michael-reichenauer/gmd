@@ -81,7 +81,10 @@ interface IServer
     //Task<Result<string>> GetFileTextAsync(string path, string wd);
 
     Task<Result> PushBranchAsync(string name, string wd);
-    Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
+
+    // Force pushes a local branch over its remote branch, if origin still has that where the repo,
+    // i.e. the screen the user saw, has it
+    Task<Result> ForcePushBranchAsync(Repo repo, string name);
     Task<Result> PullCurrentBranchAsync(string wd);
     Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd);
     Task<Result> SetPullRebaseAsync(bool isRebase, string wd);

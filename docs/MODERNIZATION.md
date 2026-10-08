@@ -283,6 +283,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   every refresh of the repo. Both sorts now leave a place they cannot settle as it is after it has
   been passed once per item, which a comparer with no cycle never needs, and a rename keeps one
   order per pair of branches (`BranchOrder.OnePerPair`). (2026-10-07)
+- A force push could overwrite commits on origin that no one here had seen. *Force Push* and
+  *Rebase and Push onto* ran a bare `--force-with-lease`, whose lease is the remote-tracking branch,
+  and the background fetch moves that: a fetch landing between the screen being drawn and the push
+  let the push through over what it brought in. Both now lease on the remote tip the repo shown had
+  (`PushForceAsync`, `--force-with-lease=refs/heads/<branch>:<sha>`), as Restore origin already did,
+  and a refusal says origin changed since gmd showed it; the unused `PushRefForceAsync`, a plain
+  `--force`, is gone. (2026-10-08)
 
 ---
 
@@ -319,10 +326,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   Bugs fixed). Nothing in gmd starts such a thread today.
 - F5 does nothing inside the diff, blame and conflict views, where it only ever worked by falling
   through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
-- *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
-  ref, which gmd's background fetch keeps moving. A fetch that lands between the screen being drawn
-  and the push makes the lease pass over commits the user never saw. Pass the tip the user saw
-  (`--force-with-lease=<branch>:<sha>`).
 - Cmd+C cannot reach a terminal program at all on macOS: the terminal keeps it, the classic key
   protocol cannot express it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile
   binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
