@@ -249,9 +249,12 @@ jobs:
       # tip of main rather than the dev commit that triggered the run. On main it is the release
       # commit. Otherwise github.sha is the commit that triggered the run for a push, and the tip of
       # the chosen branch for a manual run.
+      # The action is pinned by commit, not by tag: it is a third party's, it runs with the write
+      # permission, and what it uploads is what the updater installs, so a moved tag would ship
+      # whatever it pointed at. Dependabot moves the commit and the version comment together.
       - name: Create release and upload assets
         if: steps.build.outputs.isPublish == 'true'
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: v${{ steps.build.outputs.version }}
           target_commitish: ${{ steps.release.outputs.sha || github.sha }}
