@@ -3,7 +3,7 @@ namespace gmd.Cui.RepoView;
 // What gmd says on the status line the first time it shows a repository with hidden branches: which
 // branches are shown, how many are hidden, and how to show one. A repository opens showing main and
 // the current branch, and every other branch is a dark ╮ or ╯ beside a commit, which someone new can
-// take for branches gone missing (USABILITY.md, the product review).
+// take for branches gone missing (docs/USABILITY.md, the product review).
 //
 // Once per user rather than per repository: the idea is learned once, and after that the marks, the
 // key hints and ✦ say the rest, where a tip on every first open would cover the hints each time.

@@ -247,7 +247,7 @@ class ConflictView : IConflictView
     }
 
     // What the keys do, naming the sides as the column titles do and in their colors, since '1' and
-    // '2' meant nothing until it was clear which side each takes (USABILITY.md, the product review)
+    // '2' meant nothing until it was clear which side each takes (docs/USABILITY.md, the product review)
     static Text NotResolvedYet(ConflictHunk hunk) =>
         Text.Dark($"Conflict {hunk.Index + 1} is not resolved yet — press 1 for ")
             .Yellow(hunk.OursLabel.Max(20))
