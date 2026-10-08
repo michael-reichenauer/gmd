@@ -379,7 +379,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   Two writes of one field, e.g. the shown branches of a repo open twice, are last one wins, as they
   always were. A write that fails, e.g. on a full disk or a read-only home, still stops gmd.
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
-  hardware (the platform checklist in `CONTRIBUTING.md` has it, with the rest that only Windows and
+  hardware (the platform checklist in `docs/CONTRIBUTING.md` has it, with the rest that only Windows and
   macOS show). Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
 - Squash still resets the branch and cherry-picks the newer commits back one by one

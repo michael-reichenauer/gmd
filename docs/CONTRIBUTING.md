@@ -11,10 +11,10 @@ gmd/Server/Private/Augmented/    Works out which branch each commit belongs to
 gmd/Git/                         One service per area of git, each running the git command line
 ```
 
-[CLAUDE.md](CLAUDE.md) describes the architecture, the conventions and the tests in depth. It is
+[CLAUDE.md](../CLAUDE.md) describes the architecture, the conventions and the tests in depth. It is
 written for Claude Code but is just as useful to read yourself. The working notes are in `.notes/`:
-[MODERNIZATION.md](.notes/MODERNIZATION.md) lists the open issues, and
-[USABILITY.md](.notes/USABILITY.md) is a review of the user experience with proposals for improving
+[MODERNIZATION.md](../.notes/MODERNIZATION.md) lists the open issues, and
+[USABILITY.md](../.notes/USABILITY.md) is a review of the user experience with proposals for improving
 it.
 
 ## Setting up
@@ -26,7 +26,7 @@ end-to-end tests use (tmux, lnav, agg).
 To set up a machine yourself you need:
 
 - The **.NET 11 SDK**, a preview until .NET 11 is released and pinned in `global.json`. Its C# 15
-  compiler is what the `Result` union type needs. [UPGRADING.md](docs/UPGRADING.md) has the steps for
+  compiler is what the `Result` union type needs. [UPGRADING.md](UPGRADING.md) has the steps for
   when .NET 11 is released.
 - The **.NET 10 runtime**, since gmd targets `net10.0` and the tests run on it.
 - **git**, and **tmux** for the end-to-end tests.
@@ -72,7 +72,7 @@ each one into `artifacts/` under the name it is released as. The runtimes releas
   end-to-end tests, which drive the real executable in tmux, are in `gmdE2eTest/`.
 - **`CHANGELOG.md` is generated** from the git history by `gmd --updatechangelog`, in CI's release
   commit on `main`, so don't edit it by hand.
-- **The help** is [gmd/doc/help.md](gmd/doc/help.md), which the `?` key opens on GitHub, at the
+- **The help** is [gmd/doc/help.md](../gmd/doc/help.md), which the `?` key opens on GitHub, at the
   commit gmd was built from (`Project.HelpUrl`). Update it with any change users can see. The diff,
   blame and conflict views open it at a heading, and its contents link to its headings, so a heading
   renamed must be renamed there too; a test checks both.

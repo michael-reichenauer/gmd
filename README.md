@@ -342,7 +342,7 @@ links. The log is begun anew on every start, so copy it before starting gmd agai
 
 ## Contributing
 
-[CONTRIBUTING.md](CONTRIBUTING.md) describes how gmd is built, how to set up a machine for it, the
+[CONTRIBUTING.md](docs/CONTRIBUTING.md) describes how gmd is built, how to set up a machine for it, the
 scripts and the conventions.
 
 ## Third-party components

@@ -710,7 +710,7 @@ message.
   it inside `using (Askpass.NeverAsk())` (an AsyncLocal, so it reaches `Cmd` through the awaits),
   as the background fetch and the metadata sync are. What failed is said on stderr, where
   `LoginError` finds it; wrap every remote command's result in `LoginError.ToLogin`, and show
-  remote errors with `LoginError.Text`. CONTRIBUTING.md has how to try the dialog by hand.
+  remote errors with `LoginError.Text`. docs/CONTRIBUTING.md has how to try the dialog by hand.
 - **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
   resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the
   `GitDirPath` (HEAD, the index, a stopped merge) and the `CommonDirPath` (refs, config,
@@ -756,4 +756,4 @@ write there asks for permission.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (which `?` opens on
   GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/HelpPage.cs`) needs updating
   too, and the known limits under *Is Gmd for You?* in the README when one of them is lifted. The
-  development half of the old README is `CONTRIBUTING.md`.
+  development half of the old README is `docs/CONTRIBUTING.md`.

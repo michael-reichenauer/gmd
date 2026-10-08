@@ -1,4 +1,4 @@
-<!-- Target `dev` rather than `main`, which holds the releases. CONTRIBUTING.md has the rest. -->
+<!-- Target `dev` rather than `main`, which holds the releases. docs/CONTRIBUTING.md has the rest. -->
 
 What this changes, and why:
 

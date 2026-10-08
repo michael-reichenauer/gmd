@@ -332,7 +332,7 @@ Both are reworked, see proposal D.1.
    reference, with the errors of part 4 fixed. The README sets `git log --graph` of the demo
    repository beside gmd's first screen of it, and adds Reading the Graph, Is Gmd for You? with
    the known limits, Gmd and AI Coding Agents, the first five minutes, and What Gmd Stores and
-   Sends; its development half is `CONTRIBUTING.md` now.
+   Sends; its development half is `docs/CONTRIBUTING.md` now.
 2. Homebrew, Scoop or winget, and AUR packages, and a build for Intel Macs.
 3. Issue templates, linked from About and the README. *Done (2026-10-08):* a Problem form, which
    asks for the version, the system and the log, and a Suggestion form, which asks why and how the
@@ -414,7 +414,7 @@ Reach:
 - [x] 23. **The terminals people have** (part 5): 80 columns, Windows Terminal, fonts with no `✦`,
   `Ϙ` or `ß`. M *Done (2026-10-08), as far as it can be from Linux:* 80 by 24 is usable, end to end
   tested (`SmallTerminalTest`), after the commit dialog's file list and the Recover Lost Commits
-  list were made to fit. What only Windows and macOS show is a checklist in `CONTRIBUTING.md`, for
+  list were made to fit. What only Windows and macOS show is a checklist in `docs/CONTRIBUTING.md`, for
   the symbols new since the summer (`⇧`, `✦`, `⌂`, `·`) and the keys and features that depend on the
   system; the rest waits for reports.
 - [ ] 24. **Packages** (D.2): Homebrew, Scoop or winget, AUR, and an Intel Mac build. Needs the
