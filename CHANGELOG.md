@@ -1,7 +1,14 @@
 # Change Log for Gmd
 --------------------
 
-138 releases:
+139 releases:
+
+## [v1.0.1439.952] - 2026-10-08
+- Bump the nuget group with 2 updates
+- The help opens on GitHub rather than in a dialog
+- Version 1.0
+- Lease a force push on the commit the user saw, so it never overwrites commits not seen
+- Keep gmd starting when its config file is broken
 
 ## [v0.97.1439.614] - 2026-10-08
 - Release notes from the change log, and checksums and gmd.exe in every release
