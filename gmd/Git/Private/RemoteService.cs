@@ -200,14 +200,11 @@ class RemoteService : IRemoteService
         return await cmd.RunAsync("git", $"update-ref {TagService.TrackedRemoteTagsRef}{name} refs/tags/{name}", wd);
     }
 
-    // Deletes a tag on the remote, and from gmd's record of the remote's tags, as the fetch would
+    // Deletes a tag on the remote. gmd's record of the remote's tags keeps it until the next fetch,
+    // which then sees it gone, as it would a tag someone else deleted, and prunes the local tag of the
+    // name, which gmd has removed first anyway (AugmentedService.RemoveTagAsync).
     public async Task<Result> DeleteRemoteTagAsync(string name, string wd)
     {
-        var deleted = LoginError.ToLogin(
-            await cmd.RunAsync("git", $"push --porcelain origin --delete refs/tags/{name}", wd)
-        );
-        if (deleted is Error e)
-            return e;
-        return await cmd.RunAsync("git", $"update-ref -d {TagService.TrackedRemoteTagsRef}{name}", wd);
+        return LoginError.ToLogin(await cmd.RunAsync("git", $"push --porcelain origin --delete refs/tags/{name}", wd));
     }
 }

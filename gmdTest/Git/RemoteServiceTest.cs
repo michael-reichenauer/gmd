@@ -223,8 +223,9 @@ public class RemoteServiceTest
         );
     }
 
-    // The tag by its full ref, so a branch of the same name is not pushed instead, and gmd's record of
-    // origin's tags is updated as the next fetch would, so that the tag list says it is on origin
+    // The tag by its full ref, so a branch of the same name is not pushed instead, and for a push gmd's
+    // record of origin's tags is updated as the next fetch would, so that the tag list says it is on
+    // origin
     [TestMethod]
     public async Task TestPushAndDeleteTag()
     {
@@ -240,7 +241,7 @@ public class RemoteServiceTest
             await CallsOf(s => s.PushTagAsync("v1.0", "/wd"))
         );
         CollectionAssert.AreEqual(
-            new[] { "push --porcelain origin --delete refs/tags/v1.0", "update-ref -d refs/gmdtags/origin/v1.0" },
+            new[] { "push --porcelain origin --delete refs/tags/v1.0" },
             await CallsOf(s => s.DeleteRemoteTagAsync("v1.0", "/wd"))
         );
     }
