@@ -294,7 +294,7 @@ class Cmd : ICmd
     // passphrase question from the fetch gmd runs on opening a repository was drawn over the UI and
     // scrolled it a row, took the keys typed for gmd as its answer, and waited for an Enter that the
     // raw terminal sends as '\r', while a prompt reading a line waits for '\n'; a push waited behind
-    // it as long (USABILITY.md, the product review). Git and ssh open /dev/tty themselves, so a
+    // it as long (docs/USABILITY.md, the product review). Git and ssh open /dev/tty themselves, so a
     // redirected stdin alone does not stop them:
     //
     // - GIT_TERMINAL_PROMPT=0 stops git's own user name and password prompt.

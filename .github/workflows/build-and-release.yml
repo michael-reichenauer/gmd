@@ -174,11 +174,56 @@ jobs:
         if: steps.release.outputs.sha != ''
         run: git push origin HEAD:main
 
-      # 'gmd_linux' is a copy of the x64 binary kept under the original asset name, since
-      # the built-in updater falls back to it (see gmd/Installation/Updater.cs).
+      # 'gmd_linux' and 'gmd_windows' are copies of 'gmd_linux_x64' and 'gmd.exe' kept under the
+      # original asset names: the built-in updater falls back to the first and updates Windows from
+      # the second (see gmd/Installation/Updater.cs), and so does the installer (Setup/gmd.iss).
+      # 'gmd.exe' is the one to download by hand, since it runs as it is named. SHA256SUMS is the
+      # checksums of all of them, which install.sh checks its download against.
       - name: Prepare release assets
         if: steps.build.outputs.isPublish == 'true'
-        run: cp gmd_linux_x64 gmd_linux
+        run: |
+          cp gmd_linux_x64 gmd_linux
+          cp gmd/Installation/installer/gmdSetup.exe gmdSetup.exe
+          sha256sum gmd_linux_x64 gmd_linux_arm64 gmd_osx_arm64 gmd.exe gmdSetup.exe gmd_linux gmd_windows > SHA256SUMS
+          cat SHA256SUMS
+
+      # The notes of a release from main are its section of the change log the release commit made.
+      # A preview's are what is new on dev since the latest release: the list each merge into dev
+      # carries, and the subject of each commit made on dev itself. Nothing here may fail the step,
+      # which would leave the release unmade, so a preview with no latest release to compare with
+      # just has no list.
+      - name: Write release notes
+        if: steps.build.outputs.isPublish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.build.outputs.version }}"
+          if [ -n "${{ steps.release.outputs.version }}" ]; then
+            awk -v heading="## [v$VERSION]" 'index($0, heading) == 1 { on = 1; next } on && /^## \[/ { exit } on' CHANGELOG.md > notes.md
+          else
+            echo "A preview of the next release, built from \`dev\`. Gmd offers previews when **Allow preview releases** is ticked in **Config ...**." > notes.md
+            LATEST="$(gh release view --json tagName --jq .tagName || true)"
+            if [ -n "$LATEST" ] && git rev-parse -q --verify "$LATEST^{commit}" > /dev/null; then
+              NEW="$(for SHA in $(git rev-list --reverse --first-parent "$LATEST..HEAD"); do
+                if [ "$(git log -1 --format=%P "$SHA" | wc -w)" -gt 1 ]; then
+                  git log -1 --format=%b "$SHA" | sed -e '/^Co-Authored-By:/d' -e '/^$/d'
+                else
+                  git log -1 --format='- %s' "$SHA"
+                fi
+              done)"
+              if [ -n "$NEW" ]; then
+                printf '\nNew since %s:\n\n%s\n' "$LATEST" "$NEW" >> notes.md
+              fi
+            fi
+          fi
+          {
+            echo ""
+            echo "\`gmd_linux\` and \`gmd_windows\` are the same files as \`gmd_linux_x64\` and \`gmd.exe\`, under the names older versions update from. \`SHA256SUMS\` has the checksums."
+            echo ""
+            echo "[Change log](https://github.com/michael-reichenauer/gmd/blob/main/CHANGELOG.md) · [Installation](https://github.com/michael-reichenauer/gmd#installation)"
+          } >> notes.md
+          cat notes.md
 
       # 'target_commitish' is where the new tag is created, and it must be set: it defaults to
       # the repository default branch ('main'), so without it every dev pre-release tagged the
@@ -194,11 +239,39 @@ jobs:
           name: Version ${{ steps.build.outputs.version }}
           draft: false
           prerelease: ${{ steps.build.outputs.isPreRelease == 'true' }}
-          body: ${{ github.event.head_commit.message }} </br>[Change log](https://github.com/michael-reichenauer/gmd/blob/main/CHANGELOG.md)
+          body_path: notes.md
           files: |
             gmd_linux_x64
             gmd_linux_arm64
+            gmd_osx_arm64
+            gmd.exe
+            gmdSetup.exe
             gmd_linux
             gmd_windows
-            gmd_osx_arm64
-            gmd/Installation/installer/gmdSetup.exe
+            SHA256SUMS
+
+      # Every push to dev makes a preview, and the updater only ever uses the newest stable release
+      # and the newest preview (gmd/Installation/Updater.cs), so the Releases page keeps the stable
+      # releases and the latest five previews. A preview's tag goes with it, unless it is on main's
+      # own line, where the change log reads the version tags from (Server/Private/ChangeLog.cs), or
+      # unknown here. Tidying only, so it never fails the run.
+      - name: Prune old previews
+        if: steps.build.outputs.isPublish == 'true'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MAIN_LINE="$(git rev-list --first-parent origin/main)"
+          gh release list --limit 1000 --exclude-drafts --json tagName,isPrerelease,createdAt \
+            --jq '[.[] | select(.isPrerelease)] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' |
+            while read -r TAG; do
+              SHA="$(git rev-parse -q --verify "$TAG^{commit}" || true)"
+              if [ -z "$SHA" ] || grep -qx "$SHA" <<< "$MAIN_LINE"; then
+                echo "Deleting the preview $TAG, keeping its tag"
+                gh release delete "$TAG" --yes || true
+              else
+                echo "Deleting the preview $TAG and its tag"
+                gh release delete "$TAG" --yes --cleanup-tag || true
+              fi
+            done

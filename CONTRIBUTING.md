@@ -12,8 +12,8 @@ gmd/Git/                         One service per area of git, each running the g
 ```
 
 [CLAUDE.md](CLAUDE.md) describes the architecture, the conventions and the tests in depth. It is
-written for Claude Code but is just as useful to read yourself. [MODERNIZATION.md](MODERNIZATION.md)
-lists the open issues, and [USABILITY.md](USABILITY.md) is a review of the user experience with
+written for Claude Code but is just as useful to read yourself. [MODERNIZATION.md](docs/MODERNIZATION.md)
+lists the open issues, and [USABILITY.md](docs/USABILITY.md) is a review of the user experience with
 proposals for improving it.
 
 ## Setting up
@@ -25,7 +25,7 @@ end-to-end tests use (tmux, lnav, agg).
 To set up a machine yourself you need:
 
 - The **.NET 11 SDK**, a preview until .NET 11 is released and pinned in `global.json`. Its C# 15
-  compiler is what the `Result` union type needs. [UPGRADING.md](UPGRADING.md) has the steps for
+  compiler is what the `Result` union type needs. [UPGRADING.md](docs/UPGRADING.md) has the steps for
   when .NET 11 is released.
 - The **.NET 10 runtime**, since gmd targets `net10.0` and the tests run on it.
 - **git**, and **tmux** for the end-to-end tests.

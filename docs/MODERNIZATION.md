@@ -470,7 +470,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `Directory.Packages.props`, since warnings never fail a build today and the `warning`-severity
   rules in `.editorconfig` are IDE-only; `SourceRevisionId` is recomputed from `UtcNow` on every
   build; the workflow has no `concurrency` group, `timeout-minutes`, NuGet cache, `.trx` upload,
-  coverage step, `NuGetAuditLevel` gate or Dependabot, and the fast tier never runs on Windows or
+  coverage step or `NuGetAuditLevel` gate, and the fast tier never runs on Windows or
   macOS.
 - C, structure: the six `*Commands` classes repeat four fields, a constructor and a `Do` forwarder,
   and 25 of 62 `Do(` bodies end in `Refresh(); return Result.Ok;` — a `CommandContext` and a
