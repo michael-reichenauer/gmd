@@ -1,0 +1,22 @@
+name: Suggestion
+description: Something gmd could do, or do better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like gmd to do
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What you are trying to do, and how you do it now, in gmd or without it.
+  - type: textarea
+    id: workflow
+    attributes:
+      label: How you work with git
+      description: |
+        If it bears on it: how branches come back into main (merge commits, squash or rebase
+        merges), forks, how many branches at once, AI coding agents in worktrees, and so on.

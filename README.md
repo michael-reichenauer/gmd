@@ -312,9 +312,10 @@ turns off. Nothing else is sent: there is no telemetry.
 
 ## Problems and Feedback
 
-Report a problem, or suggest something, in the
-[issues](https://github.com/michael-reichenauer/gmd/issues), with the version from **About** in the
-repo menu or from `gmd --version`. `~/gmd.log` is the first place to look when something goes
+[Report a problem](https://github.com/michael-reichenauer/gmd/issues/new?template=bug_report.yml)
+or [suggest something](https://github.com/michael-reichenauer/gmd/issues/new?template=suggestion.yml)
+in the issues, where the forms ask for what helps: for a problem, the version from **About** in the
+repo menu or from `gmd --version`, and the log. `~/gmd.log` is the first place to look when something goes
 wrong; **About** shows where it is, and if gmd itself fails, it says so when it ends, with the same
 links. The log is begun anew on every start, so copy it before starting gmd again.
 

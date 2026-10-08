@@ -329,7 +329,10 @@ Both are reworked, see proposal D.1.
    the known limits, Gmd and AI Coding Agents, the first five minutes, and What Gmd Stores and
    Sends; its development half is `CONTRIBUTING.md` now.
 2. Homebrew, Scoop or winget, and AUR packages, and a build for Intel Macs.
-3. Issue templates, linked from About and the README.
+3. Issue templates, linked from About and the README. *Done (2026-10-08):* a Problem form, which
+   asks for the version, the system and the log, and a Suggestion form, which asks why and how the
+   user works with git (`.github/ISSUE_TEMPLATE`); the README links both, and a crash links the
+   Problem form. About keeps the issues page, whose New issue offers them.
 4. Captions in the animation, saying which key is pressed.
 5. The inference's agreement with the reflog, measured on public repositories and published.
 
@@ -393,7 +396,7 @@ Bigger features:
 
 Reach:
 
-- [ ] 20. **Issue templates** (D.3), linked from the README. S
+- [x] 20. **Issue templates** (D.3), linked from the README. S
 - [ ] 21. **Captions in the animation** (D.4). S
 - [ ] 22. **The inference measured** (D.5) on public repositories of each workflow, and the numbers
   in the README. M
