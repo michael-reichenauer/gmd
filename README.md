@@ -235,14 +235,15 @@ the `PATH`, and a terminal with a dark theme and a font with box-drawing charact
 have. Every release on the [releases page](https://github.com/michael-reichenauer/gmd/releases)
 has these files:
 
-| Platform              | File                                                  |
-| --------------------- | ----------------------------------------------------- |
-| Linux x64             | `gmd_linux_x64`                                       |
-| Linux arm64           | `gmd_linux_arm64`                                     |
-| macOS (Apple Silicon) | `gmd_osx_arm64`                                       |
-| Windows x64           | `gmdSetup.exe` (installer), or `gmd_windows` (the executable) |
+| Platform              | File                                                      |
+| --------------------- | --------------------------------------------------------- |
+| Linux x64             | `gmd_linux_x64`                                           |
+| Linux arm64           | `gmd_linux_arm64`                                         |
+| macOS (Apple Silicon) | `gmd_osx_arm64`                                           |
+| Windows x64           | `gmdSetup.exe` (installer), or `gmd.exe` (the executable) |
 
 There is no release for Intel Macs. You don't need admin rights or `sudo` on any platform.
+`SHA256SUMS` in each release has the checksums of its files.
 
 ### Linux and macOS
 
@@ -252,9 +253,9 @@ This one command picks the right file for your OS and CPU:
 curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
 ```
 
-It downloads gmd to `~/gmd/gmd` and adds `~/gmd` to the `PATH` in `~/.profile` (and on macOS in
-`~/.zprofile` and `~/.bash_profile` as well). Then open a new terminal, or run `. ~/.profile`
-(`. ~/.zprofile` on macOS).
+It downloads gmd to `~/gmd/gmd`, checks it against the release's checksums, and adds `~/gmd` to
+the `PATH` in `~/.profile` (and on macOS in `~/.zprofile` and `~/.bash_profile` as well). Then
+open a new terminal, or run `. ~/.profile` (`. ~/.zprofile` on macOS).
 
 To install by hand instead, use the file for your platform from the table above:
 
@@ -279,8 +280,8 @@ curl.exe -L -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/
 
 The installer downloads the latest gmd to `C:\ProgramData\gmd` and adds Start menu and desktop
 shortcuts. To also start gmd from a terminal, open **Config ...** in the repo menu and tick **Add
-gmd to PATH environment variable**. Without the installer, download `gmd_windows`, rename it to
-`gmd.exe` and put it in a folder on your `PATH`.
+gmd to PATH environment variable**. Without the installer, download `gmd.exe` and put it in a
+folder on your `PATH`.
 
 ### Updating
 

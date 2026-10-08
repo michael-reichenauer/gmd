@@ -713,9 +713,12 @@ message.
 - **`gmdSetup.exe` is a prebuilt binary committed to the repo**
   (`gmd/Installation/installer/`). Neither `./build` nor CI builds the Inno Setup installer;
   CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
-- **The `gmd_linux` release asset is a duplicate of `gmd_linux_x64`** kept under the original
-  name because the built-in updater falls back to it (`gmd/Installation/Updater.cs`). Do not
-  drop it from the release workflow.
+- **The `gmd_linux` and `gmd_windows` release assets are duplicates** of `gmd_linux_x64` and
+  `gmd.exe`, kept under the original names because the built-in updater falls back to the first and
+  updates Windows from the second (`gmd/Installation/Updater.cs`), as the committed installer does
+  (`Setup/gmd.iss`). Do not drop them from the release workflow. `gmd.exe` is the one the README
+  offers, since it runs as it is named. The release notes are written by the workflow
+  (`Write release notes`): main's are its section of `CHANGELOG.md`, a preview's what is new on dev.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
 - `.git-blame-ignore-revs` lists the bulk reformat commits; `./installtools` points
