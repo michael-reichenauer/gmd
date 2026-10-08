@@ -1,7 +1,13 @@
 # Change Log for Gmd
 --------------------
 
-137 releases:
+138 releases:
+
+## [v0.97.1439.614] - 2026-10-08
+- Release notes from the change log, and checksums and gmd.exe in every release
+- Keep only the latest five previews on the Releases page
+- Badges and a quick install at the top of the README
+- A security policy, a pull request template and Dependabot
 
 ## [v0.96.1439.476] - 2026-10-08
 - Restructure the help: the screen first, then tasks, then reference
