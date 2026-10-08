@@ -202,7 +202,7 @@ Both are reworked, see proposal D.1.
   hour unless that is turned off; and the tags of Add Tag, above. There is no telemetry. People ask
   this before they run a tool on their work, and the README should answer it.
 - **Can others contribute?** Building needs a preview .NET 11 SDK, for the C# 15 unions, until .NET
-  11 is released (`UPGRADING.md`).
+  11 is released (`docs/UPGRADING.md`).
 - **Can it be found?** "gmd" is hard to search for. A tagline, the repository's GitHub topics and the
   lists of terminal tools are how people come across a tool like this.
 
@@ -293,7 +293,12 @@ Both are reworked, see proposal D.1.
    step through them, the title saying so, and the diff, blame and conflict views open it at the
    part about them. It is no wider, since the text is written to 77 columns: a wider box would be
    blank space, and rewrapping the text would break its tables and pictures, for lines that read
-   worse the longer they get.
+   worse the longer they get. *Replaced (2026-10-08) by the help on GitHub:* `?` and F1 open
+   `help.md` in the browser, at the commit gmd was built from and at the section of the view, and
+   copy the link where there is no browser, e.g. over ssh. The help had grown to some 700 lines, and
+   a browser gives it what the box could not: the width of the window, search, and links between its
+   sections. It stays in the repository rather than the wiki, so it is still written, reviewed and
+   tested with the code it describes.
 3. A key-hint line in the diff and blame views too. *Done (2026-10-07), the resolver too:* each
    view's keys on its bottom row, `Esc close` early on, as the log has them and turned off with
    them: the diff's `c commit` and `u discard` for the uncommitted changes and `Enter resolve` for a
@@ -327,7 +332,7 @@ Both are reworked, see proposal D.1.
    reference, with the errors of part 4 fixed. The README sets `git log --graph` of the demo
    repository beside gmd's first screen of it, and adds Reading the Graph, Is Gmd for You? with
    the known limits, Gmd and AI Coding Agents, the first five minutes, and What Gmd Stores and
-   Sends; its development half is `CONTRIBUTING.md` now.
+   Sends; its development half is `docs/CONTRIBUTING.md` now.
 2. Homebrew, Scoop or winget, and AUR packages, and a build for Intel Macs.
 3. Issue templates, linked from About and the README. *Done (2026-10-08):* a Problem form, which
    asks for the version, the system and the log, and a Suggestion form, which asks why and how the
@@ -335,7 +340,7 @@ Both are reworked, see proposal D.1.
    Problem form. About keeps the issues page, whose New issue offers them.
 4. Captions in the animation, saying which key is pressed. *Done (2026-10-08):* a caption bar
    under gmd's screen, as a subtitle, saying what each part of the story shows and with which key
-   (`DemoRecording.Caption`); it is in the GIF once `./demo` re-records it.
+   (`DemoRecording.Caption`); it is in the GIF once `scripts/demo` re-records it.
 5. The inference's agreement with the reflog, measured on public repositories and published.
    *Postponed (2026-10-08)* to the task that works on the inference, to be measured before and
    after it; the plan is in `MODERNIZATION.md` (deferred).
@@ -409,7 +414,7 @@ Reach:
 - [x] 23. **The terminals people have** (part 5): 80 columns, Windows Terminal, fonts with no `✦`,
   `Ϙ` or `ß`. M *Done (2026-10-08), as far as it can be from Linux:* 80 by 24 is usable, end to end
   tested (`SmallTerminalTest`), after the commit dialog's file list and the Recover Lost Commits
-  list were made to fit. What only Windows and macOS show is a checklist in `CONTRIBUTING.md`, for
+  list were made to fit. What only Windows and macOS show is a checklist in `docs/CONTRIBUTING.md`, for
   the symbols new since the summer (`⇧`, `✦`, `⌂`, `·`) and the keys and features that depend on the
   system; the rest waits for reports.
 - [ ] 24. **Packages** (D.2): Homebrew, Scoop or winget, AUR, and an Intel Mac build. Needs the

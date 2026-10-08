@@ -143,17 +143,39 @@ public class RemoteServiceTest
         );
     }
 
+    // A force push leases on the commit the user saw rather than on the remote-tracking branch, which
+    // the background fetch moves, and names both ends, since a branch may track one of another name
     [TestMethod]
-    public async Task TestPushCurrentBranch()
+    [DataRow(
+        "dev",
+        "origin/dev",
+        "push --porcelain --force-with-lease=refs/heads/dev:b2 origin refs/heads/dev:refs/heads/dev"
+    )]
+    [DataRow(
+        "feat",
+        "origin/feature",
+        "push --porcelain --force-with-lease=refs/heads/feature:b2 origin refs/heads/feat:refs/heads/feature"
+    )]
+    public async Task TestPushForceLeasesOnTheCommitSeen(string name, string remoteName, string args)
     {
-        Assert.AreEqual("push", await ArgsOf(s => s.PushCurrentBranchAsync(false, "/wd")));
+        Assert.AreEqual(args, await ArgsOf(s => s.PushForceAsync(name, remoteName, "b2", "/wd")));
     }
 
-    // A forced push uses --force-with-lease, so it still fails if the remote moved unexpectedly
+    // Origin moved since: git's refusal is said as what happened, not as a failed command
     [TestMethod]
-    public async Task TestPushCurrentBranchForced()
+    public async Task TestPushForceOverACommitNotSeenSaysSo()
     {
-        Assert.AreEqual("push --force-with-lease", await ArgsOf(s => s.PushCurrentBranchAsync(true, "/wd")));
+        var rejected = new CmdResult(
+            "git",
+            1,
+            "To /origin\n!\trefs/heads/dev:refs/heads/dev\t[rejected] (stale info)\nDone\n",
+            "error: failed to push some refs to '/origin'"
+        );
+        var service = NewService(new FakeCmd((_, _, _) => rejected));
+
+        var error = AssertError(await service.PushForceAsync("dev", "origin/dev", "b2", "/wd"));
+
+        Assert.AreEqual("origin/dev has changed since gmd showed it, so it was not overwritten", error.Message);
     }
 
     [TestMethod]
@@ -175,15 +197,6 @@ public class RemoteServiceTest
         Assert.AreEqual(
             "push --porcelain origin --delete dev",
             await ArgsOf(s => s.DeleteRemoteBranchAsync("origin/dev", "/wd"))
-        );
-    }
-
-    [TestMethod]
-    public async Task TestPushRefForce()
-    {
-        Assert.AreEqual(
-            "push --porcelain origin --set-upstream --force dev:dev",
-            await ArgsOf(s => s.PushRefForceAsync("origin/dev", "/wd"))
         );
     }
 
@@ -262,7 +275,7 @@ public class RemoteServiceTest
     {
         var service = NewService(new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: could not read from remote")));
 
-        var result = await service.PushCurrentBranchAsync(false, "/wd");
+        var result = await service.PushBranchAsync("dev", "/wd");
 
         AssertError(result, "Expected the git failure to propagate");
     }

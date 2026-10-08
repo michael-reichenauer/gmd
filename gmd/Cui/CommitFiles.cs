@@ -3,7 +3,7 @@ namespace gmd.Cui;
 // The files a commit takes, each ticked or not: the checklist of the commit dialog. Every file is
 // ticked at first, which is what a commit has always taken, and unticking one leaves it as it is,
 // uncommitted. It replaces a staging area gmd never had, and is the guard against committing a
-// stray .env or a debug log along with the rest (docs/USABILITY.md, the product review). For the amend
+// stray .env or a debug log along with the rest (.notes/USABILITY.md, the product review). For the amend
 // of an older commit none is ticked at first, since that is most often a new message, and work in
 // progress should not end up in an old commit unasked.
 //

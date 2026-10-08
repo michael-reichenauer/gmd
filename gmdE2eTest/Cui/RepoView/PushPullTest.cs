@@ -117,12 +117,14 @@ public class PushPullTest
     }
 
     // Force Push is the push, and the only one: a plain push used to follow it, going to the remote a
-    // second time, and failing if anyone had pushed in between, after the force push had worked
+    // second time, and failing if anyone had pushed in between, after the force push had worked. Its
+    // lease is origin's main as it was shown, not as a fetch may have moved it since.
     [TestMethod]
     public async Task TestForcePushPushesOnce()
     {
         using var repo = await E2eRepo.CreateWithDivergedMainAsync();
         await repo.GitAsync("checkout -q main");
+        var shown = (await repo.GitAsync("rev-parse origin/main")).Trim();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("●main");
         var refreshes = gmd.LogCount("show refreshed repo");
@@ -137,8 +139,8 @@ public class PushPullTest
         Assert.AreEqual(await repo.GitAsync("rev-parse main"), await repo.GitAsync("rev-parse origin/main"));
         // The refresh after the push is logged after any push it made
         var log = gmd.WaitForLogTimes("show refreshed repo", refreshes + 1);
-        StringAssert.Contains(log, "push --force-with-lease");
-        Assert.IsFalse(log.Contains("push --porcelain"), "No plain push after the forced one");
+        StringAssert.Contains(log, $"push --porcelain --force-with-lease=refs/heads/main:{shown} origin");
+        Assert.IsFalse(log.Contains("push --porcelain origin"), "No plain push after the forced one");
     }
 
     // Uncommitted changes do not stop a push, which sends commits and leaves the changes where they

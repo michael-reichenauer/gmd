@@ -16,26 +16,28 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ## Commands
 
 ```bash
-./run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
-./test [args]    # dotnet test gmd.sln "$@", i.e. both gmdTest and gmdE2eTest (~1 min with the build)
-                 #   --filter "TestCategory!=Integration"  fast tests only (~1100 tests, ~1 s)
-                 #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~55 s, in parallel)
-./build          # full release: test + package audit + publish all platforms (slow)
-./build -l       # linux only (x64 and arm64; much faster — use this for local verification)
-./log            # tail the runtime log with lnav (~/gmd.log)
-./updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
-./installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
-./demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
+scripts/run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
+scripts/test [args]    # dotnet test gmd.sln "$@": gmdTest and gmdE2eTest (~1 min with the build)
+                       #   --filter "TestCategory!=Integration"  fast tests only (~1100 tests, ~1 s)
+                       #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~55 s)
+scripts/build          # full release: test + package audit + publish all platforms into artifacts/
+scripts/build -l       # linux only (x64 and arm64; much faster — use this for local verification)
+scripts/log            # tail the runtime log with lnav (~/gmd.log)
+scripts/updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
+scripts/installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
+scripts/demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
 ```
 
-Faster inner loop for verification: `dotnet build gmd.sln` and `./test`.
+Each script runs at the repository root, wherever it is started from, so `scripts/run` opens this
+repository (`-d <folder>` opens another). Faster inner loop for verification: `dotnet build gmd.sln`
+and `scripts/test`.
 
 ### Running the TUI from a non-interactive shell
 
 gmd is a full-screen curses app, so it needs a pty: started from a shell with no terminal it will
 not run at all. tmux is the way in — it parses the escape sequences and keeps a screen model, so
 `capture-pane` hands back the rendered screen as plain text, which is what makes it assertable.
-Installed by `./installtools`.
+Installed by `scripts/installtools`.
 
 ```bash
 tmux new-session -d -s gmd -x 120 -y 40 -c /path/to/some/repo  gmd/bin/Debug/net10.0/gmd
@@ -46,9 +48,9 @@ tmux send-keys -t gmd d            # press a key; Escape is `tmux send-keys -t g
 tmux kill-session -t gmd
 ```
 
-Always drive the *built binary* (`gmd/bin/Debug/net10.0/gmd`), not `./run` — `dotnet run` wraps the
-app in a second process, so the pid you measure or kill is the wrong one. Never point it at this
-working tree; use a throwaway repo, exactly as `TempRepo` does.
+Always drive the *built binary* (`gmd/bin/Debug/net10.0/gmd`), not `scripts/run` — `dotnet run`
+wraps the app in a second process, so the pid you measure or kill is the wrong one. Never point it
+at this working tree; use a throwaway repo, exactly as `TempRepo` does.
 
 **Redirect `HOME` whenever you start gmd yourself.** A gmd run does not merely read the developer's
 home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`),
@@ -68,10 +70,10 @@ lifetime and hides a spin that starts late.
 All of the above is packaged as `TmuxSession` (`gmdE2eTest/Fixtures/`) and driven by the tests in
 `gmdE2eTest/Cui/` — see the Testing section.
 
-There are `.bat` equivalents for Windows (`build.bat`, `run.bat`, `log.bat`) — keep them in
-sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows
-scripts exist mainly for debugging Windows-specific behavior. `./demo` has none, since it drives
-gmd through tmux, as the end-to-end tests do.
+There are `.bat` equivalents for Windows (`scripts/build.bat`, `run.bat`, `log.bat`) — keep them
+in sync when changing the shell scripts. Linux/macOS are the primary targets; the Windows scripts
+exist mainly for debugging Windows-specific behavior. `scripts/demo` has none, since it drives gmd
+through tmux, as the end-to-end tests do.
 
 Runtime log: `~/gmd.log`. Log with `Log.Info/Warn/Error/Debug/Exception` (`gmd.Utils.Logging`,
 already a global using). The TUI owns stdout, so **never use `Console.WriteLine` for
@@ -122,7 +124,7 @@ Key types and flow:
   Merge-commit subjects are parsed by `BranchNameService` to recover branch names git has
   forgotten. Treat all of this as high-risk: change it only with tests, and preserve the
   pipeline comments. The bar these files are held to is a before/after comparison over a real
-  repo's history, not just a green suite — see the findings in `docs/MODERNIZATION.md`.
+  repo's history, not just a green suite — see the findings in `.notes/MODERNIZATION.md`.
   `InferenceDumpTest` makes that comparison: it writes what the inference decided for every commit
   of a repo (branch, the rule that decided it, ambiguity), plus how often it agrees with the reflog,
   and two dumps are compared with `diff`. Dump a frozen copy (a copied `.git` keeps the reflog):
@@ -329,7 +331,7 @@ Things to know:
   as a success.
 - The attribute the compiler recognizes the union by is polyfilled in `gmd/Utils/UnionPolyfill.cs`
   while the target framework is net10.0; the C# 15 compiler comes from the .NET 11 SDK pinned in
-  `global.json` (docs/MODERNIZATION.md has the GA step).
+  `global.json` (.notes/MODERNIZATION.md has the GA step).
 
 ### Formatting: CSharpier owns it
 
@@ -348,15 +350,15 @@ extension), on build (the `CSharpier.MsBuild` package in every `.csproj`, which 
 project folder, and every `.cs` file is in one), and in CI. There is deliberately no pre-commit
 hook: the one there was started CSharpier once per staged file, so a merge commit, which stages
 every file the branch changed, took half a minute or more, and the three above already cover it —
-`./test` before every commit is a Debug build. The MSBuild integration behaves differently per
-configuration, which matters:
+`scripts/test` before every commit is a Debug build. The MSBuild integration behaves differently
+per configuration, which matters:
 
 - **Debug** — *formats* the sources in place before compiling. A `dotnet build` can therefore
   modify files in the working tree. This is intended.
 - **Release** — *checks* only, and **fails the build** if anything is unformatted. This is why
-  CI runs an explicit `csharpier check` step *before* `./build`: `./build` runs `dotnet test`
-  (Debug) first, which would silently format everything and hide the problem from the Release
-  check.
+  CI runs an explicit `csharpier check` step *before* `scripts/build`: `scripts/build` runs
+  `dotnet test` (Debug) first, which would silently format everything and hide the problem from the
+  Release check.
 - Escape hatch: `dotnet build -p:CSharpier_Bypass=true`.
 
 CSharpier is a local dotnet tool pinned in `.config/dotnet-tools.json`; run `dotnet tool restore`
@@ -399,7 +401,9 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 
 ### Persistence
 
-- `~/.gmdconfig` — user config (`Common/Config.cs` + `ConfigService`), JSON via `FileStore`.
+- `~/.gmdconfig` — user config (`Common/Config.cs` + `ConfigService`), JSON via `FileStore`, which
+  several gmd instances share: a write reads the file afresh and renames a new file over it, and a
+  file that is not json is set aside as `<file>.unreadable` rather than stopping gmd.
 - Per-repo state — `Common/RepoConfig.cs`.
 - Shared branch metadata — inside the git repo via `MetaDataService`.
 
@@ -408,13 +412,13 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 MSTest 4.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout — put a test at the path
 mirroring its subject, e.g. `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`. Tests that
 need a real repository use `TempRepo`; **never** run git against this working tree. Growing this
-suite is an explicit goal — see the open issues in `docs/MODERNIZATION.md`.
+suite is an explicit goal — see the open issues in `.notes/MODERNIZATION.md`.
 
 The one exception to that layout is the end-to-end tier, which is a project of its own,
 `gmdE2eTest/`, so that it can run in parallel (see `TmuxSession` below). It compiles the fixtures it
 shares with `gmdTest` (`TempRepo`, `TempHome`, `Proc`, `ResultAssert`) as linked files rather than
-copies, so they stay in `gmdTest/Fixtures/`. `./test` runs both projects. Inside it the same rule
-holds: one class per area of the app, placed as the code it reaches is in `gmd/Cui/` —
+copies, so they stay in `gmdTest/Fixtures/`. `scripts/test` runs both projects. Inside it the same
+rule holds: one class per area of the app, placed as the code it reaches is in `gmd/Cui/` —
 `Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/WorktreeTest.cs` and so on. The
 `Integration` and `E2e` categories are set once for the whole assembly in its `TestSetup.cs`, so a new
 class needs nothing but `[TestClass]` to be kept out of the fast run.
@@ -539,7 +543,7 @@ is how the current row's highlight is reached, that being a background rather th
 So is the cursor: `gmd.IsCursorVisible` and `gmd.CursorPosition` come from tmux's pane state, which
 is how "the caret is back in the text field after the menu closed" is asserted.
 
-Run them with `./test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
+Run them with `scripts/test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
 filter above excludes them. They run **in parallel**, eight at a time (`[assembly: Parallelize]` in
 `gmdE2eTest/TestSetup.cs`), which took the tier from about four minutes to about thirty seconds —
 a test is nearly all waiting for a screen to settle, not CPU. It has since grown to some 160 tests
@@ -614,17 +618,17 @@ Seven traps worth knowing before adding one:
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.
 
-The same machinery records the README's animation, `gmd/doc/Animation.gif`, which `./demo`
+The same machinery records the README's animation, `gmd/doc/Animation.gif`, which `scripts/demo`
 re-records. `gmdE2eTest/Demo/DemoTest.cs` is the script: an end-to-end test in all but asserting,
-run only when `./demo` names a cast file for it (skipped otherwise), on `DemoRepo`, a repository
-made to look like a team's. `DemoRecording` turns the settled screens into an asciicast, each shown
-for as long as the script says rather than as long as it took, with a caption bar under them that
-says what the frames show, and `./demo` renders that with agg,
-which `./installtools` installs with its fonts. Everything is pinned, including what would differ
+run only when `scripts/demo` names a cast file for it (skipped otherwise), on `DemoRepo`, a
+repository made to look like a team's. `DemoRecording` turns the settled screens into an asciicast,
+each shown for as long as the script says rather than as long as it took, with a caption bar under
+them that says what the frames show, and `scripts/demo` renders that with agg, which
+`scripts/installtools` installs with its fonts. Everything is pinned, including what would differ
 between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
 byte for byte the same and the GIF only changes when what gmd draws does. When gmd's UI changes in
 a way the demo passes through, re-record it; when a step of the script goes wrong, `CAST=<path>
-./demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step.
+scripts/demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step.
 
 Other things to know:
 
@@ -633,8 +637,8 @@ Other things to know:
   `internal` types are visible to tests, so services can be constructed directly
   (`new BranchNameService()`) — no DI.
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
-  (`[AssemblyInitialize]`) before anything can log — otherwise `./test` truncates the developer's
-  `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
+  (`[AssemblyInitialize]`) before anything can log — otherwise `scripts/test` truncates the
+  developer's `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
   `ConfigLogger` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
   `gmdE2eTest/TestSetup.cs` does the same for its own process, since each test assembly runs its own
   `[AssemblyInitialize]`.
@@ -651,13 +655,14 @@ Other things to know:
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
-  terminal — not adopted by the suite yet; see the headless-drawing note in `docs/MODERNIZATION.md` first.
+  terminal — not adopted by the suite yet; see the headless-drawing note in `.notes/MODERNIZATION.md`
+  first.
 - `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.
   `LogServiceTest` and `TimeDateExtensionsTest` change `CultureInfo.DefaultThreadCurrentCulture`, and
   `GitIntegrationTest` sets `GIT_EDITOR`. MSTest sets parallelism per assembly (`[Parallelize]` has no
   class form), which is why the end-to-end tests, which can run in parallel, are a project of their own.
 
-Always run `./test` before reporting work done. Prefer adding a regression test with every
+Always run `scripts/test` before reporting work done. Prefer adding a regression test with every
 bug fix — that is the agreed direction for this repo. When the subject is a parser or the
 inference pipeline, write the failing test first; both have already hidden real bugs.
 
@@ -682,7 +687,10 @@ message.
   components are derived from build time in `Build.cs`. Major is hand-edited; the minor is raised by
   CI. A push to `main` makes a **release commit** (`Release v<version>`) on top of it, which raises
   `MinorVersion` by one and regenerates `CHANGELOG.md`, and that commit is built, tagged and
-  released, and pushed only once the tests pass. Dev releases keep the minor they have. So pull
+  released, and pushed only once the tests pass. A major.minor raised by hand above the latest
+  release (as 0.97 to 1.0) is released as written, not raised again; the latest release is
+  GitHub's, read with `gh`, since a version tag in git can be a preview's. Dev releases keep the
+  minor they have. So pull
   `main` before merging `dev` into it, and merge `main` into `dev` after a release: until then dev's
   pre-releases are numbered below the stable release, and the updater offers a preview only when it
   is newer.
@@ -702,7 +710,7 @@ message.
   it inside `using (Askpass.NeverAsk())` (an AsyncLocal, so it reaches `Cmd` through the awaits),
   as the background fetch and the metadata sync are. What failed is said on stderr, where
   `LoginError` finds it; wrap every remote command's result in `LoginError.ToLogin`, and show
-  remote errors with `LoginError.Text`. CONTRIBUTING.md has how to try the dialog by hand.
+  remote errors with `LoginError.Text`. docs/CONTRIBUTING.md has how to try the dialog by hand.
 - **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
   resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the
   `GitDirPath` (HEAD, the index, a stopped merge) and the `CommonDirPath` (refs, config,
@@ -711,7 +719,7 @@ message.
   gmd recognizes outcomes by git's messages (`CONFLICT`, `would be overwritten by checkout`, …),
   and a translated git turned each of those into a plain error box. Match on git's English text.
 - **`gmdSetup.exe` is a prebuilt binary committed to the repo**
-  (`gmd/Installation/installer/`). Neither `./build` nor CI builds the Inno Setup installer;
+  (`gmd/Installation/installer/`). Neither `scripts/build` nor CI builds the Inno Setup installer;
   CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
 - **The `gmd_linux` and `gmd_windows` release assets are duplicates** of `gmd_linux_x64` and
   `gmd.exe`, kept under the original names because the built-in updater falls back to the first and
@@ -723,24 +731,27 @@ message.
   main's first-parent line, since the change log is made from the version tags there.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
-- `.git-blame-ignore-revs` lists the bulk reformat commits; `./installtools` points
-  `blame.ignoreRevsFile` at it.
 - `Utils/GlobPatterns/` is vendored third-party-style code. CSharpier formats it like
   everything else, but do not restructure its logic; `.editorconfig` keeps analyzers quiet there.
 
 ## Working agreements
 
-- **`docs/MODERNIZATION.md` holds the open issues and the findings** from the modernization work: what
-  is deferred and why, what is known to be wrong, and the git and Terminal.Gui traps met on the way.
-  Read it before starting anything substantial, and add to it (or close items) as work lands.
-- **`docs/USABILITY.md` is the usability review**: the findings by principle (safety, discoverability,
-  consistency, feedback, workflow fit) and the ranked proposals. Check a new command or key against
+`.notes/` holds the working notes, kept up to date as the work goes, and `docs/` the documentation
+for contributors. The notes are deliberately not in `.claude/`, which Claude Code protects: every
+write there asks for permission.
+
+- **`.notes/MODERNIZATION.md` holds the open issues and the findings** from the modernization work:
+  what is deferred and why, what is known to be wrong, and the git and Terminal.Gui traps met on the
+  way. Read it before starting anything substantial, and add to it (or close items) as work lands.
+- **`.notes/USABILITY.md` is the usability review**: the findings by principle (safety,
+  discoverability, consistency, feedback, workflow fit) and the ranked proposals. Check a new command or key against
   it — above all, that a slip of the finger cannot push, pull or lose work.
 - Modernizing this codebase, fixing bugs, adding tests and improving maintainability is the
   active goal — but keep changes reviewable. Prefer a series of focused commits over one
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
-  once `./test` passes, so that the git log and its diffs are the review. Push only when asked.
-- When behavior visible to users changes, check whether `gmd/doc/help.md` (embedded into the
-  binary as a resource) needs updating too, and the known limits under *Is Gmd for You?* in the
-  README when one of them is lifted. The development half of the old README is `CONTRIBUTING.md`.
+  once `scripts/test` passes, so that the git log and its diffs are the review. Push only when asked.
+- When behavior visible to users changes, check whether `gmd/doc/help.md` (which `?` opens on
+  GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/HelpPage.cs`) needs updating
+  too, and the known limits under *Is Gmd for You?* in the README when one of them is lifted. The
+  development half of the old README is `docs/CONTRIBUTING.md`.

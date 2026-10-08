@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Runs at the repository root, wherever it is started from
+cd "$(dirname "$0")/.." || exit 1
+
 echo ""
 echo "Update timezone to Europe/Stockholm"
 sudo rm -rf /etc/localtime
@@ -23,7 +27,7 @@ echo "Installing tmux (drives the TUI in tests and for manual verification) ..."
 sudo apt install -q tmux -y 1>/dev/null
 
 echo ""
-echo "Installing agg and its fonts (renders the demo animation, see ./demo) ..."
+echo "Installing agg and its fonts (renders the demo animation, see scripts/demo) ..."
 # Pinned, since a new version could render the same recording differently
 AGG_VERSION="v1.9.0"
 case "$(uname -m)" in
@@ -46,8 +50,12 @@ echo "setting working folder as safe in git config ..."
 git config --global --add safe.directory /workspaces/gmd
 
 echo ""
-echo "Ignoring bulk reformat commits in git blame ..."
-git config blame.ignoreRevsFile .git-blame-ignore-revs
+echo "Remove the git blame setting that skipped the bulk reformat ..."
+# .git-blame-ignore-revs is gone, and git blame fails outright while the setting once made here
+# names a file that is not there.
+if git config --get blame.ignoreRevsFile >/dev/null; then
+  git config --unset blame.ignoreRevsFile
+fi
 
 echo ""
 echo "Adding dotnet tools to PATH ..."

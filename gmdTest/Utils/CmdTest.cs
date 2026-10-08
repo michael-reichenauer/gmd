@@ -107,7 +107,7 @@ public class CmdTest
     // What a command printed, as the line reader of Process gives it: every line break, '\r\n', '\r'
     // or '\n', is a '\n', and the end is trimmed. A byte order mark is kept, and an incomplete
     // character at the very end is dropped. Pinned since a read of the bytes in bulk, which was
-    // measured and not worth it (docs/MODERNIZATION.md), would have to keep all of them.
+    // measured and not worth it (.notes/MODERNIZATION.md), would have to keep all of them.
     [TestMethod]
     public void TestOutputIsTheLinesJoinedAndTrimmed()
     {

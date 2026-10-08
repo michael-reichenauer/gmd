@@ -16,7 +16,7 @@
 	// rebuilds. Only /workspaces is a real volume; everything else, including /home/vscode, lives on
 	// the container's overlay layer and is wiped when the container is rebuilt.
 	// Note this persists Claude's *state*, not the CLI itself: the binary installs to
-	// ~/.local/share/claude, so ./installtools is still needed after a rebuild (as it is for tmux,
+	// ~/.local/share/claude, so scripts/installtools is still needed after a rebuild (as it is for tmux,
 	// mc and lnav anyway).
 	"mounts": ["source=gmd-claude-home,target=/home/vscode/.claude,type=volume"],
 	// The chown is required, not defensive: Docker creates a named volume root-owned when the image
@@ -24,7 +24,7 @@
 	// without this the vscode user cannot write to its own Claude directory.
 	// The image ships the .NET 10 SDK and runtime, which the net10.0 build and the end-to-end tests
 	// run on. global.json pins the .NET 11 SDK for its C# 15 compiler (union types), so it is
-	// installed side by side into the same root before anything restores. Also in ./installtools.
+	// installed side by side into the same root before anything restores. Also in scripts/installtools.
 	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.claude && curl -sSL https://dot.net/v1/dotnet-install.sh | sudo bash -s -- --channel 11.0 --quality preview --install-dir /usr/share/dotnet && dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj && dotnet tool restore",
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode"

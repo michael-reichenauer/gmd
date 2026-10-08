@@ -9,7 +9,7 @@ namespace gmdTest;
 //
 // The encoding is in UTC: the times are written as UTC ("…T00:00:00Z") and read as UTC, so the
 // version a gmd computes for itself is the one CI tagged its release with, whatever the time zone
-// of the machine it runs on. See docs/MODERNIZATION.md.
+// of the machine it runs on. See .notes/MODERNIZATION.md.
 [TestClass]
 public class BuildTest
 {
@@ -137,5 +137,20 @@ public class BuildTest
     public void TestShaIsASid()
     {
         Assert.AreEqual(6, Build.Sha().Length);
+    }
+
+    // The help is linked at the commit CI built, which is told by its form: CI's sed replaces the
+    // placeholder everywhere in Build.cs, so comparing with the placeholder would always be true.
+    // A test build is CI's in the release job, which stamps the sha before it runs the tests.
+    [TestMethod]
+    public void TestCommitShaIsAWholeShaOrNone()
+    {
+        Assert.IsTrue(Build.IsSha("0123456789abcdef0123456789abcdef01234567"));
+        Assert.IsFalse(Build.IsSha("BUILD_SHA"), "The placeholder, unstamped");
+        Assert.IsFalse(Build.IsSha("0123456"), "A short sha");
+        Assert.IsFalse(Build.IsSha("0123456789ABCDEF0123456789ABCDEF01234567"), "git writes it in lower case");
+
+        var sha = Build.CommitSha();
+        Assert.IsTrue(sha == "" || Build.IsSha(sha), sha);
     }
 }

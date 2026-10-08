@@ -5,13 +5,12 @@ interface IRemoteService
     Task<Result> FetchAsync(string wd);
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> PushBranchAsync(string name, string wd);
-    Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
+    Task<Result> PushForceAsync(string name, string remoteName, string expectedId, string wd);
     Task<Result> PullCurrentBranchAsync(string wd);
     Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd);
     Task<Result> SetPullRebaseAsync(bool isRebase, string wd);
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
-    Task<Result> PushRefForceAsync(string name, string wd);
     Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
     Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
@@ -94,11 +93,20 @@ class RemoteService : IRemoteService
         return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
-    public async Task<Result> PushCurrentBranchAsync(bool isForce, string wd)
+    // A force push of a local branch to its remote branch, but only while origin still has the
+    // remote branch at the commit the user saw, expectedId. A bare --force-with-lease leases on the
+    // remote-tracking branch instead, which the background fetch moves, so commits pushed since the
+    // screen was drawn would be overwritten unseen. An empty expectedId is a lease that origin has
+    // no branch of the name.
+    public async Task<Result> PushForceAsync(string name, string remoteName, string expectedId, string wd)
     {
-        var force = isForce ? " --force-with-lease" : "";
-        var args = $"push{force}";
-        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
+        remoteName = TrimRemotePrefix(remoteName);
+        var args =
+            $"push --porcelain --force-with-lease=refs/heads/{remoteName}:{expectedId} origin refs/heads/{name}:refs/heads/{remoteName}";
+        var result = LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
+        return result is CmdError e && e.Output.Contains("stale info")
+            ? new Error($"origin/{remoteName} has changed since gmd showed it, so it was not overwritten", e)
+            : result;
     }
 
     public async Task<Result> PullCurrentBranchAsync(string wd)
@@ -153,14 +161,6 @@ class RemoteService : IRemoteService
     {
         name = TrimRemotePrefix(name);
         var args = $"push --porcelain origin --delete {name}";
-        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
-    }
-
-    public async Task<Result> PushRefForceAsync(string name, string wd)
-    {
-        name = TrimRemotePrefix(name);
-        string refs = $"{name}:{name}";
-        var args = $"push --porcelain origin --set-upstream --force {refs}";
         return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 

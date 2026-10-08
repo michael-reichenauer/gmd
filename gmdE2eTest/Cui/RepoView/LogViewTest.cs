@@ -1,9 +1,10 @@
+using gmd.Common;
 using gmdE2eTest.Fixtures;
 
 namespace gmdE2eTest.Cui.RepoView;
 
 // The log view itself: the screen gmd starts on and how it narrows, its colors and the current
-// row, the keys that quit, scroll and open the details pane, the commit menu, the help page, and
+// row, the keys that quit, scroll and open the details pane, the commit menu, the help, and
 // showing and hiding a branch — everything that looks at the repository without changing it.
 //
 // What every end-to-end test must keep doing is at the top of gmdE2eTest/TestSetup.cs.
@@ -670,72 +671,32 @@ public class LogViewTest
         );
     }
 
-    // The help is many screens, so ']' and '[' step through its sections and 'm' lists them to jump
-    // to; each puts the section's heading at the top of the help, but for the last few, which the
-    // end of the help keeps lower down
+    // The help is gmd/doc/help.md on GitHub. The session has no browser, as over ssh (TmuxSession
+    // empties BROWSER and DISPLAY), so gmd copies the link and shows it, and that is what is asserted:
+    // the page it would have opened. It is on main for a local build and at the commit for CI's, which
+    // stamps the sha before it runs the tests, hence the link gmd itself makes is the expected one.
     [TestMethod]
-    public async Task TestTheHelpSectionsAreSteppedThroughAndListed()
-    {
-        using var repo = await E2eRepo.CreateAsync();
-        using var gmd = TmuxSession.StartGmd(repo);
-        gmd.WaitFor("Initial");
-        gmd.Send("?");
-        gmd.WaitFor("Gmd Help Guide");
-
-        gmd.Send("]");
-        StringAssert.Contains(HelpTop(gmd.WaitUntilGone("Gmd Help Guide")), "## Reading the Log");
-        gmd.Send("]");
-        StringAssert.Contains(HelpTop(gmd.WaitFor("## Showing and Hiding Branches")), "## Showing and Hiding Branches");
-        gmd.Send("[");
-        StringAssert.Contains(HelpTop(gmd.WaitFor("## Reading the Log")), "## Reading the Log");
-
-        gmd.Send("m");
-        gmd.WaitFor("Sections");
-        gmd.Send("End");
-        gmd.WaitForStable();
-        gmd.Send("Enter");
-        gmd.WaitFor("## Problems and Feedback");
-    }
-
-    // The first row inside the help dialog, under its top border
-    static string HelpTop(string screen)
-    {
-        var lines = screen.Split('\n');
-        var top = Array.FindIndex(lines, l => l.Contains("╭ Help"));
-        return lines[top + 1];
-    }
-
-    // The help page is the most deterministic screen in the app: static text embedded in the
-    // binary, no git and no clock. Only the top of it is asserted, since the rest belongs to
-    // gmd/doc/help.md and editing the docs should not fail a UI test.
-    [TestMethod]
-    public async Task TestHelpDialog()
+    [DataRow("?")]
+    [DataRow("F1")]
+    public async Task TestHelpCopiesItsLinkWithNoBrowser(string key)
     {
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
 
-        gmd.Send("?");
-        var screen = gmd.WaitFor("Gmd Help Guide");
-
-        // Note the '┃' at the right: that is the scroll bar, and its length is worked out from how
-        // long the document is — so this snapshot moves whenever gmd/doc/help.md grows or shrinks,
-        // even though nothing near the top of it changed.
-        Assert.AreEqual(
-            """
-            ┣╯   Add beta       │reference. Scroll with ↑↓, PgUp and PgDn, Space or the mouse wheel. m         │   2024-10-15 12:01
-            ┗    Initial        │lists the sections to jump to, ] and [ go to the next and the previous        │   2024-10-15 12:00
-                                │one, and Esc closes. Opened in the diff, blame or conflict view, the help     │
-                                │starts at the part about it.                                                  │
-                                │                                                                              │
-                                │- Reading the Log                                                             │
-            """,
-            ScreenText.Rows(screen, repo.Path, 5, 6)
+        gmd.Send(key);
+        StringAssert.Contains(
+            gmd.WaitFor("copied to the clipboard"),
+            "There is no browser to open it in here, so the link to the help"
         );
+        var link = gmd.Clipboard();
+        StringAssert.StartsWith(link, "https://github.com/michael-reichenauer/gmd/blob/");
+        StringAssert.EndsWith(link, "/gmd/doc/help.md");
+        Assert.AreEqual(Project.HelpUrl(), link);
 
-        // The dialog closes and the log view is still there behind it
-        gmd.Send("Escape");
-        StringAssert.Contains(gmd.WaitUntilGone("Gmd Help Guide"), "Add delta");
+        // The box closes and the log view is still there behind it
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitUntilGone("copied to the clipboard"), "Add delta");
     }
 
     // Interactive branch visibility is the feature this application exists for, and it had no

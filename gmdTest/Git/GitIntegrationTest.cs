@@ -11,7 +11,7 @@ namespace gmdTest.Git;
 // drift, since nothing here is canned. They are deliberately few and small, one per round trip.
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
-// wanted:  ./test --filter "TestCategory!=Integration"
+// wanted:  scripts/test --filter "TestCategory!=Integration"
 [TestClass]
 [TestCategory("Integration")]
 public class GitIntegrationTest
@@ -1865,6 +1865,35 @@ public class GitIntegrationTest
         Assert.AreEqual(isRebase ? 1 : 2, parents.Length, isRebase ? "One line" : "A merge");
         if (isRebase)
             Assert.AreEqual(remote, parents[0], "The local commit is on top of the remote one");
+    }
+
+    // The race a force push used to lose: someone else pushes to origin, the background fetch brings
+    // it in, and only then the user, who saw origin as it was before, force pushes. A bare
+    // --force-with-lease leases on the remote-tracking branch, which the fetch moved, so it passes and
+    // the commit no one here saw is gone; a lease on the commit seen refuses.
+    [TestMethod]
+    public async Task TestAForcePushLeasesOnTheCommitSeenRatherThanTheOneFetched()
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -q --set-upstream origin main");
+        var seen = await repo.HeadIdAsync();
+        var others = await repo.CommitFileAsync("b.txt", "b\n", "Someone else's");
+        await repo.GitAsync("push -q origin main"); // As pushed elsewhere and fetched here
+        await repo.GitAsync("reset -q --hard HEAD~1");
+        var local = await repo.CommitFileAsync("c.txt", "c\n", "Local");
+        await repo.GitAsync("push --dry-run --force-with-lease"); // What the bare lease would have let through
+
+        var refused = AssertError(await repo.Git.PushForceAsync("main", "origin/main", seen, repo.Path));
+
+        StringAssert.Contains(refused.Message, "origin/main has changed since gmd showed it");
+        Assert.AreEqual(others, await OriginMainAsync());
+
+        Ok(await repo.Git.PushForceAsync("main", "origin/main", others, repo.Path));
+        Assert.AreEqual(local, await OriginMainAsync(), "Leased on what origin has, it goes through");
+
+        async Task<string> OriginMainAsync() =>
+            (await repo.GitAsync("ls-remote origin refs/heads/main")).Split('\t')[0];
     }
 
     // Unwraps a result, failing the test with the git error if the command failed

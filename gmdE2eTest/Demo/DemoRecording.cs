@@ -6,7 +6,7 @@ namespace gmdE2eTest.Demo;
 
 // Records a scripted gmd session as an asciicast, the format asciinema records terminals in
 // (https://docs.asciinema.org/manual/asciicast/v2/), which agg (https://github.com/asciinema/agg)
-// then renders as a GIF. See ./demo.
+// then renders as a GIF. See scripts/demo.
 //
 // Nothing is recorded as it happens. Each frame is a capture of tmux's screen model, taken once
 // the screen has settled, i.e. exactly what the end-to-end tests assert on, colors included. The

@@ -225,7 +225,8 @@ class FakeGit : IGit
 
     public Task<Result> PushBranchAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<Result> PushCurrentBranchAsync(bool isForce, string wd) => throw new NotSupportedException();
+    public Task<Result> PushForceAsync(string name, string remoteName, string expectedId, string wd) =>
+        throw new NotSupportedException();
 
     public Task<Result> PullCurrentBranchAsync(string wd) => throw new NotSupportedException();
 
@@ -235,8 +236,6 @@ class FakeGit : IGit
     public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) => throw new NotSupportedException();
 
     public Task<Result> PullBranchAsync(string name, string wd) => throw new NotSupportedException();
-
-    public Task<Result> PushRefForceAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd) =>
         throw new NotSupportedException();

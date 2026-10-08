@@ -11,47 +11,52 @@ gmd/Server/Private/Augmented/    Works out which branch each commit belongs to
 gmd/Git/                         One service per area of git, each running the git command line
 ```
 
-[CLAUDE.md](CLAUDE.md) describes the architecture, the conventions and the tests in depth. It is
-written for Claude Code but is just as useful to read yourself. [MODERNIZATION.md](docs/MODERNIZATION.md)
-lists the open issues, and [USABILITY.md](docs/USABILITY.md) is a review of the user experience with
-proposals for improving it.
+[CLAUDE.md](../CLAUDE.md) describes the architecture, the conventions and the tests in depth. It is
+written for Claude Code but is just as useful to read yourself. The working notes are in `.notes/`:
+[MODERNIZATION.md](../.notes/MODERNIZATION.md) lists the open issues, and
+[USABILITY.md](../.notes/USABILITY.md) is a review of the user experience with proposals for improving
+it.
 
 ## Setting up
 
 The easiest way is the devcontainer, locally in VS Code with Docker or in GitHub Codespaces. It
-installs both .NET SDKs, and `./installtools` then adds the tools that the scripts and the
+installs both .NET SDKs, and `scripts/installtools` then adds the tools that the scripts and the
 end-to-end tests use (tmux, lnav, agg).
 
 To set up a machine yourself you need:
 
 - The **.NET 11 SDK**, a preview until .NET 11 is released and pinned in `global.json`. Its C# 15
-  compiler is what the `Result` union type needs. [UPGRADING.md](docs/UPGRADING.md) has the steps for
+  compiler is what the `Result` union type needs. [UPGRADING.md](UPGRADING.md) has the steps for
   when .NET 11 is released.
 - The **.NET 10 runtime**, since gmd targets `net10.0` and the tests run on it.
 - **git**, and **tmux** for the end-to-end tests.
 
 ## Scripts
 
-| Script             | What it does                                                               |
-| ------------------ | -------------------------------------------------------------------------- |
-| `./run [args]`     | Run gmd from source                                                        |
-| `./test`           | Run all tests (about a minute and a half); `--filter "TestCategory!=Integration"` runs only the fast ones (a few seconds) |
-| `./build`          | Run the tests, audit the packages and publish the executables for every platform |
-| `./build -l`       | The same, but publish only for Linux (x64 and arm64), which is much faster |
-| `./log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
-| `./updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
-| `./installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
-| `./demo`           | Re-record the README's animation, by running a scripted session in tmux    |
+They are in `scripts/`, and each runs at the repository root wherever it is started from.
 
-On Windows, `run.bat`, `build.bat` (`-w` builds Windows only) and `log.bat` do the same.
+| Script                   | What it does                                                               |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `scripts/run [args]`     | Run gmd from source, on this repository (`-d <folder>` opens another)      |
+| `scripts/test`           | Run all tests (about a minute and a half); `--filter "TestCategory!=Integration"` runs only the fast ones (a few seconds) |
+| `scripts/build`          | Run the tests, audit the packages and publish the executables for every platform |
+| `scripts/build -l`       | The same, but publish only for Linux (x64 and arm64), which is much faster |
+| `scripts/log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
+| `scripts/updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
+| `scripts/installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
+| `scripts/demo`           | Re-record the README's animation, by running a scripted session in tmux    |
 
-`./build` publishes each platform as a self-contained, single-file executable, for example:
+On Windows, `scripts\run.bat`, `scripts\build.bat` (`-w` builds Windows only) and `scripts\log.bat`
+do the same.
+
+`scripts/build` publishes each platform as a self-contained, single-file executable, for example:
 
 ```bash
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
 ```
 
-The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`. The runtimes released are
+The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`, and `scripts/build` copies
+each one into `artifacts/` under the name it is released as. The runtimes released are
 `linux-x64`, `linux-arm64`, `osx-arm64` and `win-x64`.
 
 ## Conventions
@@ -61,14 +66,16 @@ The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`. The runt
 - **Branches**: `main` holds the releases and `dev` the pre-releases, and CI publishes a GitHub
   release on every push to either one. A release from `main` gets the next minor version, in a
   release commit CI adds to `main`, so pull `main` before merging into it and merge it back into
-  `dev` afterwards. Work on a feature branch and target `dev`.
+  `dev` afterwards. A version raised by hand in `gmd/Program.cs`, a new major, is released as it is
+  written. Work on a feature branch and target `dev`.
 - **Tests** go with every bug fix. The unit tests are in `gmdTest/`, laid out like `gmd/`, and the
   end-to-end tests, which drive the real executable in tmux, are in `gmdE2eTest/`.
 - **`CHANGELOG.md` is generated** from the git history by `gmd --updatechangelog`, in CI's release
   commit on `main`, so don't edit it by hand.
-- **The help** the `?` key shows is [gmd/doc/help.md](gmd/doc/help.md), embedded in the
-  executable. Update it with any change users can see, and keep its lines within 77 columns, which
-  a test checks.
+- **The help** is [gmd/doc/help.md](../gmd/doc/help.md), which the `?` key opens on GitHub, at the
+  commit gmd was built from (`Project.HelpUrl`). Update it with any change users can see. The diff,
+  blame and conflict views open it at a heading, and its contents link to its headings, so a heading
+  renamed must be renamed there too; a test checks both.
 
 ## Trying the login dialog
 
@@ -102,7 +109,7 @@ git commit -q --allow-empty -m "Second"
 ```
 
 Then run gmd there with no askpass of its own in the way, e.g. from the gmd folder
-`env -u SSH_ASKPASS -u GIT_ASKPASS ./run -d /tmp/gmd-login/repo`:
+`env -u SSH_ASKPASS -u GIT_ASKPASS scripts/run -d /tmp/gmd-login/repo`:
 
 - On opening, the fetch in the background asks nothing; the status line says `r` would.
 - `r` fetches and asks: `secret` is the passphrase, anything else is refused, and `Esc` cancels.
@@ -140,7 +147,7 @@ Keys and features that depend on the terminal or the system:
 8. In a repository on GitHub, the commit menu's Open Commit in Browser opens it in the browser.
 9. With an ssh key that has a passphrase and is not in the ssh agent, a push or `r` asks for the
    passphrase in a dialog (the Windows side is untried: gmd.exe as ssh's askpass, and a named pipe).
-10. `?` opens the help; `m` in it lists the sections, and `]` and `[` step through them.
+10. `?` opens the help in the browser, and in the diff view at *Diff and Blame*; over ssh it copies the link.
 11. A terminal of 80 by 24: the log, the commit dialog and the menus are whole on the screen.
 
 What this list does not cover waits for reports.

@@ -5,7 +5,9 @@
 # it as an asciicast, and renders that as a GIF with agg (https://github.com/asciinema/agg).
 # Everything is pinned, so the animation only changes when what gmd draws does.
 #
-# Usage: ./demo [output.gif]      (default: gmd/doc/Animation.gif)
+# Usage: scripts/demo [output.gif]      (default: gmd/doc/Animation.gif)
+#
+# Paths, the output and CAST, are relative to the repository root, which this runs at.
 #
 #   CAST       keep the asciicast at this path as well, e.g. to look at one frame of it:
 #                agg --select marker:diff <cast> frame.gif
@@ -14,14 +16,15 @@
 #   FONT_DIR   a folder with the fonts, when they are not installed
 #
 # agg and the fonts, JetBrains Mono and DejaVu Sans Mono (for the symbols JetBrains Mono lacks),
-# are installed by ./installtools.
+# are installed by scripts/installtools.
 set -euo pipefail
+cd "$(dirname "$0")/.."
 
 out="${1:-gmd/doc/Animation.gif}"
 agg="${AGG:-agg}"
 
 if ! command -v "$agg" >/dev/null; then
-  echo "agg is not installed, run ./installtools (or set AGG)"
+  echo "agg is not installed, run scripts/installtools (or set AGG)"
   exit 1
 fi
 

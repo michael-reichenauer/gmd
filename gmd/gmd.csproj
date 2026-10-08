@@ -24,7 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="doc/help.md" />
     <!-- The spell check dictionary (SCOWL en_US, see doc/spelling/en_US.license). LogicalName pins the
          resource names rather than relying on how the folder path is mangled into one. -->
     <EmbeddedResource Include="doc/spelling/en_US.dic" LogicalName="gmd.doc.spelling.en_US.dic" />

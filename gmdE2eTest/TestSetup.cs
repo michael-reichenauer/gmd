@@ -18,11 +18,11 @@ using gmdTest.Fixtures;
 //     really closed, rather than sending a second Escape for safety.
 // CLAUDE.md has the rest, under TmuxSession.
 //
-// They need tmux, which ./installtools installs, and are in their own categories. Those are set
+// They need tmux, which scripts/installtools installs, and are in their own categories. Those are set
 // here for the whole assembly rather than on each class, so that a new test class cannot be
 // added without them and end up in the fast run:
-//   ./test --filter "TestCategory!=Integration"   excludes these and the real git tests
-//   ./test --filter "TestCategory=E2e"            runs only these
+//   scripts/test --filter "TestCategory!=Integration"   excludes these and the real git tests
+//   scripts/test --filter "TestCategory=E2e"            runs only these
 [assembly: TestCategory("Integration")]
 [assembly: TestCategory("E2e")]
 

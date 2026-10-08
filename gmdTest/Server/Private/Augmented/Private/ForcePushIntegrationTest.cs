@@ -9,7 +9,7 @@ namespace gmdTest.Server.Private.Augmented.Private;
 // commit is told by its author time.
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
-// wanted:  ./test --filter "TestCategory!=Integration"
+// wanted:  scripts/test --filter "TestCategory!=Integration"
 [TestClass]
 [TestCategory("Integration")]
 public class ForcePushIntegrationTest

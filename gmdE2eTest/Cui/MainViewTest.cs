@@ -108,6 +108,22 @@ public class MainViewTest
         Assert.IsTrue(gmd.IsRunning, "A click outside the menu should not quit gmd");
     }
 
+    // Help in the start menu copies the link, as ? does in the log (the session has no browser), and
+    // the start menu is back once the box with the link is closed, rather than under it
+    [TestMethod]
+    public async Task TestHelpGoesBackToTheStartMenu()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = StartOnTheStartMenu(repo);
+        SelectItem(gmd, "Help");
+
+        Assert.IsFalse(gmd.WaitFor("copied to the clipboard").Contains("Open a Repository"), "The menu is closed");
+        StringAssert.EndsWith(gmd.Clipboard(), "/gmd/doc/help.md");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitUntilGone("copied to the clipboard"), "Open a Repository");
+    }
+
     // -m shows the start menu even inside a repository. The home is new, so there are no recent
     // repositories, and the menu is the same few items every time.
     static TmuxSession StartOnTheStartMenu(TempRepo repo)

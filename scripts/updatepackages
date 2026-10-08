@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Runs at the repository root, wherever it is started from
+cd "$(dirname "$0")/.." || exit 1
+
 # Function to check if dotnet-outdated is installed
 check_dotnet_outdated_installed() {
     if ! dotnet tool list -g | grep -q 'dotnet-outdated'; then

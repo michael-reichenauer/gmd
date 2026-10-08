@@ -215,9 +215,14 @@ class BranchWriteService : IBranchWriteService
                 return e;
 
             if (cb.RemoteName != "")
-            { // Current Branch is local branch with a remote branch, push it with force
-                if (await git.PushCurrentBranchAsync(true, repo.Path) is Error pushError)
-                    return pushError;
+            { // Current Branch is local branch with a remote branch, push it with force, over the
+                // remote branch as it was before the rebase, i.e. as the user saw it
+                var remoteTipId = repo.BranchByName.TryGetValue(cb.RemoteName, out var remote) ? remote.TipId : "";
+                if (await git.PushForceAsync(cb.Name, cb.RemoteName, remoteTipId, repo.Path) is Error pushError)
+                    return new Error(
+                        $"Rebased '{cb.NiceName}' onto '{repo.BranchByName[name].NiceName}', but did not push it",
+                        pushError
+                    );
             }
 
             return Result.Ok;

@@ -342,7 +342,7 @@ class DiffService : IDiffService
 
     // Only 'diff --git' is parsed. A combined diff ('diff --cc', a merge commit against all its
     // parents) is a different format: n+1 '@' in the hunk header and one prefix column per parent.
-    // No gmd git command asks for one, they all use --first-parent. See docs/MODERNIZATION.md for what
+    // No gmd git command asks for one, they all use --first-parent. See .notes/MODERNIZATION.md for what
     // it would take to support them.
     static (FileDiff?, int, bool) ParseFileDiff(int i, string[] lines)
     {

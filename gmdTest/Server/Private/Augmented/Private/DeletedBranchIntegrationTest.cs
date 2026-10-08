@@ -10,7 +10,7 @@ namespace gmdTest.Server.Private.Augmented.Private;
 // tracking what it tracked, and origin's back only if no one pushed a branch of the name since.
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
-// wanted:  ./test --filter "TestCategory!=Integration"
+// wanted:  scripts/test --filter "TestCategory!=Integration"
 [TestClass]
 [TestCategory("Integration")]
 public class DeletedBranchIntegrationTest

@@ -17,9 +17,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   macOS), Autofac 9, DiffPlex 1.9, MSTest 4. Four unused packages and all stale .NET 7 references
   removed.
 - CSharpier is the single formatter: on save, on build and in CI. `.editorconfig` holds
-  only naming and non-layout rules. `.git-blame-ignore-revs` hides the bulk reformat from blame.
+  only naming and non-layout rules. (A `.git-blame-ignore-revs` hid the bulk reformat from blame
+  for a while; it was dropped as not worth keeping, since old lines are seldom blamed.)
 - CI runs on every branch: a fast test job for feature branches and pull requests, the full
-  multi-platform build and release for `main`/`dev`. `./build` now fails when a publish fails, and
+  multi-platform build and release for `main`/`dev`. `scripts/build` now fails when a publish fails, and
   `build.bat` mirrors it.
 
 **Tests: from 2 to about 900**
@@ -33,7 +34,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   views (hoover, scrolling, selection, menus, blame and conflict math); the diff body; the log row
   writer; the commit filter; the menu predicates; and about 65 end-to-end tests over the log view,
   menus, dialogs, diff, blame, the conflict resolver and every repo-mutating key.
-- The test process and every gmd it starts run under a throwaway `$HOME`, so `./test` no longer
+- The test process and every gmd it starts run under a throwaway `$HOME`, so `scripts/test` no longer
   truncates the developer's `~/gmd.log`, rewrites their config or overwrites their clipboard.
 
 **Structure**
@@ -149,7 +150,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   the conflict; `commit -a` committed markers into history. Both are now guarded on any operation.
   The diff has since stopped touching the index at all: it stages into a copy (`GIT_INDEX_FILE`),
   since its `git add .` then `git reset` also wiped whatever the user had staged with other tools.
-- `Continue Rebase`, and `./test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
+- `Continue Rebase`, and `scripts/test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
 - A repo change within half a second of a read was taken as seen by it, so a `git fetch` in another
   terminal landing just after gmd read stayed unseen until something else changed; one made while a
   read ran, or while the search was up, was dropped outright. The log view now skips only a change
@@ -283,6 +284,20 @@ Add new open issues and findings here as work lands; keep them short and drop th
   every refresh of the repo. Both sorts now leave a place they cannot settle as it is after it has
   been passed once per item, which a comparer with no cycle never needs, and a rename keeps one
   order per pair of branches (`BranchOrder.OnePerPair`). (2026-10-07)
+- A force push could overwrite commits on origin that no one here had seen. *Force Push* and
+  *Rebase and Push onto* ran a bare `--force-with-lease`, whose lease is the remote-tracking branch,
+  and the background fetch moves that: a fetch landing between the screen being drawn and the push
+  let the push through over what it brought in. Both now lease on the remote tip the repo shown had
+  (`PushForceAsync`, `--force-with-lease=refs/heads/<branch>:<sha>`), as Restore origin already did,
+  and a refusal says origin changed since gmd showed it; the unused `PushRefForceAsync`, a plain
+  `--force`, is gone. (2026-10-08)
+- A `~/.gmdconfig` cut short, by a crash in the middle of a write or two gmd instances writing at
+  once, stopped gmd on every start, with a stack trace, until it was found and deleted by hand
+  (`FileStore`, `FailFast` on a file that was not json). A file that cannot be read is now set aside
+  as `.gmdconfig.unreadable` and started anew, a file is written beside itself and renamed over, so
+  it is never half written, and a write reads the file afresh, so two instances no longer drop each
+  other's changes (the recent folders, a word added to the dictionary, the shown branches of a repo
+  open twice). (2026-10-08)
 
 ---
 
@@ -319,10 +334,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   Bugs fixed). Nothing in gmd starts such a thread today.
 - F5 does nothing inside the diff, blame and conflict views, where it only ever worked by falling
   through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
-- *Force Push* is `--force-with-lease` with no expected value, so the lease is the remote-tracking
-  ref, which gmd's background fetch keeps moving. A fetch that lands between the screen being drawn
-  and the push makes the lease pass over commits the user never saw. Pass the tip the user saw
-  (`--force-with-lease=<branch>:<sha>`).
 - Cmd+C cannot reach a terminal program at all on macOS: the terminal keeps it, the classic key
   protocol cannot express it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile
   binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
@@ -364,14 +375,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   in other worktrees; other worktrees' folders are not watched, so their change counts are up to
   thirty seconds behind; a submodule's `.git` file now makes it a root of its own too, which is right
   but new; the worktree dialog needs about 80 columns.
-- `FileStore` caches each file per process and never re-reads it, so with two gmd instances open
-  (one per worktree, say) every write of `~/.gmdconfig` — the recent folders on each repo open, the
-  git version on start, the update check, a word added to the spelling dictionary — is the writer's
-  stale copy plus its own change, and whichever instance writes last drops what the others saved.
-  `<repo>/.git/.gmdconfig` goes through the same store, so the same holds for a repo opened twice.
-  Re-read the file before writing, or merge the lists.
+- `FileStore` reads a file afresh only to write it (see Bugs fixed), and two instances writing at the
+  same moment can still each read before the other writes, so one change is lost; there is no lock.
+  Two writes of one field, e.g. the shown branches of a repo open twice, are last one wins, as they
+  always were. A write that fails, e.g. on a full disk or a read-only home, still stops gmd.
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
-  hardware (the platform checklist in `CONTRIBUTING.md` has it, with the rest that only Windows and
+  hardware (the platform checklist in `docs/CONTRIBUTING.md` has it, with the rest that only Windows and
   macOS show). Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
 - Squash still resets the branch and cherry-picks the newer commits back one by one
@@ -442,7 +451,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `CommitBranchService.DetermineCommitBranch` builds a `branchNames` string no one reads, for every
   commit: about 10 ms of 30,000.
 
-**The union result, at .NET 11 GA (November 2026)** — the steps are in `UPGRADING.md`
+**The union result, at .NET 11 GA (November 2026)** — the steps are in `docs/UPGRADING.md`
 
 - Set `LangVersion` to `15`. If the target framework moves to net11.0 (an STS release, where
   net10.0 is LTS), delete `gmd/Utils/UnionPolyfill.cs` and the explicit `LangVersion` too. When
@@ -454,17 +463,19 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Refactoring roadmap** (from the 2026-09-11 review; A before B before C)
 
-- A, correctness, each with a regression test: `FileStore` (the lost-update bug above, an
-  unsynchronized cache, `FailFast` on a malformed config file); `Threading.AssertIsMainThread`
+- A, correctness, each with a regression test: `FileStore` (*done 2026-10-08:* the lost update, the
+  unsynchronized cache, a malformed file); `Threading.AssertIsMainThread`
   compares thread ids with `>` and so passes on any lower id; 13 `async void` handlers
   (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
   `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both
   `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
   `*RowService`; `[SingleInstance]` is matched by the attribute's name string and `FileStore` uses
-  `Activator.CreateInstance`; the vulnerability grep in `./build` never fails the build, `run.bat`
-  drops its arguments, `log.bat` hard-codes one user's home, `installtools` sets `safe.directory`
-  to `/workspaces/gmd`, `updatepackages` expands an undefined `$projectFile`, `gmd_linux` and
-  `gmd_osx` are missing from `.gitignore`.
+  `Activator.CreateInstance`; the vulnerability grep in `scripts/build` never fails the build,
+  `scripts/log.bat` hard-codes one user's home, `scripts/installtools` sets `safe.directory` to
+  `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`. (`run.bat`
+  dropping its arguments was fixed when the scripts moved into `scripts/`, and `gmd_linux` and
+  `gmd_osx` missing from `.gitignore` when the build moved its output into `artifacts/`, which is
+  ignored.)
 - B, build and CI: grow `Directory.Build.props` to the shared properties (`TargetFramework`,
   `Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`) and add
   `Directory.Packages.props`, since warnings never fail a build today and the `warning`-severity
@@ -548,7 +559,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   box covers the need. The gate is whether `SetFocus()` gives a `UITextView` the keyboard when it
   shares a bare `Toplevel` with `ContentView`s — a configuration nothing in the codebase has run,
   and a half-hour probe settles it. The cheaper change is to show both sides read-only inside the
-  edit dialog (`UIDialog.AddContentView`, as `HelpDlg` does).
+  edit dialog (`UIDialog.AddContentView`, as `CommitDlg` does).
 - **Combined diffs (`diff --cc`)** are skipped with a warning. Relaxing the `@@ ` check alone is
   harmful: `ParseSectionDiff` calls a bare `int.Parse` on `-1,1 -1,1 +1,1` and throws outside the
   `Result` handling. Full support needs n+1 `@` hunk headers, two-column line prefixes and a three-sided
@@ -580,7 +591,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   times, in an E2e rerun and in a full rerun. Recorded so nobody hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
-- The end-to-end tests were about four of `./test`'s four and a half minutes, nearly all waiting:
+- The end-to-end tests were about four of `scripts/test`'s four and a half minutes, nearly all waiting:
   every wait needs four identical captures 100 ms apart, so it costs at least about 330 ms after the
   screen is already right, and an idle gmd uses about 6 ms of CPU a second. So they run eight at a
   time, in a project of their own since MSTest sets parallelism per assembly: about 30 s, bounded

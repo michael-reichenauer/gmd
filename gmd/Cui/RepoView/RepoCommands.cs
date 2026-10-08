@@ -51,7 +51,7 @@ class RepoCommands : IRepoCommands
     readonly ICloneDlg cloneDlg;
     readonly IInitRepoDlg initRepoDlg;
     readonly IAboutDlg aboutDlg;
-    readonly IHelpDlg helpDlg;
+    readonly IHelpPage helpPage;
     readonly Config config;
     readonly IUpdater updater;
     readonly IClipboardService clipboard;
@@ -66,7 +66,7 @@ class RepoCommands : IRepoCommands
         ICloneDlg cloneDlg,
         IInitRepoDlg initRepoDlg,
         IAboutDlg aboutDlg,
-        IHelpDlg helpDlg,
+        IHelpPage helpPage,
         Config config,
         IUpdater updater,
         IClipboardService clipboard,
@@ -81,7 +81,7 @@ class RepoCommands : IRepoCommands
         this.cloneDlg = cloneDlg;
         this.initRepoDlg = initRepoDlg;
         this.aboutDlg = aboutDlg;
-        this.helpDlg = helpDlg;
+        this.helpPage = helpPage;
         this.config = config;
         this.updater = updater;
         this.clipboard = clipboard;
@@ -133,7 +133,7 @@ class RepoCommands : IRepoCommands
 
     public void ShowAbout() => aboutDlg.Show();
 
-    public void ShowHelp() => helpDlg.Show();
+    public void ShowHelp() => helpPage.ShowAsync().RunInBackground();
 
     public void Clone() =>
         Do(async () =>

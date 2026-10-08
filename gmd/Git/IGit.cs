@@ -61,14 +61,16 @@ interface IGit
     // no such remote
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> PushBranchAsync(string name, string wd);
-    Task<Result> PushCurrentBranchAsync(bool isForce, string wd);
+
+    // Force pushes a local branch to its remote branch, if origin still has it at the expected commit,
+    // the one the user saw
+    Task<Result> PushForceAsync(string name, string remoteName, string expectedId, string wd);
     Task<Result> PullCurrentBranchAsync(string wd);
 
     // Whether git has been told how to pull a diverged branch, and telling it: merge or rebase
     Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd);
     Task<Result> SetPullRebaseAsync(bool isRebase, string wd);
     Task<Result> PullBranchAsync(string name, string wd);
-    Task<Result> PushRefForceAsync(string name, string wd);
 
     // Force pushes a remote branch back to a commit, if it is still at the expected one, or creates it
     // there, if it does not exist, when the expected one is ""

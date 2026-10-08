@@ -21,7 +21,7 @@ case "$OS" in
     case "$ARCH" in
       arm64|aarch64) ASSET="gmd_osx_arm64" ;;
       x86_64|amd64)
-        # Only Apple Silicon is released (see ./build), so there is nothing to download
+        # Only Apple Silicon is released (see scripts/build), so there is nothing to download
         echo "There is no gmd release for Intel Macs, only for Apple Silicon (arm64)"
         exit 1
         ;;

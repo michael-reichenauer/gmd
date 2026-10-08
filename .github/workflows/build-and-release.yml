@@ -50,19 +50,19 @@ jobs:
       - name: Ensure tmux (end-to-end UI tests)
         run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
 
-      # Must run before './build': a Debug build (dotnet test) auto-formats sources via
+      # Must run before 'scripts/build': a Debug build (dotnet test) auto-formats sources via
       # CSharpier.MsBuild, which would hide unformatted code from the Release check.
       - name: Check formatting
         run: |
           dotnet tool restore
           dotnet csharpier check .
 
-      # './build -l' runs the tests first and then publishes linux-x64 and linux-arm64 only,
+      # 'scripts/build -l' runs the tests first and then publishes linux-x64 and linux-arm64 only,
       # so a Release publish is still exercised, just not for all four platforms. The
       # 'BUILD_TIME'/'BUILD_SHA' placeholders in gmd/Build.cs are deliberately left as they
       # are, since nothing is released from here and the tests hold either way.
       - name: Test and build (linux only)
-        run: ./build -l
+        run: scripts/build -l
 
   # Push to main/dev, which publishes a release, plus a manual run from the Actions tab on any
   # branch, which is the way to check the windows and macOS packaging without merging. A manual
@@ -103,7 +103,7 @@ jobs:
       - name: Ensure tmux (end-to-end UI tests)
         run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
 
-      # Must run before './build': a Debug build (dotnet test) auto-formats sources via
+      # Must run before 'scripts/build': a Debug build (dotnet test) auto-formats sources via
       # CSharpier.MsBuild, which would hide unformatted code from the Release check.
       - name: Check formatting
         run: |
@@ -114,17 +114,33 @@ jobs:
       # gmd/Program.cs and regenerates CHANGELOG.md with the new version heading the notes of the
       # merge, and it is what is built, tagged and released. It is pushed only once the tests have
       # passed, see 'Push release commit'. Dev releases keep the minor version they have.
+      # A major.minor raised by hand above the latest release, as to 1.0, is released as it is
+      # written rather than raised again. The latest release is GitHub's, which is never a preview,
+      # whereas the nearest version tag in git can be one.
       - name: Create release commit (main)
         id: release
         if: github.ref == 'refs/heads/main'
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          MAJOR="$(sed -n 's/^ *public const int MajorVersion = \([0-9]*\);.*/\1/p' gmd/Program.cs)"
           MINOR="$(sed -n 's/^ *public const int MinorVersion = \([0-9]*\);.*/\1/p' gmd/Program.cs)"
-          if [ -z "$MINOR" ]; then
-            echo "Error: no 'public const int MinorVersion = <n>;' in gmd/Program.cs"
+          if [ -z "$MAJOR" ] || [ -z "$MINOR" ]; then
+            echo "Error: no 'public const int MajorVersion/MinorVersion = <n>;' in gmd/Program.cs"
             exit 1
           fi
-          sed -i "s/public const int MinorVersion = $MINOR;/public const int MinorVersion = $((MINOR + 1));/" gmd/Program.cs
+          LATEST="$(gh release view --json tagName --jq .tagName)"
+          IFS=. read -r LATEST_MAJOR LATEST_MINOR _ <<< "${LATEST#v}"
+          if [ -z "$LATEST_MAJOR" ] || [ -z "$LATEST_MINOR" ]; then
+            echo "Error: no version in the latest release '$LATEST'"
+            exit 1
+          fi
+          if [ "$MAJOR" -gt "$LATEST_MAJOR" ] || { [ "$MAJOR" -eq "$LATEST_MAJOR" ] && [ "$MINOR" -gt "$LATEST_MINOR" ]; }; then
+            echo "Keeping $MAJOR.$MINOR, raised by hand above the latest release $LATEST"
+          else
+            sed -i "s/public const int MinorVersion = $MINOR;/public const int MinorVersion = $((MINOR + 1));/" gmd/Program.cs
+          fi
 
           # The same version as the release build below, which has the same Program.cs and build time
           dotnet build gmd/gmd.csproj -v quiet --nologo
@@ -154,8 +170,8 @@ jobs:
         id: build
         run: |
           echo Build on branch: ${{ github.ref }}
-          ./build
-          VERSION="$(./gmd_linux_x64 --version)"
+          scripts/build
+          VERSION="$(artifacts/gmd_linux_x64 --version)"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo Version: $VERSION
           RELEASE_VERSION="${{ steps.release.outputs.version }}"
@@ -178,12 +194,15 @@ jobs:
       # original asset names: the built-in updater falls back to the first and updates Windows from
       # the second (see gmd/Installation/Updater.cs), and so does the installer (Setup/gmd.iss).
       # 'gmd.exe' is the one to download by hand, since it runs as it is named. SHA256SUMS is the
-      # checksums of all of them, which install.sh checks its download against.
+      # checksums of all of them, which install.sh checks its download against. All of them are in
+      # artifacts/, where scripts/build publishes, and SHA256SUMS is made there so that it names them
+      # by the bare asset names install.sh looks for.
       - name: Prepare release assets
         if: steps.build.outputs.isPublish == 'true'
+        working-directory: artifacts
         run: |
           cp gmd_linux_x64 gmd_linux
-          cp gmd/Installation/installer/gmdSetup.exe gmdSetup.exe
+          cp ../gmd/Installation/installer/gmdSetup.exe gmdSetup.exe
           sha256sum gmd_linux_x64 gmd_linux_arm64 gmd_osx_arm64 gmd.exe gmdSetup.exe gmd_linux gmd_windows > SHA256SUMS
           cat SHA256SUMS
 
@@ -241,14 +260,14 @@ jobs:
           prerelease: ${{ steps.build.outputs.isPreRelease == 'true' }}
           body_path: notes.md
           files: |
-            gmd_linux_x64
-            gmd_linux_arm64
-            gmd_osx_arm64
-            gmd.exe
-            gmdSetup.exe
-            gmd_linux
-            gmd_windows
-            SHA256SUMS
+            artifacts/gmd_linux_x64
+            artifacts/gmd_linux_arm64
+            artifacts/gmd_osx_arm64
+            artifacts/gmd.exe
+            artifacts/gmdSetup.exe
+            artifacts/gmd_linux
+            artifacts/gmd_windows
+            artifacts/SHA256SUMS
 
       # Every push to dev makes a preview, and the updater only ever uses the newest stable release
       # and the newest preview (gmd/Installation/Updater.cs), so the Releases page keeps the stable

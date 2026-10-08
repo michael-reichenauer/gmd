@@ -41,8 +41,9 @@ public class SmallTerminalTest
         gmd.Send("Escape");
         gmd.WaitUntilGone("Commit ...");
 
+        // The box with the link to the help, which is wider than the screen and wrapped in it
         gmd.Send("?");
-        AssertWhole(gmd.WaitFor("Gmd Help Guide"), "Help:");
+        AssertWhole(gmd.WaitFor("copied to the clipboard"), "Help");
     }
 
     // The file list is shorter on a small terminal, and scrolls, so the buttons stay on the screen.

@@ -11,7 +11,7 @@ namespace gmdTest.Server.Private.Augmented.Private;
 // RepoBuilder, so this is the one place where real git output reaches the augmenter.
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
-// wanted:  ./test --filter "TestCategory!=Integration"
+// wanted:  scripts/test --filter "TestCategory!=Integration"
 [TestClass]
 [TestCategory("Integration")]
 public class AugmentedServiceIntegrationTest
@@ -272,6 +272,32 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual("main", await CurrentBranchAsync());
         status = AssertOk(await repo.Git.GetStatusAsync(repo.Path));
         Assert.IsFalse(status.IsMerging, "Nothing was merged, so there is nothing to commit");
+    }
+
+    // Rebase and Push onto force pushes over origin's branch as the repo had it when the user chose
+    // it, not as a fetch may have moved it since, so a commit someone else pushed meanwhile is kept,
+    // and the error says the rebase is done and the push is not
+    [TestMethod]
+    public async Task TestRebaseAndPushKeepsACommitPushedSinceTheRepoWasRead()
+    {
+        var service = await BuildBranchAsync();
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("push -q --set-upstream origin dev");
+        AssertOk(await repo.Git.CheckoutAsync("main", repo.Path));
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+        AssertOk(await repo.Git.CheckoutAsync("dev", repo.Path));
+        var shown = AssertOk(await service.GetRepoAsync(repo.Path));
+        var others = await repo.CommitFileAsync("other.txt", "other\n", "Someone else's");
+        await repo.GitAsync("push -q origin dev"); // As pushed elsewhere and fetched here
+        await repo.GitAsync("reset -q --hard HEAD~1");
+
+        var error = AssertError(await service.RebaseBranchAsync(shown, "main"));
+
+        StringAssert.Contains(error.AllMessages(), "Rebased 'dev' onto 'main', but did not push it");
+        StringAssert.Contains(error.AllMessages(), "origin/dev has changed since gmd showed it");
+        Assert.AreEqual(others, (await repo.GitAsync("ls-remote origin refs/heads/dev")).Split('\t')[0]);
+        Assert.AreEqual("Main work", (await repo.GitAsync("log -1 --format=%s dev~1")).Trim(), "Rebased");
     }
 
     // Initial on main and one commit on a 'dev' branched out from it, with 'dev' current, i.e.
