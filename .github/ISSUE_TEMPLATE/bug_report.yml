@@ -1,0 +1,57 @@
+name: Problem
+description: Something gmd does wrong, or a crash
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. The version and the log are what make a problem quick to find, so
+        please include them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what gmd did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      description: If you know. A repository it happens in, if it can be shared, helps most of all.
+      placeholder: |
+        1. Open a repository with ...
+        2. Press ...
+  - type: input
+    id: version
+    attributes:
+      label: gmd version
+      description: From About in the repo menu (Shift-M), or from `gmd --version`.
+      placeholder: 0.95.1438.449
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System and terminal
+      description: The operating system, the terminal and whether over ssh or in a container.
+      placeholder: Ubuntu 24.04, Windows Terminal, over ssh
+  - type: input
+    id: git
+    attributes:
+      label: git version
+      description: From `git --version`.
+  - type: textarea
+    id: log
+    attributes:
+      label: The log
+      description: |
+        `~/gmd.log`, which About shows the path of. gmd begins it anew on every start, so copy it
+        before starting gmd again. It holds the paths of your repositories, the names of branches
+        and the git commands gmd ran; leave out what you would rather not share.
+      render: text
+  - type: textarea
+    id: screen
+    attributes:
+      label: Screenshot
+      description: When it is about what gmd draws, a screenshot shows it best.

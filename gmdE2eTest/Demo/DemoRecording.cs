@@ -13,9 +13,18 @@ namespace gmdE2eTest.Demo;
 // time a frame is shown is chosen by the script rather than measured, so the animation is the
 // same on every run however fast the machine is: a fixture with pinned dates, and a clock that
 // only moves when a frame says so.
+//
+// Below gmd's screen is a caption, which says what the frames show, as a subtitle does: a bar
+// across the cast under a blank row, so that it reads as no part of gmd.
 sealed class DemoRecording
 {
     const int CaretTimeoutMs = 10000;
+
+    // The blank row between gmd's screen and the caption, and the caption
+    const int CaptionRows = 2;
+
+    // Bright white on gray, a color gmd draws nothing in
+    const string CaptionColors = "\u001b[0;97;100m";
 
     readonly TmuxSession gmd;
     readonly int width;
@@ -24,6 +33,7 @@ sealed class DemoRecording
     readonly List<string> events = [];
     double time = 0;
     int frameCount = 0;
+    string caption = "";
 
     // The rewrite is applied to every captured screen, for what would otherwise differ between
     // runs, such as the time of the uncommitted row, which is DateTime.Now
@@ -34,6 +44,9 @@ sealed class DemoRecording
         this.height = height;
         this.rewrite = rewrite;
     }
+
+    // What the frames from now on show, until the next caption
+    public void Caption(string text) => caption = text;
 
     // Adds the screen as it is now, shown for the given number of seconds. Every frame is a marker
     // in the cast, named by the label or else numbered, so that one frame can be rendered on its
@@ -69,7 +82,7 @@ sealed class DemoRecording
             {
                 version = 2,
                 width,
-                height,
+                height = height + CaptionRows,
             }
         );
         File.WriteAllLines(path, [header, .. events]);
@@ -86,6 +99,16 @@ sealed class DemoRecording
         }
     }
 
+    // The caption in the middle of a bar the width of the cast, or no bar when there is none
+    string CaptionLine()
+    {
+        if (caption == "")
+            return "\u001b[0m";
+        var text = caption.Length > width - 4 ? caption[..(width - 4)] : caption;
+        var left = (width - text.Length) / 2;
+        return new string(' ', left) + text + new string(' ', width - left - text.Length);
+    }
+
     string Event(string type, string data) => JsonSerializer.Serialize<object[]>([Math.Round(time, 3), type, data]);
 
     // A whole screen as terminal output: clear, then the rows as captured. The captured rows only
@@ -98,7 +121,8 @@ sealed class DemoRecording
         var output = new StringBuilder()
             .Append("\u001b[0m\u001b[2J\u001b[H")
             .AppendJoin("\r\n", rows)
-            .Append("\u001b[0m");
+            .Append("\u001b[0m")
+            .Append($"\u001b[{height + CaptionRows};1H{CaptionColors}{CaptionLine()}\u001b[0m");
 
         if (gmd.IsCursorVisible)
         {

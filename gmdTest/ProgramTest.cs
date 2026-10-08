@@ -22,7 +22,7 @@ public class ProgramTest
             What happened is in the log, which the next start of gmd begins anew, so copy it first:
               /home/anna/gmd.log
             Please report the problem, with the log and the version (gmd --version), at:
-              https://github.com/michael-reichenauer/gmd/issues
+              https://github.com/michael-reichenauer/gmd/issues/new?template=bug_report.yml
             """,
             message
         );

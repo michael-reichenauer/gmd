@@ -67,7 +67,7 @@ class Program
             What happened is in the log, which the next start of gmd begins anew, so copy it first:
               {logPath}
             Please report the problem, with the log and the version (gmd --version), at:
-              {Project.IssuesUrl}
+              {Project.ProblemUrl}
             """;
 
     internal Program(IMainView mainView, IGit git, Config config)
