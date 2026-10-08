@@ -399,7 +399,9 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 
 ### Persistence
 
-- `~/.gmdconfig` — user config (`Common/Config.cs` + `ConfigService`), JSON via `FileStore`.
+- `~/.gmdconfig` — user config (`Common/Config.cs` + `ConfigService`), JSON via `FileStore`, which
+  several gmd instances share: a write reads the file afresh and renames a new file over it, and a
+  file that is not json is set aside as `<file>.unreadable` rather than stopping gmd.
 - Per-repo state — `Common/RepoConfig.cs`.
 - Shared branch metadata — inside the git repo via `MetaDataService`.
 
