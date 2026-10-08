@@ -337,6 +337,8 @@ Both are reworked, see proposal D.1.
    under gmd's screen, as a subtitle, saying what each part of the story shows and with which key
    (`DemoRecording.Caption`); it is in the GIF once `./demo` re-records it.
 5. The inference's agreement with the reflog, measured on public repositories and published.
+   *Postponed (2026-10-08)* to the task that works on the inference, to be measured before and
+   after it; the plan is in `MODERNIZATION.md` (deferred).
 
 ### Implementation steps
 
@@ -400,7 +402,9 @@ Reach:
 
 - [x] 20. **Issue templates** (D.3), linked from the README. S
 - [x] 21. **Captions in the animation** (D.4). S
-- [ ] 22. **The inference measured** (D.5) on public repositories of each workflow, and the numbers
+- [ ] 22. *Postponed (2026-10-08), to go with the work on the inference, measured before and after
+  it; see `MODERNIZATION.md` (deferred).* **The inference measured** (D.5) on public repositories of
+  each workflow, and the numbers
   in the README. M
 - [ ] 23. **The terminals people have** (part 5): 80 columns, Windows Terminal, fonts with no `✦`,
   `Ϙ` or `ß`. M
