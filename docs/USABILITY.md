@@ -293,7 +293,12 @@ Both are reworked, see proposal D.1.
    step through them, the title saying so, and the diff, blame and conflict views open it at the
    part about them. It is no wider, since the text is written to 77 columns: a wider box would be
    blank space, and rewrapping the text would break its tables and pictures, for lines that read
-   worse the longer they get.
+   worse the longer they get. *Replaced (2026-10-08) by the help on GitHub:* `?` and F1 open
+   `help.md` in the browser, at the commit gmd was built from and at the section of the view, and
+   copy the link where there is no browser, e.g. over ssh. The help had grown to some 700 lines, and
+   a browser gives it what the box could not: the width of the window, search, and links between its
+   sections. It stays in the repository rather than the wiki, so it is still written, reviewed and
+   tested with the code it describes.
 3. A key-hint line in the diff and blame views too. *Done (2026-10-07), the resolver too:* each
    view's keys on its bottom row, `Esc close` early on, as the log has them and turned off with
    them: the diff's `c commit` and `u discard` for the uncommitted changes and `Enter resolve` for a

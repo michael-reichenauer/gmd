@@ -66,9 +66,10 @@ The executable ends up in `gmd/bin/Release/net10.0/<runtime>/publish/`. The runt
   end-to-end tests, which drive the real executable in tmux, are in `gmdE2eTest/`.
 - **`CHANGELOG.md` is generated** from the git history by `gmd --updatechangelog`, in CI's release
   commit on `main`, so don't edit it by hand.
-- **The help** the `?` key shows is [gmd/doc/help.md](gmd/doc/help.md), embedded in the
-  executable. Update it with any change users can see, and keep its lines within 77 columns, which
-  a test checks.
+- **The help** is [gmd/doc/help.md](gmd/doc/help.md), which the `?` key opens on GitHub, at the
+  commit gmd was built from (`Project.HelpUrl`). Update it with any change users can see. The diff,
+  blame and conflict views open it at a heading, and its contents link to its headings, so a heading
+  renamed must be renamed there too; a test checks both.
 
 ## Trying the login dialog
 
@@ -140,7 +141,7 @@ Keys and features that depend on the terminal or the system:
 8. In a repository on GitHub, the commit menu's Open Commit in Browser opens it in the browser.
 9. With an ssh key that has a passphrase and is not in the ssh agent, a push or `r` asks for the
    passphrase in a dialog (the Windows side is untried: gmd.exe as ssh's askpass, and a named pipe).
-10. `?` opens the help; `m` in it lists the sections, and `]` and `[` step through them.
+10. `?` opens the help in the browser, and in the diff view at *Diff and Blame*; over ssh it copies the link.
 11. A terminal of 80 by 24: the log, the commit dialog and the menus are whole on the screen.
 
 What this list does not cover waits for reports.

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using gmd.Common;
 using gmd.Cui;
 
@@ -20,5 +21,15 @@ public class HelpPageTest
     {
         CollectionAssert.Contains(Anchors, Project.Anchor(HelpPage.DiffSection));
         CollectionAssert.Contains(Anchors, Project.Anchor(HelpPage.ConflictSection));
+    }
+
+    // The links of the help to its own sections, from its contents and its text, '(#<id>)'
+    [TestMethod]
+    public void TestTheLinksWithinTheHelpAreToItsHeadings()
+    {
+        var links = Regex.Matches(Help, @"\]\(#([^)]*)\)").Select(m => m.Groups[1].Value).ToList();
+
+        Assert.IsTrue(links.Count > 10, "The contents at least");
+        CollectionAssert.AreEqual(Array.Empty<string>(), links.Except(Anchors).ToArray(), "Links to no heading");
     }
 }

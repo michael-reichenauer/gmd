@@ -5,26 +5,26 @@ reference. `?` or F1 in gmd opens this page, the version of it that goes
 with the gmd you run, and in the diff, blame or conflict view it opens at
 the part about it.
 
-- Reading the Log
-- Showing and Hiding Branches
-- Everyday Tasks
-- Keys
-- Symbols
-- Remote and Local Branches
-- Undo and Recovery
-- More Commands
-- Diff and Blame
-- Resolving Conflicts
-- Worktrees
-- How Gmd Picks a Commit's Branch
-- Problems and Feedback
+- [Reading the Log](#reading-the-log)
+- [Showing and Hiding Branches](#showing-and-hiding-branches)
+- [Everyday Tasks](#everyday-tasks)
+- [Keys](#keys)
+- [Symbols](#symbols)
+- [Remote and Local Branches](#remote-and-local-branches)
+- [Undo and Recovery](#undo-and-recovery)
+- [More Commands](#more-commands)
+- [Diff and Blame](#diff-and-blame)
+- [Resolving Conflicts](#resolving-conflicts)
+- [Worktrees](#worktrees)
+- [How Gmd Picks a Commit's Branch](#how-gmd-picks-a-commits-branch)
+- [Problems and Feedback](#problems-and-feedback)
 
 
 ## Reading the Log
 
 Each branch is drawn in a column and a color of its own, with main running
 down the left. Git does not record which branch a commit was made on, so
-gmd works it out (see How Gmd Picks a Commit's Branch, near the end).
+gmd works it out (see [How Gmd Picks a Commit's Branch](#how-gmd-picks-a-commits-branch), near the end).
 
 A repository opens showing main and the branch you are on. The other
 branches are hidden, and marked where they meet a shown one; the first
@@ -61,7 +61,7 @@ left, or had that one merged into it. After the graph, each row has:
 - the commit id, the author and the date
 
 With a remote, main's first row is drawn `┣─┺`: main on origin and yours,
-on the same commit (see Remote and Local Branches).
+on the same commit (see [Remote and Local Branches](#remote-and-local-branches)).
 
 `Enter` shows the details of the commit below the log, and `Tab` moves
 into them and back.
@@ -84,7 +84,6 @@ branch from it and `h` hides it. With no branch highlighted, `m`, `d` and
 
 Each item can be clicked:
 
--------------------------------------------------------------------------
 | Item           | What it is, and what a click does                    |
 | -------------- | ---------------------------------------------------- |
 | ⇓              | A new version of gmd: update to it                   |
@@ -99,7 +98,6 @@ Each item can be clicked:
 | ⌂1             | Other worktrees, yellow if one has changes (also w)  |
 | (dev)          | The highlighted branch, or the row's: show a branch  |
 | Ϙ Search ? X   | Search (also f), help (also ?), and quit             |
--------------------------------------------------------------------------
 
 The line at the bottom shows the keys that do something where the cursor
 is, and changes as it moves; the diff, blame and conflict views have one of
@@ -184,7 +182,6 @@ that has one, and pressing it in an open menu picks that item. Keys are
 written as they are typed: `c` is the c key, and `Shift-P` is P, which the
 menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 
----------------------------------------------------------------------------
 | Key        | Description                                                |
 | ---------- | ---------------------------------------------------------- |
 | m          | Menu of the highlighted branch, or of the commit           |
@@ -224,11 +221,9 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | ?, F1      | Open this help in the browser                              |
 | Esc        | Close a menu, dialog or view                               |
 | Esc, q     | Quit, in the log view (Esc asks first)                     |
----------------------------------------------------------------------------
 
 In dialogs and text fields:
 
----------------------------------------------------------------------------
 | Key        | Description                                                |
 | ---------- | ---------------------------------------------------------- |
 | Alt-O      | OK, e.g. to commit while typing in the message box         |
@@ -238,7 +233,6 @@ In dialogs and text fields:
 | F7         | Spelling suggestions (also Ctrl-G)                         |
 | Shift-F10  | Text menu: spelling, copy, paste (also right-click)        |
 | Esc        | Cancel                                                     |
----------------------------------------------------------------------------
 
 The mouse works too: hovering highlights a branch, right-click opens the
 menu of a branch or a commit (and the menu of the diff, blame and conflict
@@ -250,7 +244,6 @@ a menu to push or pull the current branch or all of them.
 
 ## Symbols
 
--------------------------------------------------------------------------
 | Symbol | Description                                                  |
 | ------ | ------------------------------------------------------------ |
 | ┣╮ ┣╯  | A hidden branch merged in, or made, at the commit (dark)     |
@@ -272,7 +265,6 @@ a menu to push or pull the current branch or all of them.
 | ┅      | Truncated name/text                                          |
 | ┌ │ └  | Blame lines from the same commit (see Diff and Blame)        |
 | ╺      | A blame run of one single line                               |
--------------------------------------------------------------------------
 
 
 ## Remote and Local Branches
@@ -397,8 +389,8 @@ throw changes away for good ask first.
   files, none ticked at first: a new message, the ticked changes, or both.
   It is git's own way: an "amend!" commit of them, folded in by
   `git rebase -i --autosquash`, with the files left unticked put aside and
-  back. Undo takes it back. It has the limits Drop has, in Undo and
-  Recovery. A later commit that conflicts with the changes stops the rebase
+  back. Undo takes it back. It has the limits Drop has, in [Undo and
+  Recovery](#undo-and-recovery). A later commit that conflicts with the changes stops the rebase
   there: resolve and continue, or abort, which leaves them in the "amend!"
   commit on top.
 - **Search ...** (`f` or `/`):
@@ -456,7 +448,7 @@ throw changes away for good ask first.
   open, e.g. over ssh, the link is copied instead.
 - **Set Commit Branch Manually ...** (branch menu):
   Sets the branch of a commit where gmd guessed wrong or could not decide
-  (see How Gmd Picks a Commit's Branch).
+  (see [How Gmd Picks a Commit's Branch](#how-gmd-picks-a-commits-branch)).
 
 Find more commands in the menus (the `m` key).
 
@@ -537,7 +529,6 @@ conflict is what tells you what it is part of. The view opens on the first
 conflict rather than at the top of the file, and `]` and `[` move to the
 next and previous one from wherever the cursor is.
 
----------------------------------------------------------------------------
 | Key        | Description                                                |
 | ---------- | ---------------------------------------------------------- |
 | 1  2       | Take the left or the right side                            |
@@ -552,7 +543,6 @@ next and previous one from wherever the cursor is.
 | m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
 | Esc, q     | Close the resolver                                         |
----------------------------------------------------------------------------
 
 Nothing is written until `s`, so closing without saving leaves the file as
 it was, and closing with decisions unsaved asks first.
@@ -679,9 +669,7 @@ can push them with the repository, so that everyone sees the same graph.
 Gmd writes what it does to `gmd.log` in your home folder, which is the
 first place to look when something goes wrong. Report a problem, or
 suggest something, at
-
-    https://github.com/michael-reichenauer/gmd/issues
-
+[github.com/michael-reichenauer/gmd/issues](https://github.com/michael-reichenauer/gmd/issues),
 with the version, from **About** in the repo menu or `gmd --version`. About
 shows where the log is, too. The log is begun anew on every start of gmd,
 so copy it before starting gmd again.
