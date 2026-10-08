@@ -490,6 +490,22 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Deferred, with the reasoning so it is not redone**
 
+- **A second remote** (product review step 19, postponed 2026-10-08 to meet the need in use
+  first). Why a user has more than one remote, most common first: a fork, `origin` being the
+  user's own and `upstream` the original, pushed to never, only fetched to keep `main` up to date
+  (the daily loop: fetch upstream, bring its `main` into one's own, push that to the fork); another
+  contributor's fork, added for a while to try a pull request's branch; a move or a mirror of the
+  repository on another host; a deploy remote, push only (`git push heroku main`); a vendor's
+  repository, to merge its releases into a patched copy; and a clone on another machine, or an
+  agent's own clone, to fetch its branches from. The fork loop is the one for gmd's audiences, and
+  it needs no push to the second remote: fetch every remote, show another remote's branches as the
+  remote copies of the local ones ('main is 5 behind upstream'), and merge `upstream/main` with the
+  merges there are. What makes it large is the inference, which assumes `origin/` where it names
+  branches and pairs them with their remote copies (`BranchNameService`, `WorkRepo`, `ReflogWitness`,
+  `RemoteService.TrimRemotePrefix`, and `main` detection, which would see `upstream/main` as a third
+  line), and is held to before/after dumps on real repositories. Fetch and push of a chosen remote,
+  for the other cases, is a separate and smaller change. Today gmd fetches and pushes `origin` only.
+
 - **Terminal.Gui 1.x → 2.x.** When, not if. For: v1 is frozen (last commit June 2025); true color
   would lift the five-color branch palette, which a tool built on showing many branches runs out of;
   2.x's input injection reaches the views directly. Against: it is one branch that does not compile
