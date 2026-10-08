@@ -1,7 +1,10 @@
 # Change Log for Gmd
 --------------------
 
-140 releases:
+141 releases:
+
+## [v1.2.1439.1149] - 2026-10-08
+- Pin the release action to a commit rather than a tag
 
 ## [v1.1.1439.1092] - 2026-10-08
 - Improve show update available symbol in the bar when a release is found after startup
