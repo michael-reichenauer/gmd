@@ -1,10 +1,9 @@
 # Gmd Help Guide
 
 What is on the screen comes first, then the everyday tasks, then the
-reference. Scroll with ↑↓, PgUp and PgDn, Space or the mouse wheel. `m`
-lists the sections to jump to, `]` and `[` go to the next and the previous
-one, and Esc closes. Opened in the diff, blame or conflict view, the help
-starts at the part about it.
+reference. `?` or F1 in gmd opens this page, the version of it that goes
+with the gmd you run, and in the diff, blame or conflict view it opens at
+the part about it.
 
 - Reading the Log
 - Showing and Hiding Branches
@@ -222,7 +221,7 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | Ctrl-C     | Copy the selected rows to the clipboard                    |
 | i          | Copy the commit id to the clipboard                        |
 | Shift-I    | Copy the commit message to the clipboard                   |
-| ?, F1      | Open this help page                                        |
+| ?, F1      | Open this help in the browser                              |
 | Esc        | Close a menu, dialog or view                               |
 | Esc, q     | Quit, in the log view (Esc asks first)                     |
 ---------------------------------------------------------------------------

@@ -61,6 +61,13 @@ static class Build
 
     public static string Sha() => CiCdBuildShaText.Sid();
 
+    // The whole sha of the commit CI built, or "" for any other build. Recognized by its form rather
+    // than by comparing with the placeholder, since CI's sed replaces the placeholder wherever it is
+    // in this file, so the comparison would compare the sha with itself.
+    public static string CommitSha() => IsSha(CiCdBuildShaText) ? CiCdBuildShaText : "";
+
+    internal static bool IsSha(string text) => text.Length == 40 && text.All(char.IsAsciiHexDigitLower);
+
     public static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll") || IsDotNet();
 
     static bool IsDotNet()

@@ -279,8 +279,9 @@ public class DiffViewTest
         gmd.WaitFor("Diff Menu");
     }
 
-    // The help opens from the diff as from the log view, at the part about the diff, and closing it
-    // is back in the diff
+    // The help opens from the diff as from the log view, at the part about the diff, and closing the
+    // box with its link is back in the diff. The session has no browser, so the link is copied (see
+    // LogViewTest.TestHelpCopiesItsLinkWithNoBrowser).
     [TestMethod]
     [DataRow("?")]
     [DataRow("F1")]
@@ -293,11 +294,11 @@ public class DiffViewTest
         gmd.WaitFor("Added: delta.txt");
 
         gmd.Send(key);
-        var help = gmd.WaitFor("## Diff and Blame");
-        Assert.IsFalse(help.Contains("Gmd Help Guide"), "Scrolled to the section, past the top");
-        gmd.Send("Escape");
+        gmd.WaitFor("copied to the clipboard");
+        StringAssert.EndsWith(gmd.Clipboard(), "/gmd/doc/help.md#diff-and-blame");
+        gmd.Send("Enter");
 
-        StringAssert.Contains(gmd.WaitUntilGone("## Diff and Blame"), "Added: delta.txt", "Back in the diff");
+        StringAssert.Contains(gmd.WaitUntilGone("copied to the clipboard"), "Added: delta.txt", "Back in the diff");
     }
 
     // Any two commits, wherever they are: Mark for Diff on one, and Diff with it in the menu of the

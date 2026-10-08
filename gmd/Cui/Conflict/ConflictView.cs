@@ -30,7 +30,7 @@ class ConflictView : IConflictView
 
     ContentView contentView = null!;
     ContentView resultView = null!;
-    readonly IHelpDlg helpDlg;
+    readonly IHelpPage helpPage;
     UILabel header = null!;
     ConflictFile file = null!;
     ConflictResolution resolution = null!;
@@ -48,11 +48,11 @@ class ConflictView : IConflictView
         IServer server,
         IProgress progress,
         IConflictRowService rowService,
-        IHelpDlg helpDlg,
+        IHelpPage helpPage,
         Config config
     )
     {
-        this.helpDlg = helpDlg;
+        this.helpPage = helpPage;
         this.config = config;
         this.server = server;
         this.progress = progress;
@@ -175,8 +175,8 @@ class ConflictView : IConflictView
         // closed the resolver without asking about the decisions made in it.
         view.RegisterLetterHandler(Key.q, Close);
         // The help, as in every view, at the part about this one
-        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show(HelpDlg.ConflictSection));
-        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show(HelpDlg.ConflictSection));
+        view.RegisterKeyHandler((Key)'?', () => helpPage.ShowAsync(HelpPage.ConflictSection).RunInBackground());
+        view.RegisterKeyHandler(Key.F1, () => helpPage.ShowAsync(HelpPage.ConflictSection).RunInBackground());
         view.RegisterLetterHandler(Key.u, () => Choose(HunkChoice.None));
         view.RegisterLetterHandler(Key.n, () => GotoHunk(1));
         view.RegisterLetterHandler(Key.p, () => GotoHunk(-1));

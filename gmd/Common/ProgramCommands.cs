@@ -66,6 +66,9 @@ class ProgramCommands : IProgramCommands
               -m                  Show main menu even if in working folder
               --help|-h|-?        Show command line help.
 
+            The help on using gmd, which ? opens in gmd:
+              {Project.HelpUrl()}
+
             """;
         Console.WriteLine(msg);
         return 0;

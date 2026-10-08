@@ -43,7 +43,7 @@ class BlameView : IBlameView
 
     record BlameState(string Path, string Reference, int Index, int RowStartX);
 
-    readonly IHelpDlg helpDlg;
+    readonly IHelpPage helpPage;
     readonly Config config;
     KeyHintBar? hintBar;
 
@@ -57,11 +57,11 @@ class BlameView : IBlameView
         IDiffView diffView,
         IClipboardService clipboard,
         Func<ICommitDetailsView> newDetailsView,
-        IHelpDlg helpDlg,
+        IHelpPage helpPage,
         Config config
     )
     {
-        this.helpDlg = helpDlg;
+        this.helpPage = helpPage;
         this.config = config;
         this.blameService = blameService;
         this.server = server;
@@ -160,8 +160,8 @@ class BlameView : IBlameView
         // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
         view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
         // The help, as in every view, at the part about this one
-        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show(HelpDlg.DiffSection));
-        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show(HelpDlg.DiffSection));
+        view.RegisterKeyHandler((Key)'?', () => helpPage.ShowAsync(HelpPage.DiffSection).RunInBackground());
+        view.RegisterKeyHandler(Key.F1, () => helpPage.ShowAsync(HelpPage.DiffSection).RunInBackground());
 
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
