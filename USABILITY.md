@@ -413,11 +413,12 @@ Reach:
   the symbols new since the summer (`⇧`, `✦`, `⌂`, `·`) and the keys and features that depend on the
   system; the rest waits for reports.
 - [ ] 24. **Packages** (D.2): Homebrew, Scoop or winget, AUR, and an Intel Mac build. Needs the
-  author's accounts. M
+  author's accounts. M *Postponed (2026-10-08).*
 
 Waiting for the Terminal.Gui 2.x port:
 
 - [ ] 25. **Light themes, `NO_COLOR` and colors that do not lean on red against green** (B.4). L
+  *Postponed (2026-10-08)*, with the Terminal.Gui 2.x port it waits for.
 
 ---
 
