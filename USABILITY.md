@@ -333,7 +333,9 @@ Both are reworked, see proposal D.1.
    asks for the version, the system and the log, and a Suggestion form, which asks why and how the
    user works with git (`.github/ISSUE_TEMPLATE`); the README links both, and a crash links the
    Problem form. About keeps the issues page, whose New issue offers them.
-4. Captions in the animation, saying which key is pressed.
+4. Captions in the animation, saying which key is pressed. *Done (2026-10-08):* a caption bar
+   under gmd's screen, as a subtitle, saying what each part of the story shows and with which key
+   (`DemoRecording.Caption`); it is in the GIF once `./demo` re-records it.
 5. The inference's agreement with the reflog, measured on public repositories and published.
 
 ### Implementation steps
@@ -397,7 +399,7 @@ Bigger features:
 Reach:
 
 - [x] 20. **Issue templates** (D.3), linked from the README. S
-- [ ] 21. **Captions in the animation** (D.4). S
+- [x] 21. **Captions in the animation** (D.4). S
 - [ ] 22. **The inference measured** (D.5) on public repositories of each workflow, and the numbers
   in the README. M
 - [ ] 23. **The terminals people have** (part 5): 80 columns, Windows Terminal, fonts with no `✦`,
