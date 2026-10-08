@@ -12,7 +12,7 @@ class Program
     // release commit it makes (see .github/workflows/build-and-release.yml), and finds it with sed,
     // so keep it written as 'public const int MinorVersion = <n>;'.
     public const int MajorVersion = 0;
-    public const int MinorVersion = 96;
+    public const int MinorVersion = 97;
 
     static readonly DependencyInjection dependencyInjection = new DependencyInjection();
     readonly IMainView mainView;
