@@ -113,3 +113,34 @@ For the other questions, change the stand-in's question: the four lines of ssh's
 and password are asked for over https: an https `origin` that needs a login, e.g. a private
 repository on GitHub, with the credential helpers turned off for the repository
 (`git config credential.helper ""`), asks for both, the password being a token on GitHub.
+
+## Checking a platform by hand
+
+The end-to-end tests run gmd in tmux on Linux, so what only another platform or terminal shows is
+checked by hand. Most of the drawing (the graph, `Ϙ`, `ß`, `©`, `◙`, `□`, `┅`, the arrows) was checked
+on every platform before the summer of 2026; this list is what has come since, or never was. Note
+for each what you see, OK or a screenshot.
+
+Symbols that may be missing from a font, shown as a box or a `?` when they are:
+
+1. `⇧`, for Shift: the key-hint line at the bottom (`⇧→ show branch`), any menu (`m`: Copy Commit
+   Message `⇧i`), and the status line after a key that cannot act.
+2. `✦`: the top bar, on opening a repository with branches that are hidden (`✦2`).
+3. `⌂`: the log, beside a branch checked out in another worktree (`git worktree add ../wt -b wt`,
+   then show `wt` with `Shift-→`).
+4. `·`: the top bar while a merge or rebase is stopped on a conflict (`Merging 'dev' · 1 conflict`).
+
+Keys and features that depend on the terminal or the system:
+
+5. The commit dialog (`c`): `Tab` into the file list, `Space` unticks a file, `a` all, and `Alt-O`
+   commits. On macOS, Alt keys need *Use Option as Meta key* (Terminal) or *Esc+* for the Option key
+   (iTerm2); without it `Alt-O` types `ø`.
+6. `Shift-→` opens Show Branch, and `Shift-↑` / `Shift-↓` select rows in the log.
+7. `i` copies the commit id and `Shift-I` its message: paste them somewhere else.
+8. In a repository on GitHub, the commit menu's Open Commit in Browser opens it in the browser.
+9. With an ssh key that has a passphrase and is not in the ssh agent, a push or `r` asks for the
+   passphrase in a dialog (the Windows side is untried: gmd.exe as ssh's askpass, and a named pipe).
+10. `?` opens the help; `m` in it lists the sections, and `]` and `[` step through them.
+11. A terminal of 80 by 24: the log, the commit dialog and the menus are whole on the screen.
+
+What this list does not cover waits for reports.

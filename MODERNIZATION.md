@@ -371,7 +371,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `<repo>/.git/.gmdconfig` goes through the same store, so the same holds for a repo opened twice.
   Re-read the file before writing, or merge the lists.
 - The clipboard on Windows (Win32, then `clip.exe`) and macOS (`pbcopy`) is not verified on
-  hardware. Linux with no display is covered end to end; the tool path was checked with a stand-in
+  hardware (the platform checklist in `CONTRIBUTING.md` has it, with the rest that only Windows and
+  macOS show). Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
 - Squash still resets the branch and cherry-picks the newer commits back one by one
   (`AugmentedService.SquashCommits`), so a conflict stops it half done: the branch already reset, a

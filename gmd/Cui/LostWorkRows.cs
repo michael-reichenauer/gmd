@@ -19,8 +19,9 @@ static class LostWorkRows
     const int LostByWidth = 10;
     const int FixedWidth = TimeWidth + BranchWidth + CommitsWidth + LostByWidth;
 
-    // Narrower than this and the subject column has no room to say anything
-    public const int MinWidth = FixedWidth + 20;
+    // Narrower than this and the subject column has no room to say anything. The dialog is six wider,
+    // and fits an 80 column terminal, the classic size.
+    public const int MinWidth = FixedWidth + 15;
 
     public static Text Header(int width) =>
         Text.Dark("Time".Max(TimeWidth, true))
