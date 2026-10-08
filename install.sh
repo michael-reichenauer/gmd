@@ -38,12 +38,37 @@ case "$OS" in
     ;;
 esac
 
+URL="https://github.com/michael-reichenauer/gmd/releases/latest/download"
+
+# Downloaded beside gmd and moved over it once checked, so a gmd that is running is replaced
+# rather than written into, which Linux refuses ("Text file busy")
 echo "Downloading gmd ($ASSET) for $OS/$ARCH ..."
-if ! curl -fsS -L --create-dirs -o ~/gmd/gmd "https://github.com/michael-reichenauer/gmd/releases/latest/download/$ASSET"; then
+mkdir -p ~/gmd
+if ! curl -fsS -L -o ~/gmd/gmd.download "$URL/$ASSET"; then
   echo "Failed to download $ASSET"
+  rm -f ~/gmd/gmd.download
   exit 1
 fi
-chmod +x ~/gmd/gmd
+
+# Every release from this script on has the checksums of its files, the older ones have none
+if SUMS="$(curl -fsS -L "$URL/SHA256SUMS" 2>/dev/null)"; then
+  EXPECTED="$(echo "$SUMS" | awk -v f="$ASSET" '$2 == f { print $1 }')"
+  if command -v sha256sum >/dev/null; then
+    ACTUAL="$(sha256sum ~/gmd/gmd.download | awk '{ print $1 }')"
+  else
+    ACTUAL="$(shasum -a 256 ~/gmd/gmd.download | awk '{ print $1 }')"
+  fi
+  if [ -z "$EXPECTED" ] || [ "$EXPECTED" != "$ACTUAL" ]; then
+    echo "The download of $ASSET does not match its checksum in SHA256SUMS"
+    rm -f ~/gmd/gmd.download
+    exit 1
+  fi
+  echo "Checksum verified"
+else
+  echo "This release has no SHA256SUMS, so the download was not verified"
+fi
+chmod +x ~/gmd/gmd.download
+mv -f ~/gmd/gmd.download ~/gmd/gmd
 
 for PROFILE_FILE in "${PROFILE_FILES[@]}"; do
   if [ -f "$PROFILE_FILE" ] && grep -q 'export PATH=$PATH:~/gmd' "$PROFILE_FILE"; then

@@ -122,7 +122,7 @@ Key types and flow:
   Merge-commit subjects are parsed by `BranchNameService` to recover branch names git has
   forgotten. Treat all of this as high-risk: change it only with tests, and preserve the
   pipeline comments. The bar these files are held to is a before/after comparison over a real
-  repo's history, not just a green suite — see the findings in `MODERNIZATION.md`.
+  repo's history, not just a green suite — see the findings in `docs/MODERNIZATION.md`.
   `InferenceDumpTest` makes that comparison: it writes what the inference decided for every commit
   of a repo (branch, the rule that decided it, ambiguity), plus how often it agrees with the reflog,
   and two dumps are compared with `diff`. Dump a frozen copy (a copied `.git` keeps the reflog):
@@ -329,7 +329,7 @@ Things to know:
   as a success.
 - The attribute the compiler recognizes the union by is polyfilled in `gmd/Utils/UnionPolyfill.cs`
   while the target framework is net10.0; the C# 15 compiler comes from the .NET 11 SDK pinned in
-  `global.json` (MODERNIZATION.md has the GA step).
+  `global.json` (docs/MODERNIZATION.md has the GA step).
 
 ### Formatting: CSharpier owns it
 
@@ -408,7 +408,7 @@ Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMe
 MSTest 4.x + coverlet in `gmdTest/`, mirroring the `gmd/` folder layout — put a test at the path
 mirroring its subject, e.g. `gmdTest/Server/Private/Augmented/Private/AugmenterTest.cs`. Tests that
 need a real repository use `TempRepo`; **never** run git against this working tree. Growing this
-suite is an explicit goal — see the open issues in `MODERNIZATION.md`.
+suite is an explicit goal — see the open issues in `docs/MODERNIZATION.md`.
 
 The one exception to that layout is the end-to-end tier, which is a project of its own,
 `gmdE2eTest/`, so that it can run in parallel (see `TmuxSession` below). It compiles the fixtures it
@@ -651,7 +651,7 @@ Other things to know:
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
-  terminal — not adopted by the suite yet; see the headless-drawing note in `MODERNIZATION.md` first.
+  terminal — not adopted by the suite yet; see the headless-drawing note in `docs/MODERNIZATION.md` first.
 - `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.
   `LogServiceTest` and `TimeDateExtensionsTest` change `CultureInfo.DefaultThreadCurrentCulture`, and
   `GitIntegrationTest` sets `GIT_EDITOR`. MSTest sets parallelism per assembly (`[Parallelize]` has no
@@ -713,9 +713,14 @@ message.
 - **`gmdSetup.exe` is a prebuilt binary committed to the repo**
   (`gmd/Installation/installer/`). Neither `./build` nor CI builds the Inno Setup installer;
   CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
-- **The `gmd_linux` release asset is a duplicate of `gmd_linux_x64`** kept under the original
-  name because the built-in updater falls back to it (`gmd/Installation/Updater.cs`). Do not
-  drop it from the release workflow.
+- **The `gmd_linux` and `gmd_windows` release assets are duplicates** of `gmd_linux_x64` and
+  `gmd.exe`, kept under the original names because the built-in updater falls back to the first and
+  updates Windows from the second (`gmd/Installation/Updater.cs`), as the committed installer does
+  (`Setup/gmd.iss`). Do not drop them from the release workflow. `gmd.exe` is the one the README
+  offers, since it runs as it is named. The release notes are written by the workflow
+  (`Write release notes`): main's are its section of `CHANGELOG.md`, a preview's what is new on dev.
+  Only the latest five previews are kept (`Prune old previews`), with their tags, except a tag on
+  main's first-parent line, since the change log is made from the version tags there.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
 - `.git-blame-ignore-revs` lists the bulk reformat commits; `./installtools` points
@@ -725,10 +730,10 @@ message.
 
 ## Working agreements
 
-- **`MODERNIZATION.md` holds the open issues and the findings** from the modernization work: what
+- **`docs/MODERNIZATION.md` holds the open issues and the findings** from the modernization work: what
   is deferred and why, what is known to be wrong, and the git and Terminal.Gui traps met on the way.
   Read it before starting anything substantial, and add to it (or close items) as work lands.
-- **`USABILITY.md` is the usability review**: the findings by principle (safety, discoverability,
+- **`docs/USABILITY.md` is the usability review**: the findings by principle (safety, discoverability,
   consistency, feedback, workflow fit) and the ranked proposals. Check a new command or key against
   it — above all, that a slip of the finger cannot push, pull or lose work.
 - Modernizing this codebase, fixing bugs, adding tests and improving maintainability is the

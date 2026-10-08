@@ -95,7 +95,7 @@ dotnet_code_quality_unused_parameters = non_public:silent
 # Collection expressions ('[]' instead of 'new List<T>()' / 'new string[0]'). Preferred going
 # forward. Most of the codebase predates C# 12 and still uses the old form, so these are
 # suggestions rather than warnings: new and touched code adopts '[]', the rest migrates
-# gradually. See the collection expression step in MODERNIZATION.md.
+# gradually. See the collection expression step in docs/MODERNIZATION.md.
 dotnet_style_prefer_collection_expression = true:suggestion
 dotnet_diagnostic.IDE0028.severity = suggestion
 dotnet_diagnostic.IDE0300.severity = suggestion
