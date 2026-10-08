@@ -1,7 +1,11 @@
 # Change Log for Gmd
 --------------------
 
-139 releases:
+140 releases:
+
+## [v1.1.1439.1092] - 2026-10-08
+- Improve show update available symbol in the bar when a release is found after startup
+- Name the row's commit on the key-hint line rather than in the top bar
 
 ## [v1.0.1439.952] - 2026-10-08
 - Bump the nuget group with 2 updates
