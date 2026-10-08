@@ -4,9 +4,9 @@ using gmdE2eTest.Fixtures;
 
 namespace gmdE2eTest.Demo;
 
-// The scripted session the demo animation is made from, see ./demo. It is written like any other
+// The scripted session the demo animation is made from, see scripts/demo. It is written like any other
 // end-to-end test, since it drives gmd the same way and needs the same care (never send a key into
-// a screen that has not settled), but it asserts nothing and is only recorded when ./demo asks for
+// a screen that has not settled), but it asserts nothing and is only recorded when scripts/demo asks for
 // it, by naming the cast file to write. In any other run it is skipped.
 //
 // The story: a repository where only your own branch and main are shown, two other branches
@@ -27,7 +27,7 @@ public class DemoTest
     public async Task RecordDemo()
     {
         if (CastPath == "")
-            Assert.Inconclusive("The demo is only recorded by ./demo");
+            Assert.Inconclusive("The demo is only recorded by scripts/demo");
 
         using var repo = await DemoRepo.CreateAsync();
 

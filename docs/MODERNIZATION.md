@@ -19,7 +19,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - CSharpier is the single formatter: on save, on build and in CI. `.editorconfig` holds
   only naming and non-layout rules. `.git-blame-ignore-revs` hides the bulk reformat from blame.
 - CI runs on every branch: a fast test job for feature branches and pull requests, the full
-  multi-platform build and release for `main`/`dev`. `./build` now fails when a publish fails, and
+  multi-platform build and release for `main`/`dev`. `scripts/build` now fails when a publish fails, and
   `build.bat` mirrors it.
 
 **Tests: from 2 to about 900**
@@ -33,7 +33,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   views (hoover, scrolling, selection, menus, blame and conflict math); the diff body; the log row
   writer; the commit filter; the menu predicates; and about 65 end-to-end tests over the log view,
   menus, dialogs, diff, blame, the conflict resolver and every repo-mutating key.
-- The test process and every gmd it starts run under a throwaway `$HOME`, so `./test` no longer
+- The test process and every gmd it starts run under a throwaway `$HOME`, so `scripts/test` no longer
   truncates the developer's `~/gmd.log`, rewrites their config or overwrites their clipboard.
 
 **Structure**
@@ -149,7 +149,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   the conflict; `commit -a` committed markers into history. Both are now guarded on any operation.
   The diff has since stopped touching the index at all: it stages into a copy (`GIT_INDEX_FILE`),
   since its `git add .` then `git reset` also wiped whatever the user had staged with other tools.
-- `Continue Rebase`, and `./test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
+- `Continue Rebase`, and `scripts/test`, hung for anyone with `GIT_EDITOR` set. `Cmd.NeverOpenAnEditor`.
 - A repo change within half a second of a read was taken as seen by it, so a `git fetch` in another
   terminal landing just after gmd read stayed unseen until something else changed; one made while a
   read ran, or while the search was up, was dropped outright. The log view now skips only a change
@@ -469,10 +469,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both
   `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
   `*RowService`; `[SingleInstance]` is matched by the attribute's name string and `FileStore` uses
-  `Activator.CreateInstance`; the vulnerability grep in `./build` never fails the build, `run.bat`
-  drops its arguments, `log.bat` hard-codes one user's home, `installtools` sets `safe.directory`
-  to `/workspaces/gmd`, `updatepackages` expands an undefined `$projectFile`, `gmd_linux` and
-  `gmd_osx` are missing from `.gitignore`.
+  `Activator.CreateInstance`; the vulnerability grep in `scripts/build` never fails the build,
+  `scripts/log.bat` hard-codes one user's home, `scripts/installtools` sets `safe.directory` to
+  `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`, `gmd_linux` and
+  `gmd_osx` are missing from `.gitignore`. (`run.bat` dropping its arguments was fixed when the
+  scripts moved into `scripts/`.)
 - B, build and CI: grow `Directory.Build.props` to the shared properties (`TargetFramework`,
   `Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`) and add
   `Directory.Packages.props`, since warnings never fail a build today and the `warning`-severity
@@ -588,7 +589,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   times, in an E2e rerun and in a full rerun. Recorded so nobody hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
-- The end-to-end tests were about four of `./test`'s four and a half minutes, nearly all waiting:
+- The end-to-end tests were about four of `scripts/test`'s four and a half minutes, nearly all waiting:
   every wait needs four identical captures 100 ms apart, so it costs at least about 330 ms after the
   screen is already right, and an idle gmd uses about 6 ms of CPU a second. So they run eight at a
   time, in a project of their own since MSTest sets parallelism per assembly: about 30 s, bounded

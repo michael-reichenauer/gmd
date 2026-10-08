@@ -11,7 +11,7 @@ namespace gmdTest.Git;
 // drift, since nothing here is canned. They are deliberately few and small, one per round trip.
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
-// wanted:  ./test --filter "TestCategory!=Integration"
+// wanted:  scripts/test --filter "TestCategory!=Integration"
 [TestClass]
 [TestCategory("Integration")]
 public class GitIntegrationTest

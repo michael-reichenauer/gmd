@@ -523,6 +523,8 @@ sealed class TmuxSession : IDisposable
             Assert.Inconclusive("The end-to-end UI tests drive the app through tmux, which is Unix only");
 
         if (!Proc.CanRun("tmux", "-V"))
-            Assert.Fail("tmux is not installed, run ./installtools (the end-to-end UI tests drive the TUI in it)");
+            Assert.Fail(
+                "tmux is not installed, run scripts/installtools (the end-to-end UI tests drive the TUI in it)"
+            );
     }
 }

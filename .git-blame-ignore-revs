@@ -1,6 +1,6 @@
 # Commits to ignore in `git blame` — bulk reformatting with no behavior change.
 #
-# Enable locally with (also done by './installtools'):
+# Enable locally with (also done by 'scripts/installtools'):
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
 #
 # GitHub honors this file automatically.

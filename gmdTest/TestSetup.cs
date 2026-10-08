@@ -7,8 +7,8 @@ namespace gmdTest;
 //
 // Without it, running the suite destroyed the developer's runtime log. Any test that runs a git
 // command goes through gmd.Utils.Cmd, which logs, and ConfigLogger's static constructor
-// TRUNCATES ~/gmd.log the first time anything in the process logs at all. So './test' wiped the
-// log that './log' exists to read, which is exactly when a developer is most likely to be
+// TRUNCATES ~/gmd.log the first time anything in the process logs at all. So 'scripts/test' wiped the
+// log that 'scripts/log' exists to read, which is exactly when a developer is most likely to be
 // reading it. The same redirect also covers ~/.gmdconfig and ~/.gmdstate*, should a test ever
 // reach the services that write those.
 //

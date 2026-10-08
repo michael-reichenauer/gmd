@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Runs at the repository root, wherever it is started from
+cd "$(dirname "$0")/.." || exit 1
 
 DOTNET="net10.0"
 
@@ -45,8 +47,8 @@ if test -f "gmd_osx_arm64"; then
 fi
 echo ""
 echo Run tests ...
-# '-tl:false': the .NET 10 SDK terminal logger hides the console test logger output (see './test')
-# Both test projects, see ./test
+# '-tl:false': the .NET 10 SDK terminal logger hides the console test logger output (see scripts/test)
+# Both test projects, see scripts/test
 dotnet test gmd.sln -tl:false -v quiet --nologo -l:"console;verbosity=normal"
 if [ $? -ne 0 ]; then
   echo "Error: Tests failed"

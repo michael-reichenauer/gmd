@@ -1,12 +1,15 @@
 @echo off&setlocal
 
-rem Windows counterpart of the './build' script. Kept in sync with './build':
+rem Windows counterpart of the 'scripts/build' script. Kept in sync with it:
 rem same steps, same artifact names. Linux/macOS are the primary targets; this
 rem script exists mainly for debugging Windows-specific behavior on Windows.
 rem
 rem Usage:
-rem   build.bat        Test and build all platforms
-rem   build.bat -w     Test and build Windows only (fast path for local debugging)
+rem   scripts\build.bat        Test and build all platforms
+rem   scripts\build.bat -w     Test and build Windows only (fast path for local debugging)
+
+rem Runs at the repository root, wherever it is started from (setlocal restores the folder at the end)
+cd /d "%~dp0.."
 
 set DOTNET=net10.0
 
@@ -28,8 +31,8 @@ for %%F in (gmd.exe gmd_linux gmd_linux_x64 gmd_linux_arm64 gmd_osx gmd_osx_arm6
 
 echo.
 echo Run tests ...
-rem '-tl:false': the .NET 10 SDK terminal logger hides the console test logger output (see './test')
-rem Both test projects, see ./test
+rem '-tl:false': the .NET 10 SDK terminal logger hides the console test logger output (see scripts/test)
+rem Both test projects, see scripts/test
 dotnet test gmd.sln -tl:false -v quiet --nologo -l:"console;verbosity=normal"
 if errorlevel 1 (
     echo Error: Tests failed

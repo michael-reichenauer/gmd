@@ -15,14 +15,14 @@ grep -rn "net10.0\|10.0.x\|dotnet:10\|--channel 11\|LangVersion\|11.0.100" \
 1. `global.json`: set `sdk.version` to the GA version (`11.0.100`), keep `rollForward:
    latestFeature`, drop `allowPrerelease`.
 2. `Directory.Build.props`: `LangVersion` from `preview` to `15`, and shorten its comment.
-3. `installtools` and `.devcontainer/devcontainer.json`: drop `--quality preview` from the
+3. `scripts/installtools` and `.devcontainer/devcontainer.json`: drop `--quality preview` from the
    `dotnet-install.sh` line, so the GA SDK is installed beside the image's .NET 10.
-4. In the container: run that install line once by hand (or `./installtools`), then check
+4. In the container: run that install line once by hand (or `scripts/installtools`), then check
    `dotnet --version` prints the GA version from `global.json`.
 5. CI (`.github/workflows/build-and-release.yml`) needs no change: `global-json-file` picks the
    new pin, and the `dotnet-version: '10.0.x'` line keeps the .NET 10 runtime the tests run on.
 6. Update VS Code's C# extension; its bundled Roslyn must know unions or it flags every pattern.
-7. Verify: `dotnet build gmd.sln`, `dotnet csharpier check .`, `./test` (all tiers), and a smoke
+7. Verify: `dotnet build gmd.sln`, `dotnet csharpier check .`, `scripts/test` (all tiers), and a smoke
    run of the built binary as CLAUDE.md describes. Then close the "at .NET 11 GA" item in
    MODERNIZATION.md.
 
@@ -35,16 +35,16 @@ polyfill in `gmd/Utils/UnionPolyfill.cs` stays and is harmless.
 Moving to net11.0, when wanted (or when net10.0 leaves support):
 
 1. `TargetFramework` in `gmd/gmd.csproj`, `gmdTest/gmdTest.csproj` and `gmdE2eTest/gmdE2eTest.csproj`;
-   `DOTNET` in `./build` and `build.bat`; the `gmd/bin/Debug/net10.0/gmd` path in CLAUDE.md.
+   `DOTNET` in `scripts/build` and `scripts/build.bat`; the `gmd/bin/Debug/net10.0/gmd` path in CLAUDE.md.
 2. Delete `gmd/Utils/UnionPolyfill.cs` (its `#if !NET11_0_OR_GREATER` already compiles it out) and
    the explicit `LangVersion` in `Directory.Build.props`, since C# 15 is the default for net11.0.
 3. CI: remove the `dotnet-version: '10.0.x'` lines and their comment; the SDK from `global.json`
    carries the .NET 11 runtime.
 4. Devcontainer: image `mcr.microsoft.com/devcontainers/dotnet:11.0`, and remove the
-   `dotnet-install.sh` step from `postCreateCommand` and `./installtools`.
+   `dotnet-install.sh` step from `postCreateCommand` and `scripts/installtools`.
 5. Check the release notes of Terminal.Gui, Autofac, DiffPlex and WeCantSpell.Hunspell for the new
-   target; `./updatepackages` lists what is behind.
-6. Verify as in step 1.7, plus `./build -l`, since the publish settings are per target.
+   target; `scripts/updatepackages` lists what is behind.
+6. Verify as in step 1.7, plus `scripts/build -l`, since the publish settings are per target.
 
 ## 3. Optional, when the tooling catches up
 

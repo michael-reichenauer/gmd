@@ -19,7 +19,7 @@ proposals for improving it.
 ## Setting up
 
 The easiest way is the devcontainer, locally in VS Code with Docker or in GitHub Codespaces. It
-installs both .NET SDKs, and `./installtools` then adds the tools that the scripts and the
+installs both .NET SDKs, and `scripts/installtools` then adds the tools that the scripts and the
 end-to-end tests use (tmux, lnav, agg).
 
 To set up a machine yourself you need:
@@ -32,20 +32,23 @@ To set up a machine yourself you need:
 
 ## Scripts
 
-| Script             | What it does                                                               |
-| ------------------ | -------------------------------------------------------------------------- |
-| `./run [args]`     | Run gmd from source                                                        |
-| `./test`           | Run all tests (about a minute and a half); `--filter "TestCategory!=Integration"` runs only the fast ones (a few seconds) |
-| `./build`          | Run the tests, audit the packages and publish the executables for every platform |
-| `./build -l`       | The same, but publish only for Linux (x64 and arm64), which is much faster |
-| `./log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
-| `./updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
-| `./installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
-| `./demo`           | Re-record the README's animation, by running a scripted session in tmux    |
+They are in `scripts/`, and each runs at the repository root wherever it is started from.
 
-On Windows, `run.bat`, `build.bat` (`-w` builds Windows only) and `log.bat` do the same.
+| Script                   | What it does                                                               |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `scripts/run [args]`     | Run gmd from source, on this repository (`-d <folder>` opens another)      |
+| `scripts/test`           | Run all tests (about a minute and a half); `--filter "TestCategory!=Integration"` runs only the fast ones (a few seconds) |
+| `scripts/build`          | Run the tests, audit the packages and publish the executables for every platform |
+| `scripts/build -l`       | The same, but publish only for Linux (x64 and arm64), which is much faster |
+| `scripts/log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
+| `scripts/updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
+| `scripts/installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
+| `scripts/demo`           | Re-record the README's animation, by running a scripted session in tmux    |
 
-`./build` publishes each platform as a self-contained, single-file executable, for example:
+On Windows, `scripts\run.bat`, `scripts\build.bat` (`-w` builds Windows only) and `scripts\log.bat`
+do the same.
+
+`scripts/build` publishes each platform as a self-contained, single-file executable, for example:
 
 ```bash
 dotnet publish gmd/gmd.csproj -c Release -r linux-x64 -p:PublishReadyToRun=true --self-contained true -p:PublishSingleFile=true
@@ -104,7 +107,7 @@ git commit -q --allow-empty -m "Second"
 ```
 
 Then run gmd there with no askpass of its own in the way, e.g. from the gmd folder
-`env -u SSH_ASKPASS -u GIT_ASKPASS ./run -d /tmp/gmd-login/repo`:
+`env -u SSH_ASKPASS -u GIT_ASKPASS scripts/run -d /tmp/gmd-login/repo`:
 
 - On opening, the fetch in the background asks nothing; the status line says `r` would.
 - `r` fetches and asks: `secret` is the passphrase, anything else is refused, and `Esc` cancels.

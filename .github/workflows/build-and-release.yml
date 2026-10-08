@@ -50,19 +50,19 @@ jobs:
       - name: Ensure tmux (end-to-end UI tests)
         run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
 
-      # Must run before './build': a Debug build (dotnet test) auto-formats sources via
+      # Must run before 'scripts/build': a Debug build (dotnet test) auto-formats sources via
       # CSharpier.MsBuild, which would hide unformatted code from the Release check.
       - name: Check formatting
         run: |
           dotnet tool restore
           dotnet csharpier check .
 
-      # './build -l' runs the tests first and then publishes linux-x64 and linux-arm64 only,
+      # 'scripts/build -l' runs the tests first and then publishes linux-x64 and linux-arm64 only,
       # so a Release publish is still exercised, just not for all four platforms. The
       # 'BUILD_TIME'/'BUILD_SHA' placeholders in gmd/Build.cs are deliberately left as they
       # are, since nothing is released from here and the tests hold either way.
       - name: Test and build (linux only)
-        run: ./build -l
+        run: scripts/build -l
 
   # Push to main/dev, which publishes a release, plus a manual run from the Actions tab on any
   # branch, which is the way to check the windows and macOS packaging without merging. A manual
@@ -103,7 +103,7 @@ jobs:
       - name: Ensure tmux (end-to-end UI tests)
         run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
 
-      # Must run before './build': a Debug build (dotnet test) auto-formats sources via
+      # Must run before 'scripts/build': a Debug build (dotnet test) auto-formats sources via
       # CSharpier.MsBuild, which would hide unformatted code from the Release check.
       - name: Check formatting
         run: |
@@ -170,7 +170,7 @@ jobs:
         id: build
         run: |
           echo Build on branch: ${{ github.ref }}
-          ./build
+          scripts/build
           VERSION="$(./gmd_linux_x64 --version)"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo Version: $VERSION

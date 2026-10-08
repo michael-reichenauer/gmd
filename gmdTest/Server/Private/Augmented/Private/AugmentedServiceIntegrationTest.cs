@@ -11,7 +11,7 @@ namespace gmdTest.Server.Private.Augmented.Private;
 // RepoBuilder, so this is the one place where real git output reaches the augmenter.
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
-// wanted:  ./test --filter "TestCategory!=Integration"
+// wanted:  scripts/test --filter "TestCategory!=Integration"
 [TestClass]
 [TestCategory("Integration")]
 public class AugmentedServiceIntegrationTest
