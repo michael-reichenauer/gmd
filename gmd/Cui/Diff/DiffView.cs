@@ -42,7 +42,7 @@ class DiffView : IDiffView
     // The context lines of each file that is not at the default, keyed on path. Only the file the
     // cursor is on is ever stepped, so the others keep whatever they were last shown with.
     readonly Dictionary<string, int> fileContext = [];
-    readonly IHelpDlg helpDlg;
+    readonly IHelpPage helpPage;
     int rowStartX = 0;
     string commitId = "";
     string repoPath = "";
@@ -63,11 +63,11 @@ class DiffView : IDiffView
         IServer server,
         IClipboardService clipboard,
         IConflictView conflictView,
-        IHelpDlg helpDlg,
+        IHelpPage helpPage,
         Config config
     )
     {
-        this.helpDlg = helpDlg;
+        this.helpPage = helpPage;
         this.config = config;
         this.diffService = diffService;
         this.progress = progress;
@@ -154,8 +154,8 @@ class DiffView : IDiffView
 
         view.RegisterLetterHandler(Key.r, () => RefreshDiff());
         // The help, as in every view, at the part about this one
-        view.RegisterKeyHandler((Key)'?', () => helpDlg.Show(HelpDlg.DiffSection));
-        view.RegisterKeyHandler(Key.F1, () => helpDlg.Show(HelpDlg.DiffSection));
+        view.RegisterKeyHandler((Key)'?', () => helpPage.ShowAsync(HelpPage.DiffSection).RunInBackground());
+        view.RegisterKeyHandler(Key.F1, () => helpPage.ShowAsync(HelpPage.DiffSection).RunInBackground());
         view.RegisterLetterHandler(Key.s, () => ShowScrollMenu());
         view.RegisterLetterHandler(Key.u, () => ShowUndoMenu());
         view.RegisterLetterHandler(Key.c, () => TriggerCommit());

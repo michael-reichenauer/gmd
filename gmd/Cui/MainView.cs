@@ -22,7 +22,7 @@ partial class MainView : IMainView
     readonly Config config;
     readonly ICloneDlg cloneDlg;
     readonly IInitRepoDlg initRepoDlg;
-    readonly IHelpDlg helpDlg;
+    readonly IHelpPage helpPage;
     readonly IServer server;
     readonly IProgress progress;
     readonly IAboutDlg aboutDlg;
@@ -38,7 +38,7 @@ partial class MainView : IMainView
         Config config,
         ICloneDlg cloneDlg,
         IInitRepoDlg initRepoDlg,
-        IHelpDlg helpDlg,
+        IHelpPage helpPage,
         IServer server,
         IProgress progress,
         IAboutDlg aboutDlg,
@@ -56,7 +56,7 @@ partial class MainView : IMainView
         this.config = config;
         this.cloneDlg = cloneDlg;
         this.initRepoDlg = initRepoDlg;
-        this.helpDlg = helpDlg;
+        this.helpPage = helpPage;
         this.server = server;
         this.progress = progress;
         this.aboutDlg = aboutDlg;
@@ -188,7 +188,7 @@ partial class MainView : IMainView
                 .Item("Browse ...", "", () => ShowBrowseDialog())
                 .Item("Clone ...", "", () => ShowCloneDlg())
                 .Item("Init ...", "", () => ShowInitRepoDlg())
-                .Item("Help", "", () => ShowHelp())
+                .Item("Help", "", () => ShowHelpAsync().RunInBackground())
                 .Item("About", "", () => ShowAbout())
                 .Item("Quit", "Esc ", () => Application.RequestStop())
         );
@@ -259,9 +259,10 @@ partial class MainView : IMainView
         ShowMainMenu();
     }
 
-    private void ShowHelp()
+    // The menu again once the help is opened, or once the box with its link is closed
+    private async Task ShowHelpAsync()
     {
-        helpDlg.Show();
+        await helpPage.ShowAsync();
         ShowMainMenu();
     }
 

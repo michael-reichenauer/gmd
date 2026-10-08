@@ -741,6 +741,7 @@ message.
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
   once `./test` passes, so that the git log and its diffs are the review. Push only when asked.
-- When behavior visible to users changes, check whether `gmd/doc/help.md` (embedded into the
-  binary as a resource) needs updating too, and the known limits under *Is Gmd for You?* in the
-  README when one of them is lifted. The development half of the old README is `CONTRIBUTING.md`.
+- When behavior visible to users changes, check whether `gmd/doc/help.md` (which `?` opens on
+  GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/HelpPage.cs`) needs updating
+  too, and the known limits under *Is Gmd for You?* in the README when one of them is lifted. The
+  development half of the old README is `CONTRIBUTING.md`.

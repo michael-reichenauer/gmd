@@ -228,7 +228,7 @@ Your first five minutes:
 2. `Shift-→` and type part of a branch's name to show it. `Backspace` takes it back.
 3. `←` and `→` highlight a branch, and `m` opens its menu, which has every command and its key.
 4. `d` shows the diff of a commit, `c` commits and `p` pushes.
-5. `?` opens the help, which starts with how to read the screen.
+5. `?` opens the help in the browser, starting with how to read the screen.
 
 A few keys to start with:
 
@@ -244,8 +244,9 @@ A few keys to start with:
 | `q`       | Quit                                                      |
 
 The line at the bottom of the screen shows the keys that do something where the cursor is, and
-changes as it moves. The [help guide](gmd/doc/help.md) covers the rest, and gmd shows the same guide
-when you press `?`.
+changes as it moves. The [help guide](gmd/doc/help.md) covers the rest, and `?` in gmd opens it, the
+version of it that goes with the gmd you run. Where there is no browser to open, e.g. over ssh,
+gmd copies the link instead.
 
 ## Installation
 
