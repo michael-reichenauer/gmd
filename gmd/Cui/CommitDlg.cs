@@ -93,7 +93,10 @@ class CommitDlg : ICommitDlg
         var title = isAmend ? "Amend" : "Commit";
         if (files?.Files.Count == 0)
             files = null;
-        var fileRows = files == null ? 0 : Math.Min(files.Files.Count, MaxFileRows);
+        // Fewer on a small terminal, where the list scrolls, so that the dialog, its buttons too, fits
+        // on the screen: 20 rows are the rest of the dialog, and a 24 row terminal leaves 4 for files
+        var maxFileRows = Math.Clamp(Application.Driver.Rows - 20, 1, MaxFileRows);
+        var fileRows = files == null ? 0 : Math.Min(files.Files.Count, maxFileRows);
         var listHeight = files == null ? 0 : fileRows + 2;
         Text HeadingText() =>
             older == null

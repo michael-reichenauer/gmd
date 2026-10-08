@@ -406,8 +406,12 @@ Reach:
   it; see `MODERNIZATION.md` (deferred).* **The inference measured** (D.5) on public repositories of
   each workflow, and the numbers
   in the README. M
-- [ ] 23. **The terminals people have** (part 5): 80 columns, Windows Terminal, fonts with no `✦`,
-  `Ϙ` or `ß`. M
+- [x] 23. **The terminals people have** (part 5): 80 columns, Windows Terminal, fonts with no `✦`,
+  `Ϙ` or `ß`. M *Done (2026-10-08), as far as it can be from Linux:* 80 by 24 is usable, end to end
+  tested (`SmallTerminalTest`), after the commit dialog's file list and the Recover Lost Commits
+  list were made to fit. What only Windows and macOS show is a checklist in `CONTRIBUTING.md`, for
+  the symbols new since the summer (`⇧`, `✦`, `⌂`, `·`) and the keys and features that depend on the
+  system; the rest waits for reports.
 - [ ] 24. **Packages** (D.2): Homebrew, Scoop or winget, AUR, and an Intel Mac build. Needs the
   author's accounts. M
 
