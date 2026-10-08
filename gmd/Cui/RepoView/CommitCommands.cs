@@ -27,6 +27,7 @@ interface ICommitCommands
 
     void Stash();
     void StashPop(string name);
+    void StashApply(string name);
     void StashDiff(string name);
     void StashDrop(string name);
 
@@ -370,6 +371,22 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
+            return Result.Ok;
+        });
+
+    // As Stash Pop, and keeps the stash, which is said, since nothing else shows it
+    public void StashApply(string name) =>
+        Do(async () =>
+        {
+            if (!repo.Repo.Status.IsOk)
+                return new Notice(Why.Changes);
+
+            if (await server.StashApplyAsync(name, repo.Path) is Error e)
+                return new Error($"Failed to apply stash {name}", e);
+
+            Refresh();
+            var message = repo.Repo.Stashes.FirstOrDefault(s => s.Name == name)?.Message ?? name;
+            status.Info($"Applied '{message}' and kept the stash: Stash Drop removes it");
             return Result.Ok;
         });
 

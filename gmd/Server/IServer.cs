@@ -49,6 +49,7 @@ interface IServer
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> StashAsync(string message, string wd);
     Task<Result> StashPopAsync(string name, string wd);
+    Task<Result> StashApplyAsync(string name, string wd);
 
     // Git commands
     Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);

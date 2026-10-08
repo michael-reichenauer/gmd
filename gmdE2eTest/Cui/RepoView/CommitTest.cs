@@ -849,8 +849,41 @@ public class CommitTest
         );
     }
 
+    // Applying a stash is popping it but keeping it, which is said on the status line, since nothing
+    // else on the screen shows that it is still there. Stash Apply is right below Stash Pop, which is
+    // where the cursor lands, as in the test above.
+    [TestMethod]
+    public async Task TestStashApplyKeepsTheStash()
+    {
+        using var repo = await E2eRepo.CreateWithStashAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenCommitSubMenu(gmd, 3, "Stash Pop");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitFor("stashed work");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Applied 'stashed work'");
+        Assert.AreEqual(
+            "Applied 'stashed work' and kept the stash: Stash Drop removes it",
+            ScreenText.LastLine(screen)
+        );
+        Assert.AreEqual("stash@{0}: On main: stashed work", await repo.GitAsync("stash list"), "Still there");
+        Assert.AreEqual(
+            """
+             M alpha.txt
+            ?? epsilon.txt
+            """,
+            await repo.GitAsync("status --porcelain"),
+            "The changes are back, as with a pop"
+        );
+    }
+
     // Dropping a stash asks first, with No the default: its changes exist nowhere else. Stash Drop is
-    // two below Stash Pop, which is where the cursor lands, as in the test above.
+    // three below Stash Pop, which is where the cursor lands, as in the test above, past Stash Apply
+    // and Stash Diff.
     [TestMethod]
     public async Task TestStashDropAsksFirst()
     {
@@ -858,7 +891,7 @@ public class CommitTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
         OpenCommitSubMenu(gmd, 3, "Stash Pop");
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 3; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();

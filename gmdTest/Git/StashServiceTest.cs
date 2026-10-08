@@ -114,16 +114,18 @@ public class StashServiceTest
     }
 
     [TestMethod]
-    public async Task TestPopAndDrop()
+    public async Task TestPopApplyAndDrop()
     {
         var cmd = new FakeCmd("");
         var service = NewService(cmd);
 
         await service.PopAsync("stash@{0}", "/wd");
         await service.DropAsync("stash@{1}", "/wd");
+        await service.ApplyAsync("stash@{2}", "/wd");
 
         Assert.AreEqual("stash pop stash@{0}", cmd.Calls[0].Args);
         Assert.AreEqual("stash drop stash@{1}", cmd.Calls[1].Args);
+        Assert.AreEqual("stash apply stash@{2}", cmd.Calls[2].Args, "Apply keeps the stash, which pop drops");
     }
 
     [TestMethod]

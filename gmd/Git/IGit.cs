@@ -125,6 +125,7 @@ interface IGit
     Task<Result> StashAsync(string message, string wd);
     Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd);
     Task<Result> StashPopAsync(string name, string wd);
+    Task<Result> StashApplyAsync(string name, string wd);
     Task<Result> StashDropAsync(string name, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result> AddTagAsync(string name, string commitId, string wd);

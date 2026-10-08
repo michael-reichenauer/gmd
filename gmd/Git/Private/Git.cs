@@ -266,6 +266,8 @@ internal class Git : IGit
 
     public Task<Result> StashPopAsync(string name, string wd) => stashService.PopAsync(name, wd);
 
+    public Task<Result> StashApplyAsync(string name, string wd) => stashService.ApplyAsync(name, wd);
+
     public Task<Result> StashDropAsync(string name, string wd) => stashService.DropAsync(name, wd);
 
     public Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);

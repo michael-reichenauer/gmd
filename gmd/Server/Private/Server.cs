@@ -528,6 +528,8 @@ class Server : IServer
 
     public Task<Result> StashPopAsync(string name, string wd) => git.StashPopAsync(name, wd);
 
+    public Task<Result> StashApplyAsync(string name, string wd) => git.StashApplyAsync(name, wd);
+
     public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
         var diffResult = await git.GetStashDiffAsync(name, contextLines, wd);

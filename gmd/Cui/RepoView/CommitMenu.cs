@@ -273,6 +273,14 @@ class CommitMenu : ICommitMenu
                 () => repo.Status.IsOk,
                 () => !repo.Status.IsOk ? Why.Changes : NoStashes
             )
+            // Pop, but the stash is kept, e.g. for the same changes on another branch as well
+            .SubMenu(
+                "Stash Apply",
+                "",
+                GetStashApplyItems(),
+                () => repo.Status.IsOk,
+                () => !repo.Status.IsOk ? Why.Changes : NoStashes
+            )
             .SubMenu("Stash Diff", "", GetStashDiffItems(), whyNot: () => NoStashes)
             .SubMenu("Stash Drop", "", GetStashDropItems(), whyNot: () => NoStashes);
 
@@ -291,6 +299,9 @@ class CommitMenu : ICommitMenu
 
     IEnumerable<MenuItem> GetStashPopItems() =>
         repo.Repo.Stashes.Select(s => Menu.Item($"{s.Message}", "", () => cmds.StashPop(s.Name)));
+
+    IEnumerable<MenuItem> GetStashApplyItems() =>
+        repo.Repo.Stashes.Select(s => Menu.Item($"{s.Message}", "", () => cmds.StashApply(s.Name)));
 
     IEnumerable<MenuItem> GetStashDropItems() =>
         repo.Repo.Stashes.Select(s => Menu.Item($"{s.Message}", "", () => cmds.StashDrop(s.Name)));

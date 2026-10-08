@@ -334,6 +334,8 @@ class FakeGit : IGit
 
     public Task<Result> StashPopAsync(string name, string wd) => throw new NotSupportedException();
 
+    public Task<Result> StashApplyAsync(string name, string wd) => throw new NotSupportedException();
+
     public Task<Result> StashDropAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd) =>

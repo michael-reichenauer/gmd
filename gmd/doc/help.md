@@ -428,6 +428,11 @@ throw changes away for good ask first.
 - **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
   squash them into one commit with a new message.
+- **Stash** (in the commit menu, and `ß` in the top bar):
+  **Stash Changes ...** puts the uncommitted changes aside, new files too.
+  **Stash Pop** brings a stash back and drops it, **Stash Apply** brings it
+  back and keeps it, e.g. for the same changes on another branch as well,
+  and **Stash Diff** and **Stash Drop** show it and throw it away.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on
