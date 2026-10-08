@@ -57,9 +57,14 @@ home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `Rec
 **truncates `~/gmd.log`**, and **deletes `~/.gmdstate*`**. None of those paths can be redirected —
 `ConfigService`, `ConfigLogger` and `Upgrader` all anchor on `SpecialFolder.UserProfile` with no
 override — so `HOME` is the only lever, and on Unix it also isolates `~/.gitconfig` from the git
-commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well: `Build.IsDevInstance()`
-only recognizes `gmd.dll` and `dotnet`, so the *built binary is not a dev instance* and really does
-call the GitHub releases API on startup.
+commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well. The built binary *is* a
+dev instance — `Build.IsDevInstance()` looks for `gmd.dll` on the command line, and .NET puts the
+entry assembly there even when the apphost starts it — so it never starts the regular update check,
+but the start menu and saving the Config dialog still call the GitHub releases API
+(`Updater.CheckUpdateAvailableAsync` skips only the `dotnet` host). Being a dev instance also means
+it never reports an update, so ⇓ in the application bar and the release menu items cannot be seen
+with it; a published single-file build (`dotnet publish -r <rid> -p:PublishSingleFile=true`) is
+not one.
 
 `script -qfc "stty rows 45 cols 140; <cmd>" /dev/null` is the fallback when tmux is missing: a pty,
 but only the raw byte stream, which is redraw *traffic* rather than a screen and so is poor to
