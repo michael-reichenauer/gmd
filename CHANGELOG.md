@@ -1,7 +1,10 @@
 # Change Log for Gmd
 --------------------
 
-141 releases:
+142 releases:
+
+## [v1.3.1440.271] - 2026-10-09
+- Updated demo animation
 
 ## [v1.2.1439.1149] - 2026-10-08
 - Pin the release action to a commit rather than a tag
