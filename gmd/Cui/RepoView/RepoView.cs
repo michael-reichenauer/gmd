@@ -649,7 +649,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         repo = newViewRepo(this, serverRepo);
         currentBranchShown.Shown(serverRepo);
         menuService = newMenuService(repo);
-        hoover.FollowRepo(serverRepo.BranchByName); // Redrawn below
+        hoover.FollowRepo(repo.Graph); // Redrawn below
         keyHintBar.Visible = IsKeyHintBarShown; // Once there is a repo, the hints are for it
 
         Console.Title = $"{Path.GetFileName(serverRepo.Path).TrimSuffix(".git")} - gmd";

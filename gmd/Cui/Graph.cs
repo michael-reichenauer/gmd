@@ -34,6 +34,8 @@ class Graph
 
     public GraphBranch BranchByName(string name) => branches.First(b => b.B.Name == name);
 
+    public bool HasBranch(string name) => branches.Any(b => b.B.Name == name);
+
     public bool TryGetBranchByPos(int x, int index, out GraphBranch branch)
     {
         // Find the branch that is at the given position

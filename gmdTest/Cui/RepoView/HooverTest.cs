@@ -313,7 +313,23 @@ public class HooverTest
             .BranchWithRemote("main", "c2", isCurrent: true)
             .ViewRepoAsync();
 
-        Assert.IsTrue(hoover.FollowRepo(withoutFeat.BranchByName));
+        Assert.IsTrue(hoover.FollowRepo(GraphOf(withoutFeat)));
+
+        Assert.IsFalse(hoover.IsBranch);
+    }
+
+    // Hiding the hoovered branch, as 'h' does, leaves it one of the repo's branches, so checking the
+    // repo's branches kept it, but the graph no longer draws it, and the key hints threw looking it
+    // up there. It is the graph that has to have it.
+    [TestMethod]
+    public async Task TestFollowRepoGivesUpABranchThatIsHidden()
+    {
+        var (graph, hoover) = await ThreeBranchesGraph();
+        hoover.SetBranch(graph.GetRowBranches(1)[1], 1, 1); // feat
+        var featHidden = await ThreeBranches().ViewRepoAsync("main");
+        Assert.IsTrue(featHidden.BranchByName.ContainsKey("feat"), "Hidden, not gone");
+
+        Assert.IsTrue(hoover.FollowRepo(GraphOf(featHidden)));
 
         Assert.IsFalse(hoover.IsBranch);
     }
@@ -325,7 +341,7 @@ public class HooverTest
         hoover.SetBranch(graph.GetRowBranches(1)[1], 1, 1); // feat
         var repo = await ThreeBranches().ViewRepoAsync(ShowBranches.AllActive);
 
-        Assert.IsFalse(hoover.FollowRepo(repo.BranchByName));
+        Assert.IsFalse(hoover.FollowRepo(GraphOf(repo)));
 
         Assert.AreEqual("feat", hoover.BranchPrimaryName);
         Assert.AreEqual(1, hoover.RowIndex);
@@ -338,17 +354,15 @@ public class HooverTest
         var (graph, hoover) = await ThreeBranchesGraph();
         hoover.SetCommit(1, graph.Width + 2, 1);
 
-        Assert.IsFalse(hoover.FollowRepo(new Dictionary<string, Branch>()));
+        Assert.IsFalse(hoover.FollowRepo(GraphOf(await ThreeBranches().ViewRepoAsync("main"))));
 
         Assert.AreEqual(1, hoover.RowIndex);
     }
 
-    static async Task<(Graph, Hoover)> ThreeBranchesGraph()
-    {
-        var repo = await ThreeBranches().ViewRepoAsync(ShowBranches.AllActive);
-        var graph = new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(repo);
-        return (graph, new Hoover());
-    }
+    static async Task<(Graph, Hoover)> ThreeBranchesGraph() =>
+        (GraphOf(await ThreeBranches().ViewRepoAsync(ShowBranches.AllActive)), new Hoover());
+
+    static Graph GraphOf(Repo repo) => new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(repo);
 
     // main with two branches, dev and feat, both branched out of 'Second' and merged back
     static RepoBuilder ThreeBranches() =>
