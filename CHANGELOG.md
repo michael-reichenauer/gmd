@@ -1,7 +1,10 @@
 # Change Log for Gmd
 --------------------
 
-142 releases:
+143 releases:
+
+## [v1.4.1442.1069] - 2026-10-11
+- Fixed error when closing/hiding a branch
 
 ## [v1.3.1440.271] - 2026-10-09
 - Updated demo animation
