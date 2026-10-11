@@ -162,6 +162,32 @@ public class KeyHintTest
         StringAssert.StartsWith(Hints(screen), "commit on main:  m menu  d diff  Enter details");
     }
 
+    // A highlighted branch hidden with 'h'. A hidden branch is still one of the repo's branches, so
+    // letting go of a branch the repo no longer has kept it, but it is no longer drawn, and the
+    // hints looked it up among the drawn branches, which threw and ended gmd.
+    [TestMethod]
+    public async Task TestAHighlightedBranchThatIsHiddenIsLetGo()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo, height: Height, isKeyHints: true);
+        gmd.WaitFor("d diff");
+        // Show dev from the merge commit, which puts the cursor on dev's tip, and highlight it there
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        StringAssert.StartsWith(Hints(gmd.WaitFor("dev:  m menu")), "dev:  m menu");
+
+        gmd.Send("h");
+
+        var screen = gmd.WaitUntilGone("More dev work");
+        Assert.IsTrue(gmd.IsRunning, "gmd is still running");
+        StringAssert.StartsWith(Hints(screen), "commit on main:");
+    }
+
     // The hints, with the stretch of border between them and the help written ' | '
     // The diff view has a line of its own, as do blame and the resolver (see their tests): its keys,
     // the way back first, and nothing about the log, which is behind it and takes no keys
