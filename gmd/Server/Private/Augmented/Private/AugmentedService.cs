@@ -113,19 +113,7 @@ class AugmentedService : IAugmentedService
                     isCurrent ? repo.Status.ChangesCount
                     : changes.TryGetValue(w.Path, out var n) ? n
                     : -1;
-                return new Worktree(
-                    w.Path,
-                    w.Branch,
-                    w.HeadId,
-                    w.IsMain,
-                    isCurrent,
-                    w.IsDetached,
-                    w.IsLocked,
-                    w.LockReason,
-                    w.IsPrunable,
-                    w.PruneReason,
-                    count
-                );
+                return GitConverter.ToWorktree(w, isCurrent, count);
             })
             .ToList();
 
@@ -989,7 +977,7 @@ class AugmentedService : IAugmentedService
     Repo GetUpdatedAugmentedRepoStatus(Repo repo, GitStatus gitStatus)
     {
         Timing t = Timing.Start();
-        var status = converter.ToStatus(gitStatus);
+        var status = GitConverter.ToStatus(gitStatus);
         repo = repo with { Status = status, ViewBranches = new List<Branch>(), ViewCommits = new List<Commit>() };
         repo = Uncommitted.Adjust(repo);
         Log.Info($"Augmented {t} {repo}");

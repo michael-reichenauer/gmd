@@ -244,7 +244,7 @@ class Server : IServer
         if (diff is not Git.CommitDiff gitCommitDiff)
             return diff.Error;
 
-        return converter.ToCommitDiff(gitCommitDiff);
+        return GitConverter.ToCommitDiff(gitCommitDiff);
     }
 
     public async Task<Result<CommitDiff>> GetPreviewMergeDiffAsync(
@@ -259,7 +259,7 @@ class Server : IServer
         if (diff is not Git.CommitDiff gitCommitDiff)
             return diff.Error;
 
-        return converter.ToCommitDiff(gitCommitDiff);
+        return GitConverter.ToCommitDiff(gitCommitDiff);
     }
 
     public async Task<Result<CommitDiff>> GetDiffRangeAsync(
@@ -274,7 +274,7 @@ class Server : IServer
         if (diff is not Git.CommitDiff gitCommitDiff)
             return diff.Error;
 
-        return converter.ToCommitDiff(gitCommitDiff);
+        return GitConverter.ToCommitDiff(gitCommitDiff);
     }
 
     public Task<Result> RunDiffToolAsync(string path, string wd) => git.RunDiffToolAsync(path, wd);
@@ -286,7 +286,7 @@ class Server : IServer
         var diffs = await git.GetFileDiffAsync(path, contextLines, wd);
         if (diffs is not Git.CommitDiff[] gitCommitDiffs)
             return diffs.Error;
-        return converter.ToCommitDiffs(gitCommitDiffs);
+        return GitConverter.ToCommitDiffs(gitCommitDiffs);
     }
 
     public async Task<Result<CommitDiff[]>> GetLineHistoryAsync(
@@ -300,7 +300,7 @@ class Server : IServer
         var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, wd);
         if (diffs is not Git.CommitDiff[] gitCommitDiffs)
             return diffs.Error;
-        return converter.ToCommitDiffs(gitCommitDiffs);
+        return GitConverter.ToCommitDiffs(gitCommitDiffs);
     }
 
     public async Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd)
@@ -308,7 +308,7 @@ class Server : IServer
         var blame = await git.GetBlameAsync(path, reference, wd);
         if (blame is not Git.Blame gitBlame)
             return blame.Error;
-        return converter.ToBlame(gitBlame);
+        return GitConverter.ToBlame(gitBlame);
     }
 
     public Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout) =>
@@ -402,8 +402,8 @@ class Server : IServer
             return statusResult.Error;
 
         return new ConflictState(
-            Augmented.Private.StatusConverter.ToOperation(status.Operation),
-            status.Conflicts.Select(c => new ConflictedFile(c.Path, ToConflictKind(c.Kind))).ToList()
+            GitConverter.ToOperation(status.Operation),
+            status.Conflicts.Select(GitConverter.ToConflictedFile).ToList()
         );
     }
 
@@ -417,7 +417,7 @@ class Server : IServer
         string wd
     )
     {
-        var fileResult = await git.GetConflictFileAsync(path, ToGitConflictKind(kind), wd);
+        var fileResult = await git.GetConflictFileAsync(path, GitConverter.ToGitConflictKind(kind), wd);
         if (fileResult is not Git.ConflictFile file)
             return fileResult.Error;
 
@@ -429,7 +429,7 @@ class Server : IServer
             file = fileWithBase;
         }
 
-        return converter.ToConflictFile(file);
+        return GitConverter.ToConflictFile(file);
     }
 
     public Task<Result> ResolveConflictFileAsync(
@@ -440,9 +440,9 @@ class Server : IServer
     ) =>
         git.ResolveConflictFileAsync(
             path,
-            ToGitConflictKind(kind),
+            GitConverter.ToGitConflictKind(kind),
             choices
-                .Select(c => new Git.HunkResolution(c.Index, ViewRepoConverter.ToGitChoice(c.Choice), c.ManualText))
+                .Select(c => new Git.HunkResolution(c.Index, GitConverter.ToGitChoice(c.Choice), c.ManualText))
                 .ToList(),
             wd
         );
@@ -456,12 +456,6 @@ class Server : IServer
     public Task<Result> KeepConflictedFileAsync(string path, string wd) => git.MarkResolvedAsync(path, wd);
 
     public Task<Result> DeleteConflictedAsync(string path, string wd) => git.DeleteConflictedAsync(path, wd);
-
-    // Member for member switches rather than a cast between the two enums: a cast would keep
-    // compiling and start lying the day either one gains or reorders a member
-    static ConflictKind ToConflictKind(Git.ConflictKind kind) => ViewRepoConverter.ToConflictKind(kind);
-
-    static Git.ConflictKind ToGitConflictKind(ConflictKind kind) => ViewRepoConverter.ToGitConflictKind(kind);
 
     public Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce) =>
         augmentedService.DeleteBranchAsync(repo, localName, remoteName, isForce);
@@ -551,7 +545,7 @@ class Server : IServer
         var diffResult = await git.GetStashDiffAsync(name, contextLines, wd);
         if (diffResult is not Git.CommitDiff diff)
             return diffResult.Error;
-        return converter.ToCommitDiff(diff);
+        return GitConverter.ToCommitDiff(diff);
     }
 
     public Task<Result> StashDropAsync(string name, string wd) => git.StashDropAsync(name, wd);

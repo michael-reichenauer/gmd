@@ -1,5 +1,3 @@
-using GitStatus = gmd.Git.Status;
-
 namespace gmd.Server.Private.Augmented.Private;
 
 // Converts the WorkRepo the augmentation pipeline builds into the immutable Server.Repo,
@@ -7,7 +5,6 @@ namespace gmd.Server.Private.Augmented.Private;
 interface IWorkRepoConverter
 {
     Repo ToRepo(WorkRepo augRepo);
-    Status ToStatus(GitStatus gitStatus);
 }
 
 class WorkRepoConverter : IWorkRepoConverter
@@ -38,8 +35,6 @@ class WorkRepoConverter : IWorkRepoConverter
             CurrentAuthor = workRepo.CurrentAuthor,
         };
     }
-
-    public Status ToStatus(GitStatus gitStatus) => StatusConverter.ToStatus(gitStatus);
 
     static Commit ToCommit(WorkCommit c, int gitIndex)
     {

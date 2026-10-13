@@ -1,3 +1,4 @@
+using gmd.Server.Private;
 using gmd.Server.Private.Augmented.Private;
 using gmdTest.Fixtures;
 
@@ -409,7 +410,7 @@ public class BranchStructureServiceTest
     [TestMethod]
     public async Task TestACycleInTheHierarchyEndsTheAncestors()
     {
-        var repo = new WorkRepo(DateTime.UtcNow, "/test/repo", StatusConverter.ToStatus(RepoBuilder.NoChanges));
+        var repo = new WorkRepo(DateTime.UtcNow, "/test/repo", GitConverter.ToStatus(RepoBuilder.NoChanges));
         var a = new WorkBranch("a", "a", "a", RepoBuilder.Sha("a1"));
         var b = new WorkBranch("b", "b", "b", RepoBuilder.Sha("b1"));
         a.ParentBranch = b;

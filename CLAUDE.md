@@ -248,11 +248,12 @@ layers, which calls `UI.Post` / `UI.InfoMessage` itself to say a new version was
 its own. It uses nothing of gmd but itself and `gmd.Utils` (`Result`, `Cmd`, `Log` and small
 helpers), and knows nothing of the app: no UI wording or keys (a failed login says what failed, and
 `Cui/LoginAdvice.cs` what to do about it), no server ids (blame gives git's id of an uncommitted line,
-and the server's converter gmd's), no state of the app's (the current author is read with the repo).
+and `GitConverter` gmd's), no state of the app's (the current author is read with the repo).
 `GitNamespaceTest` reads the compiled code and fails if a type of `gmd.Git` names any other type of
 gmd or a package's. Its records are not shared with `gmd/Server/Repo.cs`, though several are copies:
-the server's converters are the boundary between git's model and gmd's, so app-shaped members stay
-out of the git layer and a change in it does not ripple up into the UI.
+`Server/Private/GitConverter.cs` is the boundary between git's model and gmd's, every git record
+converted there, so app-shaped members stay out of the git layer and a change in it does not ripple
+up into the UI.
 
 ### Dependency injection
 

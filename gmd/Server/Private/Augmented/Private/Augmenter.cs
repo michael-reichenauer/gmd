@@ -25,7 +25,7 @@ class Augmenter : IAugmenter
 
     WorkRepo GetAugRepo(GitRepo gitRepo)
     {
-        var status = StatusConverter.ToStatus(gitRepo.Status);
+        var status = GitConverter.ToStatus(gitRepo.Status);
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, status, gitRepo.IntegrationNames);
 
         AddAugStashes(repo, gitRepo); // Must be done before adding augmented commits
@@ -94,21 +94,7 @@ class Augmenter : IAugmenter
             // The changes of the other worktrees are read after the repo is shown, so unknown here
             var isCurrent = w == current;
             var changes = isCurrent ? repo.Status.ChangesCount : -1;
-            repo.Worktrees.Add(
-                new Worktree(
-                    w.Path,
-                    w.Branch,
-                    w.HeadId,
-                    w.IsMain,
-                    isCurrent,
-                    w.IsDetached,
-                    w.IsLocked,
-                    w.LockReason,
-                    w.IsPrunable,
-                    w.PruneReason,
-                    changes
-                )
-            );
+            repo.Worktrees.Add(GitConverter.ToWorktree(w, isCurrent, changes));
 
             if (!isCurrent && w.Branch != "" && repo.Branches.TryGetValue(w.Branch, out var branch))
             {
@@ -195,10 +181,9 @@ class Augmenter : IAugmenter
     {
         gitRepo.Tags.ForEach(t =>
         {
-            var tag = new Tag(t.Name, t.CommitId);
             if (repo.CommitsById.TryGetValue(t.CommitId, out var c))
             {
-                c.Tags.Add(tag);
+                c.Tags.Add(GitConverter.ToTag(t));
             }
         });
     }
@@ -207,7 +192,7 @@ class Augmenter : IAugmenter
     {
         gitRepo.Stashes.ForEach(s =>
         {
-            var stash = new Stash(s.Id, s.Name, s.Branch, s.ParentId, s.IndexId, s.Message);
+            var stash = GitConverter.ToStash(s);
             repo.Stashes.Add(stash);
             repo.StashById[s.Id] = stash;
             repo.StashById[s.IndexId] = stash;
