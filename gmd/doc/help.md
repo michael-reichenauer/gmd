@@ -174,6 +174,12 @@ repository.
 - **Show another branch:** `Shift-→`, and type part of its name.
 - **Undo a mistake:** **Undo** in the commit menu (`m`) takes back the last
   change of the branch you are on, e.g. a commit, a merge or a pull.
+- **Switch repository:** `o`, then the number of a recent one, or browse to,
+  clone or create one. Started outside a repository, gmd shows a start page
+  instead of the log: `Enter` opens the most recent repository, `1` to `9`
+  any one listed, which includes those in the folder gmd was started in, and
+  `Delete` takes one off the recent list, leaving its folder as it is.
+  `gmd -m` shows the start page inside a repository too.
 - **Fix a commit not pushed yet:** `m` on it, then **Amend <id> ...** for a
   new message, or the changes you tick, or both, or **Drop <id>** under
   **Undo** to take it out of the branch. `a` amends the last commit.
@@ -214,7 +220,7 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | n, Shift-N | The next and the previous match of the last search         |
 | r, F5      | Refresh, and fetch from the remote                         |
 | w          | Open the worktrees dialog                                  |
-| o          | Open, clone or init a repository                           |
+| o          | Open, clone or init a repository; 1-9 opens a recent one   |
 | y          | Go to the current branch, showing it if it is hidden       |
 | PgUp, PgDn | A page up or down (Space too), in every list and view      |
 | Home, End  | The first or the last row                                  |

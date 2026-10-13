@@ -92,6 +92,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **Features added on the way** (each documented in `gmd/doc/help.md`)
 
 - Merge the current branch *into* another branch (`E`, and `Merge to` in the branch menu).
+- A start page in place of the start menu (2026-10-13): what gmd shows outside a repository is a
+  page in the place of the log, saying why, listing the recent repositories and those in the folder
+  gmd was started in by name and `~/...` path, each opened by its number, with the actions on a
+  letter each and explained to someone new. Init, clone and browse start in that folder, and the
+  open menu (`o`) lists and numbers the repositories the same way.
 - Blame a file: runs of one commit bracketed in the gutter, age heat, drill-down with `P`.
 - Adjustable diff context per file (`+` / `-`: 6 → 15 → the whole file).
 - Merge conflict resolution: detection of merge, rebase, cherry-pick, revert and am; abort,
@@ -817,6 +822,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   marquee — is behind it once any dialog has run. `Progress.Activated` fronts it again, and only once
   the marquee's own toplevel is current, since the activate hook fires for a dialog over a dialog
   too. Before that, a commit showed no progress where a push, which opens no dialog, did.
+- A view covered by a sibling is still drawn, and `ContentView.Redraw` starts with `Clear()`, so
+  the empty log under the start page wiped it whenever it was marked for drawing. Hide the one
+  underneath (`Visible = false`) rather than cover it. And a hidden view cannot take the focus:
+  hand over by making the next one visible, focusing it, and only then hiding the other.
+- `UI.StopInput` drops keys while git works, but not mouse clicks, so a second click on the start
+  page could start reading a second repository; it has a guard of its own.
 - `new Label(x, y, text)` fixes an absolute frame and ignores a later `Pos.AnchorEnd`; use the
   initializer form. `Text.ToLine(width)` repeats the first character,
   `Subtext(…, isFillRest: true)` pads. There is no `Key` for `+` / `-` / `=`; cast the ascii code.
@@ -880,7 +891,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - `Build.IsDevInstance()` is *true* for the Debug build's apphost, since .NET puts the entry
   assembly, `gmd.dll`, on `Environment.CommandLine` however it is started; only a published
   single-file build is not one. So the end-to-end tests can never show ⇓ or the release menu items,
-  yet the start menu and saving the Config dialog still call the GitHub releases API
+  yet the start page and saving the Config dialog still call the GitHub releases API
   (`Updater.CheckUpdateAvailableAsync` skips only the `dotnet` host) unless `CheckUpdates` is off.
   It was long written down the other way round; the log of a run says `Dev instance, no update check`.
 - A raw string literal keeps the line endings of its source file, so a CRLF checkout on Windows

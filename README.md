@@ -217,9 +217,10 @@ cd my-repo
 gmd
 ```
 
-Started outside a repository, gmd opens a menu of your recent repositories, where you can also
-browse to a repository, clone one or create a new one. `gmd -d <path>` opens the repository at
-`<path>`, and `gmd --help` lists all the command-line options.
+Started outside a repository, gmd shows a start page: the repositories you opened before, and the
+ones in the folder you started it in, each with a number to open it by (`Enter` opens the most
+recent), and keys to browse to a repository, clone one or create a new one. `gmd -d <path>` opens
+the repository at `<path>`, and `gmd --help` lists all the command-line options.
 
 Your first five minutes:
 
