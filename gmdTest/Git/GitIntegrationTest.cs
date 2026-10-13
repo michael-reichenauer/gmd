@@ -579,11 +579,29 @@ public class GitIntegrationTest
         Assert.AreEqual(c2, (await repo.GitAsync("rev-parse refs/tags/v1.0")).Trim());
     }
 
-    // The tags git reports, sorted and without the duplicate an annotated tag is listed as
+    // The tags git reports, sorted
     async Task<string> TagNames()
     {
         var tags = Value(await repo.Git.GetTagsAsync(repo.Path));
-        return string.Join(", ", tags.Select(t => t.Name).Distinct().Order());
+        return string.Join(", ", tags.Select(t => t.Name).Order());
+    }
+
+    // Each tag once, on its commit: git lists an annotated tag a second time, on its own object,
+    // which is no commit. No tags at all is no failure.
+    [TestMethod]
+    public async Task TestTagsAreOnTheirCommits()
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "First");
+        Assert.AreEqual(0, Value(await repo.Git.GetTagsAsync(repo.Path)).Count);
+
+        Ok(await repo.Git.AddTagAsync("light", c1, repo.Path));
+        Ok(await repo.Git.AddAnnotatedTagAsync("annotated", "A message", c1, repo.Path));
+
+        var tags = Value(await repo.Git.GetTagsAsync(repo.Path));
+        Assert.AreEqual(
+            $"annotated {c1}, light {c1}",
+            string.Join(", ", tags.Select(t => $"{t.Name} {t.CommitId}").Order())
+        );
     }
 
     [TestMethod]

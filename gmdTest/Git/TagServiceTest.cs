@@ -31,25 +31,21 @@ public class TagServiceTest
     {
         var tags = await GetTagsAsync(new FakeCmd(TagsOutput));
 
-        CollectionAssert.AreEqual(new[] { "release/3.0", "v1.0", "v2.0", "v2.0" }, tags.Select(t => t.Name).ToArray());
+        CollectionAssert.AreEqual(new[] { "release/3.0", "v1.0", "v2.0" }, tags.Select(t => t.Name).ToArray());
         Assert.AreEqual("134e1960d41fc44fb5ffffde38c2273f5e9910fc", tags[0].CommitId);
     }
 
-    // An annotated tag appears twice, once pointing at the tag object and once, with the '^{}'
-    // suffix trimmed, at the commit. Augmenter.AddAugTags drops the first one, since no commit in
-    // the log has the tag object's id.
+    // An annotated tag is listed twice by git, its own object and then, with '^{}' after its name,
+    // the commit it is on, which is the one kept. Its object's id is no commit's.
     [TestMethod]
-    public async Task TestParseAnnotatedTagIsListedTwice()
+    public async Task TestAnAnnotatedTagIsOnItsCommit()
     {
         var tags = await GetTagsAsync(new FakeCmd(TagsOutput));
 
-        var annotated = tags.Where(t => t.Name == "v2.0").ToList();
-        Assert.AreEqual(2, annotated.Count);
-        Assert.AreEqual("d61063ef7b773d3efe325b1067787b17fb89bfc7", annotated[0].CommitId, "The tag object");
-        Assert.AreEqual("134e1960d41fc44fb5ffffde38c2273f5e9910fc", annotated[1].CommitId, "The commit");
+        Assert.AreEqual("134e1960d41fc44fb5ffffde38c2273f5e9910fc", tags.Single(t => t.Name == "v2.0").CommitId);
     }
 
-    // In a repo with no tags git writes nothing and exits with an error, which is not a failure
+    // In a repo with no tags git writes nothing and exits with 1, which is no failure
     [TestMethod]
     public async Task TestNoTagsIsAnEmptyListNotAnError()
     {
@@ -61,7 +57,7 @@ public class TagServiceTest
     [TestMethod]
     public async Task TestGitCommandFailureIsPropagated()
     {
-        var service = NewService(new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: not a git repository")));
+        var service = NewService(new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: not a git repository", 128)));
 
         var result = await service.GetTagsAsync("/wd");
 

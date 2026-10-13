@@ -36,20 +36,17 @@ class TagService : ITagService
         this.cmd = cmd;
     }
 
+    // Every tag and the commit it is on. --tags limits this to refs/tags/, so the tracked remote
+    // tags above are not included. Git exits with 1 when there are none, which is an answer.
     public async Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd)
     {
-        // --tags limits this to refs/tags/, so the tracked remote tags above are not included
-        var args = "show-ref --dereference --tags";
-        var result = await cmd.RunAsync("git", args, wd, true);
-        if (result is not string output)
+        var result = await cmd.RunRawAsync("git", "show-ref --dereference --tags", wd, skipLogError: true);
+        if (result.ExitCode == 1)
+            return new List<Tag>();
+        if (result.ToResult() is not string output)
         {
-            var e = result.Error;
-            if (e.Message.StartsWith("\n"))
-            { // Empty tag list (no tags yet)
-                return new List<Tag>();
-            }
-            Log.Warn($"Failed to get tags, {e}");
-            return e;
+            Log.Warn($"Failed to get tags, {result.ErrorOutput}");
+            return result.ToResult().Error;
         }
 
         return ParseTags(output);
@@ -143,25 +140,31 @@ class TagService : ITagService
         return refs;
     }
 
-    Result<IReadOnlyList<Tag>> ParseTags(string output)
+    // '<id> refs/tags/<name>' per tag. --dereference adds a line for an annotated tag, whose own id
+    // is that of the tag object: '<commit id> refs/tags/<name>^{}', the commit the tag is on, which
+    // takes the place of the first, so that each tag is listed once, with the id of its commit.
+    static List<Tag> ParseTags(string output)
     {
+        const string Prefix = "refs/tags/";
+        const string Peeled = "^{}";
         List<Tag> tags = [];
-        var lines = output.Split('\n');
+        Dictionary<string, int> indexByName = [];
 
-        foreach (var line in lines)
+        foreach (var line in output.Split('\n'))
         {
-            if (line.Length < 51)
+            var parts = line.Trim().Split(' ', 2);
+            if (parts.Length != 2 || !parts[1].StartsWith(Prefix))
+                continue;
+
+            var name = parts[1][Prefix.Length..];
+            if (name.EndsWith(Peeled) && indexByName.TryGetValue(name[..^Peeled.Length], out var index))
             {
+                tags[index] = tags[index] with { CommitId = parts[0] };
                 continue;
             }
 
-            var commitID = line.Substring(0, 40);
-            var name = line.Substring(51);
-
-            // Seems that some client add a suffix for some reason
-            name = name.TrimSuffix("^{}");
-
-            tags.Add(new Tag(name, commitID));
+            indexByName[name] = tags.Count;
+            tags.Add(new Tag(name, parts[0]));
         }
 
         return tags;
