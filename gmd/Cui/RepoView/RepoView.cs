@@ -78,8 +78,8 @@ class RepoView : IRepoView, IRepoViewInputHost
     static readonly TimeSpan worktreeStatusInterval = TimeSpan.FromSeconds(30);
 
     readonly IServer server;
-    readonly Func<IRepoView, Repo, CommandContext, IViewRepo> newViewRepo;
-    readonly Func<IViewRepo, IRepoViewMenus> newMenuService;
+    readonly Func<IRepoView, Repo, IViewRepo> newViewRepo;
+    readonly Func<IViewRepo, CommandContext, IRepoViewMenus> newMenuService;
     readonly Config config;
     readonly IUpdater updater;
     readonly IRepoConfigService repoConfig;
@@ -105,7 +105,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     // State data
     IViewRepo repo; // Is set once the repo has been retrieved the first time in ShowRepo().
-    ICommitCommands CommitCmds => repo.CommitCmds;
+    ICommitCommands CommitCmds => commands.CommitCmds;
     IRepoViewMenus menuService = null!;
     bool isStatusUpdateInProgress = false;
     bool isRepoUpdateInProgress = false;
@@ -123,11 +123,11 @@ class RepoView : IRepoView, IRepoViewInputHost
     internal RepoView(
         IServer server,
         IRepoWriter repoWriter,
-        Func<IRepoView, Repo, CommandContext, IViewRepo> newViewRepo,
+        Func<IRepoView, Repo, IViewRepo> newViewRepo,
         Func<CommandContext, IRepoCommands> newRepoCommands,
         Func<CommandContext, ICommitCommands> newCommitCommands,
         Func<CommandContext, IBranchCommands> newBranchCommands,
-        Func<IViewRepo, IRepoViewMenus> newMenuService,
+        Func<IViewRepo, CommandContext, IRepoViewMenus> newMenuService,
         Config config,
         IUpdater updater,
         IRepoConfigService repoConfig,
@@ -172,7 +172,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         this.repoWriter = repoWriter;
         commands = new CommandContext(this, server, progress, status);
-        repo = newViewRepo(this, Server.Repo.Empty, commands);
+        repo = newViewRepo(this, Server.Repo.Empty);
         commands.RepoCmds = newRepoCommands(commands);
         commands.CommitCmds = newCommitCommands(commands);
         commands.BranchCmds = newBranchCommands(commands);
@@ -201,13 +201,14 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     public Selection Selection => commitsView.Selection;
 
-    // What RepoViewInput needs from the view, see IRepoViewInputHost. Both are replaced every time
-    // a repo is shown.
+    // What RepoViewInput needs from the view, see IRepoViewInputHost. The view repo and the menus
+    // are replaced every time a repo is shown, the command classes are made once.
     public IViewRepo ViewRepo => repo;
     public ShownHistory ShownHistory => shownHistory;
     public SearchMatches SearchMatches => searchMatches;
     public IReadOnlyList<HiddenBranchNews> HiddenNews => hiddenNews;
     public IRepoViewMenus Menus => menuService;
+    public CommandContext Commands => commands;
 
     public void ClearSelection() => commitsView.ClearSelection();
 
@@ -337,7 +338,7 @@ class RepoView : IRepoView, IRepoViewInputHost
                 searchMatches.Set(pick.Filter, pick.MatchIds, pick.Commit.Id);
             else
                 searchMatches.Clear();
-            repo.BranchCmds.ShowBranch(pick.Commit.BranchName, pick.Commit.Id);
+            commands.BranchCmds.ShowBranch(pick.Commit.BranchName, pick.Commit.Id);
         }
         else
         { // A search given up on is not one to go on with
@@ -675,9 +676,9 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     void ShowRepo(Server.Repo serverRepo)
     {
-        repo = newViewRepo(this, serverRepo, commands);
+        repo = newViewRepo(this, serverRepo);
         currentBranchShown.Shown(serverRepo);
-        menuService = newMenuService(repo);
+        menuService = newMenuService(repo, commands);
         hoover.FollowRepo(repo.Graph); // Redrawn below
         keyHintBar.Visible = IsKeyHintBarShown; // Once there is a repo, the hints are for it
 

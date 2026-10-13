@@ -172,8 +172,9 @@ Key types and flow:
   modal dialog: `MainView` hides the log and shows the page, a dialog opens over it, and a repo that
   fails to open leaves it there. Its keys go on the log view's key-hint line
   (`IRepoView.SetStartPage`).
-- `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
-  `RepoView.cs` is the main log view, i.e. reading and refreshing the shown repo and drawing it.
+- `Cui/RepoView/` — `RepoView.cs` is the main log view, i.e. reading and refreshing the shown repo
+  and drawing it. `IViewRepo` is a snapshot of the shown repo (with its graph and the cursor's row),
+  replaced at every refresh, show and hide; the menus are made with each one.
   What the user does to it is split off: `RepoViewInput.cs` holds every key and mouse button plus
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
   on — what most keys act on — as state and index math with no view, so it is unit testable.
@@ -183,8 +184,11 @@ Key types and flow:
   own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). When a
   key's behavior changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
-  `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`,
-  run through `CommandRunner`), menus into `*Menu.cs`.
+  `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`),
+  made once with the view and sharing a `CommandContext`: the repo shown now, the view, the server,
+  the status line, the other command classes, and `Do`, which runs a command through
+  `CommandRunner` with the snapshot as it starts (`Do(async repo => …)`). A command never keeps a
+  snapshot beyond that, so it acts on what is shown when it runs. Menus are in `*Menu.cs`.
   A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
   reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
   its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"⇧p"` for P, as the
@@ -523,7 +527,8 @@ unaffected by CSharpier re-indenting them. `DiffText` does the same for the rows
 both take their color letters from `TextColors`.
 
 The other fakes in `gmdTest/Fixtures/`: `FakeViewRepo` stands in for `IViewRepo`, for the log
-view's writer and menus; `FakeSpellChecker` has the word list a test gives it; `FakeConfigService`
+view's writer and menus, and `FakeRepoView` for the view, which `FakeRepoView.Context` puts in a
+`CommandContext` for the command classes and menus; `FakeSpellChecker` has the word list a test gives it; `FakeConfigService`
 is a config whose `Set` sticks, for a test of what a class saves rather than reads.
 
 **`FakeCmd`** (`gmdTest/Utils/`) is a double for `ICmd`, the seam between the git services and

@@ -30,13 +30,15 @@ class BranchMenu : IBranchMenu
 
     readonly IRepoMenu repoMenu;
     readonly IViewRepo repo;
+    readonly CommandContext commands;
     readonly IBranchCommands cmds;
 
-    public BranchMenu(IRepoMenu repoMenu, IViewRepo repo)
+    public BranchMenu(IRepoMenu repoMenu, IViewRepo repo, CommandContext commands)
     {
         this.repoMenu = repoMenu;
         this.repo = repo;
-        this.cmds = repo.BranchCmds;
+        this.commands = commands;
+        this.cmds = commands.BranchCmds;
     }
 
     public void Show(int x, int y, string branchName)
@@ -325,14 +327,14 @@ class BranchMenu : IBranchMenu
             .Item(
                 "Open in Browser",
                 "",
-                () => repo.Cmds.OpenBranchInBrowser(branchName),
+                () => commands.RepoCmds.OpenBranchInBrowser(branchName),
                 () => WebCommands.CanOpenBranch(repo.Repo, branchName),
                 () => WebCommands.WhyNoOpenBranch(repo.Repo, branchName)
             )
             .Item(
                 "Create Pull Request in Browser",
                 "",
-                () => repo.Cmds.OpenNewPullRequest(branchName),
+                () => commands.RepoCmds.OpenNewPullRequest(branchName),
                 () => WebCommands.CanOpenNewPullRequest(repo.Repo, branchName),
                 () => WebCommands.WhyNoNewPullRequest(repo.Repo, branchName)
             )

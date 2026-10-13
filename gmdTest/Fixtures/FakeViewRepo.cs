@@ -6,13 +6,9 @@ using gmd.Server;
 
 namespace gmdTest.Fixtures;
 
-// Double for IViewRepo, the per view facade the log view's writer, menus and commands are given.
-// It carries the shown repo and the graph drawn from it, which is all RepoWriter.ToPage reads.
-//
-// The command properties are null rather than throwing: the menus read them once in their
-// constructors but only ever call them from the Action a user picks, which a test that asserts
-// menu titles never invokes. Everything else throws, as FakeGit does, so a test that starts
-// depending on more of the facade fails loudly rather than passing on an empty result.
+// Double for IViewRepo, the snapshot of the shown repo the log view's writer, menus and commands
+// read. It carries the repo and the graph drawn from it, which is all RepoWriter.ToPage reads; the
+// command classes and the menus reach it through a FakeRepoView.
 class FakeViewRepo : IViewRepo
 {
     readonly IServer? server;
@@ -41,12 +37,6 @@ class FakeViewRepo : IViewRepo
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) =>
         server?.GetCommitBranches(Repo, RowCommit.Id, isAll)
         ?? throw new NotSupportedException("FakeViewRepo was given no server");
-
-    public IRepoCommands Cmds => null!;
-    public ICommitCommands CommitCmds => null!;
-    public IBranchCommands BranchCmds => null!;
-
-    public IRepoView RepoView => throw new NotSupportedException("FakeViewRepo has no view");
 
     // Its own, since there is no view to own it, for tests of what a show or hide makes undoable
     public ShownHistory ShownHistory { get; } = new();

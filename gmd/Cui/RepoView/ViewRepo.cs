@@ -3,14 +3,12 @@ using gmd.Server;
 
 namespace gmd.Cui.RepoView;
 
+// The repo as the log view shows it at one moment, with the graph drawn from it and the cursor's
+// row: a snapshot, which every refresh, show and hide replaces, and which the menus are made with.
+// The command classes, made once, read the one shown when they run, see CommandContext.
 interface IViewRepo
 {
-    IRepoCommands Cmds { get; }
-    ICommitCommands CommitCmds { get; }
-    IBranchCommands BranchCmds { get; }
-
     Repo Repo { get; }
-    IRepoView RepoView { get; }
     string Path { get; }
     Status Status { get; }
 
@@ -36,20 +34,12 @@ class ViewRepo : IViewRepo
 {
     readonly IRepoView repoView;
     readonly IServer server;
-    readonly CommandContext commands;
     readonly Repo serverRepo;
 
-    internal ViewRepo(
-        IRepoView repoView,
-        Repo serverRepo,
-        CommandContext commands,
-        IGraphCreater graphService,
-        IServer server
-    )
+    internal ViewRepo(IRepoView repoView, Repo serverRepo, IGraphCreater graphService, IServer server)
     {
         this.repoView = repoView;
         this.serverRepo = serverRepo;
-        this.commands = commands;
         this.server = server;
 
         this.Graph = graphService.Create(serverRepo);
@@ -57,11 +47,6 @@ class ViewRepo : IViewRepo
 
     public string Path => serverRepo.Path;
     public Status Status => serverRepo.Status;
-
-    public IRepoView RepoView => repoView;
-    public IRepoCommands Cmds => commands.RepoCmds;
-    public ICommitCommands CommitCmds => commands.CommitCmds;
-    public IBranchCommands BranchCmds => commands.BranchCmds;
 
     public Repo Repo => serverRepo;
     public Graph Graph { get; init; }

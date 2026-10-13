@@ -20,14 +20,16 @@ interface IRepoMenu
 class RepoMenu : IRepoMenu
 {
     readonly IViewRepo repo;
+    readonly CommandContext commands;
     readonly IRepoCommands cmds;
     readonly Config config;
     readonly IConfigDlg configDlg;
 
-    public RepoMenu(IViewRepo repo, IRepoCommands cmd, Config config, IConfigDlg configDlg)
+    public RepoMenu(IViewRepo repo, CommandContext commands, Config config, IConfigDlg configDlg)
     {
         this.repo = repo;
-        this.cmds = cmd;
+        this.commands = commands;
+        this.cmds = commands.RepoCmds;
         this.config = config;
         this.configDlg = configDlg;
     }
@@ -42,9 +44,9 @@ class RepoMenu : IRepoMenu
     {
         if (configDlg.Show(repo.Repo.Path))
         { // The integration branches changed, which the branch structure is inferred with
-            repo.RepoView.Refresh();
+            commands.View.Refresh();
         }
-        repo.RepoView.UpdateLayout();
+        commands.View.UpdateLayout();
     }
 
     public void ShowOpenRepo(int x, int y)
@@ -59,14 +61,14 @@ class RepoMenu : IRepoMenu
             .Item(
                 "Pull All Branches",
                 "⇧u",
-                () => repo.BranchCmds.PullAllBranches(),
+                () => commands.BranchCmds.PullAllBranches(),
                 () => BranchPushPullCommands.CanPull(repo.Repo),
                 () => BranchPushPullCommands.WhyNoPull(repo.Repo)
             )
             .Item(
                 "Push All Branches",
                 "⇧p",
-                () => repo.BranchCmds.PushAllBranches(),
+                () => commands.BranchCmds.PushAllBranches(),
                 () => BranchPushPullCommands.CanPush(repo.Repo),
                 () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push"
             )
@@ -74,19 +76,19 @@ class RepoMenu : IRepoMenu
             .Item(
                 "Next Match",
                 "n",
-                () => repo.BranchCmds.ShowSearchMatch(1),
+                () => commands.BranchCmds.ShowSearchMatch(1),
                 () => repo.SearchMatches.IsActive,
                 () => NoSearch
             )
             .Item(
                 "Previous Match",
                 "⇧n",
-                () => repo.BranchCmds.ShowSearchMatch(-1),
+                () => commands.BranchCmds.ShowSearchMatch(-1),
                 () => repo.SearchMatches.IsActive,
                 () => NoSearch
             )
             .Item("Refresh", "r", () => cmds.RefreshAndFetch())
-            .Item("Worktrees ...", "w", () => repo.BranchCmds.ShowWorktrees())
+            .Item("Worktrees ...", "w", () => commands.BranchCmds.ShowWorktrees())
             .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
             .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
             .Item("Config ...", "", () => ShowConfig())
@@ -140,7 +142,7 @@ class RepoMenu : IRepoMenu
         var hasSkip = status.Operation is GitOperation.Rebase or GitOperation.Am;
 
         return Menu
-            .Items.Item(status.Conflicted > 0, "Resolve Conflicts", "", () => repo.CommitCmds.ShowUncommittedDiff())
+            .Items.Item(status.Conflicted > 0, "Resolve Conflicts", "", () => commands.CommitCmds.ShowUncommittedDiff())
             .Item(hasContinue, $"Continue {name}", "", () => cmds.ContinueOperation())
             .Item(hasSkip, "Skip This Commit", "", () => cmds.SkipOperationCommit())
             .Item($"Abort {name}", "", () => cmds.AbortOperation());

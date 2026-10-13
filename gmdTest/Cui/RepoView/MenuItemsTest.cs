@@ -670,27 +670,36 @@ public class MenuItemsTest
     static async Task<FakeViewRepo> ViewOf(RepoBuilder builder, params string[] showBranches) =>
         new FakeViewRepo(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
 
-    static IBranchMenu BranchMenuOf(FakeViewRepo view) => new BranchMenu(RepoMenuOf(view), view);
+    static IBranchMenu BranchMenuOf(FakeViewRepo view)
+    {
+        var commands = Commands(view);
+        return new BranchMenu(RepoMenuOf(view, commands), view, commands);
+    }
 
-    // Only OperationName and OperationSummary are called while the items are built, and both read
-    // nothing but repo.Repo.Status, so the rest of RepoCommands is never reached
-    static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) =>
-        new RepoMenu(
-            view,
-            new RepoCommands(
-                FakeRepoView.Context(view),
-                null!,
-                null!,
-                null!,
-                null!,
-                new Config(),
-                null!,
-                null!,
-                _ => null!
-            ),
-            config ?? new Config(),
-            null!
+    static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) => RepoMenuOf(view, Commands(view), config);
+
+    static IRepoMenu RepoMenuOf(FakeViewRepo view, CommandContext commands, Config? config = null) =>
+        new RepoMenu(view, commands, config ?? new Config(), null!);
+
+    // The command classes the menus are made with. Only RepoCommands' OperationName and
+    // OperationSummary are called while the items are built, and both read nothing but the shown
+    // repo's status, so the rest of RepoCommands, and the other two, are never reached.
+    static CommandContext Commands(FakeViewRepo view)
+    {
+        var commands = FakeRepoView.Context(view);
+        commands.RepoCmds = new RepoCommands(
+            commands,
+            null!,
+            null!,
+            null!,
+            null!,
+            new Config(),
+            null!,
+            null!,
+            _ => null!
         );
+        return commands;
+    }
 
     // 'dev' is current and branched from 'main', 'feature' from 'dev' and 'alpha' from 'main',
     // so the branch order the graph draws is not the order the chain of the current branch is

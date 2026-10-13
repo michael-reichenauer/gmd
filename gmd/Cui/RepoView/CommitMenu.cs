@@ -14,16 +14,24 @@ class CommitMenu : ICommitMenu
     readonly IRepoMenu repoMenu;
     readonly IBranchMenu branchMenu;
     readonly IViewRepo repo;
+    readonly CommandContext commands;
     readonly ICommitCommands cmds;
     readonly DiffMark diffMark;
 
-    public CommitMenu(IRepoMenu repoMenu, IBranchMenu branchMenu, IViewRepo repo, DiffMark diffMark)
+    public CommitMenu(
+        IRepoMenu repoMenu,
+        IBranchMenu branchMenu,
+        IViewRepo repo,
+        CommandContext commands,
+        DiffMark diffMark
+    )
     {
         this.repoMenu = repoMenu;
         this.branchMenu = branchMenu;
         this.repo = repo;
+        this.commands = commands;
         this.diffMark = diffMark;
-        this.cmds = repo.CommitCmds;
+        this.cmds = commands.CommitCmds;
     }
 
     public void Show(int x, int y, int index)
@@ -73,14 +81,14 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Create Branch from Commit ...",
                 "b",
-                () => repo.BranchCmds.CreateBranchFromCommit(),
+                () => commands.BranchCmds.CreateBranchFromCommit(),
                 () => !c.IsUncommitted,
                 () => BranchCreateCommands.NoCommitToStartAt
             )
             .Item(
                 $"Merge Commit into {cb?.ShortNiceUniqueName()}",
                 "",
-                () => repo.BranchCmds.MergeBranch(c.Id),
+                () => commands.BranchCmds.MergeBranch(c.Id),
                 () => isStatusOK && rb != cb,
                 () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
             )
@@ -94,7 +102,7 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Switch to Commit",
                 "",
-                () => repo.BranchCmds.SwitchToCommit(),
+                () => commands.BranchCmds.SwitchToCommit(),
                 () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id,
                 () => !isStatusOK ? Why.Changes : "Already on this commit"
             )
@@ -102,14 +110,14 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Copy Commit Id",
                 "i",
-                () => repo.Cmds.CopyCommitId(),
+                () => commands.RepoCmds.CopyCommitId(),
                 () => !c.IsUncommitted,
                 () => RepoCommands.WhyNoCopy
             )
             .Item(
                 "Copy Commit Message",
                 "⇧i",
-                () => repo.Cmds.CopyCommitMessage(),
+                () => commands.RepoCmds.CopyCommitMessage(),
                 () => !c.IsUncommitted,
                 () => RepoCommands.WhyNoCopy
             )
@@ -117,7 +125,7 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Open Commit in Browser",
                 "",
-                () => repo.Cmds.OpenCommitInBrowser(c.Id),
+                () => commands.RepoCmds.OpenCommitInBrowser(c.Id),
                 () => WebCommands.CanOpenCommit(repo.Repo, c),
                 () => WebCommands.WhyNoOpenCommit(repo.Repo, c)
             )
@@ -153,14 +161,14 @@ class CommitMenu : ICommitMenu
             .Items.Item(
                 BranchUndo.Label(step),
                 "",
-                () => repo.BranchCmds.UndoLastChange(current.Name),
+                () => commands.BranchCmds.UndoLastChange(current.Name),
                 () => BranchUndo.WhyNot(repo.Repo, current, step) == "",
                 () => BranchUndo.WhyNot(repo.Repo, current, step)
             )
             // The work no branch has any more, which the reflogs still know of
-            .Item("Recover Lost Commits ...", "", () => repo.BranchCmds.RecoverLostCommits())
+            .Item("Recover Lost Commits ...", "", () => commands.BranchCmds.RecoverLostCommits())
             // The branches gmd deleted, whose reflogs git deleted with them
-            .Item("Restore Deleted Branch ...", "", () => repo.BranchCmds.RestoreDeletedBranch())
+            .Item("Restore Deleted Branch ...", "", () => commands.BranchCmds.RestoreDeletedBranch())
             .Separator()
             .SubMenu(
                 "Discard Changes in a File",
@@ -204,13 +212,13 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Discard All Changes",
                 "",
-                () => repo.Cmds.UndoAllUncommittedChanged(),
+                () => commands.RepoCmds.UndoAllUncommittedChanged(),
                 () => cmds.CanUndoUncommitted(),
                 () => "There are no uncommitted changes to undo"
             )
             // The same and the ignored files too, i.e. the folder as a fresh clone would have it.
             // Enabled with no changes as well, since deleting what git ignores is reason enough.
-            .Item("Discard All Changes and Ignored Files", "", () => repo.Cmds.CleanWorkingFolder());
+            .Item("Discard All Changes and Ignored Files", "", () => commands.RepoCmds.CleanWorkingFolder());
     }
 
     // The amend of the commit the menu is for, when that is an older one than the last, whose own
@@ -252,7 +260,7 @@ class CommitMenu : ICommitMenu
     // Squashes the commits selected with Shift-↑↓, which the item names once there are some
     IEnumerable<MenuItem> GetSquashItems()
     {
-        var selection = repo.RepoView.Selection;
+        var selection = commands.View.Selection;
         var (i1, i2) = (selection.I1, selection.I2);
         var selected = "";
         var whyNot = "Select the commits to squash with ⇧↑↓ first";

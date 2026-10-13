@@ -13,6 +13,7 @@ interface IRepoViewInputHost
 {
     IViewRepo ViewRepo { get; }
     IRepoViewMenus Menus { get; }
+    CommandContext Commands { get; }
 
     void ToggleDetails();
     void ToggleDetailsFocus();
@@ -64,9 +65,9 @@ class RepoViewInput
     IViewRepo Repo => host.ViewRepo;
     Server.Repo ServerRepo => host.ViewRepo.Repo;
     IRepoViewMenus Menus => host.Menus;
-    IRepoCommands Cmd => Repo.Cmds;
-    ICommitCommands CommitCmds => Repo.CommitCmds;
-    IBranchCommands BranchCmds => Repo.BranchCmds;
+    IRepoCommands Cmd => host.Commands.RepoCmds;
+    ICommitCommands CommitCmds => host.Commands.CommitCmds;
+    IBranchCommands BranchCmds => host.Commands.BranchCmds;
 
     public void Register()
     {
