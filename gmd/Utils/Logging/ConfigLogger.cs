@@ -134,9 +134,9 @@ static class ConfigLogger
         return sourceFilePath.Substring(prefixLength).Replace(";", "");
     }
 
-    static string ToLogLine(string level, string msg, string memberName, string sourceFilePath, int lineNumber)
+    internal static string ToLogLine(string level, string msg, string memberName, string sourceFilePath, int lineNumber)
     {
-        string timeStamp = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}";
+        string timeStamp = DateTime.Now.IsoMs();
         int trimLength = prefixLength;
         if (prefixLength >= sourceFilePath.Length - 1)
         {

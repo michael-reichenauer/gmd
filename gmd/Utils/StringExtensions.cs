@@ -22,9 +22,11 @@ public static class StringExtensions
         return text.Substring(0, maxLength);
     }
 
+    // Trims the prefix, compared character by character: a culture's comparison ignores characters
+    // that are not drawn, e.g. a soft hyphen, and the length cut off would then be wrong
     public static string TrimPrefix(this string source, string prefix)
     {
-        if (!source.StartsWith(prefix))
+        if (!source.StartsWith(prefix, StringComparison.Ordinal))
         {
             return source;
         }
@@ -34,7 +36,7 @@ public static class StringExtensions
 
     public static string TrimSuffix(this string source, string suffix)
     {
-        if (!source.EndsWith(suffix))
+        if (!source.EndsWith(suffix, StringComparison.Ordinal))
         {
             return source;
         }
