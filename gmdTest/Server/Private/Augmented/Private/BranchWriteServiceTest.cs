@@ -6,20 +6,20 @@ namespace gmdTest.Server.Private.Augmented.Private;
 
 // A local branch and its remote branch are one branch to the user, but git has two, and they can
 // point at different commits. So merging or rebasing onto 'main' has to work out whether 'main' or
-// 'origin/main' is the one with the commits, which is what YoungestTipName answers. The rest of
+// 'origin/main' is the one with the commits, which is what MergeTipName answers. The rest of
 // BranchWriteService is git commands, covered by the integration tests.
 [TestClass]
 public class BranchWriteServiceTest
 {
-    // The tips are the same, so both are the youngest — which means asking for either gives the
-    // other. Harmless, since they point at the same commit, but it is why this is worth pinning.
+    // The tips are the same, so either would do, and the local branch is taken whichever is asked
+    // for. It used to be the other of the two, by equal author times.
     [TestMethod]
-    public async Task TestSyncedPairGivesTheOtherOfThePair()
+    public async Task TestSyncedPairGivesTheLocalBranch()
     {
         var repo = await Synced().AugmentedRepoAsync();
 
-        Assert.AreEqual("origin/main", YoungestOf(repo, "main"));
-        Assert.AreEqual("main", YoungestOf(repo, "origin/main"));
+        Assert.AreEqual("main", MergeTipOf(repo, "main"));
+        Assert.AreEqual("main", MergeTipOf(repo, "origin/main"));
     }
 
     [TestMethod]
@@ -27,8 +27,8 @@ public class BranchWriteServiceTest
     {
         var repo = await Ahead().AugmentedRepoAsync();
 
-        Assert.AreEqual("main", YoungestOf(repo, "main"));
-        Assert.AreEqual("main", YoungestOf(repo, "origin/main"));
+        Assert.AreEqual("main", MergeTipOf(repo, "main"));
+        Assert.AreEqual("main", MergeTipOf(repo, "origin/main"));
     }
 
     [TestMethod]
@@ -36,8 +36,8 @@ public class BranchWriteServiceTest
     {
         var repo = await Behind().AugmentedRepoAsync();
 
-        Assert.AreEqual("origin/main", YoungestOf(repo, "main"));
-        Assert.AreEqual("origin/main", YoungestOf(repo, "origin/main"));
+        Assert.AreEqual("origin/main", MergeTipOf(repo, "main"));
+        Assert.AreEqual("origin/main", MergeTipOf(repo, "origin/main"));
     }
 
     // A diverged pair has commits on both sides, so the youngest tip wins rather than either side
@@ -47,8 +47,43 @@ public class BranchWriteServiceTest
     {
         var repo = await Diverged().AugmentedRepoAsync();
 
-        Assert.AreEqual("main", YoungestOf(repo, "main"));
-        Assert.AreEqual("main", YoungestOf(repo, "origin/main"));
+        Assert.AreEqual("main", MergeTipOf(repo, "main"));
+        Assert.AreEqual("main", MergeTipOf(repo, "origin/main"));
+    }
+
+    // A cherry picked or rebased commit keeps its author time, so a local branch ahead by one has the
+    // older tip. It is ahead all the same, which is what decides, and not the times; by the times
+    // the remote branch was merged, without the local commit.
+    [TestMethod]
+    public async Task TestLocalBranchAheadByAnOlderCopyGivesTheLocalBranch()
+    {
+        var repo = await new RepoBuilder()
+            .CopyOf("l1", "f1", "r1")
+            .Commit("r1", "Remote 1", "c1")
+            .Commit("f1", "Feature 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "r1", ahead: 1)
+            .LocalBranch("feature", "f1")
+            .AugmentedRepoAsync();
+
+        Assert.AreEqual("main", MergeTipOf(repo, "main"));
+        Assert.AreEqual("main", MergeTipOf(repo, "origin/main"));
+    }
+
+    [TestMethod]
+    public async Task TestRemoteBranchAheadByAnOlderCopyGivesTheRemoteBranch()
+    {
+        var repo = await new RepoBuilder()
+            .CopyOf("r2", "f1", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("f1", "Feature 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "r2", behind: 1)
+            .LocalBranch("feature", "f1")
+            .AugmentedRepoAsync();
+
+        Assert.AreEqual("origin/main", MergeTipOf(repo, "main"));
+        Assert.AreEqual("origin/main", MergeTipOf(repo, "origin/main"));
     }
 
     [TestMethod]
@@ -56,7 +91,7 @@ public class BranchWriteServiceTest
     {
         var repo = await LocalOnly().AugmentedRepoAsync();
 
-        Assert.AreEqual("main", YoungestOf(repo, "main"));
+        Assert.AreEqual("main", MergeTipOf(repo, "main"));
     }
 
     // Renaming a branch renames it in the branch choices as well, or the old name would come back
@@ -105,8 +140,7 @@ public class BranchWriteServiceTest
         Assert.IsFalse(isSetByUser, "Where a branch started is not a choice of the user");
     }
 
-    static string YoungestOf(Repo repo, string name) =>
-        BranchWriteService.YoungestTipName(repo, repo.BranchByName[name]);
+    static string MergeTipOf(Repo repo, string name) => BranchWriteService.MergeTipName(repo, repo.BranchByName[name]);
 
     static RepoBuilder Synced() =>
         new RepoBuilder()

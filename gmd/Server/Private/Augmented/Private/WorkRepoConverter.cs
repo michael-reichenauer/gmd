@@ -114,6 +114,10 @@ class WorkRepoConverter : IWorkRepoConverter
             X: 0,
             IsIn: false,
             IsOut: false
-        );
+        )
+        {
+            AheadCount = b.AheadCount,
+            BehindCount = b.BehindCount,
+        };
     }
 }

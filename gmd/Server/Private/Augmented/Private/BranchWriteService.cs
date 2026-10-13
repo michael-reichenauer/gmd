@@ -160,7 +160,7 @@ class BranchWriteService : IBranchWriteService
             return ToMergeCommits(repo, commits2).ToList();
         }
 
-        var mergeName = YoungestTipName(repo, repo.BranchByName[name]);
+        var mergeName = MergeTipName(repo, repo.BranchByName[name]);
 
         if (await git.MergeBranchAsync(mergeName, repo.Path) is Error e)
             return e;
@@ -181,7 +181,7 @@ class BranchWriteService : IBranchWriteService
     {
         using (fileMonitor.Pause())
         {
-            var mergeName = YoungestTipName(repo, repo.BranchByName[repo.CurrentBranch().Name]);
+            var mergeName = MergeTipName(repo, repo.BranchByName[repo.CurrentBranch().Name]);
 
             // The two failures are told apart, since they leave the user in very different places:
             // a failed checkout has not moved HEAD at all, while a conflicting merge has, and the
@@ -209,7 +209,7 @@ class BranchWriteService : IBranchWriteService
             var primaryCurrent = repo.BranchByName[cb.PrimaryName];
             var oldBase = primaryCurrent.BottomId;
 
-            var newBase = YoungestTipName(repo, repo.BranchByName[name]);
+            var newBase = MergeTipName(repo, repo.BranchByName[name]);
 
             if (await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path) is Error e)
                 return e;
@@ -229,32 +229,32 @@ class BranchWriteService : IBranchWriteService
         }
     }
 
-    // A local branch and its remote branch are one branch to the user, but they can have
-    // different tips, so merging or rebasing onto one of them has to use the youngest of the two.
-    internal static string YoungestTipName(Repo repo, Branch branch)
+    // A local branch and its remote branch are one branch to the user, but they can point at
+    // different commits, so merging or rebasing onto the branch has to use the one that is ahead,
+    // i.e. that has the other's commits as well, as git counts them: the local branch unless it is
+    // behind, and the remote branch when only it has commits of its own. When both have, the one
+    // with the youngest tip is taken; merging it is what brings the other side in.
+    //
+    // Author times alone decided before, and a commit keeps its author time when it is cherry picked
+    // or rebased, as it does a clock running ahead on another machine: a local branch ahead by such
+    // a commit was taken as behind, and the remote branch merged without the local commits.
+    internal static string MergeTipName(Repo repo, Branch branch)
     {
-        var tip = repo.CommitById[branch.TipId];
+        var local =
+            !branch.IsRemote ? branch
+            : branch.LocalName != "" ? repo.BranchByName[branch.LocalName]
+            : null;
+        if (local == null || !repo.BranchByName.TryGetValue(local.RemoteName, out var remote))
+            return branch.Name;
 
-        if (branch.LocalName != "")
-        { // Branch is a remote branch with an existing local branch, which might have a younger tip
-            var localBranch = repo.BranchByName[branch.LocalName];
-            var localTip = repo.CommitById[localBranch.TipId];
-            if (localTip.AuthorTime >= tip.AuthorTime)
-            { // The local branch is younger or same, use that.
-                return localBranch.Name;
-            }
-        }
-        else if (branch.RemoteName != "")
-        { // Branch is a local branch with an existing remote branch, which might have a younger tip
-            var remoteBranch = repo.BranchByName[branch.RemoteName];
-            var remoteTip = repo.CommitById[remoteBranch.TipId];
-            if (remoteTip.AuthorTime >= tip.AuthorTime)
-            { // The remote branch is younger or same, use that.
-                return remoteBranch.Name;
-            }
-        }
+        if (local.BehindCount == 0)
+            return local.Name;
+        if (local.AheadCount == 0)
+            return remote.Name;
 
-        return branch.Name;
+        var localTime = repo.CommitById[local.TipId].AuthorTime;
+        var remoteTime = repo.CommitById[remote.TipId].AuthorTime;
+        return localTime >= remoteTime ? local.Name : remote.Name;
     }
 
     // The merge log reaches as far back as the merge does, while the shown repo is a log truncated

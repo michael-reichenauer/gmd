@@ -133,6 +133,8 @@ internal class WorkBranch
     public bool IsRemoteMissing { get; }
     public bool IsCurrent { get; }
     public bool IsCheckedOutElsewhere { get; } // The '+' of 'git branch': held by another worktree
+    public int AheadCount { get; } // A local branch's commits its remote branch has not, as git counts them
+    public int BehindCount { get; } // Its remote branch's commits it has not
 
     // Augmented properties
     public string WorktreePath { get; set; } = ""; // The other worktree holding this branch, if any
@@ -179,6 +181,8 @@ internal class WorkBranch
         IsGitBranch = true;
         IsCurrent = b.IsCurrent;
         IsCheckedOutElsewhere = b.IsCheckedOutElsewhere;
+        AheadCount = b.AheadCount;
+        BehindCount = b.BehindCount;
         IsRemote = b.IsRemote;
         IsDetached = b.IsDetached;
         RemoteName = b.RemoteName;

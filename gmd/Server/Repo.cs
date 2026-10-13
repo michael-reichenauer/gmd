@@ -177,6 +177,11 @@ public record Branch(
     bool IsOut
 )
 {
+    // A local branch's commits its remote branch has not, and the other way round, as git counts
+    // them; both 0 for a branch with no remote branch, and for a remote branch
+    public int AheadCount { get; init; }
+    public int BehindCount { get; init; }
+
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
 
