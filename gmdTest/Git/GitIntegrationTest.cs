@@ -1463,6 +1463,55 @@ public class GitIntegrationTest
         Assert.AreEqual(0, status.Conflicted, "And it is marked resolved");
     }
 
+    // A file saved with conflicts left in it is written, not staged. Staging is what 'resolved'
+    // means to git: it took the file out of the conflicts git lists, so the rest could not be
+    // reached from the diff, and it dropped the stages the rest is resolved from, the ancestor and
+    // the two sides a whole file choice checks out.
+    [TestMethod]
+    public async Task TestResolvingSomeConflictsLeavesTheFileConflicted()
+    {
+        var lines = Enumerable.Range(1, 30).Select(i => $"line {i}").ToList();
+        string Text(string at5, string at25) =>
+            string.Join(
+                '\n',
+                lines.Select(l =>
+                    l == "line 5" ? at5
+                    : l == "line 25" ? at25
+                    : l
+                )
+            ) + "\n";
+        var file = await ConflictedFileAsync(
+            Text("line 5", "line 25"),
+            Text("OURS 5", "OURS 25"),
+            Text("THEIRS 5", "THEIRS 25")
+        );
+        Assert.AreEqual(2, file.Hunks.Count);
+
+        Ok(
+            await repo.Git.ResolveConflictFileAsync(
+                "file.txt",
+                ConflictKind.BothModified,
+                [new HunkResolution(0, HunkChoice.Ours), new HunkResolution(1, HunkChoice.None)],
+                repo.Path
+            )
+        );
+
+        var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt"));
+        StringAssert.Contains(text, "OURS 5\nline 6", "The first is resolved on disk");
+        StringAssert.Contains(text, "<<<<<<<", "The second still has its markers");
+        Assert.AreEqual(
+            1,
+            Value(await repo.Git.GetStatusAsync(repo.Path)).Conflicted,
+            "And the file is still conflicted"
+        );
+        var left = Value(await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothModified, repo.Path));
+        Assert.AreEqual(
+            1,
+            Value(await repo.Git.WithBaseAsync(left, repo.Path)).Hunks.Count(h => h.HasBase),
+            "The ancestor is still there"
+        );
+    }
+
     // The same through the file the ancestor is already in, i.e. no recovery needed
     [TestMethod]
     public async Task TestResolvingToTheBaseOfADiff3Conflict()

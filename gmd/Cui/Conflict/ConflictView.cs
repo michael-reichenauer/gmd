@@ -445,8 +445,9 @@ class ConflictView : IConflictView
         return false;
     }
 
-    // Writes the decisions and marks the file resolved. Nothing is written until this is pressed,
-    // so a resolver that is closed without saving has changed nothing on disk.
+    // Writes the decisions, and marks the file resolved once none is left undecided. Nothing is
+    // written until this is pressed, so a resolver that is closed without saving has changed nothing
+    // on disk.
     //
     // A save that leaves conflicts undecided writes their markers back, so the file on disk no
     // longer holds the conflicts this view was built from: the decided ones are stable text now,
@@ -481,8 +482,8 @@ class ConflictView : IConflictView
 
             UI.InfoMessage(
                 "Saved",
-                $"{file.Path} was saved and marked resolved, but {left} of its "
-                    + $"conflicts still have their markers in it."
+                $"{file.Path} was saved, with {left} of its conflicts still to resolve.\n"
+                    + "It is marked resolved once none is left."
             );
 
             if (isClosing)
@@ -671,18 +672,8 @@ class ConflictView : IConflictView
             _ => $"{file.Path} is only on one side.",
         } + "\n\nKeep it, or accept the deletion?";
 
-    void ShowWholeFileMenu()
-    {
-        Menu.Show(
-            $"Whole File",
-            Menu.Center,
-            2,
-            Menu.Items.Item($"Use {OursLabel()} for the Whole File", "", () => UseWholeFile(true))
-                .Item($"Use {TheirsLabel()} for the Whole File", "", () => UseWholeFile(false))
-                .Separator()
-                .Item("Unresolve This File", "", Unresolve)
-        );
-    }
+    // The main menu's Whole File items, which offer only the sides the index holds
+    void ShowWholeFileMenu() => Menu.Show($"Whole File", Menu.Center, 2, WholeFileItems());
 
     string OursLabel() => file.Hunks.Count > 0 ? file.Hunks[0].OursLabel : "ours";
 

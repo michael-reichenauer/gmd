@@ -555,7 +555,9 @@ next and previous one from wherever the cursor is.
 | Esc, q     | Close the resolver                                         |
 
 Nothing is written until `s`, so closing without saving leaves the file as
-it was, and closing with decisions unsaved asks first.
+it was, and closing with decisions unsaved asks first. A file saved with
+conflicts still undecided keeps their markers, and is marked resolved once
+none is left.
 
 `b` shows the version both sides started from, which is usually what
 settles which change to keep, and `0` resolves the conflict *to* it, the

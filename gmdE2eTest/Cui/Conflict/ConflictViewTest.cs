@@ -294,7 +294,8 @@ public class ConflictViewTest
         gmd.Send("1");
         gmd.WaitFor("1 still to resolve");
         gmd.Send("S");
-        StringAssert.Contains(gmd.WaitFor("Saved"), "1 of its conflicts still have their markers in it");
+        StringAssert.Contains(gmd.WaitFor("Saved"), "was saved, with 1 of its conflicts still to resolve");
+        Assert.AreEqual("UU long.txt", (await repo.GitAsync("status --porcelain")).Trim(), "And it is not staged");
         gmd.Send("Enter");
 
         // Re-read, so what is left is one conflict rather than the second of two
