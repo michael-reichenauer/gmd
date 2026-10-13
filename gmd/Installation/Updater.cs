@@ -15,6 +15,30 @@ interface IUpdater
     Task StartCheckUpdatesRegularly();
 }
 
+// The gmd that is running, as far as updating it goes: its version, the path of its binary, which
+// an update replaces, whether it is a dev instance, which is never offered an update, and the names
+// of the release assets that run here. Handed to the Updater rather than read by it, so that the
+// tests can be any gmd, the test process being a dotnet host.
+record RunningGmd(Version Version, string? Path, bool IsDevInstance, IReadOnlyList<string> BinaryNames)
+{
+    public static RunningGmd Current { get; } =
+        new(
+            Build.Version(),
+            Environment.ProcessPath,
+            Build.IsDevInstance(),
+            ReleaseChoice.BinaryNames(CurrentOs, RuntimeInformation.OSArchitecture)
+        );
+
+    // Run by 'dotnet gmd.dll', as the debugger does
+    public bool IsDotNetHost => System.IO.Path.GetFileNameWithoutExtension(Path ?? "") == "dotnet";
+
+    static OSPlatform CurrentOs =>
+        Build.IsWindows ? OSPlatform.Windows
+        : Build.IsMacOS ? OSPlatform.OSX
+        : Build.IsLinux ? OSPlatform.Linux
+        : OSPlatform.Create("other");
+}
+
 // Keeps gmd up to date with its releases on GitHub. Which release there is to update to is read
 // from GitHub (GitHubReleases) and chosen (ReleaseChoice); updating replaces the binary of the
 // running gmd (BinaryInstaller), which goes on running, and the new version runs once gmd is
@@ -27,7 +51,6 @@ class Updater : IUpdater
     readonly Config config;
     readonly IGitHubReleases gitHubReleases;
     readonly IBinaryInstaller installer;
-    readonly Version buildVersion;
 
     bool isUpdateCheckerRunning = false;
 
@@ -36,21 +59,28 @@ class Updater : IUpdater
         this.config = config;
         this.gitHubReleases = gitHubReleases;
         this.installer = installer;
-        buildVersion = Build.Version();
     }
 
-    public async Task CheckUpdateAvailableAsync()
+    public Task CheckUpdateAvailableAsync() => CheckUpdateAvailableAsync(RunningGmd.Current);
+
+    public Task<Result<Version>> UpdateAsync() => UpdateAsync(RunningGmd.Current);
+
+    public Task StartCheckUpdatesRegularly() => StartCheckUpdatesRegularly(RunningGmd.Current);
+
+    public Task<Result<UpdateAvailability>> IsUpdateAvailableAsync() => IsUpdateAvailableAsync(RunningGmd.Current);
+
+    internal async Task CheckUpdateAvailableAsync(RunningGmd self)
     {
-        if (IsDotNet())
+        if (self.IsDotNetHost)
             return;
 
-        installer.CleanUp(ThisPath);
+        installer.CleanUp(ThisPath(self));
         if (!config.CheckUpdates)
         {
             Log.Info("Check for updates is disabled");
             return;
         }
-        if (await IsUpdateAvailableAsync() is Error e)
+        if (await IsUpdateAvailableAsync(self) is Error e)
         {
             Log.Warn($"Failed to check remote version, {e}");
             return;
@@ -60,16 +90,16 @@ class Updater : IUpdater
         var allowPreview = config.AllowPreview;
 
         Log.Info(
-            $"Running: {buildVersion}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})"
+            $"Running: {self.Version}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})"
         );
     }
 
-    public async Task<Result<Version>> UpdateAsync()
+    internal async Task<Result<Version>> UpdateAsync(RunningGmd self)
     {
-        if (IsDotNet())
-            return buildVersion;
+        if (self.IsDotNetHost)
+            return self.Version;
 
-        var availableResult = await IsUpdateAvailableAsync();
+        var availableResult = await IsUpdateAvailableAsync(self);
         if (availableResult is not UpdateAvailability available)
         {
             Log.Warn($"Failed to check remote version, {availableResult.Error}");
@@ -79,23 +109,26 @@ class Updater : IUpdater
         if (!available.IsAvailable)
         {
             Log.Info("Already at latest release");
-            return buildVersion;
+            return self.Version;
         }
 
         var release = SelectRelease();
-        var binary = ReleaseChoice.Binary(release, BinaryNames());
+        var binary = ReleaseChoice.Binary(release, self.BinaryNames);
         if (binary == null)
+        {
+            Log.Warn($"Failed to download new version, no binary for this platform in {release.Version}");
             return new Error("No binary available");
+        }
 
-        if (await installer.InstallAsync(binary.Url, release.Version, ThisPath) is Error installError)
+        if (await installer.InstallAsync(binary.Url, release.Version, ThisPath(self)) is Error installError)
             return installError;
 
         return new Version(SelectRelease().Version);
     }
 
-    public async Task StartCheckUpdatesRegularly()
+    async Task StartCheckUpdatesRegularly(RunningGmd self)
     {
-        if (Build.IsDevInstance())
+        if (self.IsDevInstance)
         {
             Log.Info("Dev instance, no update check");
             return;
@@ -107,13 +140,13 @@ class Updater : IUpdater
 
         while (true)
         {
-            await CheckUpdateAvailableAsync();
+            await CheckUpdateAvailableAsync(self);
 
             if (config.CheckUpdates && config.AutoUpdate)
             {
-                if (await IsUpdateAvailableAsync() is UpdateAvailability { IsAvailable: true })
+                if (await IsUpdateAvailableAsync(self) is UpdateAvailability { IsAvailable: true })
                 {
-                    if (await UpdateAsync() is Version updatedVersion)
+                    if (await UpdateAsync(self) is Version updatedVersion)
                     {
                         UI.Post(() =>
                         {
@@ -134,7 +167,7 @@ class Updater : IUpdater
 
     // Checks even when CheckUpdates is off, which turns off only the checks gmd makes by itself: an
     // update the user asks for, by --update or in the update dialog, is looked for
-    public async Task<Result<UpdateAvailability>> IsUpdateAvailableAsync()
+    internal async Task<Result<UpdateAvailability>> IsUpdateAvailableAsync(RunningGmd self)
     {
         if (await gitHubReleases.FetchAsync() is Error fetchError)
         {
@@ -146,13 +179,13 @@ class Updater : IUpdater
         if (release.Version == "")
         {
             Log.Info("No remote release available");
-            return new UpdateAvailability(false, buildVersion);
+            return new UpdateAvailability(false, self.Version);
         }
 
         if (!release.Assets.Any())
         {
             Log.Warn($"No remote binaries for {release.Version}");
-            return new UpdateAvailability(false, buildVersion);
+            return new UpdateAvailability(false, self.Version);
         }
         config.Set(s =>
         {
@@ -160,33 +193,18 @@ class Updater : IUpdater
             s.Releases.IsPreview = release.IsPreview;
         });
 
-        if (!config.Releases.IsUpdateAvailable())
+        // As Releases.IsUpdateAvailable(), which the UI asks, but of the gmd handed in
+        if (self.IsDevInstance || !Version.TryParse(release.Version, out var latest) || latest <= self.Version)
         {
             Log.Debug("No new remote release available");
-            return new UpdateAvailability(false, buildVersion);
+            return new UpdateAvailability(false, self.Version);
         }
-        Log.Info($"Update available, local {buildVersion} < {release.Version} remote (preview={release.IsPreview})");
+        Log.Info($"Update available, local {self.Version} < {release.Version} remote (preview={release.IsPreview})");
 
-        return new UpdateAvailability(true, new Version(release.Version));
+        return new UpdateAvailability(true, latest);
     }
 
     Release SelectRelease() => ReleaseChoice.Select(config.Releases, config.AllowPreview);
 
-    static IReadOnlyList<string> BinaryNames()
-    {
-        var os =
-            Build.IsWindows ? OSPlatform.Windows
-            : Build.IsMacOS ? OSPlatform.OSX
-            : Build.IsLinux ? OSPlatform.Linux
-            : OSPlatform.Create("other");
-        return ReleaseChoice.BinaryNames(os, RuntimeInformation.OSArchitecture);
-    }
-
-    static string ThisPath => Environment.ProcessPath ?? "gmd";
-
-    private static bool IsDotNet()
-    {
-        var thisPath = Environment.ProcessPath ?? "gmd";
-        return Path.GetFileNameWithoutExtension(thisPath) == "dotnet";
-    }
+    static string ThisPath(RunningGmd self) => self.Path ?? "gmd";
 }
