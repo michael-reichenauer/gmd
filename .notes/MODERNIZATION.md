@@ -410,8 +410,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
     Reading by the counts would also be what a combined diff (`diff --cc`) needs.
   - Branch and tag names go to git unquoted. Git refuses a space and a backslash in a ref name,
     but not a `"`, which would split the argument.
-  - Every id is taken to be SHA-1's 40 characters (the tag mirror, blame's headers, the sentinel
-    ids); a SHA-256 repository is not read.
+  - A SHA-256 repository (`git init --object-format=sha256`, 64 character ids) opens and draws,
+    and its log, branches, tags and diffs read (tried 2026-10-13), but two parsers take an id to be
+    SHA-1's 40 characters. Blame fails on every file (`BlameService.ParseHeader` and `IsHeader`),
+    and its uncommitted lines would not be told even then, git marking them with 64 zeros where
+    `BlameService.UncommittedId` has 40. And the mirror of origin's tags is always read as empty
+    (`TagService.GetRefsAsync`), so a tag deleted on origin is never pruned here, the safe way to
+    fail, and the tag list says no tag is on origin.
   - `GetLogAsync` reads `user.name` before every log, one after the other, to set `IGit.CurrentAuthor`
     as a side effect, for the branch menu's own branches. 4 ms; worth moving when that is touched.
   - `KeyValueService.PushValueAsync` passes `--set-upstream`, which means nothing for a ref outside
