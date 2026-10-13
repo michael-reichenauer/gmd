@@ -25,13 +25,11 @@ class BinaryInstaller : IBinaryInstaller
 
     const string StagedInfix = ".update_";
 
-    readonly ICmd cmd;
     readonly IHttp http;
     readonly Random random = new();
 
-    internal BinaryInstaller(ICmd cmd, IHttp http)
+    internal BinaryInstaller(IHttp http)
     {
-        this.cmd = cmd;
         this.http = http;
     }
 
@@ -137,7 +135,7 @@ class BinaryInstaller : IBinaryInstaller
     {
         try
         {
-            if (MakeBinaryExecutable(stagedPath) is Error e)
+            if (MakeExecutable(stagedPath, targetPath) is Error e)
                 return e;
 
             var newThisPath = GetTempPath(targetPath);
@@ -163,11 +161,18 @@ class BinaryInstaller : IBinaryInstaller
         return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
     }
 
-    Result MakeBinaryExecutable(string path)
+    // With the mode of the binary it replaces, which runs, so that the new one runs too: a download is
+    // made as a plain file, 0644 under the usual umask. Set directly rather than by 'chmod +x <path>',
+    // whose path, unquoted, failed every update of a gmd in a folder with a space in its name.
+    static Result MakeExecutable(string stagedPath, string targetPath)
     {
-        if (Build.IsWindows)
-            return Result.Ok; // Not needed on windows
+        if (OperatingSystem.IsWindows())
+            return Result.Ok; // Windows runs a file by its name
 
-        return cmd.Command("chmod", $"+x {path}", "");
+        return Result.Catch(() =>
+        {
+            var mode = File.GetUnixFileMode(targetPath) | UnixFileMode.UserRead | UnixFileMode.UserExecute;
+            File.SetUnixFileMode(stagedPath, mode);
+        });
     }
 }

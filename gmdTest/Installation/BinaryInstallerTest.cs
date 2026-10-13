@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text;
 using gmd.Installation;
-using gmdTest.Utils;
 
 namespace gmdTest.Installation;
 
@@ -42,6 +41,27 @@ public class BinaryInstallerTest
 
         Assert.AreEqual("new gmd", File.ReadAllText(binaryPath));
         Assert.AreEqual("", FilesNamed(".update_"), "the download is the binary now");
+    }
+
+    // The new binary runs as the one it replaces did. It was made so by 'chmod +x <path>' with the path
+    // unquoted, which failed every update of a gmd installed in a folder with a space in its name.
+    [TestMethod]
+    public async Task TestTheNewBinaryIsExecutableInAFolderWithASpace()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+        var spaced = Path.Join(folder, "my apps");
+        Directory.CreateDirectory(spaced);
+        var path = Path.Join(spaced, "gmd");
+        File.WriteAllText(path, "old gmd");
+        var mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead;
+        File.SetUnixFileMode(path, mode | UnixFileMode.GroupExecute);
+        var installer = NewInstaller(new FakeHttp(_ => FakeHttp.Text("new gmd")));
+
+        AssertOk(await installer.InstallAsync(Url, "1.6.1444.870", path));
+
+        Assert.AreEqual("new gmd", File.ReadAllText(path));
+        Assert.AreEqual(mode | UnixFileMode.GroupExecute, File.GetUnixFileMode(path));
     }
 
     [TestMethod]
@@ -108,7 +128,7 @@ public class BinaryInstallerTest
                 }
             }
         );
-        var installer = new BinaryInstaller(new FakeCmd(""), LoopbackServer.Client(TimeSpan.FromSeconds(1)));
+        var installer = new BinaryInstaller(LoopbackServer.Client(TimeSpan.FromSeconds(1)));
         var path = Path.Join(folder, "gmd.update_ABCDE");
 
         AssertOk(await installer.DownloadAsync(server.Url, path, TimeSpan.FromSeconds(5)));
@@ -127,7 +147,7 @@ public class BinaryInstallerTest
                 await Task.Delay(Timeout.Infinite, ct);
             }
         );
-        var installer = new BinaryInstaller(new FakeCmd(""), LoopbackServer.Client(TimeSpan.FromSeconds(10)));
+        var installer = new BinaryInstaller(LoopbackServer.Client(TimeSpan.FromSeconds(10)));
         var path = Path.Join(folder, "gmd.update_ABCDE");
 
         var e = AssertError(await installer.DownloadAsync(server.Url, path, TimeSpan.FromMilliseconds(500)));
@@ -146,7 +166,7 @@ public class BinaryInstallerTest
                 await LoopbackServer.WriteAsync(stream, new string('x', 1000), ct);
             }
         );
-        var installer = new BinaryInstaller(new FakeCmd(""), LoopbackServer.Client(TimeSpan.FromSeconds(10)));
+        var installer = new BinaryInstaller(LoopbackServer.Client(TimeSpan.FromSeconds(10)));
 
         var e = AssertError(await installer.InstallAsync(server.Url, "1.6.1444.870", binaryPath));
 
@@ -172,7 +192,7 @@ public class BinaryInstallerTest
         Assert.AreEqual("gmd gmd.update_FRESH other", FilesNamed(""));
     }
 
-    BinaryInstaller NewInstaller(FakeHttp http) => new(new FakeCmd(""), http);
+    BinaryInstaller NewInstaller(FakeHttp http) => new(http);
 
     // The names of the files in the folder whose names contain the text, sorted
     string FilesNamed(string text) =>
