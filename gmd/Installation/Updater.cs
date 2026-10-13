@@ -142,7 +142,9 @@ class Updater : IUpdater
             return new Error("No binary available");
         }
 
-        if (await installer.InstallAsync(binary.Url, release.Version, ThisPath(self)) is Error installError)
+        var checksums = ReleaseChoice.Checksums(release);
+        var releaseBinary = new ReleaseBinary(version, binary.Name, binary.Url, checksums?.Url ?? "");
+        if (await installer.InstallAsync(releaseBinary, ThisPath(self)) is Error installError)
             return installError;
 
         installedVersion = version;

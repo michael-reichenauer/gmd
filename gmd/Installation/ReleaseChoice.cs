@@ -7,6 +7,10 @@ namespace gmd.Installation;
 // releases and the platform rather than reading them, so the tests can drive every platform.
 static class ReleaseChoice
 {
+    // The checksums of a release's files, as 'sha256sum' writes them, which CI makes for every
+    // release since 0.97
+    public const string ChecksumsName = "SHA256SUMS";
+
     // The latest preview, when previews are allowed and it is newer than the latest stable
     // release, otherwise the latest stable release
     public static Release Select(Releases releases, bool allowPreview)
@@ -46,6 +50,9 @@ static class ReleaseChoice
     // The binary of the release that runs here, null when it has none
     public static Asset? Binary(Release release, IReadOnlyList<string> names) =>
         names.Select(n => release.Assets.FirstOrDefault(a => a.Name == n)).FirstOrDefault(a => a != null);
+
+    // The checksums of the release's files, null for a release from before they were made
+    public static Asset? Checksums(Release release) => release.Assets.FirstOrDefault(a => a.Name == ChecksumsName);
 
     static bool IsLeftNewer(string v1Text, string v2Text)
     {

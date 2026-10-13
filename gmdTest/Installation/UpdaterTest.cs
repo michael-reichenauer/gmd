@@ -66,7 +66,8 @@ public class UpdaterTest
 
         Assert.AreEqual(new Version("1.6.1444.870"), version);
         Assert.AreEqual(
-            $"https://example.com/v1.6.1444.870/gmd_linux_x64 1.6.1444.870 {BinaryPath}",
+            "1.6.1444.870 gmd_linux_x64 https://example.com/v1.6.1444.870/gmd_linux_x64"
+                + $" https://example.com/v1.6.1444.870/SHA256SUMS {BinaryPath}",
             string.Join("\n", installer.Calls)
         );
     }
@@ -145,7 +146,7 @@ public class UpdaterTest
         var config = new FakeConfigService().Config;
         var releases = new FakeGitHubReleases(config)
         {
-            Stable = ReleaseChoiceTest.NewRelease(stable, false, "gmd_linux_x64", "gmd_windows"),
+            Stable = ReleaseChoiceTest.NewRelease(stable, false, "gmd_linux_x64", "gmd_windows", "SHA256SUMS"),
         };
         var installer = new FakeInstaller();
         return (new Updater(config, releases, installer), config, releases, installer);
@@ -181,9 +182,9 @@ public class UpdaterTest
         public List<string> Calls { get; } = [];
         public Func<Task<Result>> InstallTask { get; set; } = () => Task.FromResult(Result.Ok);
 
-        public Task<Result> InstallAsync(string url, string version, string targetPath)
+        public Task<Result> InstallAsync(ReleaseBinary binary, string targetPath)
         {
-            Calls.Add($"{url} {version} {targetPath}");
+            Calls.Add($"{binary.Version} {binary.Name} {binary.Url} {binary.ChecksumsUrl} {targetPath}");
             return InstallTask();
         }
 
