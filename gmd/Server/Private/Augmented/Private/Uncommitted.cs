@@ -112,9 +112,11 @@ static class Uncommitted
 
         var parentIds = new List<string>() { current.Id };
 
-        if (repo.Status.MergeHeadId != "")
-        { // Merge in progress, add the source merge id as a merge parent to the uncommitted commit
-            var mergeHead = repo.CommitById[repo.Status.MergeHeadId];
+        // A merge in progress has the commit being merged in as its merge parent, when the log has it:
+        // one no branch reaches, as a merge of FETCH_HEAD or a 'git pull <url> <branch>' leaves when
+        // it stops on a conflict, has no row to draw a line to
+        if (repo.Status.MergeHeadId != "" && repo.CommitById.ContainsKey(repo.Status.MergeHeadId))
+        {
             parentIds.Add(repo.Status.MergeHeadId);
         }
 

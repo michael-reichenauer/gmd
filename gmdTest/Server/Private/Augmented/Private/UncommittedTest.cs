@@ -1,6 +1,7 @@
 using gmd.Server;
 using gmd.Server.Private.Augmented.Private;
 using gmdTest.Fixtures;
+using GitOp = gmd.Git.GitOperation;
 
 namespace gmdTest.Server.Private.Augmented.Private;
 
@@ -100,6 +101,41 @@ public class UncommittedTest
         var uncommitted = repo.CommitById[Repo.UncommittedId];
         Assert.AreEqual("CONFLICTS: 1, Merge branch 'dev', 3 uncommitted changes", uncommitted.Subject);
         Assert.IsTrue(uncommitted.IsConflicted);
+    }
+
+    // A merge in progress is drawn as one, the commit being merged in being the second parent
+    [TestMethod]
+    public async Task TestAMergeInProgressHasTheMergedCommitAsSecondParent()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .LocalBranch("dev", "d1")
+            .WithStatus(conflicted: 1, operation: GitOp.Merge, mergeHeadCommit: "d1")
+            .AugmentedRepoAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { RepoBuilder.Sha("c2"), RepoBuilder.Sha("d1") },
+            repo.CommitById[Repo.UncommittedId].ParentIds.ToArray()
+        );
+    }
+
+    // A merge of a commit no branch reaches, e.g. 'git pull <url> <branch>' or a merge of
+    // FETCH_HEAD stopped on a conflict, which is not in the log. It has no row to draw a line to, so
+    // the uncommitted commit has its first parent only. Looking it up stopped gmd on opening the repo.
+    [TestMethod]
+    public async Task TestAMergeOfACommitNotInTheLogHasTheFirstParentOnly()
+    {
+        var repo = await Builder()
+            .WithStatus(conflicted: 1, operation: GitOp.Merge, mergeHeadCommit: "f1")
+            .AugmentedRepoAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { RepoBuilder.Sha("c2") },
+            repo.CommitById[Repo.UncommittedId].ParentIds.ToArray()
+        );
     }
 
     static Task<Repo> Clean() => Builder().AugmentedRepoAsync();
