@@ -1,258 +1,151 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using static System.Environment;
 
 namespace gmd.Utils.Logging;
 
+// The log file, ~/gmd.log, which every start of gmd begins anew. Lines are queued by whichever
+// thread logs and written in batches by a thread of their own, so that logging never waits for
+// the disk. A file grown past MaxSize is moved aside to gmd.log.2.log, replacing the one before.
+//
+// A log that cannot be written must never stop gmd, since the log is where a failure is told. A
+// file that cannot be emptied, e.g. one that a 'sudo gmd' left owned by root, is replaced, and
+// when not even that works, gmd logs nowhere. A read-only gmd.log used to leave gmd hanging on a
+// blank screen: this constructor asserted, the assert waited for the log to close, i.e. for the
+// writing thread, and that thread waited for this constructor to finish.
 static class LogFile
 {
-    static readonly string LogFileName = "gmd.log";
-    static readonly string LevelInfo = "INFO ";
-    static readonly int MaxLogFileSize = 2000000;
+    const string FileName = "gmd.log";
+    const string LevelInfo = "INFO ";
+    const int MaxSize = 2000000;
+    const int WriteAttempts = 10;
+    const int WriteRetryDelayMs = 30;
 
-    static readonly BlockingCollection<string> logTexts = [];
-    static readonly int ProcessID = Process.GetCurrentProcess().Id;
-    static readonly object syncRoot = new object();
-    static int prefixLength = 0;
-    static string LogPath = LogFileName;
-
-    static TaskCompletionSource doneTask = new TaskCompletionSource();
+    static readonly BlockingCollection<string> lines = [];
+    static readonly TaskCompletionSource done = new();
+    static readonly int rootPathLength = RootPathLength();
+    static readonly bool isWritten;
 
     static LogFile()
     {
-        Task.Factory.StartNew(ProcessLogs, TaskCreationOptions.LongRunning).RunInBackground();
-        // string path = $"{Environment.GetFolderPath(SpecialFolder.UserProfile)}/gmd.log";
-        string path = Path.Join(Environment.GetFolderPath(SpecialFolder.UserProfile), LogFileName);
-        Init(path);
+        FilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), FileName);
+        isWritten = Open(FilePath) is Success;
+
+        // Started last, and never waited for here: the thread waits for this constructor to finish
+        // before it can read a field of the class
+        Task.Factory.StartNew(WriteLines, TaskCreationOptions.LongRunning).RunInBackground();
     }
 
     // Where the log is written, ~/gmd.log, for what About and a crash tell the user
-    public static string FilePath => LogPath;
+    public static string FilePath { get; }
 
+    // Ends the log once the lines queued before it are written; what is logged after it is dropped
     public static Task CloseAsync()
     {
-        try
-        {
-            if (!logTexts.IsCompleted)
-            {
-                logTexts.CompleteAdding();
-            }
-        }
-        catch
-        {
-            // buffer might already be closed in case of crashing
-        }
-
-        return doneTask.Task;
+        lines.CompleteAdding();
+        return done.Task;
     }
 
     internal static void Write(string level, string msg, string memberName, string sourceFilePath, int sourceLineNumber)
     {
-        var msgLines = msg.Split('\n');
-        foreach (var msgLine in msgLines)
+        foreach (var line in msg.Split('\n'))
         {
-            string text = ToLogLine(level, msgLine, memberName, sourceFilePath, sourceLineNumber);
-            QueueLogLine(text);
+            Queue(ToLogLine(level, line, memberName, sourceFilePath, sourceLineNumber));
         }
     }
 
-    static void Init(string logFilePath, [CallerFilePath] string sourceFilePath = "")
+    // Empties the file, or else replaces it, which takes only the right to write the folder, so a
+    // file that cannot be written, as one left by a 'sudo gmd' cannot, is no reason to log nowhere
+    internal static Result Open(string path)
     {
-        LogPath = logFilePath;
-        string rootPath =
-            Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(sourceFilePath))))
-            ?? "";
-        prefixLength = rootPath.Length + 1;
-        if (Result.Catch(() => File.WriteAllText(LogPath, "")) is Error e)
-            throw Asserter.FailFast(e.Message);
+        if (Result.Catch(() => File.WriteAllText(path, "")) is Success)
+            return Result.Ok;
+
+        return Result.Catch(() =>
+        {
+            File.Delete(path);
+            File.WriteAllText(path, "");
+        });
     }
 
-    static void LogDone(
-        string msg,
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0
-    )
+    // A line: the time, the level and the message, padded to a column, and then where it was
+    // logged, as a path from the root of the repository
+    internal static string ToLogLine(string level, string msg, string memberName, string sourceFilePath, int lineNumber)
     {
-        string text = ToLogLine(LevelInfo, msg, memberName, sourceFilePath, sourceLineNumber);
-        // Bypassing log queue since that is already closed
-        WriteToFile(new List<string>() { text });
+        var file = rootPathLength < sourceFilePath.Length - 1 ? sourceFilePath[rootPathLength..] : sourceFilePath;
+        var text = $"{DateTime.Now.IsoMs()} {level}:\"{msg}\"";
+
+        return $"{text, -100} {{{memberName}() {file}:{lineNumber}}}";
     }
 
-    private static void ProcessLogs()
+    // The writing thread: waits for a line, takes the ones queued behind it as well, and writes
+    // them in one go, until the log is closed
+    static void WriteLines()
     {
         try
         {
-            while (!logTexts.IsCompleted)
+            foreach (var line in lines.GetConsumingEnumerable())
             {
-                List<string> batchedTexts = [];
-
-                if (!logTexts.TryTake(out var logText, int.MaxValue))
+                List<string> batch = [line];
+                while (lines.TryTake(out var next))
                 {
-                    break;
-                }
-                // string? logText = logTexts.Take();
-                // Native.OutputDebugString(logText);
-                //batchedTexts.Add($"{filePrefix} {logText}");
-                batchedTexts.Add(logText);
-
-                // Check if there might be more buffered log texts, if so add them in batch
-                while (logTexts.TryTake(out logText))
-                {
-                    // Native.OutputDebugString(logText);
-                    // batchedTexts.Add($"{filePrefix} {logText}");
-                    batchedTexts.Add(logText);
+                    batch.Add(next);
                 }
 
-                try
-                {
-                    WriteToFile(batchedTexts);
-                }
-                catch (ThreadAbortException)
-                {
-                    // The process or app-domain is closing,
-                    // Thread.ResetAbort();
-                    return;
-                }
-                catch (Exception e) when (e.IsNotFatal())
-                {
-                    // Native.OutputDebugString("ERROR Failed to log to file, " + e);
-                }
+                Append(batch);
             }
 
-            LogDone("Logging done");
+            Append([ToLogLine(LevelInfo, "Logging done", nameof(WriteLines), ThisFile(), ThisLine())]);
         }
         finally
         {
-            doneTask.SetResult();
+            done.SetResult();
         }
     }
 
-    static string ToRelativeFilePath(string sourceFilePath)
-    {
-        return sourceFilePath.Substring(prefixLength).Replace(";", "");
-    }
-
-    internal static string ToLogLine(string level, string msg, string memberName, string sourceFilePath, int lineNumber)
-    {
-        string timeStamp = DateTime.Now.IsoMs();
-        int trimLength = prefixLength;
-        if (prefixLength >= sourceFilePath.Length - 1)
-        {
-            trimLength = 0;
-        }
-
-        string filePath = sourceFilePath.Substring(trimLength).Replace(";", "");
-
-        int classStartIndex = filePath.LastIndexOf(Path.DirectorySeparatorChar);
-        if (classStartIndex == -1)
-        {
-            classStartIndex = 0;
-        }
-        int extensionIndex = filePath.LastIndexOf('.');
-        if (extensionIndex == -1)
-        {
-            extensionIndex = filePath.Length - 1;
-        }
-        string className = filePath.Substring(classStartIndex + 1, extensionIndex - classStartIndex - 1);
-        string msgLine = $"{timeStamp} {level}:\"{msg}\"";
-
-        string line = $"{msgLine, -100} {{{memberName}() {filePath}:{lineNumber}}}";
-        return line;
-    }
-
-    private static void QueueLogLine(string text)
+    static void Queue(string line)
     {
         try
         {
-            logTexts.Add(text);
+            lines.Add(line);
         }
-        catch
+        catch (InvalidOperationException)
         {
-            // Failed to add, the buffer has been closed
+            // The log is closed
         }
     }
 
-    private static void WriteToFile(IReadOnlyCollection<string> text)
+    // Tried again for a moment while another program, e.g. a virus scanner, holds the file, and
+    // dropped if that does not help, rather than failing anything
+    static void Append(IReadOnlyList<string> batch)
     {
-        if (LogPath == null)
-        {
+        if (!isWritten)
             return;
-        }
 
-        Exception? error = null;
-        lock (syncRoot)
+        for (var attempt = 1; Result.Catch(() => File.AppendAllLines(FilePath, batch)) is Error e; attempt++)
         {
-            for (int i = 0; i < 10; i++)
-            {
-                try
-                {
-                    File.AppendAllLines(LogPath, text);
-
-                    long length = new FileInfo(LogPath).Length;
-
-                    if (length > MaxLogFileSize)
-                    {
-                        MoveLargeLogFile();
-                    }
-
-                    return;
-                }
-                catch (DirectoryNotFoundException)
-                {
-                    // Ignore error since folder has been deleted during uninstallation
-                    return;
-                }
-                catch (ThreadAbortException)
-                {
-                    // Process or app-domain is closing
-                    // Thread.ResetAbort();
-                    return;
-                }
-                catch (Exception e)
-                {
-                    Thread.Sleep(30);
-                    error = e;
-                }
-            }
+            if (attempt == WriteAttempts || e.Exception is DirectoryNotFoundException)
+                return;
+            Thread.Sleep(WriteRetryDelayMs);
         }
 
-        if (error != null)
+        Result.Catch(() =>
         {
-            throw error;
-        }
+            if (new FileInfo(FilePath).Length > MaxSize)
+                File.Move(FilePath, $"{FilePath}.2.log", overwrite: true);
+        });
     }
 
-    private static void MoveLargeLogFile()
+    // The length of the path to the root of the repository, which is cut off the source file of a
+    // line, taken from where this file was built: '<root>/gmd/Utils/Logging/LogFile.cs'
+    static int RootPathLength()
     {
-        try
-        {
-            string tempPath = LogPath + "." + Guid.NewGuid();
-            File.Move(LogPath, tempPath);
-
-            Task.Run(() =>
-                {
-                    try
-                    {
-                        string secondLogFile = LogPath + ".2.log";
-                        if (File.Exists(secondLogFile))
-                        {
-                            File.Delete(secondLogFile);
-                        }
-
-                        File.Move(tempPath, secondLogFile);
-                    }
-                    catch (Exception e)
-                    {
-                        QueueLogLine("ERROR Failed to move temp to second log file: " + e);
-                    }
-                })
-                .RunInBackground();
-        }
-        catch (Exception e)
-        {
-            QueueLogLine("ERROR Failed to move large log file: " + e);
-        }
+        var root = Path.GetDirectoryName(
+            Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(ThisFile())))
+        );
+        return (root ?? "").Length + 1;
     }
+
+    static string ThisFile([CallerFilePath] string path = "") => path;
+
+    static int ThisLine([CallerLineNumber] int line = 0) => line;
 }

@@ -44,5 +44,65 @@ public class LogFileTest
         }
     }
 
+    // Every start of gmd begins the log anew
+    [TestMethod]
+    public void TestOpenEmptiesTheLog()
+    {
+        using var folder = new TempFolder();
+        var path = folder.File("gmd.log", "A line of the last run\n");
+
+        AssertOk(LogFile.Open(path));
+
+        Assert.AreEqual("", File.ReadAllText(path));
+        Assert.IsTrue(LogFile.Open(folder.Path("new.log")) is Success, "A missing log is created");
+    }
+
+    // A file gmd cannot write, as one that a 'sudo gmd' left owned by root, is replaced, which takes
+    // only the right to write the folder. It used to stop gmd on a blank screen.
+    [TestMethod]
+    public void TestOpenReplacesALogThatCannotBeWritten()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("A read-only file cannot be deleted on Windows either");
+        if (Environment.IsPrivilegedProcess)
+            Assert.Inconclusive("Root writes a read-only file all the same");
+        using var folder = new TempFolder();
+        var path = folder.File("gmd.log", "A line of the last run\n");
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+
+        AssertOk(LogFile.Open(path));
+
+        Assert.AreEqual("", File.ReadAllText(path));
+        File.AppendAllText(path, "Written");
+    }
+
+    // Where not even that works, the log is an error, which leaves gmd logging nowhere rather than
+    // failing
+    [TestMethod]
+    public void TestOpenInAFolderThatIsNotThereFails()
+    {
+        using var folder = new TempFolder();
+
+        AssertError(LogFile.Open(Path.Join(folder.Path("missing"), "gmd.log")));
+    }
+
+    sealed class TempFolder : IDisposable
+    {
+        readonly string root = System.IO.Path.Join(System.IO.Path.GetTempPath(), $"gmdTest-log-{Guid.NewGuid():N}");
+
+        public TempFolder() => Directory.CreateDirectory(root);
+
+        public string Path(string name) => System.IO.Path.Join(root, name);
+
+        public string File(string name, string text)
+        {
+            var path = Path(name);
+            System.IO.File.WriteAllText(path, text);
+            return path;
+        }
+
+        public void Dispose() => Directory.Delete(root, true);
+    }
+
     static string ThisFile([CallerFilePath] string path = "") => path;
 }
