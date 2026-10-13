@@ -50,6 +50,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   dump of a real repo of about 1750 commits.
 - Collection expressions adopted (107 mechanical sites), the two `Converter`s renamed
   `WorkRepoConverter` / `ViewRepoConverter`, and dead `NoWarn` entries removed.
+- `gmd/Server` reviewed (2026-10-13): `AugmentedService` (1,035 lines) is the reading only, and the
+  writes that need the inferred model are services of their own beside `BranchWriteService`
+  (`CommitRewriteService`, `UndoService`, `DeletedBranchService`), called by `Server` directly; every
+  write the user asks for pauses the file monitor in one place (`Server.Paused`), where half did,
+  by the path they took; git's records are converted in one place (`GitConverter`), where five
+  held them, three conversions twice; a repo's lookups follow its lists in a copy too.
+  `FileMonitor` moved out of `Augmented/Private`. `IServer` was left one facade, by choice: every
+  member is used, and the command classes span the areas, `CommitCommands` 27 members over five.
 
 **The result type is a C# 15 union** (2026-09-11)
 
@@ -322,6 +330,20 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - `Files.IsText` read characters, so UTF-16 with a byte order mark read as text, which git merges
     as binary: a conflicted UTF-16 file was refused with an error rather than resolved whole. It
     reads bytes now, as git does.
+- Found by the review of `gmd/Server` (2026-10-13):
+  - gmd could not open a repo in the middle of merging a commit no branch reaches, as a
+    `git pull <url> <branch>` or a merge of FETCH_HEAD leaves on a conflict: the uncommitted commit
+    looked the merge head up in the log, and gmd stopped on every start until the merge was finished
+    outside it (`Uncommitted`).
+  - A branch choice made here was undone by the next background fetch, every five minutes, until it
+    was pushed: the metadata was fetched over the local value, and the merge took origin's for every
+    key both had. That covers a branch set by hand, an ambiguity resolved again, and Rename Branch's
+    rewrite of the old name, which brought the old name back as a branch. Origin's value is fetched
+    into a record of its own, and merged three ways against the record from before the fetch.
+  - Merge, Merge Into and Rebase onto chose between a branch and its remote branch by the author times
+    of their tips, which a cherry pick, a rebase or another machine's clock gets wrong, and so merged
+    the remote branch without the local commits. They go by git's ahead and behind counts now
+    (`BranchWriteService.MergeTipName`).
 
 ---
 
@@ -422,10 +444,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
     Reading by the counts would also be what a combined diff (`diff --cc`) needs.
   - Branch and tag names go to git unquoted. Git refuses a space and a backslash in a ref name,
     but not a `"`, which would split the argument.
-  - `GetLogAsync` reads `user.name` before every log, one after the other, to set `IGit.CurrentAuthor`
-    as a side effect, for the branch menu's own branches. 4 ms; worth moving when that is touched.
-  - `KeyValueService.PushValueAsync` passes `--set-upstream`, which means nothing for a ref outside
-    `refs/heads`.
 
 - Left by the review of `gmd/Utils` (2026-10-13):
   - 78 more `StartsWith` / `EndsWith` / `IndexOf` with a string and no `StringComparison` outside
@@ -445,6 +463,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - A failure stops gmd with `Application.RequestStop()`, posted to the main loop
     (`UI.ShutdownFromAnyThread`), which ends the current toplevel: with a modal dialog open, maybe
     only the dialog. Not verified.
+
+- Left by the review of `gmd/Server` (2026-10-13):
+  - The inference keeps one read's state in a singleton (`BranchNameService`, whose parse cache
+    three stages share), which is why all inference runs under a static lock
+    (`BranchStructureService`). A context made per read and passed through the stages would remove
+    both; high-risk code, so only with `InferenceDumpTest` before and after.
+  - `Repo` is three things in one type, the augmented repo, the view and the filtered view, told apart
+    by whether `ViewCommits` is filled, and with the view state in `Commit` and `Branch` (roadmap C)
+    every Show and Hide copies every commit of the log, up to 30,000.
+  - The metadata is pushed with `--force` over origin's, so a choice someone pushed since the last
+    fetch here is lost. A lease on the recorded value of origin's
+    (`--force-with-lease=<ref>:<recorded id>`) and a fetch and merge on refusal would keep it.
+  - A diverged branch pair is still merged or rebased onto by the younger tip (`MergeTipName`).
+  - An empty repo's branch is shown as `main` whatever its unborn HEAD is named
+    (`AugmentedService.EmptyGitRepo`).
 
 **Inference pipeline**
 
@@ -518,12 +551,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **Refactoring roadmap** (from the 2026-09-11 review; A before B before C)
 
 - A, correctness, each with a regression test: `FileStore` (*done 2026-10-08:* the lost update, the
-  unsynchronized cache, a malformed file); `Threading.AssertIsMainThread`
-  compares thread ids with `>` and so passes on any lower id; 13 `async void` handlers
+  unsynchronized cache, a malformed file); 13 `async void` handlers
   (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
-  `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both
+  `IDiffService` / `IBlameService` are declared in both
   `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
-  `*RowService`; `[SingleInstance]` is matched by the attribute's name string; the vulnerability grep in `scripts/build` never fails the build,
+  `*RowService`; the vulnerability grep in `scripts/build` never fails the build,
   `scripts/log.bat` hard-codes one user's home, `scripts/installtools` sets `safe.directory` to
   `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`. (`run.bat`
   dropping its arguments was fixed when the scripts moved into `scripts/`, and `gmd_linux` and
@@ -549,8 +581,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   commented blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`,
   `FileMonitor`, `WindowsClipboard`); no tests for `Updater`, and `FakeGit` implements 12 of 76
   members.
-- Not recommended: removing the one-implementation interfaces (they are the DI and test-double
-  seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
+- Not recommended: splitting `IServer` by area (decided 2026-10-13: every member is used and the
+  command classes span the areas, so each would take several interfaces and couple no less);
+  removing the one-implementation interfaces (they are the DI and test-double seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
   records `gmd/Git` and `gmd/Server/Repo.cs` both declare, 14 of them copies (decided 2026-10-13:
   `gmd.Git` is to stay a general git library, and the server's converters are its boundary, see
   CLAUDE.md under Layering).
