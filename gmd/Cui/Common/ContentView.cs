@@ -203,6 +203,19 @@ class ContentView : View
     public override bool MouseEvent(MouseEvent ev)
     {
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        // A view that never takes the focus, the resolver's result pane, is scrolled by the wheel
+        // over it, the one way the mouse has to it
+        if (!HasFocus && !CanFocus && ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        {
+            Scroll(1);
+            return true;
+        }
+        if (!HasFocus && !CanFocus && ev.Flags.HasFlag(MouseFlags.WheeledUp))
+        {
+            Scroll(-1);
+            return true;
+        }
+
         if (!HasFocus)
             return base.MouseEvent(ev);
 

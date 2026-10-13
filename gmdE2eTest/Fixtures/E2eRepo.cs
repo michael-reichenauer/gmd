@@ -329,6 +329,39 @@ static class E2eRepo
         return repo;
     }
 
+    // A merge stopped on two conflicts whose sides are uneven: at line 20, both sides made six lines
+    // one, so the common ancestor is taller than either side, and at line 60, main made one line
+    // twelve, a result taller than the resolver's result pane
+    public static async Task<TempRepo> CreateWithUnevenConflictsAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", Text(lines), "Add long file", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        var dev = lines.ToList();
+        dev[59] = "line 60 on dev";
+        dev[19] = "lines 20 to 25 on dev";
+        dev.RemoveRange(20, 5);
+        await repo.CommitFileAtAsync("long.txt", Text(dev), "Change it on dev", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        var main = lines.ToList();
+        main.RemoveAt(59);
+        main.InsertRange(59, Enumerable.Range(1, 12).Select(k => $"line 60 on main, {k} of 12"));
+        main[19] = "lines 20 to 25 on main";
+        main.RemoveRange(20, 5);
+        await repo.CommitFileAtAsync("long.txt", Text(main), "Change it on main", t.AddMinutes(2));
+
+        await repo.GitAllowFailAsync("merge dev");
+
+        return repo;
+
+        static string Text(List<string> lines) => string.Join("\n", lines) + "\n";
+    }
+
     // A rebase of dev onto main that stopped on the first of dev's two commits, whose conflict is
     // resolved and staged, and that stops again on the second one's once it is continued
     public static async Task<TempRepo> CreateWithRebaseResolvedOnceAsync()

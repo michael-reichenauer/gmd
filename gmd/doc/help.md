@@ -555,6 +555,7 @@ next and previous one from wherever the cursor is.
 | s          | Save and mark the file resolved                            |
 | m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
+| Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 
 Nothing is written until `s`, so closing without saving leaves the file as
