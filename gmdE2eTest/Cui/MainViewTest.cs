@@ -247,6 +247,30 @@ public class MainViewTest
         Assert.IsTrue(Directory.Exists(Path.Join(downloads, ".git")), "Not made in the start folder");
     }
 
+    // Started in the home folder, Init proposes a folder in it, to be named, and refuses the home
+    // folder itself: Enter made the whole home folder a repo
+    [TestMethod]
+    public void TestInitInTheHomeFolderNamesAFolderInIt()
+    {
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, home.Path);
+        gmd.WaitFor("Quit");
+        gmd.Send("i");
+        gmd.WaitFor("Init Repo");
+
+        gmd.Send("Enter");
+        gmd.WaitFor("Name the folder to init");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Name the folder to init");
+        Assert.IsFalse(Directory.Exists(Path.Join(home.Path, ".git")), "Not the home folder");
+
+        gmd.SendText("project");
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Quit");
+        Assert.IsTrue(Directory.Exists(Path.Join(home.Path, "project", ".git")), "Made in the folder named");
+    }
+
     // A clone is put in the folder gmd was started in, named as the repository is, and opened
     [TestMethod]
     public async Task TestACloneIsPutInTheStartFolder()

@@ -147,7 +147,7 @@ class RepoCommands : IRepoCommands
         Do(async repo =>
         {
             var parents = config.RecentParentFolders();
-            var pathResult = initRepoDlg.Show(parents.Any() ? parents[0] + Path.DirectorySeparatorChar : "", parents);
+            var pathResult = initRepoDlg.Show(parents.Any() ? InitPath.InFolder(parents[0]) : "", parents);
             if (pathResult is not string path)
                 return Result.Ok;
 

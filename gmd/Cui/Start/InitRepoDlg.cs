@@ -34,6 +34,9 @@ class InitRepoDlg : IInitRepoDlg
         );
 
         dlg.Validate(() => pathField.Text != "", "Empty path is not allowed");
+        dlg.Validate(() => !InitPath.IsUnnamed(pathField.Text), InitPath.WhyNotUnnamed);
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        dlg.Validate(() => !InitPath.IsHome(pathField.Text, home), InitPath.WhyNotHome);
 
         if (!dlg.ShowOkCancel(pathField))
             return new Error();
