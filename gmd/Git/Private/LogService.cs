@@ -5,7 +5,7 @@ namespace gmd.Git.Private;
 internal interface ILogService
 {
     Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
-    Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
     Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
@@ -30,7 +30,7 @@ internal class LogService : ILogService
     // fields, so that the commit's id was the text of the check
     const string CommitFormat = "--no-show-signature -z --pretty=\"%H|%ai|%ci|%an|%P|%B\"";
 
-    private readonly ICmd cmd;
+    readonly ICmd cmd;
 
     internal LogService(ICmd cmd)
     {
@@ -143,7 +143,7 @@ internal class LogService : ILogService
 
     // The paths of the files at the reference, NUL separated (-z), since git otherwise quotes a
     // path that has a character that is not ASCII
-    public async Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd)
+    public async Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd)
     {
         var args = $"ls-tree -r -z --name-only {reference}";
         var result = await cmd.RunAsync("git", args, wd);
@@ -211,11 +211,11 @@ internal class LogService : ILogService
         var authorTime = DateTime.Parse(row[fields[1]], CultureInfo.InvariantCulture);
         var commitTime = DateTime.Parse(row[fields[2]], CultureInfo.InvariantCulture);
         var author = row[fields[3]].ToString();
-        var parentIDs = ParseParentIds(row[fields[4]]);
+        var parentIds = ParseParentIds(row[fields[4]]);
         var message = ParseMessage(row[fields[5]]);
         var subject = ParseSubject(message);
 
-        return new Commit(id, sid, parentIDs, subject, message, author, authorTime, commitTime);
+        return new Commit(id, sid, parentIds, subject, message, author, authorTime, commitTime);
     }
 
     string[] ParseParentIds(ReadOnlySpan<char> field)

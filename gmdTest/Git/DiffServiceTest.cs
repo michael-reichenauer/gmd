@@ -433,7 +433,7 @@ public class DiffServiceTest
     public async Task TestParseConflictMarkers()
     {
         var service = new DiffService(new FakeCmd(ConflictOutput));
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await service.GetUncommittedDiffAsync(6, TempWd()));
 
         var file = FileOf(commitDiff, "addboth.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, file.DiffMode, "A file with markers is a conflict");
@@ -457,7 +457,7 @@ public class DiffServiceTest
     public async Task TestParseDiff3ConflictMarkers()
     {
         var service = new DiffService(new FakeCmd(Diff3ConflictOutput));
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await service.GetUncommittedDiffAsync(6, TempWd()));
 
         var file = FileOf(commitDiff, "f.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, file.DiffMode);
@@ -482,7 +482,7 @@ public class DiffServiceTest
     public async Task TestParseFileWithoutMarkersInConflictedDiff()
     {
         var service = new DiffService(new FakeCmd(ConflictOutput));
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await service.GetUncommittedDiffAsync(6, TempWd()));
 
         Assert.AreEqual(DiffMode.DiffAdded, FileOf(commitDiff, "mod-del.txt").DiffMode);
     }
@@ -629,7 +629,7 @@ public class DiffServiceTest
 
         // The uncommitted diff also stages, so its diff is not the only call
         var cmd = new FakeCmd(ShowOutput);
-        await new DiffService(cmd).GetUncommittedDiff(contextLines, TempWd());
+        await new DiffService(cmd).GetUncommittedDiffAsync(contextLines, TempWd());
         CollectionAssert.Contains(
             cmd.Calls.Select(c => c.Args.Contains(expected)).ToArray(),
             true,
@@ -658,7 +658,7 @@ public class DiffServiceTest
         await AssertArgsContain(DiffFormat, s => s.GetRefsDiffAsync("a", "b", "Refs", 6, "/wd"));
 
         var cmd = new FakeCmd(ShowOutput);
-        await new DiffService(cmd).GetUncommittedDiff(6, TempWd());
+        await new DiffService(cmd).GetUncommittedDiffAsync(6, TempWd());
         StringAssert.Contains(cmd.Calls.Single(c => c.Args.StartsWith("diff")).Args, DiffFormat);
 
         static async Task AssertArgsContain(string expected, Func<DiffService, Task> call)
@@ -681,7 +681,7 @@ public class DiffServiceTest
                     : FakeCmd.Ok(ConflictOutput)
         );
 
-        await new DiffService(cmd).GetUncommittedDiff(15, TempWd());
+        await new DiffService(cmd).GetUncommittedDiffAsync(15, TempWd());
 
         CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), $"diff {DiffFormat} --staged --unified=15");
     }
@@ -780,7 +780,7 @@ public class DiffServiceTest
             }
         );
 
-        var commitDiff = AssertOk(await new DiffService(cmd).GetUncommittedDiff(6, wd));
+        var commitDiff = AssertOk(await new DiffService(cmd).GetUncommittedDiffAsync(6, wd));
 
         Assert.AreEqual("Uncommitted changes", commitDiff.Message);
         CollectionAssert.AreEqual(
@@ -809,7 +809,7 @@ public class DiffServiceTest
         );
         var service = new DiffService(cmd);
 
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await service.GetUncommittedDiffAsync(6, TempWd()));
 
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
         var staged = cmd.Calls.Single(c => c.Args == $"diff {DiffFormat} --staged --unified=6");
@@ -827,7 +827,7 @@ public class DiffServiceTest
         );
         var service = new DiffService(cmd);
 
-        var result = await service.GetUncommittedDiff(6, wd);
+        var result = await service.GetUncommittedDiffAsync(6, wd);
 
         AssertError(result, "Expected the git failure to propagate");
         Assert.AreEqual("add, diff", string.Join(", ", cmd.Calls.Select(c => c.Args.Split(' ')[0])));
@@ -837,7 +837,7 @@ public class DiffServiceTest
     // The index file a command was given, empty if it was given none
     static string IndexOf(CmdCall call) => call.Environment?.GetValueOrDefault("GIT_INDEX_FILE") ?? "";
 
-    // GetUncommittedDiff copies .git/index, when there is one, so it needs a working directory. A
+    // GetUncommittedDiffAsync copies .git/index, when there is one, so it needs a working directory. A
     // plain temp folder with a .git in it is enough, no repository required.
     static string TempWd()
     {

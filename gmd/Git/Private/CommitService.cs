@@ -21,7 +21,7 @@ interface ICommitService
 // cSpell:ignore pathspec
 class CommitService : ICommitService
 {
-    private readonly ICmd cmd;
+    readonly ICmd cmd;
 
     public CommitService(ICmd cmd)
     {
@@ -119,7 +119,7 @@ class CommitService : ICommitService
     // Back to the last commit, in the index as well as in the working tree, which is what the
     // question before it says. From the index alone, as this used to, a change staged with another
     // tool stayed, and a new file staged there was not deleted: the diff used to unstage everything
-    // before this was picked, but no longer touches the index (DiffService.GetUncommittedDiff).
+    // before this was picked, but no longer touches the index (DiffService.GetUncommittedDiffAsync).
     public async Task<Result> UndoUncommittedFileAsync(string path, string wd)
     {
         if (await cmd.RunAsync("git", $"checkout --force HEAD -- {Cmd.Quote(path)}", wd) is not Error e)
@@ -206,20 +206,13 @@ class CommitService : ICommitService
         );
     }
 
-    public async Task<Result> UncommitLastCommitAsync(string wd)
-    {
-        return await cmd.RunAsync("git", "reset HEAD~1", wd);
-    }
+    public async Task<Result> UncommitLastCommitAsync(string wd) => await cmd.RunAsync("git", "reset HEAD~1", wd);
 
-    public async Task<Result> UncommitUntilCommitAsync(string id, string wd)
-    {
-        return await cmd.RunAsync("git", $"reset --soft {id}", wd);
-    }
+    public async Task<Result> UncommitUntilCommitAsync(string id, string wd) =>
+        await cmd.RunAsync("git", $"reset --soft {id}", wd);
 
-    public async Task<Result> ResetHardUntilCommitAsync(string id, string wd)
-    {
-        return await cmd.RunAsync("git", $"reset --hard {id}", wd);
-    }
+    public async Task<Result> ResetHardUntilCommitAsync(string id, string wd) =>
+        await cmd.RunAsync("git", $"reset --hard {id}", wd);
 
     // Moves the current branch back to where it was, as Undo does: '--keep' moves the files too,
     // and refuses rather than overwrite a file with uncommitted changes, while '--mixed' leaves the

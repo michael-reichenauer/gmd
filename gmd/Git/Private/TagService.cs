@@ -3,8 +3,8 @@ namespace gmd.Git.Private;
 interface ITagService
 {
     Task<Result<IReadOnlyList<Tag>>> GetTagsAsync(string wd);
-    Task<Result> AddTagAsync(string name, string commitID, string wd);
-    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
+    Task<Result> AddTagAsync(string name, string commitId, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);
     Task<Result> RemoveTagAsync(string name, string wd);
     Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd);
     Task<Result> PruneDeletedRemoteTagsAsync(IReadOnlyDictionary<string, string> tracked, string wd);
@@ -52,20 +52,14 @@ class TagService : ITagService
         return ParseTags(output);
     }
 
-    public async Task<Result> AddTagAsync(string name, string commitID, string wd)
-    {
-        return await cmd.RunAsync("git", $"tag {name} {commitID}", wd, true);
-    }
+    public async Task<Result> AddTagAsync(string name, string commitId, string wd) =>
+        await cmd.RunAsync("git", $"tag {name} {commitId}", wd, true);
 
-    public async Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd)
-    {
-        return await cmd.RunAsync("git", $"tag -a {name} {commitID} -m {Cmd.Quote(message)}", wd, true);
-    }
+    public async Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd) =>
+        await cmd.RunAsync("git", $"tag -a {name} {commitId} -m {Cmd.Quote(message)}", wd, true);
 
-    public async Task<Result> RemoveTagAsync(string name, string wd)
-    {
-        return await cmd.RunAsync("git", $"tag -d {name}", wd, true);
-    }
+    public async Task<Result> RemoveTagAsync(string name, string wd) =>
+        await cmd.RunAsync("git", $"tag -d {name}", wd, true);
 
     // The tags the remote had at the last fetch, as name -> object id. Read before a fetch, since
     // the fetch is what updates it, and compared with what it holds afterwards by the prune below.

@@ -21,7 +21,7 @@ interface IBranchService
 
 class BranchService : IBranchService
 {
-    static string remotePrefix = "remotes/";
+    const string RemotePrefix = "remotes/";
 
     // Parses one line of 'git branch -vv --no-color --no-abbrev --all', e.g.
     //   '* main   8ec7cee… [origin/main: ahead 1, behind 2] Subject'
@@ -47,7 +47,7 @@ class BranchService : IBranchService
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Multiline
     );
 
-    private readonly ICmd cmd;
+    readonly ICmd cmd;
 
     public BranchService(ICmd cmd)
     {
@@ -94,12 +94,8 @@ class BranchService : IBranchService
         return await cmd.RunAsync("git", $"branch -m {oldName} {newName}", wd);
     }
 
-    public async Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd)
-    {
-        string args = $"branch --delete {name}";
-        args = isForced ? args + " -D" : args;
-        return await cmd.RunAsync("git", args, wd);
-    }
+    public async Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
+        await cmd.RunAsync("git", $"branch {(isForced ? "-D" : "-d")} {name}", wd);
 
     // Makes a local branch track a remote branch, e.g. 'origin/feature', which git forgets when the
     // branch is deleted: the '[branch "<name>"]' config section goes with it. Written as git writes it,
@@ -121,21 +117,19 @@ class BranchService : IBranchService
     // Moves a branch that is not checked out, with the message its reflog gets, and only if it is
     // still at fromId: git compares and moves in one step, so a branch something else moved in the
     // meantime is left where it is rather than losing what moved it
-    public async Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd)
-    {
-        return await cmd.RunAsync("git", $"update-ref -m {Cmd.Quote(message)} refs/heads/{name} {toId} {fromId}", wd);
-    }
+    public async Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd) =>
+        await cmd.RunAsync("git", $"update-ref -m {Cmd.Quote(message)} refs/heads/{name} {toId} {fromId}", wd);
 
     public async Task<Result> MergeBranchAsync(string name, string wd)
     {
         var rsp = await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}", wd);
-        return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
+        return ConflictError.ToConflict(rsp, "The merge stopped on conflicts");
     }
 
     public async Task<Result> RebaseBranchAsync(string name, string wd)
     {
         var rsp = await cmd.RunAsync("git", $"rebase --stat {name}", wd);
-        return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
+        return ConflictError.ToConflict(rsp, "The rebase stopped on conflicts");
     }
 
     // Moves the current branch's own commits, the ones after where it was built on its remote branch,
@@ -154,13 +148,13 @@ class BranchService : IBranchService
     public async Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd)
     {
         var rsp = await cmd.RunAsync("git", $"rebase --onto {newBase} {oldBase}", wd);
-        return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
+        return ConflictError.ToConflict(rsp, "The rebase stopped on conflicts");
     }
 
     public async Task<Result> CherryPickAsync(string sha, string wd)
     {
         var rsp = await cmd.RunAsync("git", $"cherry-pick --no-commit {sha}", wd);
-        return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
+        return ConflictError.ToConflict(rsp, "The cherry pick stopped on conflicts");
     }
 
     Result<IReadOnlyList<Branch>> ParseBranches(string output)
@@ -182,10 +176,10 @@ class BranchService : IBranchService
         if (!isDetached)
         {
             name = match.Groups["name"].Value;
-            if (name.StartsWith(remotePrefix))
+            if (name.StartsWith(RemotePrefix))
             {
                 isRemote = true;
-                name = name[remotePrefix.Length..];
+                name = name[RemotePrefix.Length..];
             }
         }
 

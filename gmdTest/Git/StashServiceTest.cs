@@ -117,7 +117,7 @@ public class StashServiceTest
         AssertError(result, "Expected the git failure to propagate");
     }
 
-    // A named stash uses 'save', an unnamed one does not. Both include untracked files (-u).
+    // A named stash has the message given, an unnamed one git's own. Both include untracked files.
     [TestMethod]
     public async Task TestStashWithAndWithoutMessage()
     {
@@ -127,8 +127,8 @@ public class StashServiceTest
         await service.StashAsync("My message", "/wd");
         await service.StashAsync("", "/wd");
 
-        Assert.AreEqual("stash save \"My message\" -u", cmd.Calls[0].Args);
-        Assert.AreEqual("stash -u", cmd.Calls[1].Args);
+        Assert.AreEqual("stash push --include-untracked -m \"My message\"", cmd.Calls[0].Args);
+        Assert.AreEqual("stash push --include-untracked", cmd.Calls[1].Args);
     }
 
     [TestMethod]

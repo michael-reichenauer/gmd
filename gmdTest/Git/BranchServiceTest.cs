@@ -1,3 +1,4 @@
+using gmd.Git;
 using gmd.Git.Private;
 using gmdTest.Utils;
 
@@ -414,7 +415,8 @@ public class BranchServiceTest
         )
         {
             var e = AssertError(result);
-            StringAssert.Contains(e.Message, "Merge Conflicts!");
+            Assert.IsInstanceOfType<ConflictError>(e);
+            StringAssert.Contains(e.Message, "stopped on conflicts");
         }
     }
 }

@@ -22,25 +22,17 @@ class StashService : IStashService
 
     public async Task<Result> StashAsync(string message, string wd)
     {
-        var msg = message != "" ? $"save {Cmd.Quote(message)} " : "";
-        return await cmd.RunAsync("git", $"stash {msg}-u", wd);
+        var named = message != "" ? $" -m {Cmd.Quote(message)}" : "";
+        return await cmd.RunAsync("git", $"stash push --include-untracked{named}", wd);
     }
 
-    public async Task<Result> PopAsync(string name, string wd)
-    {
-        return await cmd.RunAsync("git", $"stash pop {name}", wd);
-    }
+    public async Task<Result> PopAsync(string name, string wd) => await cmd.RunAsync("git", $"stash pop {name}", wd);
 
     // As pop, but keeps the stash, e.g. to put the same changes on another branch too
-    public async Task<Result> ApplyAsync(string name, string wd)
-    {
-        return await cmd.RunAsync("git", $"stash apply {name}", wd);
-    }
+    public async Task<Result> ApplyAsync(string name, string wd) =>
+        await cmd.RunAsync("git", $"stash apply {name}", wd);
 
-    public async Task<Result> DropAsync(string name, string wd)
-    {
-        return await cmd.RunAsync("git", $"stash drop {name}", wd);
-    }
+    public async Task<Result> DropAsync(string name, string wd) => await cmd.RunAsync("git", $"stash drop {name}", wd);
 
     public async Task<Result<IReadOnlyList<Stash>>> ListAsync(string wd)
     {

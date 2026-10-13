@@ -130,7 +130,7 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result<string>> Version() => throw new NotSupportedException();
+    public Task<Result<string>> GetVersionAsync() => throw new NotSupportedException();
 
     public Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
         throw new NotSupportedException();
@@ -147,7 +147,7 @@ class FakeGit : IGit
     public Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
+    public Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => throw new NotSupportedException();
@@ -161,7 +161,7 @@ class FakeGit : IGit
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
+    public Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result<CommitDiff[]>> GetLineHistoryAsync(

@@ -111,7 +111,7 @@ class Program
         Log.Info($"OS:      {Environment.OSVersion}");
         Log.Info($"Time:    {DateTime.Now.IsoZone()}");
 
-        var gitVersionResult = await git.Version();
+        var gitVersionResult = await git.GetVersionAsync();
         if (gitVersionResult is Error e)
             Log.Error($"No git command detected, {e}");
         var gitVersion = gitVersionResult is string version ? version : "";

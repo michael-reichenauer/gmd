@@ -13,7 +13,7 @@ class StatusService : IStatusService
     // in its name could be neither committed by name, discarded, nor blamed.
     const string StatusArgs = "status --porcelain -z --untracked-files=all";
 
-    private readonly ICmd cmd;
+    readonly ICmd cmd;
 
     public StatusService(ICmd cmd)
     {

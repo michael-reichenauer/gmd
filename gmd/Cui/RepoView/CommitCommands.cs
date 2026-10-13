@@ -757,7 +757,7 @@ class CommitCommands : ICommitCommands
                 ? (commit.BranchName, $"Select File of Branch {commit.BranchName}")
                 : (commit.Id, $"Select File of Commit {commit.Id.Sid()}");
 
-            var filesResult = await server.GetFileAsync(reference, repo.Path);
+            var filesResult = await server.GetFilePathsAsync(reference, repo.Path);
             if (filesResult is not IReadOnlyList<string> files)
                 return new Error($"Failed to get files", filesResult.Error);
 
@@ -784,7 +784,7 @@ class CommitCommands : ICommitCommands
                 ? (commit.BranchName, $"Blame File of Branch {commit.BranchName}")
                 : (commit.Id, $"Blame File of Commit {commit.Id.Sid()}");
 
-            var filesResult = await server.GetFileAsync(reference, repo.Path);
+            var filesResult = await server.GetFilePathsAsync(reference, repo.Path);
             if (filesResult is not IReadOnlyList<string> files)
                 return new Error($"Failed to get files", filesResult.Error);
 

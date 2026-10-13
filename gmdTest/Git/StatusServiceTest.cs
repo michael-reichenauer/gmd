@@ -363,7 +363,7 @@ public class StatusServiceTest
 
     // The bug this detection exists for. A rebase with the --apply backend and 'git am' write no
     // MERGE_MSG, so the old .git/MERGE_MSG test reported "not merging" — and both 'git add .' in
-    // GetUncommittedDiff and 'git commit -a' then staged the unmerged paths, resolving the conflict
+    // GetUncommittedDiffAsync and 'git commit -a' then staged the unmerged paths, resolving the conflict
     // with the markers as content and dropping the stages with no way back but --abort.
     [TestMethod]
     [DataRow("rebase-apply")]

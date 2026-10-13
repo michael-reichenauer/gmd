@@ -90,8 +90,8 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd) =>
         logService.GetIdsChangingTextAsync(text, maxCount, wd);
 
-    public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
-        logService.GetFileAsync(reference, wd);
+    public Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd) =>
+        logService.GetFilePathsAsync(reference, wd);
 
     public Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => branchService.GetBranchesAsync(wd);
 
@@ -142,8 +142,8 @@ internal class Git : IGit
 
     public Task<Result> RunMergeToolAsync(string path, string wd) => diffService.RunMergeToolAsync(path, wd);
 
-    public Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
-        diffService.GetUncommittedDiff(contextLines, wd);
+    public Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd) =>
+        diffService.GetUncommittedDiffAsync(contextLines, wd);
 
     public Task<Result> FetchAsync(string wd) => remoteService.FetchAsync(wd);
 
@@ -291,8 +291,8 @@ internal class Git : IGit
     public Task<Result> AddTagAsync(string name, string commitId, string wd) =>
         tagService.AddTagAsync(name, commitId, wd);
 
-    public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd) =>
-        tagService.AddAnnotatedTagAsync(name, message, commitID, wd);
+    public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd) =>
+        tagService.AddAnnotatedTagAsync(name, message, commitId, wd);
 
     public Task<Result> RemoveTagAsync(string name, string wd) => tagService.RemoveTagAsync(name, wd);
 
@@ -335,7 +335,7 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
         worktreeService.GetIgnoredAsync(paths, wd);
 
-    public async Task<Result<string>> Version()
+    public async Task<Result<string>> GetVersionAsync()
     {
         var result = await cmd.RunAsync("git", "version", "", true, true);
         if (result is not string output)
@@ -344,7 +344,7 @@ internal class Git : IGit
         return output.TrimPrefix("git version ");
     }
 
-    private async Task SetCurrentAuthorAsync(string path)
+    async Task SetCurrentAuthorAsync(string path)
     {
         if (await cmd.RunAsync("git", "config user.name", path, true, true) is not string output)
             return;

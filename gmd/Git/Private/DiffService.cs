@@ -6,7 +6,7 @@ interface IDiffService
 {
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
-    Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
+    Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetLineHistoryAsync(
         string path,
@@ -35,7 +35,7 @@ class DiffService : IDiffService
     // (log.abbrevCommit), or put a check of the commit's signature in front of (log.showSignature)
     const string CommitHeaderFormat = "--no-decorate --no-abbrev-commit --no-show-signature";
 
-    private readonly ICmd cmd;
+    readonly ICmd cmd;
 
     public DiffService(ICmd cmd)
     {
@@ -67,7 +67,7 @@ class DiffService : IDiffService
         return ParseDiff(output, $"Diff of stash {name}");
     }
 
-    public async Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd)
     {
         // A diff of the working tree leaves out the files git does not track yet, and a file moved
         // without 'git mv' shows as one deleted and one new rather than as a rename. Both are there
@@ -296,7 +296,7 @@ class DiffService : IDiffService
         {
             var dateText = lines[i++]["Date: ".Length..].Trim();
             // Parsed culture invariant, the git commands use '--date=iso' (see above), which is
-            // the same regardless of locale. See the comment in GitLog.ParseRow.
+            // the same regardless of locale. See the comment in LogService.ParseRow.
             if (DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
             {
                 time = dt;

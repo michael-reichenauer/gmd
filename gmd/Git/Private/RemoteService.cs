@@ -19,8 +19,8 @@ interface IRemoteService
 
 class RemoteService : IRemoteService
 {
-    private readonly ICmd cmd;
-    private readonly ITagService tagService;
+    readonly ICmd cmd;
+    readonly ITagService tagService;
 
     public RemoteService(ICmd cmd, ITagService tagService)
     {

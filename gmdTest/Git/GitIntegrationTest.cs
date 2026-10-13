@@ -27,7 +27,7 @@ public class GitIntegrationTest
     [TestMethod]
     public async Task TestVersion()
     {
-        var version = Value(await repo.Git.Version());
+        var version = Value(await repo.Git.GetVersionAsync());
 
         // The 'git version ' prefix is trimmed off, leaving e.g. '2.55.0'
         StringAssert.Matches(version, new System.Text.RegularExpressions.Regex(@"^\d+\.\d+"));
@@ -696,7 +696,7 @@ public class GitIntegrationTest
         var result = await repo.Git.MergeBranchAsync("dev", repo.Path);
 
         var error = AssertError(result, "Both branches changed the same line");
-        StringAssert.Contains(error.Message, "Merge Conflicts!");
+        Assert.IsInstanceOfType<ConflictError>(error);
 
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual("M:0,A:0,D:0,C:1,R:0", status.ToString());
@@ -705,7 +705,7 @@ public class GitIntegrationTest
         Assert.AreEqual(d1, status.MergeHeadId);
 
         // The conflict markers git wrote into the file are what the diff view draws as conflicts
-        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
         var fileDiff = diff.FileDiffs.First(f => f.PathAfter == "file.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, fileDiff.DiffMode);
         Assert.AreEqual(
@@ -728,7 +728,7 @@ public class GitIntegrationTest
 
     // The regression test for silent, unrecoverable data loss. A rebase with the --apply backend
     // writes no .git/MERGE_MSG, which is what the merge-in-progress check used to look for, so
-    // GetUncommittedDiff ran its 'git add .' — staging the unmerged path with the conflict markers
+    // GetUncommittedDiffAsync ran its 'git add .' — staging the unmerged path with the conflict markers
     // as its content. That resolves the conflict, and the 'git reset' afterwards does not put the
     // stages back: 'git checkout --merge' can no longer recover it, only 'git rebase --abort'.
     //
@@ -744,7 +744,7 @@ public class GitIntegrationTest
         Assert.AreEqual(GitOperation.Rebase, before.Operation, "The --apply backend is still a rebase");
         Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".git", "MERGE_MSG")), "Which is why it was missed");
 
-        Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
 
         var unmerged = await repo.GitAsync("ls-files -u");
         Assert.AreNotEqual("", unmerged.Trim(), "The index stages must survive being looked at");
@@ -762,7 +762,7 @@ public class GitIntegrationTest
         await repo.Git.MergeBranchAsync("dev", repo.Path);
         repo.WriteFile("new.txt", "new\n");
 
-        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
 
         Assert.AreEqual(
             "file.txt DiffConflicts, new.txt DiffAdded",
@@ -1701,7 +1701,7 @@ public class GitIntegrationTest
         await repo.GitAsync($"config {setting}");
 
         var commit = Value(await repo.Git.GetCommitDiffAsync(c2, 6, repo.Path));
-        var uncommitted = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var uncommitted = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
         var range = Value(await repo.Git.GetDiffRangeAsync(c2, c2, "Range", 6, repo.Path));
         var refs = Value(await repo.Git.GetPreviewMergeDiffAsync(c1, c2, "Refs", 6, repo.Path));
         var history = Value(await repo.Git.GetFileDiffAsync("file.txt", 6, repo.Path));
@@ -1778,7 +1778,7 @@ public class GitIntegrationTest
         Ok(await repo.Git.UndoUncommittedFileAsync(status.AddedFiles[0], repo.Path));
 
         Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "Committed, and the new file discarded");
-        var files = Value(await repo.Git.GetFileAsync("HEAD", repo.Path));
+        var files = Value(await repo.Git.GetFilePathsAsync("HEAD", repo.Path));
         CollectionAssert.AreEqual(new[] { "Ärende.md" }, files.ToArray());
         var blame = Value(await repo.Git.GetBlameAsync(files[0], "HEAD", repo.Path));
         Assert.AreEqual("Ärende.md", blame.CommitById[blame.Lines[1].CommitId].Path);
@@ -1868,7 +1868,7 @@ public class GitIntegrationTest
         }
     }
 
-    // GetUncommittedDiff stages the changes into a copy of the index and diffs that, since a diff
+    // GetUncommittedDiffAsync stages the changes into a copy of the index and diffs that, since a diff
     // of untracked files is not otherwise possible. This pins that the working folder is left as
     // it was, which the FakeCmd tests can only assert the git commands for.
     [TestMethod]
@@ -1881,7 +1881,7 @@ public class GitIntegrationTest
         repo.DeleteFile("del.txt");
         repo.WriteFile("new.txt", "new\n");
 
-        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
 
         Assert.AreEqual("Uncommitted changes", diff.Message);
         Assert.AreEqual(
@@ -1907,7 +1907,7 @@ public class GitIntegrationTest
         repo.WriteFile("new.txt", "new\n");
         var staged = await repo.GitAsync("diff --cached --name-status");
 
-        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
 
         Assert.AreEqual(
             "new.txt DiffAdded, moved.txt -> renamed.txt, staged.txt DiffModified",

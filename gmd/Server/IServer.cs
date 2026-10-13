@@ -52,7 +52,7 @@ interface IServer
     Task<Result> StashApplyAsync(string name, string wd);
 
     // Git commands
-    Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result> FetchAsync(string wd);
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
