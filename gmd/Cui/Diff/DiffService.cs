@@ -32,6 +32,23 @@ class DiffService : IDiffService
     // Strips the line number gutter a row is drawn with, so a copy yields the file's own text.
     // The gutter is the number right-aligned in 4 (wider if the number does not fit, which a large
     // file reaches) followed by the one margin character.
+    // The text of rows copied: the side in focus of the side by side rows, the one column of the
+    // others, with no line number gutter and no filler of a side that has no line. A whole file
+    // added or removed is drawn in one column, with its line number on its own side, which the copy
+    // took from the left and so kept the gutter of an added file.
+    public static string CopyText(IEnumerable<DiffRow> rows, bool isFocusLeft) =>
+        string.Join(
+            "\n",
+            rows.Where(r => r.Mode != DiffRowMode.DividerLine)
+                .Select(r =>
+                    r.Mode != DiffRowMode.SideBySide ? (Text: r.Left, LineNbr: r.LineNbr)
+                    : isFocusLeft ? (Text: r.Left, LineNbr: r.LeftLineNbr)
+                    : (Text: r.Right, LineNbr: r.RightLineNbr)
+                )
+                .Where(r => r.Text != NoLine)
+                .Select(r => WithoutLineNbr(r.Text.ToString(), r.LineNbr))
+        );
+
     public static string WithoutLineNbr(string rowText, int lineNbr)
     {
         if (lineNbr == 0)

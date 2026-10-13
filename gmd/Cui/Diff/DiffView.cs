@@ -236,8 +236,12 @@ class DiffView : IDiffView
         Menu.Show("Discard Changes", 1, 2, undoItems);
     }
 
+    // Only the uncommitted changes, as the menu's Commit and the hints say: 'c' in the diff of a
+    // commit or a range closed it and opened the commit dialog for the working tree
     void TriggerCommit()
     {
+        if (commitId != Repo.UncommittedId)
+            return;
         isCommitTriggered = true;
         Application.RequestStop();
     }
@@ -337,17 +341,18 @@ class DiffView : IDiffView
         conflictView.Show(file, conflictState.Operation, repoPath, RefreshDiff);
     }
 
-    void ScrollToCommit(string commitId)
-    {
-        var lineIndex = diffRows.Rows.FindIndexBy(r => r.CommitId == commitId);
-        contentView.ScrollToShowIndex(lineIndex - 1);
-    }
+    // The cursor is put on the commit or the file, which + and - and Enter act on: scrolled to alone
+    // it moved with the rows, and stayed in the file before it
+    void ScrollToCommit(string commitId) => ScrollTo(diffRows.Rows.FindIndexBy(r => r.CommitId == commitId));
 
-    void ScrollToFile(string path)
+    void ScrollToFile(string path) => ScrollTo(diffRows.Rows.FindIndexBy(r => r.FilePath == path));
+
+    void ScrollTo(int index)
     {
-        // Find the row indexes where the file diff starts
-        var lineIndex = diffRows.Rows.FindIndexBy(r => r.FilePath == path);
-        contentView.ScrollToShowIndex(lineIndex - 1);
+        if (index == -1)
+            return;
+        contentView.ScrollToShowIndex(Math.Max(0, index - 1));
+        contentView.SetCurrentIndex(index);
     }
 
     void RunDiffTool(string path)
@@ -545,46 +550,21 @@ class DiffView : IDiffView
         contentView.SetNeedsDisplay();
     }
 
-    // Where the cursor is, expressed as content: the file it is in and the source line it is on
-    DiffAnchor CurrentAnchor()
-    {
-        var rows = diffRows.Rows;
-        var index = contentView.CurrentIndex;
-        if (index < 0 || index >= rows.Count)
-            return DiffAnchor.None;
-
-        return new DiffAnchor(FilePathAt(rows, index), rows[index].LineNbr);
-    }
+    // Where the cursor is, expressed as content: the commit and the file it is in and the source
+    // line it is on
+    DiffAnchor CurrentAnchor() => diffRows.AnchorAt(contentView.CurrentIndex);
 
     // Puts the cursor back where the anchor points, or on the nearest line of that file
     void RestoreAnchor(DiffAnchor anchor)
     {
-        if (anchor.FilePath == "")
+        var index = diffRows.IndexOf(anchor);
+        if (index == -1)
             return;
-
-        var rows = diffRows.Rows;
-        var fileIndex = rows.FindIndexBy(r => r.FilePath == anchor.FilePath);
-        if (fileIndex == -1)
-            return;
-
-        var index = DiffService.FindClosestLineIndex(rows, fileIndex, anchor.LineNbr);
 
         // Scroll first and set the cursor after: scrolling moves the cursor by the same amount as
         // the rows, so setting it first would leave it somewhere else entirely
         contentView.ScrollToShowIndex(index);
         contentView.SetCurrentIndex(index);
-    }
-
-    // The file the row is part of, i.e. the closest file header at or above it ("" above them all)
-    static string FilePathAt(IReadOnlyList<DiffRow> rows, int index)
-    {
-        for (int i = index; i >= 0; i--)
-        {
-            if (rows[i].FilePath != "")
-                return rows[i].FilePath;
-        }
-
-        return "";
     }
 
     // Move both sides in view left, or select left side text if text is selected
@@ -702,19 +682,7 @@ class DiffView : IDiffView
             return;
 
         var rows = diffRows.Rows.Skip(contentView.SelectStartIndex).Take(contentView.SelectCount);
-
-        // Convert left or right rows to text, remove empty lines and the line number gutter
-        var text = string.Join(
-            "\n",
-            rows.Where(r => r.Mode != DiffRowMode.DividerLine)
-                .Select(r =>
-                {
-                    var isLeft = isFocusLeft || r.Mode != DiffRowMode.SideBySide;
-                    return (Text: isLeft ? r.Left : r.Right, LineNbr: isLeft ? r.LeftLineNbr : r.RightLineNbr);
-                })
-                .Where(r => r.Text != DiffService.NoLine)
-                .Select(r => DiffService.WithoutLineNbr(r.Text.ToString(), r.LineNbr))
-        );
+        var text = DiffService.CopyText(rows, isFocusLeft);
 
         if (clipboard.Set(text) is Error e)
         {

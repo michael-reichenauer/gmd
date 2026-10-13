@@ -137,6 +137,37 @@ public class DiffServiceTest
         Assert.AreEqual("", CuiDiffService.WithoutLineNbr("  12┃", 12));
     }
 
+    // A file added whole is drawn in one column, with the new file's line numbers, and the copy read
+    // the left side's number, none, so the gutter came with every line
+    [TestMethod]
+    public void TestCopyOfAFileAddedWholeLeavesOutTheGutter()
+    {
+        var rows = RowsOf(
+            FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "one"), (DiffMode.DiffAdded, "two")])
+        );
+
+        Assert.AreEqual("one\ntwo", CuiDiffService.CopyText(rows.Rows.Where(r => r.LineNbr != 0), true));
+    }
+
+    // Side by side, the side in focus is copied, and a side with no line there is left out
+    [TestMethod]
+    public void TestCopyOfSideBySideRowsIsTheSideInFocus()
+    {
+        var rows = RowsOf(
+            FileDiffOf(
+                "a.txt",
+                (DiffMode.DiffSame, "same"),
+                (DiffMode.DiffRemoved, "old"),
+                (DiffMode.DiffAdded, "new"),
+                (DiffMode.DiffAdded, "more")
+            )
+        );
+        var lines = rows.Rows.Where(r => r.LineNbr != 0).ToList();
+
+        Assert.AreEqual("same\nold", CuiDiffService.CopyText(lines, true));
+        Assert.AreEqual("same\nnew\nmore", CuiDiffService.CopyText(lines, false));
+    }
+
     // Stepping the context levels
 
     [TestMethod]

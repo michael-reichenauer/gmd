@@ -46,6 +46,48 @@ class DiffRows
         rows.Add(new DiffRow(left, right, mode, filePath, commitId, leftLineNbr, rightLineNbr));
     }
 
+    // Where a row is, as content rather than as an index, which means nothing once the rows are
+    // rebuilt with another context: the commit it is in, since a file history shows one diff per
+    // commit, the file and the source line
+    internal DiffAnchor AnchorAt(int index)
+    {
+        if (index < 0 || index >= rows.Count)
+            return DiffAnchor.None;
+
+        return new DiffAnchor(Above(index, r => r.CommitId), Above(index, r => r.FilePath), rows[index].LineNbr);
+    }
+
+    // The row an anchor is at, or the nearest line of its file, or -1 when the file is not there.
+    // The file is looked for from the anchor's commit on, since in a file history every commit
+    // shows the same path, and taking the first of them put the cursor back on the newest commit
+    // whenever + or - was pressed on an older one.
+    internal int IndexOf(DiffAnchor anchor)
+    {
+        if (anchor.FilePath == "")
+            return -1;
+
+        var start = anchor.CommitId == "" ? 0 : Math.Max(0, rows.FindIndexBy(r => r.CommitId == anchor.CommitId));
+        for (int i = start; i < rows.Count; i++)
+        {
+            if (rows[i].FilePath == anchor.FilePath)
+                return DiffService.FindClosestLineIndex(rows, i, anchor.LineNbr);
+        }
+
+        return -1;
+    }
+
+    // The value of the closest row at or above the index that has one, "" above them all
+    string Above(int index, Func<DiffRow, string> value)
+    {
+        for (int i = index; i >= 0; i--)
+        {
+            if (value(rows[i]) != "")
+                return value(rows[i]);
+        }
+
+        return "";
+    }
+
     public override string ToString() => $"Rows: {Count}";
 }
 
@@ -68,10 +110,11 @@ record DiffRow(
 }
 
 // Where the cursor is, as content rather than a row index, so it survives the rows being rebuilt
-// with a different amount of context. LineNbr is 0 when the cursor is not on a source line.
-record DiffAnchor(string FilePath, int LineNbr)
+// with a different amount of context. LineNbr is 0 when the cursor is not on a source line, and
+// CommitId "" in a diff that names no commit, e.g. of the uncommitted changes.
+record DiffAnchor(string CommitId, string FilePath, int LineNbr)
 {
-    public static readonly DiffAnchor None = new DiffAnchor("", 0);
+    public static readonly DiffAnchor None = new DiffAnchor("", "", 0);
 }
 
 enum DiffRowMode
