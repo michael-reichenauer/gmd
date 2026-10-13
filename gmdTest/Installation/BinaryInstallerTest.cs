@@ -47,7 +47,7 @@ public class BinaryInstallerTest
         AssertOk(await installer.InstallAsync(Binary, binaryPath));
 
         Assert.AreEqual("new gmd", File.ReadAllText(binaryPath));
-        Assert.AreEqual("", FilesNamed(".update_"), "the download is the binary now");
+        Assert.AreEqual("gmd", FilesNamed(""), "the download is the binary now, and nothing is left beside it");
     }
 
     // Run as 'gmd --version', which every gmd release says, with a home of its own and not as an
@@ -314,8 +314,65 @@ public class BinaryInstallerTest
         AssertNotInstalled();
     }
 
-    // What an update left: the binary replaced, deleted at a later start, and a download a gmd ended
-    // during, but not one another gmd is downloading right now
+    // On Linux and macOS in one rename over the binary, so there is one at every moment. A gmd running
+    // from the old one, standing in as a file held open, goes on reading the old one.
+    [TestMethod]
+    public async Task TestTheNewBinaryIsRenamedOverTheOld()
+    {
+        var staged = Path.Join(folder, "gmd.update_ABCDE");
+        File.WriteAllText(staged, "new gmd");
+        using var running = File.OpenRead(binaryPath);
+
+        AssertOk(await NewInstaller().InstallAsync(staged, binaryPath, isWindows: false, TimeSpan.Zero));
+
+        Assert.AreEqual("new gmd", File.ReadAllText(binaryPath));
+        Assert.AreEqual("old gmd", new StreamReader(running).ReadToEnd());
+        Assert.AreEqual("gmd", FilesNamed(""));
+    }
+
+    [TestMethod]
+    public async Task TestAFailedRenameLeavesTheBinary()
+    {
+        var staged = Path.Join(folder, "gmd.update_GONE");
+
+        AssertError(await NewInstaller().InstallAsync(staged, binaryPath, isWindows: false, TimeSpan.Zero));
+
+        AssertNotInstalled();
+    }
+
+    // Windows does not let the file of a running program be replaced, but lets it be renamed, so it is
+    // renamed aside, and deleted at a later start
+    [TestMethod]
+    public async Task TestOnWindowsTheRunningBinaryIsRenamedAside()
+    {
+        var staged = Path.Join(folder, "gmd.update_ABCDE.exe");
+        File.WriteAllText(staged, "new gmd");
+
+        AssertOk(await NewInstaller().InstallAsync(staged, binaryPath, isWindows: true, TimeSpan.Zero));
+
+        Assert.AreEqual("new gmd", File.ReadAllText(binaryPath));
+        var aside = FilesNamed(".tmp_");
+        StringAssert.StartsWith(aside, "gmd.tmp_");
+        Assert.AreEqual("old gmd", File.ReadAllText(Path.Join(folder, aside)));
+    }
+
+    // Renamed aside, the binary was not renamed back when the new one could not be put in its place,
+    // which left no gmd at all. A second gmd starting at that moment did that, by deleting the new one,
+    // whose name was the one CleanUp deletes.
+    [TestMethod]
+    public async Task TestOnWindowsTheBinaryIsPutBackWhenTheNewOneCannotBe()
+    {
+        var staged = Path.Join(folder, "gmd.update_GONE.exe");
+
+        var e = AssertError(await NewInstaller().InstallAsync(staged, binaryPath, isWindows: true, TimeSpan.Zero));
+
+        StringAssert.Contains(e.Message, "Failed to put the new version in place");
+        AssertNotInstalled();
+    }
+
+    // What an update left: the binary replaced on Windows, deleted at a later start, a download a gmd
+    // ended during, but not one another gmd is downloading right now, and what older versions left,
+    // a download beside the binary named as one replaced, and one in the temp folder
     [TestMethod]
     public void TestCleanUpDeletesWhatUpdatesLeft()
     {
@@ -325,14 +382,31 @@ public class BinaryInstallerTest
         File.SetLastWriteTimeUtc(binaryPath + ".update_OLDER", now - TimeSpan.FromDays(2));
         File.WriteAllText(binaryPath + ".update_FRESH", "download going on");
         File.WriteAllText(Path.Join(folder, "other"), "not gmd's");
+        var temp = Directory.CreateDirectory(Path.Join(folder, "temp")).FullName;
+        File.WriteAllText(Path.Join(temp, "gmd.1.6.1444.518.RTXZERT"), "old download");
+        File.WriteAllText(Path.Join(temp, "gmd.log"), "not a download");
 
-        new BinaryInstaller(Runs(""), new FakeHttp(_ => throw new InvalidOperationException())).CleanUp(
-            binaryPath,
-            now
-        );
+        NewInstaller().CleanUp(binaryPath, temp, now, isWindows: false);
 
         Assert.AreEqual("gmd gmd.update_FRESH other", FilesNamed(""));
+        Assert.AreEqual("gmd.log", string.Join(" ", Directory.GetFiles(temp).Select(Path.GetFileName)));
     }
+
+    // Windows names files whatever their case, and the path gmd was started as can be cased otherwise
+    [TestMethod]
+    public void TestCleanUpOnWindowsIgnoresCase()
+    {
+        var gmdExe = Path.Join(folder, "gmd.exe");
+        File.WriteAllText(gmdExe, "gmd");
+        File.WriteAllText(Path.Join(folder, "GMD.EXE.tmp_ABCDE"), "replaced gmd");
+        var temp = Directory.CreateDirectory(Path.Join(folder, "temp")).FullName;
+
+        NewInstaller().CleanUp(gmdExe, temp, DateTime.UtcNow, isWindows: true);
+
+        Assert.AreEqual("gmd gmd.exe", FilesNamed(""));
+    }
+
+    BinaryInstaller NewInstaller() => new(Runs(""), new FakeHttp(_ => throw new InvalidOperationException()));
 
     // The binary as it was, and nothing left of the download
     void AssertNotInstalled()

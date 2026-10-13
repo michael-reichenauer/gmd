@@ -37,7 +37,13 @@ class BinaryInstaller : IBinaryInstaller
     // under a second, but the first start of a new program can wait for a virus scan of all of it.
     static readonly TimeSpan RunTimeout = TimeSpan.FromMinutes(2);
 
-    const string StagedInfix = ".update_";
+    // How often, and how far apart, a rename on Windows is tried before it is given up on
+    const int MoveAttempts = 5;
+    static readonly TimeSpan MoveRetryDelay = TimeSpan.FromMilliseconds(200);
+
+    const string StagedInfix = ".update_"; // A download, '<binary>.update_<random>'
+    const string AsideInfix = ".tmp"; // A binary replaced on Windows, '<binary>.tmp_<random>'
+    const string OldDownloads = "gmd.*.RTXZERT"; // Downloads older versions made in the temp folder
 
     readonly ICmd cmd;
     readonly IHttp http;
@@ -79,7 +85,7 @@ class BinaryInstaller : IBinaryInstaller
                 return runError;
             }
 
-            if (Install(stagedPath, targetPath) is Error installError)
+            if (await InstallAsync(stagedPath, targetPath, Build.IsWindows, MoveRetryDelay) is Error installError)
             {
                 Log.Warn($"Failed to install new version {binary.Version}, {installError}");
                 return installError;
@@ -95,31 +101,44 @@ class BinaryInstaller : IBinaryInstaller
         }
     }
 
-    public void CleanUp(string targetPath) => CleanUp(targetPath, DateTime.UtcNow);
+    public void CleanUp(string targetPath) => CleanUp(targetPath, Path.GetTempPath(), DateTime.UtcNow, Build.IsWindows);
 
-    internal void CleanUp(string targetPath, DateTime now)
+    // Deletes the binaries replaced on Windows, once they no longer run, a download that a gmd ended
+    // during, once it is a day old, and the downloads older versions of gmd left in the temp folder,
+    // '/tmp/gmd.<version>.RTXZERT'. Older versions also named the download they put beside the
+    // binary '<binary>.tmp_<random>', which the first pattern deletes too.
+    internal void CleanUp(string targetPath, string tempFolder, DateTime now, bool isWindows)
     {
-        try
-        {
-            var tmpPathPrefix = targetPath + ".tmp";
-            var stagedPathPrefix = targetPath + StagedInfix;
+        var comparison = isWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var name = Path.GetFileName(targetPath);
+        var folder = Path.GetDirectoryName(targetPath) ?? "";
+        if (folder == "" || Result.Catch(() => Directory.GetFiles(folder)) is not string[] paths)
+            return;
 
-            foreach (var path in Directory.GetFiles(Path.GetDirectoryName(targetPath) ?? ""))
-            {
-                var isStale =
-                    path.StartsWith(stagedPathPrefix) && now - File.GetLastWriteTimeUtc(path) > StaleDownloadAge;
-                if (path.StartsWith(tmpPathPrefix) || isStale)
-                {
-                    Log.Info($"Deleting {path}");
-                    if (Result.Catch(() => File.Delete(path)) is Error e)
-                        Log.Info($"Failed to delete {e}");
-                }
-            }
-        }
-        catch (Exception e)
+        foreach (var path in paths)
         {
-            Log.Info($"Failed to clean {e.Message}");
+            var fileName = Path.GetFileName(path);
+            var isReplaced = fileName.StartsWith(name + AsideInfix, comparison);
+            var isStaleDownload =
+                fileName.StartsWith(name + StagedInfix, comparison)
+                && now - File.GetLastWriteTimeUtc(path) > StaleDownloadAge;
+            if (isReplaced || isStaleDownload)
+                Delete(path);
         }
+
+        if (Result.Catch(() => Directory.GetFiles(tempFolder, OldDownloads)) is string[] oldDownloads)
+        {
+            foreach (var path in oldDownloads)
+                Delete(path);
+        }
+    }
+
+    // A replaced binary that still runs on Windows cannot be deleted, and is deleted at a later start
+    static void Delete(string path)
+    {
+        Log.Info($"Deleting {path}");
+        if (Result.Catch(() => File.Delete(path)) is Error e)
+            Log.Info($"Failed to delete {path}, {e.Message}");
     }
 
     // Streams the file at the url to a new file at the path, for as long as it keeps coming
@@ -263,26 +282,73 @@ class BinaryInstaller : IBinaryInstaller
         }
     }
 
-    Result Install(string stagedPath, string targetPath)
+    // Puts the new binary in place of the binary at the target path, which runs.
+    //
+    // On Linux and macOS in one rename over it, which is atomic, so there is a binary at the path at
+    // every moment: the rename aside and back that Windows needs left a moment with none, and none at
+    // all when the second rename failed. A gmd running from the old binary goes on running it, since
+    // the file system keeps it until the gmd ends. A binary is never written into, which Linux refuses
+    // ('text file busy'), and which makes macOS end the signed program running from it.
+    //
+    // Windows lets the file of a running program be renamed, though not replaced or deleted, so there
+    // the running binary is renamed aside first, '<binary>.tmp_<random>', which CleanUp deletes at a
+    // later start, and the new one renamed in its place. Should that fail, the old one is renamed
+    // back, so that a failed update never leaves no gmd at all.
+    //
+    // Takes the platform, so that the tests run the Windows way too.
+    internal async Task<Result> InstallAsync(string stagedPath, string targetPath, bool isWindows, TimeSpan retryDelay)
     {
-        try
+        if (!isWindows)
         {
-            var newThisPath = GetTempPath(targetPath);
-
-            File.Move(targetPath, newThisPath);
-            Log.Info($"Moved {targetPath} => {newThisPath}");
-            File.Move(stagedPath, targetPath);
-            Log.Info($"Installed {stagedPath}");
+            if (Result.Catch(() => File.Move(stagedPath, targetPath, overwrite: true)) is Error replaceError)
+                return new Error("Failed to put the new version in place", replaceError);
+            Log.Info($"Installed {stagedPath} as {targetPath}");
             return Result.Ok;
         }
-        catch (Exception e) when (e.IsNotFatal())
+
+        var asidePath = $"{targetPath}{AsideInfix}_{RandomString(5)}";
+        if (await MoveAsync(targetPath, asidePath, retryDelay) is Error asideError)
+            return new Error("Failed to move the running version aside", asideError);
+        Log.Info($"Moved {targetPath} => {asidePath}");
+
+        if (await MoveAsync(stagedPath, targetPath, retryDelay) is Error installError)
         {
-            Log.Exception(e, "Failed install new file");
-            return new Error("Failed to install new file", e);
+            if (await MoveAsync(asidePath, targetPath, retryDelay) is Error backError)
+            {
+                Log.Error($"Failed to move {asidePath} back to {targetPath}, {backError}");
+                return new Error(
+                    $"Failed to put the new version in place, and to move the old one back: rename {asidePath} to {Path.GetFileName(targetPath)}",
+                    installError
+                );
+            }
+
+            Log.Warn($"Moved {asidePath} back to {targetPath}");
+            return new Error("Failed to put the new version in place", installError);
+        }
+
+        Log.Info($"Installed {stagedPath} as {targetPath}");
+        return Result.Ok;
+    }
+
+    // A rename on Windows, tried again a few times, since a program that has just ended can hold its
+    // file for a moment, and a virus scan of a new program can hold it too
+    static async Task<Result> MoveAsync(string source, string target, TimeSpan retryDelay)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            var result = Result.Catch(() => File.Move(source, target));
+            if (result is not Error e || attempt == MoveAttempts || !IsHeld(e))
+                return result;
+
+            Log.Info($"Failed to move {source} => {target}, attempt {attempt}, {e.Message}");
+            await Task.Delay(retryDelay);
         }
     }
 
-    string GetTempPath(string targetPath) => $"{targetPath}.tmp_{RandomString(5)}";
+    // A file that is there but held open, rather than not there at all
+    static bool IsHeld(Error e) =>
+        e.Exception is UnauthorizedAccessException or IOException
+        && e.Exception is not (FileNotFoundException or DirectoryNotFoundException);
 
     string RandomString(int length)
     {
