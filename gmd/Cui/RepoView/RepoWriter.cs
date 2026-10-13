@@ -260,7 +260,11 @@ class RepoWriter : IRepoWriter
             }
             else
             { // Need to shorten tags and tips a bit too, but give tags and tips at least each 3 chars and max 20
-                subjectWidth = Math.Min(columnWidth - 3 - 3, columnWidth - Math.Min(tagsWidth + tipsWidth, 20));
+                // (of their texts' lengths: the widths are still 0 here, which left them 6 together)
+                subjectWidth = Math.Min(
+                    columnWidth - 3 - 3,
+                    columnWidth - Math.Min(tagsText.Length + tipsText.Length, 20)
+                );
                 int rest = (columnWidth - subjectWidth) / 2;
                 tagsWidth = Math.Min(tagsText.Length, columnWidth - subjectWidth - rest);
                 tipsWidth = columnWidth - subjectWidth - tagsWidth;

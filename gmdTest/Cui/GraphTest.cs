@@ -1,3 +1,5 @@
+using gmd.Cui;
+using gmd.Cui.Common;
 using gmd.Server;
 using gmdTest.Fixtures;
 
@@ -292,6 +294,35 @@ public class GraphTest
             """,
             GraphText.ColorsOf(repo, b.Config)
         );
+    }
+
+    // A graph cut to fewer columns than it has, as the log does on a narrow terminal, draws the
+    // columns it shows as the whole graph does. The last column shown lost its branch rune whenever
+    // the graph had a more marker column, which is only the graph's own last column.
+    [TestMethod]
+    public async Task TestACutGraphDrawsTheColumnsItShowsInFull()
+    {
+        // sub, hidden, branched off feat, the right most branch, so its more marker is a column of
+        // its own at the right of the graph
+        var repo = await new RepoBuilder()
+            .Commit("f2", "Feature two", "f1")
+            .Commit("s1", "Sub work", "f1")
+            .Commit("f1", "Feature one", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("feat", "f2")
+            .LocalBranch("sub", "s1")
+            .ViewRepoAsync("feat");
+        var graph = new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(repo);
+        Assert.IsTrue(graph.HasMore, "sub is hidden, so a more marker column");
+        Assert.IsTrue(graph.RowLength > 2);
+        var writer = new GraphWriter();
+
+        for (var i = 0; i < repo.ViewCommits.Count; i++)
+        {
+            var whole = writer.ToText(graph, i, graph.Width, "", false).ToString();
+            Assert.AreEqual(whole[..3], writer.ToText(graph, i, 3, "", false).ToString(), $"Row {i}");
+        }
     }
 
     // Choosing which branches are shown is what gmd is for, so this walks a repo through showing

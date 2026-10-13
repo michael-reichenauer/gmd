@@ -36,8 +36,9 @@ class GraphWriter : IGraphWriter
             if (i > 0)
                 text.Color(connectColor, ConnectRune(column.ConnectSign));
 
-            if (graph.HasMore && i == rowLength - 1)
-            { // Last column is the More, which only has connection (no branch rune)
+            if (graph.HasMore && i == graph.RowLength - 1)
+            { // Last column is the More, which only has connection (no branch rune). The graph's last
+                // column, not the last one drawn, which on a narrow terminal is a branch's
                 continue;
             }
             // Draw the branch rune
