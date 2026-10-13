@@ -336,15 +336,24 @@ class StartView : IStartView
     void OpenFolder()
     {
         var browser = new FolderBrowseDlg();
-        var result = browser.Show(config.ResentParentFolders());
+        var result = browser.Show(Folders());
         view.SetFocus();
         if (result is string path)
             Open(path);
     }
 
+    // Where to browse, clone and init: the folder gmd was started in, since that is where it was
+    // asked to be, then the ones the recent repositories are in. Not the start folder when it is
+    // inside a repository, which only '-m' shows the page for, since nesting one is seldom meant.
+    IReadOnlyList<string> Folders()
+    {
+        var parents = config.ResentParentFolders();
+        return repos.IsFolderInRepo || folder == "" ? parents : [folder, .. parents];
+    }
+
     async Task CloneAsync()
     {
-        var cloneResult = cloneDlg.Show(config.ResentParentFolders());
+        var cloneResult = cloneDlg.Show(Folders());
         view.SetFocus();
         if (cloneResult is not CloneInfo clone)
             return;
@@ -367,7 +376,11 @@ class StartView : IStartView
 
     async Task InitAsync()
     {
-        var pathResult = initRepoDlg.Show(config.ResentParentFolders());
+        var folders = Folders();
+        var defaultPath = repos.IsFolderInRepo
+            ? (folders.Any() ? folders[0] + Path.DirectorySeparatorChar : "")
+            : folder;
+        var pathResult = initRepoDlg.Show(defaultPath, folders);
         view.SetFocus();
         if (pathResult is not string path)
             return;

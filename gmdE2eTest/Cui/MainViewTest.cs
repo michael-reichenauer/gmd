@@ -202,6 +202,7 @@ public class MainViewTest
         gmd.WaitFor("Quit");
         gmd.Send("i");
         gmd.WaitFor("Init Repo");
+        ClearField(gmd);
 
         // A folder cannot be made inside a file
         gmd.SendText(Path.Join(repo.Path, "alpha.txt", "sub"));
@@ -231,6 +232,42 @@ public class MainViewTest
         gmd.Send("Enter");
 
         StringAssert.Contains(gmd.WaitUntilGone("Failed to clone"), "▸ o  Open a folder");
+    }
+
+    // Init makes the repository in the folder gmd was started in, as the page says, and opens it
+    [TestMethod]
+    public void TestInitIsInTheStartFolder()
+    {
+        var home = Home();
+        var downloads = In(home, "Downloads");
+        using var gmd = TmuxSession.StartGmd(home, downloads);
+        StringAssert.Contains(gmd.WaitFor("Quit"), "i  Init a repository here ...   start a new one in ~/Downloads");
+
+        gmd.Send("i");
+        gmd.WaitFor("Init Repo");
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Quit");
+        Assert.IsTrue(Directory.Exists(Path.Join(downloads, ".git")), "Not made in the start folder");
+    }
+
+    // A clone is put in the folder gmd was started in, named as the repository is, and opened
+    [TestMethod]
+    public async Task TestACloneIsPutInTheStartFolder()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, In(home, "Downloads"));
+        gmd.WaitFor("Quit");
+        gmd.Send("c");
+        gmd.WaitFor("Clone Repo");
+
+        gmd.SendText(repo.Path);
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Add delta");
+        Assert.IsTrue(Directory.Exists(Path.Join(In(home, "Downloads"), Path.GetFileName(repo.Path), ".git")));
     }
 
     // The keys of a dialog closed with Escape are back on the page, as they were not on the start
@@ -327,4 +364,13 @@ public class MainViewTest
     }
 
     static string In(TempHome home, string path) => Path.Join(home.Path, path);
+
+    // Empties the text field with the focus: to its start, then cut to its end
+    static void ClearField(TmuxSession gmd)
+    {
+        gmd.Send("Home");
+        gmd.WaitForStable();
+        gmd.Send("C-k");
+        gmd.WaitForStable();
+    }
 }

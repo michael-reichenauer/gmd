@@ -4,7 +4,8 @@ namespace gmd.Cui;
 
 interface IInitRepoDlg
 {
-    Result<string> Show(IReadOnlyList<string> recentParentFolders);
+    // The folder to init, proposed as 'defaultPath', and browsed for from 'browseFolders'
+    Result<string> Show(string defaultPath, IReadOnlyList<string> browseFolders);
 }
 
 class InitRepoDlg : IInitRepoDlg
@@ -12,14 +13,12 @@ class InitRepoDlg : IInitRepoDlg
     const int width = 55;
     UITextField? pathField;
 
-    public Result<string> Show(IReadOnlyList<string> recentParentFolders)
+    public Result<string> Show(string defaultPath, IReadOnlyList<string> browseFolders)
     {
-        var basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
-
         var dlg = new UIDialog("Init Repo", width + 4, 8);
 
         dlg.AddLabel(1, 1, "Path:");
-        pathField = dlg.AddInputField(7, 1, width - 16, basePath, InputMarkers.None);
+        pathField = dlg.AddInputField(7, 1, width - 16, defaultPath, InputMarkers.None);
 
         dlg.AddButton(
             width - 9,
@@ -28,7 +27,7 @@ class InitRepoDlg : IInitRepoDlg
             () =>
             {
                 FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (browseDlg.Show(recentParentFolders) is not string path || path == "")
+                if (browseDlg.Show(browseFolders) is not string path || path == "")
                     return;
                 pathField.Text = path;
             }

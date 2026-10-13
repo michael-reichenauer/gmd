@@ -7,7 +7,8 @@ public class FolderBrowseDlg
 {
     string selectedPath = "";
 
-    internal Result<string> Show(IReadOnlyList<string> recentFolders)
+    // Starting from the folders given, the first of them opened, see Roots
+    internal Result<string> Show(IReadOnlyList<string> folders)
     {
         const int width = 50;
         const int height = 20;
@@ -36,10 +37,10 @@ public class FolderBrowseDlg
             folderView,
             () =>
             {
-                SetupFileTree(folderView, recentFolders);
+                SetupFileTree(folderView, folders);
                 SetupScrollBar(folderView);
                 folderView.GoToFirst();
-                if (recentFolders.Any())
+                if (folders.Any())
                 {
                     folderView.Expand();
                 }
@@ -107,19 +108,39 @@ public class FolderBrowseDlg
         };
     }
 
-    void SetupFileTree(TreeView<FileSystemInfo> treeView, IReadOnlyList<string> recentFolders)
+    void SetupFileTree(TreeView<FileSystemInfo> treeView, IReadOnlyList<string> folders)
     {
         treeView.TreeBuilder = new DelegateTreeBuilder<FileSystemInfo>(GetChildren, HasChildren);
         treeView.AspectGetter = GetName;
 
-        var roots = recentFolders
+        var drives = OperatingSystem.IsWindows()
+            ? DriveInfo.GetDrives().Select(d => d.RootDirectory.FullName).ToList()
+            : ["/"];
+        var roots = Roots(folders, Files.HomePath, drives)
+            .Where(Directory.Exists)
             .Select(f => GetDirInfo(f))
             .Where(f => f != null)
-            .Select(f => f!)
-            .OrderBy(f => f.Name)
-            .Concat(DriveInfo.GetDrives().Select(d => d.RootDirectory).OrderBy(f => f.Name));
+            .Select(f => f!);
 
         treeView.AddObjects(roots);
+    }
+
+    // The folders the tree starts from: the ones given, most likely first, then home and the roots of
+    // the file system, each once. Off Windows that root is '/', rather than every mount point, which
+    // put '/proc', '/sys/fs/cgroup' and the like in front of someone who just wanted their home.
+    internal static IReadOnlyList<string> Roots(
+        IReadOnlyList<string> folders,
+        string home,
+        IReadOnlyList<string> drives
+    )
+    {
+        List<string> roots = [];
+        foreach (var folder in folders.Append(home).Concat(drives).Where(f => f != ""))
+        {
+            if (!roots.Any(r => Files.IsSamePath(r, folder)))
+                roots.Add(folder);
+        }
+        return roots;
     }
 
     static DirectoryInfo? GetDirInfo(string path)
