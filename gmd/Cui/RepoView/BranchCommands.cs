@@ -395,7 +395,7 @@ class BranchCommands : IBranchCommands
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
-            diffView.Show(diffs, source, repo.Path);
+            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see CommitCommands.ShowDiff
             return Result.Ok;
         });
 

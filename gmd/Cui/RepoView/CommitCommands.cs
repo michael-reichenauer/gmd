@@ -285,6 +285,9 @@ class CommitCommands : ICommitCommands
                     conflicts = state;
             }
 
+            // Shown once the command is done, outside Do, as every view of its own is: Do's progress
+            // would be running under it, and the view's own, e.g. the reload of '+', would then only
+            // be counted, with no marquee and with the keys not held while git works
             UI.Post(() =>
             {
                 var rsp = diffView.Show(diffs, source, repo.Path, conflicts);
@@ -327,7 +330,7 @@ class CommitCommands : ICommitCommands
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
-            diffView.Show(diffs, source, repo.Path);
+            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
@@ -428,7 +431,7 @@ class CommitCommands : ICommitCommands
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to diff stash {name}", diffsResult.Error);
 
-            diffView.Show(diffs, source, repo.Path);
+            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
@@ -783,7 +786,7 @@ class CommitCommands : ICommitCommands
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to show file history", diffsResult.Error);
 
-            diffView.Show(diffs, source, repo.Path);
+            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
@@ -819,7 +822,7 @@ class CommitCommands : ICommitCommands
             if (blameResult is not Server.Blame blame)
                 return new Error($"Failed to blame {path}", blameResult.Error);
 
-            UI.Post(() => blameView.Show(blame, repo.Repo));
+            UI.Post(() => blameView.Show(blame, repo.Repo)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 

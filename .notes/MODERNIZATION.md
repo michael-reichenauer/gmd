@@ -604,9 +604,16 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every
     branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
     the colors already. Not measured.
-  - Smaller: the commit diff and blame are opened outside the command's `Do`;
-    `MoveToEndOfContent` leaves the view
-    3 rows full; `UnicodeSetsDlg` (dev only) shows wrong characters above U+FFFF and lists a set twice.
+  - *Done 2026-10-14:* the smaller ones, each with a test: the diff's right side numbered 3 low
+    after conflict markers; the resolver's result not scrollable, its tabs not expanded, and `b`
+    moving its cursor to another conflict; `g` on main silent; Merge silent with nothing to merge;
+    Add Tag saying the tag failed when its push did; a drag starting a cell late; the 100 ms timeouts
+    of Commit and Amend from the menu, which a menu closing before its item runs made needless; Init
+    proposing the home folder; the combo field's context menu and handlers; `MoveToEndOfContent`
+    showing 3 rows; `UnicodeSetsDlg`. The commit diff and blame were opened outside the command's
+    `Do`, and the other diffs inside it: outside is right, since a view run under `Do`'s progress
+    has none of its own, no marquee and no keys held while git works, so they all are, but the diff
+    of lost commits, which its list comes back after.
 - Left by the review of `gmd/Installation` (2026-10-13):
   - The Windows swap (rename the running exe aside, the new one in, back on failure, each rename
     tried five times) runs in the tests on Linux only, where any file can be renamed. Windows allows
