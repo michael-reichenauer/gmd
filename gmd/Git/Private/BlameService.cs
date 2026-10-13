@@ -83,16 +83,19 @@ class BlameService : IBlameService
 
     record BlameHeader(string Id, int OriginalLineNbr, int FinalLineNbr);
 
-    // A header line is '<40 char sha> <original line nbr> <final line nbr> [<lines in group>]'
+    // A header line is '<sha> <original line nbr> <final line nbr> [<lines in group>]'. The sha of
+    // the lines not committed yet is all zeros, of the length of the repository's ids, and is given
+    // as UncommittedId whatever that length is, which is the id the layers above know them by.
     static Result<BlameHeader> ParseHeader(string line)
     {
         var parts = line.Split(' ');
-        if (parts.Length < 3 || parts[0].Length != 40)
+        if (parts.Length < 3 || !ObjectId.Is(parts[0]))
             return new Error($"Failed to parse blame header '{line}'");
         if (!int.TryParse(parts[1], out var originalLineNbr) || !int.TryParse(parts[2], out var finalLineNbr))
             return new Error($"Failed to parse blame header line numbers '{line}'");
 
-        return new BlameHeader(parts[0], originalLineNbr, finalLineNbr);
+        var id = ObjectId.IsZero(parts[0]) ? UncommittedId : parts[0];
+        return new BlameHeader(id, originalLineNbr, finalLineNbr);
     }
 
     // Parses the key/value block after a header line and adds the commit if not already known.
@@ -110,7 +113,7 @@ class BlameService : IBlameService
         var filePath = path;
 
         // The block ends at the content line, or at the next header if the content line is missing.
-        // A key is never 40 hex chars, so a header can never be mistaken for a key/value line.
+        // A key is never an id, so a header can never be mistaken for a key/value line.
         for (; i < lines.Length && !lines[i].StartsWith('\t') && !IsHeader(lines[i]); i++)
         {
             var line = lines[i];
@@ -168,16 +171,8 @@ class BlameService : IBlameService
 
     static bool IsHeader(string line)
     {
-        if (line.Length < 41 || line[40] != ' ')
-            return false;
-
-        for (var i = 0; i < 40; i++)
-        {
-            if (!Uri.IsHexDigit(line[i]))
-                return false;
-        }
-
-        return true;
+        var space = line.IndexOf(' ');
+        return space > 0 && ObjectId.Is(line.AsSpan(0, space));
     }
 
     static (string key, string value) SplitKeyValue(string line)
@@ -198,7 +193,8 @@ class BlameService : IBlameService
     static string Text(string line) => line[1..];
 
     // Same all '0' sha as Server.Repo.UncommittedId, which is what git blame uses for lines that
-    // are not committed yet. Repeated here since the git layer cannot reference the server layer.
+    // are not committed yet, in a repository of SHA-1 ids; one of SHA-256 ids has 64 zeros, which
+    // ParseHeader gives as this. Repeated here since the git layer cannot reference the server layer.
     const string UncommittedId = "0000000000000000000000000000000000000000";
 
     const string MissingIgnoreRevsError = "could not open object name list";

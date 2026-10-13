@@ -125,7 +125,7 @@ class TagService : ITagService
         foreach (var line in output.Split('\n'))
         {
             var parts = line.Trim().Split(' ', 2);
-            if (parts.Length != 2 || parts[0].Length != 40)
+            if (parts.Length != 2 || !ObjectId.Is(parts[0]))
                 continue;
 
             refs[parts[1]] = parts[0];

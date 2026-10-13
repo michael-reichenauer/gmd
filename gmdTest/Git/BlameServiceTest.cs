@@ -187,6 +187,43 @@ public class BlameServiceTest
         Assert.AreEqual("bäse.md", blame.CommitById[Id2].PreviousPath);
     }
 
+    // A repository of SHA-256 ids has ids of 64 characters, which failed every blame, taken to be
+    // 40. Its lines not committed yet have 64 zeros, given as the 40 the layers above know them by.
+    [TestMethod]
+    public async Task TestParseSha256Ids()
+    {
+        var id = new string('a', 64);
+        var output = $"""
+            {id} 1 1 1
+            author Alice
+            author-mail <alice@example.com>
+            author-time 1700000000
+            author-tz +0000
+            summary Initial commit
+            boundary
+            filename file.txt
+            →first line
+            {new string('0', 64)} 2 2 1
+            author Not Committed Yet
+            author-mail <not.committed.yet>
+            author-time 1800000000
+            author-tz +0000
+            summary Version of file.txt from file.txt
+            previous {id} file.txt
+            filename file.txt
+            →not committed yet
+            {id} 2 3 1
+            →third line
+            """;
+
+        var blame = await GetBlameAsync(output, "");
+
+        CollectionAssert.AreEqual(new[] { id, Id0, id }, blame.Lines.Select(l => l.CommitId).ToArray());
+        Assert.AreEqual("Alice", blame.CommitById[id].Author);
+        Assert.IsTrue(blame.CommitById[Id0].IsUncommitted);
+        Assert.AreEqual(id, blame.CommitById[Id0].PreviousId);
+    }
+
     // A blank line in the file is a bare tab. Tabs within a line are kept verbatim, so a copy of
     // the blamed lines yields the file's own text; expanding them is the view's job.
     [TestMethod]

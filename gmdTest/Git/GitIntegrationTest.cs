@@ -1822,6 +1822,39 @@ public class GitIntegrationTest
         Assert.AreEqual($"On main: {message}", await repo.GitAsync("stash list --format=%s"));
     }
 
+    // A repository of SHA-256 ids, 64 hex characters where SHA-1's are 40. The log, branches, tags
+    // and diffs read, but blame took an id to be 40 characters and failed on every file, and the
+    // record of origin's tags was read as empty, so no tag was on origin.
+    [TestMethod]
+    public async Task TestARepositoryOfSha256Ids()
+    {
+        using var sha256 = await TempRepo.CreateSha256Async();
+        var c1 = await sha256.CommitFileAsync("file.txt", "one\n", "First");
+        Assert.AreEqual(64, c1.Length, "A SHA-256 id");
+        await sha256.AddOriginAsync();
+        Ok(await sha256.Git.PushBranchAsync("main", sha256.Path));
+        Ok(await sha256.Git.AddTagAsync("v1", c1, sha256.Path));
+        Ok(await sha256.Git.PushTagAsync("v1", sha256.Path));
+        sha256.WriteFile("file.txt", "one\ntwo\n");
+
+        var blame = Value(await sha256.Git.GetBlameAsync("file.txt", "", sha256.Path));
+        var log = Value(await sha256.Git.GetLogAsync(10, sha256.Path));
+        var diff = Value(await sha256.Git.GetCommitDiffAsync(c1, 6, sha256.Path));
+        Ok(await sha256.Git.FetchAsync(sha256.Path));
+        var onOrigin = Value(await sha256.Git.GetTrackedRemoteTagsAsync(sha256.Path));
+
+        var uncommittedId = new string('0', 40);
+        Assert.AreEqual($"{c1} {uncommittedId}", string.Join(" ", blame.Lines.Select(l => l.CommitId)));
+        Assert.IsTrue(blame.CommitById[uncommittedId].IsUncommitted);
+        Assert.AreEqual(c1, log.Single().Id);
+        Assert.AreEqual("file.txt", diff.FileDiffs.Single().PathAfter);
+        Assert.AreEqual(c1, onOrigin["v1"], "Kept through the fetch, which prunes the record");
+        Assert.AreEqual("v1", await TagNamesOf(sha256), "The fetch deleted no tag");
+    }
+
+    static async Task<string> TagNamesOf(TempRepo repo) =>
+        string.Join(", ", AssertOk(await repo.Git.GetTagsAsync(repo.Path)).Select(t => t.Name).Order());
+
     // With log.showSignature git checks the signature of each signed commit and writes what it
     // found before the commit, on stdout, in the log's own output, so a signed commit's id was the
     // text of that check

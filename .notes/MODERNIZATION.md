@@ -410,13 +410,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
     Reading by the counts would also be what a combined diff (`diff --cc`) needs.
   - Branch and tag names go to git unquoted. Git refuses a space and a backslash in a ref name,
     but not a `"`, which would split the argument.
-  - A SHA-256 repository (`git init --object-format=sha256`, 64 character ids) opens and draws,
-    and its log, branches, tags and diffs read (tried 2026-10-13), but two parsers take an id to be
-    SHA-1's 40 characters. Blame fails on every file (`BlameService.ParseHeader` and `IsHeader`),
-    and its uncommitted lines would not be told even then, git marking them with 64 zeros where
-    `BlameService.UncommittedId` has 40. And the mirror of origin's tags is always read as empty
-    (`TagService.GetRefsAsync`), so a tag deleted on origin is never pruned here, the safe way to
-    fail, and the tag list says no tag is on origin.
   - `GetLogAsync` reads `user.name` before every log, one after the other, to set `IGit.CurrentAuthor`
     as a side effect, for the branch menu's own branches. 4 ms; worth moving when that is touched.
   - `KeyValueService.PushValueAsync` passes `--set-upstream`, which means nothing for a ref outside
@@ -666,6 +659,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - A command line is split into arguments again by .NET on Linux and macOS and by the program itself
   on Windows, both by the same rule: backslashes count only before a `"`, where they are halved.
   `Cmd.Quote` writes a text as one argument; `git rev-parse --sq-quote <args>` shows what git got.
+- A repository of SHA-256 ids (`git init --object-format=sha256`) has ids of 64 hex characters, and
+  marks the lines blame finds uncommitted with 64 zeros; it cannot push to or fetch from one of SHA-1
+  ids (`rev-parse --show-object-format` tells which). gmd reads one since 2026-10-13: an id is 40 or
+  64 characters (`ObjectId`), and blame gives the uncommitted lines the 40 zeros gmd's own
+  `UncommittedId` has. `TempRepo.CreateSha256Async` makes one.
 - In C#, `\x` takes up to four hex digits, so `"\x1fb"` is U+01FB, not U+001F and `b`; write `\u001f`.
 
 - The reflog, as Undo, Recover and the force push detection read it (2026-10-06):

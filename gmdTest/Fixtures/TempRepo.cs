@@ -62,6 +62,18 @@ sealed class TempRepo : IDisposable
         return repo;
     }
 
+    // The same, of SHA-256 ids, 64 hex characters where git's default SHA-1 ids are 40. Its origin
+    // is too (AddOriginAsync), since git cannot push between the two kinds.
+    public static async Task<TempRepo> CreateSha256Async()
+    {
+        var path = IOPath.Join(IOPath.GetTempPath(), $"{FolderPrefix}{Guid.NewGuid():N}");
+        var repo = new TempRepo(path, path);
+        var result = await repo.cmd.RunRawAsync("git", $"init --object-format=sha256 \"{path}\"", "");
+        Assert.AreEqual(0, result.ExitCode, $"'git init --object-format=sha256' failed:\n{result.ErrorOutput}");
+        await repo.InitAsync();
+        return repo;
+    }
+
     // The same, with the repository at a path of its own choosing inside the temp folder, for when
     // the path is on screen: the application bar shows the end of it, which is otherwise a guid.
     // Everything the fixture makes beside the repository (origin, worktrees) is then inside the temp
@@ -197,7 +209,8 @@ sealed class TempRepo : IDisposable
     public async Task AddOriginAsync()
     {
         originPath = Path + "-origin";
-        var result = await cmd.RunRawAsync("git", $"init --bare \"{originPath}\"", "");
+        var format = (await GitAsync("rev-parse --show-object-format")).Trim();
+        var result = await cmd.RunRawAsync("git", $"init --bare --object-format={format} \"{originPath}\"", "");
         Assert.AreEqual(0, result.ExitCode, $"'git init --bare' failed:\n{result.ErrorOutput}");
 
         await GitAsync($"remote add origin \"{originPath}\"");

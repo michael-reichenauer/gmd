@@ -146,6 +146,18 @@ public class TagServiceTest
         Assert.AreEqual(Id2, tracked["release/3.0"], "A tag name may contain '/', so strip= is by namespace depth");
     }
 
+    // An id is 64 characters in a repository of SHA-256 ids, which were all skipped as no id, so
+    // the record of origin's tags was empty there
+    [TestMethod]
+    public async Task TestTrackedRemoteTagsOfSha256Ids()
+    {
+        var id = new string('a', 64);
+
+        var tracked = AssertOk(await NewService(new FakeCmd($"{id} v1.0")).GetTrackedRemoteTagsAsync("/wd"));
+
+        Assert.AreEqual(id, tracked["v1.0"]);
+    }
+
     // The whole point: the tag is gone from the remote, so the local one goes with it
     [TestMethod]
     public async Task TestTagDeletedOnTheRemoteIsDeletedLocally()
