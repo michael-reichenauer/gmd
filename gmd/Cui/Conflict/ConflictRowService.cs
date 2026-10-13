@@ -13,7 +13,7 @@ interface IConflictRowService
 // Turns a conflicted file and what the user has decided about it into drawn rows.
 //
 // Pure: no view, no ContentView, no driver — so the whole layout is snapshot testable through
-// Text.ToString(), which is how BlameService is tested.
+// Text.ToString(), which is how BlameRowService is tested.
 class ConflictRowService : IConflictRowService
 {
     const string PaneSeparator = "│";

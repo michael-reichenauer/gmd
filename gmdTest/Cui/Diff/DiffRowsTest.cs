@@ -1,7 +1,6 @@
 using gmd.Cui.Diff;
 using gmd.Server;
 using gmdTest.Fixtures;
-using CuiDiffService = gmd.Cui.Diff.DiffService;
 
 namespace gmdTest.Cui.Diff;
 
@@ -60,17 +59,17 @@ public class DiffRowsTest
                 ),
             ]
         );
-        var rows = new CuiDiffService().ToDiffRows([
+        var rows = new DiffRowService().ToDiffRows([
             new CommitDiff(Id("c1"), "Test", new DateTime(2025, 1, 1), "Add two", [added]),
         ]);
-        Assert.IsTrue(rows.Rows.Any(r => r.Left == CuiDiffService.NoLine), "The added line has nothing beside it");
+        Assert.IsTrue(rows.Rows.Any(r => r.Left == DiffRowService.NoLine), "The added line has nothing beside it");
 
         Assert.IsTrue(rows.MaxLength < 80, $"{rows.MaxLength}");
     }
 
     // c1 is the newest, so it is shown first, as git log lists them
     static DiffRows FileHistory() =>
-        new CuiDiffService().ToDiffRows([CommitOf("c1", "newer"), CommitOf("c2", "older")]);
+        new DiffRowService().ToDiffRows([CommitOf("c1", "newer"), CommitOf("c2", "older")]);
 
     static CommitDiff CommitOf(string name, string text) =>
         new(

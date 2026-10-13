@@ -26,7 +26,7 @@ class DiffView : IDiffView
 {
     static readonly Text splitLineChar = Text.Dark("│");
 
-    readonly IDiffService diffService;
+    readonly IDiffRowService diffRowService;
     private readonly IProgress progress;
     private readonly IServer server;
     readonly IClipboardService clipboard;
@@ -57,7 +57,7 @@ class DiffView : IDiffView
     ConflictState conflictState = ConflictState.None;
 
     public DiffView(
-        IDiffService diffService,
+        IDiffRowService diffRowService,
         IProgress progress,
         IServer server,
         IClipboardService clipboard,
@@ -68,7 +68,7 @@ class DiffView : IDiffView
     {
         this.helpPage = helpPage;
         this.config = config;
-        this.diffService = diffService;
+        this.diffRowService = diffRowService;
         this.progress = progress;
         this.server = server;
         this.clipboard = clipboard;
@@ -98,7 +98,7 @@ class DiffView : IDiffView
         this.isRefreshNeeded = false;
         this.fileContext.Clear();
         this.conflictState = conflicts;
-        this.diffRows = diffService.ToDiffRows(diffs, fileContext, ConflictPaths());
+        this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
 
         Toplevel diffView = new Toplevel()
         {
@@ -251,7 +251,7 @@ class DiffView : IDiffView
             return diffs.Select(cd => Menu.Item($"{cd.Time.IsoDate()} {cd.Message}", "", () => ScrollToCommit(cd.Id)));
         }
 
-        var paths = diffService.GetDiffFilePaths(diffs[0]);
+        var paths = diffRowService.GetDiffFilePaths(diffs[0]);
         if (!paths.Any())
             return Menu.Items;
 
@@ -375,11 +375,11 @@ class DiffView : IDiffView
 
     IEnumerable<Common.MenuItem> GetUndoItems()
     {
-        var paths = diffService.GetDiffFilePaths(diffs[0]);
+        var paths = diffRowService.GetDiffFilePaths(diffs[0]);
         if (commitId != Repo.UncommittedId || paths.Count == 0)
             return new List<Common.MenuItem>();
 
-        var binaryPaths = diffService.GetDiffBinaryFilePaths(diffs[0]);
+        var binaryPaths = diffRowService.GetDiffBinaryFilePaths(diffs[0]);
 
         var addedPaths = diffs[0]
             .FileDiffs.Where(fd => fd.DiffMode == DiffMode.DiffAdded)
@@ -469,7 +469,7 @@ class DiffView : IDiffView
             }
 
             fileContext[anchor.FilePath] = wanted;
-            SetDiffs(DiffService.ReplaceFileDiff(diffs, anchor.FilePath, fetched), anchor);
+            SetDiffs(DiffRowService.ReplaceFileDiff(diffs, anchor.FilePath, fetched), anchor);
         }
     }
 
@@ -537,7 +537,7 @@ class DiffView : IDiffView
     void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
     {
         diffs = newDiffs;
-        diffRows = diffService.ToDiffRows(diffs, fileContext, ConflictPaths());
+        diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
         hintBar?.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
 
         // The old selection covers rows that no longer hold what they did, and a copy would take
@@ -636,21 +636,21 @@ class DiffView : IDiffView
 
         // The left and right text is shown side by side with a gray vertical line char in between
         var left =
-            (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffService.NoLine)
-                ? row.Left != DiffService.NoLine && rowStartX > 0
+            (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffRowService.NoLine)
+                ? row.Left != DiffRowService.NoLine && rowStartX > 0
                     ? Text.Dark("…").Add(row.Left.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
                     : row.Left.Subtext(rowStartX, columnWidth, true)
-                : row.Left != DiffService.NoLine && rowStartX > 0
+                : row.Left != DiffRowService.NoLine && rowStartX > 0
                     ? Text.Dark("…")
                         .Add(row.Left.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…")))
                     : row.Left.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
         var right =
-            (row.Right.Length - rowStartX <= columnWidth || row.Right == DiffService.NoLine)
-                ? row.Right != DiffService.NoLine && rowStartX > 0
+            (row.Right.Length - rowStartX <= columnWidth || row.Right == DiffRowService.NoLine)
+                ? row.Right != DiffRowService.NoLine && rowStartX > 0
                     ? Text.Dark("…").Add(row.Right.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
                     : row.Right.Subtext(rowStartX, columnWidth, true)
-                : row.Right != DiffService.NoLine && rowStartX > 0
+                : row.Right != DiffRowService.NoLine && rowStartX > 0
                     ? Text.Dark("…")
                         .Add(
                             row.Right.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…"))
@@ -677,7 +677,7 @@ class DiffView : IDiffView
             return;
 
         var rows = diffRows.Rows.Skip(contentView.SelectStartIndex).Take(contentView.SelectCount);
-        var text = DiffService.CopyText(rows, isFocusLeft);
+        var text = DiffRowService.CopyText(rows, isFocusLeft);
 
         if (clipboard.Set(text) is Error e)
         {

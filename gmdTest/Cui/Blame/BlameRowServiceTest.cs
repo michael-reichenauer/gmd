@@ -7,7 +7,7 @@ using ServerBlameLine = gmd.Server.BlameLine;
 namespace gmdTest.Cui.Blame;
 
 [TestClass]
-public class BlameServiceTest
+public class BlameRowServiceTest
 {
     const string Id1 = "1111111111111111111111111111111111111111";
     const string Id2 = "2222222222222222222222222222222222222222";
@@ -49,13 +49,13 @@ public class BlameServiceTest
     // Text.ToString() flattens the styled output, the same trick GraphText uses for the graph.
     static string Draw(ServerBlame blame, BlameDetails details = BlameDetails.Full, int width = 70)
     {
-        var service = new BlameService();
+        var service = new BlameRowService();
         var rows = service.ToBlameRows(blame);
         var cw = BlameColumns.Calculate(details, width, rows.Rows.Count);
         return string.Join("\n", rows.Rows.Select(r => service.ToRowText(r, cw, 0, false, false).ToString().TrimEnd()));
     }
 
-    static IReadOnlyList<BlameRow> RowsOf(ServerBlame blame) => new BlameService().ToBlameRows(blame).Rows;
+    static IReadOnlyList<BlameRow> RowsOf(ServerBlame blame) => new BlameRowService().ToBlameRows(blame).Rows;
 
     [TestMethod]
     public void TestSingleLineRunIsSingle()
@@ -214,7 +214,7 @@ public class BlameServiceTest
     {
         var commit = BlameOf((Id1, "one")).CommitById[Id1] with { AuthorMail = "alice@example.com" };
 
-        var rows = new BlameService().ToDetailsRows(commit);
+        var rows = new BlameRowService().ToDetailsRows(commit);
 
         Assert.AreEqual($"Id:         {Id1}", rows[0].ToString());
         // The time is local with its zone offset, as the commit details view shows it, so only the
@@ -229,7 +229,7 @@ public class BlameServiceTest
     {
         var commit = BlameOf((Id0, "one")).CommitById[Id0];
 
-        var rows = new BlameService().ToDetailsRows(commit);
+        var rows = new BlameRowService().ToDetailsRows(commit);
 
         Assert.AreEqual("Id:         Uncommitted", rows[0].ToString());
     }
@@ -237,7 +237,7 @@ public class BlameServiceTest
     [TestMethod]
     public void TestMaxLengthIsTheWidestCodeLine()
     {
-        var rows = new BlameService().ToBlameRows(BlameOf((Id1, "one"), (Id1, "a longer line"), (Id1, "two")));
+        var rows = new BlameRowService().ToBlameRows(BlameOf((Id1, "one"), (Id1, "a longer line"), (Id1, "two")));
 
         Assert.AreEqual("a longer line".Length, rows.MaxLength);
     }
@@ -257,7 +257,7 @@ public class BlameServiceTest
     [TestMethod]
     public void TestScrolledCodeIsMarkedAtBothEnds()
     {
-        var service = new BlameService();
+        var service = new BlameRowService();
         var rows = service.ToBlameRows(BlameOf((Id1, "0123456789abcdefghij")));
         var cw = BlameColumns.Calculate(BlameDetails.Rail, 18, 1);
 

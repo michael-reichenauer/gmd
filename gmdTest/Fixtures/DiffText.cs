@@ -19,7 +19,7 @@ static class DiffText
     // ColorsOf keeps it literal rather than turning it into a color letter.
     const string Separator = " │ ";
 
-    // The filler drawn where one side has no line at all. DiffService.NoLine is 300 runes wide
+    // The filler drawn where one side has no line at all. DiffRowService.NoLine is 300 runes wide
     // and would swamp every picture, so it is collapsed to a single rune. Recognised by identity,
     // which is how DiffView itself tests for it (DiffView.cs:636-687).
     static readonly Text NoLine = Text.Dark("░");
@@ -70,7 +70,7 @@ static class DiffText
             .ToList();
     }
 
-    static Text Shown(Text text) => ReferenceEquals(text, DiffService.NoLine) ? NoLine : text;
+    static Text Shown(Text text) => ReferenceEquals(text, DiffRowService.NoLine) ? NoLine : text;
 
     static string Join(IEnumerable<string> lines) => string.Join("\n", lines);
 }

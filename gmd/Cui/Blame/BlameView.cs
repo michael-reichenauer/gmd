@@ -16,7 +16,7 @@ interface IBlameView
 // this readable where the console 'git blame' is not.
 class BlameView : IBlameView
 {
-    readonly IBlameService blameService;
+    readonly IBlameRowService blameRowService;
     readonly IServer server;
     readonly IProgress progress;
     readonly IDiffView diffView;
@@ -50,7 +50,7 @@ class BlameView : IBlameView
     int HintsHeight => hintBar != null ? 1 : 0;
 
     public BlameView(
-        IBlameService blameService,
+        IBlameRowService blameRowService,
         IServer server,
         IProgress progress,
         IDiffView diffView,
@@ -62,7 +62,7 @@ class BlameView : IBlameView
     {
         this.helpPage = helpPage;
         this.config = config;
-        this.blameService = blameService;
+        this.blameRowService = blameRowService;
         this.server = server;
         this.progress = progress;
         this.diffView = diffView;
@@ -80,7 +80,7 @@ class BlameView : IBlameView
     public void Show(Server.Blame blame, Repo repo)
     {
         this.blame = blame;
-        this.blameRows = blameService.ToBlameRows(blame);
+        this.blameRows = blameRowService.ToBlameRows(blame);
         this.repo = repo;
         this.rowStartX = 0;
         this.isShowDetails = false;
@@ -200,7 +200,7 @@ class BlameView : IBlameView
             .Take(rowCount)
             .Select(
                 (r, i) =>
-                    blameService.ToRowText(
+                    blameRowService.ToRowText(
                         r,
                         cw,
                         rowStartX,
@@ -332,7 +332,7 @@ class BlameView : IBlameView
             return;
         }
 
-        detailsView.SetRows(blameService.ToDetailsRows(row.Commit));
+        detailsView.SetRows(blameRowService.ToDetailsRows(row.Commit));
     }
 
     // Shows the commit that last changed the current line. The uncommitted lines carry the all '0'
@@ -464,7 +464,7 @@ class BlameView : IBlameView
         }
 
         blame = newBlame;
-        blameRows = blameService.ToBlameRows(blame);
+        blameRows = blameRowService.ToBlameRows(blame);
         rowStartX = startX;
         // Scrolled to the line too: Back put the cursor on it with the view at the top of the file
         contentView.MoveToTop();

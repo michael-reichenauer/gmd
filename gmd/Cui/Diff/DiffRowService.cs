@@ -4,7 +4,7 @@ using gmd.Server;
 
 namespace gmd.Cui.Diff;
 
-interface IDiffService
+interface IDiffRowService
 {
     DiffRows ToDiffRows(CommitDiff diff);
     DiffRows ToDiffRows(CommitDiff[] commitDiffs);
@@ -23,7 +23,7 @@ interface IDiffService
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
 }
 
-class DiffService : IDiffService
+class DiffRowService : IDiffRowService
 {
     const int maxLineDiffsCount = 4;
     const string diffMargin = "┃"; // │ ┃ ;

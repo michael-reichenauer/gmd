@@ -2,7 +2,7 @@ using gmd.Cui.Common;
 
 namespace gmd.Cui.Blame;
 
-interface IBlameService
+interface IBlameRowService
 {
     BlameRows ToBlameRows(Server.Blame blame);
     Text ToRowText(BlameRow row, BlameColumns cw, int rowStartX, bool isCurrent, bool isSelected);
@@ -11,7 +11,7 @@ interface IBlameService
 
 // Turns a blame into the rows the blame view draws. Kept out of the view so the run aggregation,
 // the coloring and the column math are testable without a terminal driver.
-class BlameService : IBlameService
+class BlameRowService : IBlameRowService
 {
     // The run bracket. The three light glyphs are one bracket the eye follows down, with feet that
     // say exactly where the run ends. A run of one row gets a heavy stub instead, so it stands out

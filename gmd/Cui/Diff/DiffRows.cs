@@ -36,11 +36,11 @@ class DiffRows
     {
         // The filler of a side with no line is no text to scroll to: it is 300 wide, and counted, it
         // let the diff scroll that far into blank columns
-        if (left != DiffService.NoLine && left.Length > MaxLength)
+        if (left != DiffRowService.NoLine && left.Length > MaxLength)
         {
             MaxLength = left.Length;
         }
-        if (right != DiffService.NoLine && right.Length > MaxLength)
+        if (right != DiffRowService.NoLine && right.Length > MaxLength)
         {
             MaxLength = right.Length;
         }
@@ -72,7 +72,7 @@ class DiffRows
         for (int i = start; i < rows.Count; i++)
         {
             if (rows[i].FilePath == anchor.FilePath)
-                return DiffService.FindClosestLineIndex(rows, i, anchor.LineNbr);
+                return DiffRowService.FindClosestLineIndex(rows, i, anchor.LineNbr);
         }
 
         return -1;

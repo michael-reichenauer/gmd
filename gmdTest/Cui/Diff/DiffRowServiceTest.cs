@@ -1,7 +1,6 @@
 using gmd.Cui.Diff;
 using gmd.Server;
 using gmdTest.Fixtures;
-using CuiDiffService = gmd.Cui.Diff.DiffService;
 
 // The color pictures below are one letter per rune, so they spell nothing
 // cSpell:ignore DCWWW DRYYYY DGYYYYYY
@@ -9,7 +8,7 @@ using CuiDiffService = gmd.Cui.Diff.DiffService;
 namespace gmdTest.Cui.Diff;
 
 [TestClass]
-public class DiffServiceTest
+public class DiffRowServiceTest
 {
     // Builds a file diff of one section whose lines are '<mode> <text>', so a test reads as the
     // hunk it renders. Line numbers start at 1 on both sides, as a first hunk's would.
@@ -57,7 +56,7 @@ public class DiffServiceTest
         new CommitDiff("abc123", "Test", new DateTime(2025, 1, 1), "A commit", fileDiffs);
 
     // The rows of one file's diff, which is what most of the tests below are about
-    static DiffRows RowsOf(FileDiff file) => new CuiDiffService().ToDiffRows(CommitDiffOf(file));
+    static DiffRows RowsOf(FileDiff file) => new DiffRowService().ToDiffRows(CommitDiffOf(file));
 
     // A file of unchanged lines with one modified in the middle, the shape a wider context grows
     static FileDiff ContextFileOf(string path, int lineCount)
@@ -114,13 +113,13 @@ public class DiffServiceTest
     [TestMethod]
     public void TestARowWithNoLineNumberKeepsAllOfItsText()
     {
-        Assert.AreEqual("=== Start of conflict", CuiDiffService.WithoutLineNbr("=== Start of conflict", 0));
+        Assert.AreEqual("=== Start of conflict", DiffRowService.WithoutLineNbr("=== Start of conflict", 0));
     }
 
     [TestMethod]
     public void TestTheLineNumberGutterIsStripped()
     {
-        Assert.AreEqual("some code", CuiDiffService.WithoutLineNbr("  12┃some code", 12));
+        Assert.AreEqual("some code", DiffRowService.WithoutLineNbr("  12┃some code", 12));
     }
 
     // The gutter is the number right aligned in 4, so it grows once the number no longer fits,
@@ -128,13 +127,13 @@ public class DiffServiceTest
     [TestMethod]
     public void TestTheGutterOfALargeLineNumberIsWider()
     {
-        Assert.AreEqual("some code", CuiDiffService.WithoutLineNbr("12345┃some code", 12345));
+        Assert.AreEqual("some code", DiffRowService.WithoutLineNbr("12345┃some code", 12345));
     }
 
     [TestMethod]
     public void TestARowOfOnlyAGutterYieldsAnEmptyLine()
     {
-        Assert.AreEqual("", CuiDiffService.WithoutLineNbr("  12┃", 12));
+        Assert.AreEqual("", DiffRowService.WithoutLineNbr("  12┃", 12));
     }
 
     // A file added whole is drawn in one column, with the new file's line numbers, and the copy read
@@ -146,7 +145,7 @@ public class DiffServiceTest
             FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "one"), (DiffMode.DiffAdded, "two")])
         );
 
-        Assert.AreEqual("one\ntwo", CuiDiffService.CopyText(rows.Rows.Where(r => r.LineNbr != 0), true));
+        Assert.AreEqual("one\ntwo", DiffRowService.CopyText(rows.Rows.Where(r => r.LineNbr != 0), true));
     }
 
     // Side by side, the side in focus is copied, and a side with no line there is left out
@@ -164,8 +163,8 @@ public class DiffServiceTest
         );
         var lines = rows.Rows.Where(r => r.LineNbr != 0).ToList();
 
-        Assert.AreEqual("same\nold", CuiDiffService.CopyText(lines, true));
-        Assert.AreEqual("same\nnew\nmore", CuiDiffService.CopyText(lines, false));
+        Assert.AreEqual("same\nold", DiffRowService.CopyText(lines, true));
+        Assert.AreEqual("same\nnew\nmore", DiffRowService.CopyText(lines, false));
     }
 
     // Stepping the context levels
@@ -210,7 +209,7 @@ public class DiffServiceTest
     [TestMethod]
     public void TestAFileAtTheDefaultContextSaysNothingAboutIt()
     {
-        var rows = new CuiDiffService().ToDiffRows(
+        var rows = new DiffRowService().ToDiffRows(
             [CommitDiffOf(FileDiffOf("a.txt", (DiffMode.DiffSame, "one")))],
             new Dictionary<string, int> { ["a.txt"] = DiffContext.Default }
         );
@@ -221,7 +220,7 @@ public class DiffServiceTest
     [TestMethod]
     public void TestOnlyTheSteppedFileNamesItsContext()
     {
-        var rows = new CuiDiffService().ToDiffRows(
+        var rows = new DiffRowService().ToDiffRows(
             [
                 CommitDiffOf(
                     FileDiffOf("a.txt", (DiffMode.DiffSame, "one")),
@@ -240,7 +239,7 @@ public class DiffServiceTest
     [TestMethod]
     public void TestWholeFileContextIsNamedRatherThanNumbered()
     {
-        var rows = new CuiDiffService().ToDiffRows(
+        var rows = new DiffRowService().ToDiffRows(
             [CommitDiffOf(FileDiffOf("a.txt", (DiffMode.DiffSame, "one")))],
             new Dictionary<string, int> { ["a.txt"] = DiffContext.WholeFile }
         );
@@ -256,7 +255,7 @@ public class DiffServiceTest
         var shown = new[] { CommitDiffOf(ContextFileOf("a.txt", 4), ContextFileOf("b.txt", 4)) };
         var fetched = new[] { CommitDiffOf(ContextFileOf("a.txt", 20), ContextFileOf("b.txt", 20)) };
 
-        var spliced = CuiDiffService.ReplaceFileDiff(shown, "a.txt", fetched);
+        var spliced = DiffRowService.ReplaceFileDiff(shown, "a.txt", fetched);
 
         Assert.AreEqual(20, spliced[0].FileDiffs[0].SectionDiffs[0].LineDiffs.Count, "a.txt was widened");
         Assert.AreEqual(4, spliced[0].FileDiffs[1].SectionDiffs[0].LineDiffs.Count, "b.txt was left alone");
@@ -268,7 +267,7 @@ public class DiffServiceTest
         var shown = new[] { CommitDiffOf(FileDiffOf("a.txt"), FileDiffOf("b.txt"), FileDiffOf("c.txt")) };
         var fetched = new[] { CommitDiffOf(FileDiffOf("a.txt"), FileDiffOf("b.txt"), FileDiffOf("c.txt")) };
 
-        var spliced = CuiDiffService.ReplaceFileDiff(shown, "b.txt", fetched);
+        var spliced = DiffRowService.ReplaceFileDiff(shown, "b.txt", fetched);
 
         CollectionAssert.AreEqual(
             new[] { "a.txt", "b.txt", "c.txt" },
@@ -283,7 +282,7 @@ public class DiffServiceTest
         var shown = new[] { CommitDiffOf(ContextFileOf("a.txt", 4)) };
         var fetched = new[] { CommitDiffOf(ContextFileOf("b.txt", 20)) };
 
-        var spliced = CuiDiffService.ReplaceFileDiff(shown, "a.txt", fetched);
+        var spliced = DiffRowService.ReplaceFileDiff(shown, "a.txt", fetched);
 
         Assert.AreSame(shown, spliced);
     }
@@ -295,7 +294,7 @@ public class DiffServiceTest
         var shown = new[] { CommitDiffOf(ContextFileOf("a.txt", 4)), CommitDiffOf(ContextFileOf("a.txt", 4)) };
         var fetched = new[] { CommitDiffOf(ContextFileOf("a.txt", 20)), CommitDiffOf(ContextFileOf("a.txt", 20)) };
 
-        Assert.AreSame(fetched, CuiDiffService.ReplaceFileDiff(shown, "a.txt", fetched));
+        Assert.AreSame(fetched, DiffRowService.ReplaceFileDiff(shown, "a.txt", fetched));
     }
 
     // Finding the row to put the cursor back on after the file was redrawn
@@ -303,10 +302,10 @@ public class DiffServiceTest
     [TestMethod]
     public void TestTheRowOfTheSameLineIsFound()
     {
-        var rows = new CuiDiffService().ToDiffRows([CommitDiffOf(ContextFileOf("a.txt", 6))]);
+        var rows = new DiffRowService().ToDiffRows([CommitDiffOf(ContextFileOf("a.txt", 6))]);
         var fileIndex = rows.Rows.FindIndexBy(r => r.FilePath == "a.txt");
 
-        var index = CuiDiffService.FindClosestLineIndex(rows.Rows, fileIndex, 4);
+        var index = DiffRowService.FindClosestLineIndex(rows.Rows, fileIndex, 4);
 
         Assert.AreEqual(4, rows.Rows[index].LineNbr);
     }
@@ -329,10 +328,10 @@ public class DiffServiceTest
         );
         var file = new FileDiff("a.txt", "a.txt", false, false, DiffMode.DiffModified, [section]);
 
-        var rows = new CuiDiffService().ToDiffRows([CommitDiffOf(file)]);
+        var rows = new DiffRowService().ToDiffRows([CommitDiffOf(file)]);
         var fileIndex = rows.Rows.FindIndexBy(r => r.FilePath == "a.txt");
 
-        var index = CuiDiffService.FindClosestLineIndex(rows.Rows, fileIndex, 5);
+        var index = DiffRowService.FindClosestLineIndex(rows.Rows, fileIndex, 5);
 
         Assert.AreEqual(20, rows.Rows[index].LineNbr, "The first line still shown");
     }
@@ -341,22 +340,22 @@ public class DiffServiceTest
     [TestMethod]
     public void TestNoLineNumberFallsBackToTheFileHeader()
     {
-        var rows = new CuiDiffService().ToDiffRows([CommitDiffOf(ContextFileOf("a.txt", 6))]);
+        var rows = new DiffRowService().ToDiffRows([CommitDiffOf(ContextFileOf("a.txt", 6))]);
         var fileIndex = rows.Rows.FindIndexBy(r => r.FilePath == "a.txt");
 
-        Assert.AreEqual(fileIndex, CuiDiffService.FindClosestLineIndex(rows.Rows, fileIndex, 0));
+        Assert.AreEqual(fileIndex, DiffRowService.FindClosestLineIndex(rows.Rows, fileIndex, 0));
     }
 
     // The search must stop at the next file, or the cursor could land in the file below
     [TestMethod]
     public void TestTheSearchDoesNotRunIntoTheNextFile()
     {
-        var rows = new CuiDiffService().ToDiffRows([
+        var rows = new DiffRowService().ToDiffRows([
             CommitDiffOf(ContextFileOf("a.txt", 4), ContextFileOf("b.txt", 40)),
         ]);
         var fileIndex = rows.Rows.FindIndexBy(r => r.FilePath == "a.txt");
 
-        var index = CuiDiffService.FindClosestLineIndex(rows.Rows, fileIndex, 30);
+        var index = DiffRowService.FindClosestLineIndex(rows.Rows, fileIndex, 30);
 
         Assert.AreEqual("a.txt", rows.Rows.Take(index + 1).Last(r => r.FilePath != "").FilePath);
         Assert.AreEqual(4, rows.Rows[index].LineNbr, "The last line of a.txt, not line 30 of b.txt");
@@ -397,12 +396,12 @@ public class DiffServiceTest
         );
     }
 
-    // The uncommitted diff has no commit of its own, so DiffService fabricates a header with
+    // The uncommitted diff has no commit of its own, so DiffRowService fabricates a header with
     // every field empty; each one is left out rather than drawn blank
     [TestMethod]
     public void TestAnEmptyCommitFieldIsLeftOutOfTheSummery()
     {
-        var rows = new CuiDiffService().ToDiffRows(
+        var rows = new DiffRowService().ToDiffRows(
             new CommitDiff("", "", DateTime.MinValue, "", [FileOf("a.txt", lines: [(DiffMode.DiffSame, "one")])])
         );
 
@@ -426,7 +425,7 @@ public class DiffServiceTest
     [TestMethod]
     public void TestEveryFileIsListedWithItsMode()
     {
-        var rows = new CuiDiffService().ToDiffRows(
+        var rows = new DiffRowService().ToDiffRows(
             CommitDiffOf(
                 FileOf("m.txt", lines: [(DiffMode.DiffSame, "m")]),
                 FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "a")]),
@@ -452,7 +451,7 @@ public class DiffServiceTest
     [TestMethod]
     public void TestTheModeColorsTheFilesRow()
     {
-        var rows = new CuiDiffService().ToDiffRows(
+        var rows = new DiffRowService().ToDiffRows(
             CommitDiffOf(
                 FileOf("m.txt", lines: [(DiffMode.DiffSame, "m")]),
                 FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "a")]),
@@ -568,7 +567,7 @@ public class DiffServiceTest
         );
 
         var surplus = BodyRowsOf(rows)[1];
-        Assert.AreSame(CuiDiffService.NoLine, surplus.Right, "The right side has no line of its own");
+        Assert.AreSame(DiffRowService.NoLine, surplus.Right, "The right side has no line of its own");
         Assert.AreEqual(2, surplus.LeftLineNbr);
         Assert.AreEqual(0, surplus.RightLineNbr, "The filled side is numbered 0, i.e. it is not a source line");
     }
@@ -592,7 +591,7 @@ public class DiffServiceTest
         );
 
         var surplus = BodyRowsOf(rows)[1];
-        Assert.AreSame(CuiDiffService.NoLine, surplus.Left);
+        Assert.AreSame(DiffRowService.NoLine, surplus.Left);
         Assert.AreEqual(0, surplus.LeftLineNbr);
         Assert.AreEqual(2, surplus.RightLineNbr);
     }
@@ -782,7 +781,7 @@ public class DiffServiceTest
     [TestMethod]
     public void TestAFileGitReportsAsUnmergedIsHeadedConflicts()
     {
-        var rows = new CuiDiffService().ToDiffRows(
+        var rows = new DiffRowService().ToDiffRows(
             [CommitDiffOf(FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "one")]))],
             new Dictionary<string, int>(),
             ["a.txt"]
@@ -801,7 +800,7 @@ public class DiffServiceTest
         Assert.AreEqual(
             "░ │    1┃one",
             DiffText.BodyOf(
-                new CuiDiffService().ToDiffRows([CommitDiffOf(added)], new Dictionary<string, int>(), ["a.txt"])
+                new DiffRowService().ToDiffRows([CommitDiffOf(added)], new Dictionary<string, int>(), ["a.txt"])
             )
         );
     }
@@ -809,7 +808,7 @@ public class DiffServiceTest
     [TestMethod]
     public void TestAFileNotReportedAsUnmergedIsLeftAlone()
     {
-        var rows = new CuiDiffService().ToDiffRows(
+        var rows = new DiffRowService().ToDiffRows(
             [CommitDiffOf(FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "one")]))],
             new Dictionary<string, int>(),
             ["other.txt"]
@@ -822,7 +821,7 @@ public class DiffServiceTest
     [TestMethod]
     public void TestAMultiCommitDiffIsHeadedWithACommitList()
     {
-        var rows = new CuiDiffService().ToDiffRows([
+        var rows = new DiffRowService().ToDiffRows([
             CommitDiffOf(FileOf("a.txt", lines: [(DiffMode.DiffSame, "one")])),
             CommitDiffOf(FileOf("a.txt", lines: [(DiffMode.DiffSame, "two")])),
         ]);

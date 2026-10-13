@@ -221,12 +221,12 @@ unit testable — `*Rows`, `*Columns`, `ConflictResolution`. Each runs through `
 makes it modal, so a key it does not handle does nothing rather than reaching the log view below;
 register a letter with `RegisterLetterHandler`, which takes both cases, as its menu writes it.
 
-- **`Cui/Diff/`** — `DiffService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
+- **`Cui/Diff/`** — `DiffRowService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
   context larger than any file, since git has no "all". `DiffReload` is a delegate the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
-- **`Cui/Blame/`** — `BlameService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
+- **`Cui/Blame/`** — `BlameRowService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
   math, and steps detail down as the terminal narrows.
 - **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
