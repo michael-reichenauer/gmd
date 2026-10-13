@@ -181,8 +181,10 @@ Key types and flow:
   `KeyHints.cs` decides the key-hint line at the bottom, the keys that do something where the
   cursor is, again with no view; `KeyHintBar` draws it, with the layout of `KeyHintLine` (both in
   `Cui/Common/`). The diff, blame and conflict views and the start page have a `KeyHintBar` of their
-  own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). When a
-  key's behavior changes, check the hint for it.
+  own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). A key
+  whose meaning depends on where the cursor is (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`) is decided in
+  `LogKeys`, which says what its hint is or why it does nothing, and the keys and the hints both
+  ask it; for any other key, when its behavior changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
   `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`),
   made once with the view and sharing a `CommandContext`: the repo shown now, the view, the server,
@@ -703,7 +705,7 @@ Other things to know:
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
-  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
+  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.

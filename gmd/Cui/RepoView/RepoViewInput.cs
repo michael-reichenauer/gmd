@@ -156,6 +156,8 @@ class RepoViewInput
 
     void CreateBranch()
     {
+        if (IsRefused(LogKeys.NewBranch(Repo, hoover)))
+            return;
         if (hoover.IsBranch)
         {
             BranchCmds.CreateBranchFromBranch(hoover.BranchPrimaryName);
@@ -172,17 +174,13 @@ class RepoViewInput
         Menus.ShowOpenBranchMenu(x + 2, MenuY(index));
     }
 
-    // Selected rows go first, as the key hints say, then a highlighted branch: with both, 'd' opened
-    // the branch's diff menu while the hints offered the diff of the rows
+    // Selected rows go first, then a highlighted branch, see LogKeys.Diff
     void OnKeyD()
     {
+        if (IsRefused(LogKeys.Diff(Repo, hoover, commitsView.Selection)))
+            return;
         if (hoover.IsBranch && !commitsView.Selection.IsRows)
         {
-            if (!ServerRepo.Status.IsOk)
-            { // The branch diff menu lists nothing then, see BranchMenu.GetBranchDiffItems
-                status.Notice(Why.Changes);
-                return;
-            }
             Menus.ShowDiffBranchToMenu(hoover.ColumnIndex + 2, MenuY(hoover.RowIndex), hoover.BranchName);
             return;
         }
@@ -263,20 +261,10 @@ class RepoViewInput
 
     void OnKeyE()
     {
-        if (!hoover.IsBranch)
-        {
-            status.Notice("Highlight a branch with ← → first, and 'e' merges it into the current branch");
+        if (IsRefused(LogKeys.Merge(Repo, hoover)))
             return;
-        }
-        if (!ServerRepo.Status.IsOk)
-        {
-            status.Notice("Commit the changes first, then merge");
-            return;
-        }
 
-        var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
-        if (branch.LocalName != "")
-            branch = ServerRepo.BranchByName[branch.LocalName];
+        var branch = LogKeys.HooveredLocal(Repo, hoover);
         if (!branch.IsCurrent)
         { // Some other branch merging to current
             BranchCmds.MergeBranch(hoover.BranchPrimaryName);
@@ -292,38 +280,14 @@ class RepoViewInput
     // into another one, which git can only do by checking that one out on the way.
     void OnKeyShiftE()
     {
-        if (!hoover.IsBranch)
-        {
-            status.Notice("Highlight a branch with ← → first, and 'E' merges the current branch into it");
+        if (IsRefused(LogKeys.MergeInto(Repo, hoover)))
             return;
-        }
-        if (!ServerRepo.Status.IsOk)
-        {
-            status.Notice("Commit the changes first, then merge");
-            return;
-        }
 
-        var branch = ServerRepo.BranchByName[hoover.BranchPrimaryName];
-        if (branch.LocalName != "")
-            branch = ServerRepo.BranchByName[branch.LocalName];
+        var branch = LogKeys.HooveredLocal(Repo, hoover);
         if (branch.IsCurrent)
         { // Current branch showing menu of branches to merge to
             var hb = Repo.Graph.BranchByName(branch.Name);
             Menus.ShowMergeToMenu(hb.X * 2 + 3, MenuY(Repo.CurrentIndex));
-            return;
-        }
-
-        // A branch git no longer has would be recreated by the checkout, so it is not offered,
-        // exactly as in the branch menu, nor one checked out in another worktree, which git refuses
-        // to check out here
-        if (!branch.IsGitBranch)
-        {
-            status.Notice($"'{branch.NiceNameUnique}' no longer exists, so nothing can be merged into it");
-            return;
-        }
-        if (ServerRepo.WorktreePathOf(branch) != "")
-        {
-            status.Notice(Why.InWorktree(branch));
             return;
         }
 
@@ -336,62 +300,42 @@ class RepoViewInput
     // branch goes through the commands that ask before a force push, or pull with a merge.
     void OnKeyP()
     {
-        var branch = HooveredBranch();
-        if (branch == null || branch.IsCurrent || branch.IsLocalCurrent)
-        {
-            BranchCmds.PushCurrentBranch();
+        if (IsRefused(LogKeys.Push(Repo, hoover)))
             return;
-        }
 
-        if (!BranchPushPullCommands.CanPushBranch(ServerRepo, branch))
-        {
-            status.Notice(BranchPushPullCommands.WhyNoPushBranch(ServerRepo, branch));
-            return;
-        }
-        BranchCmds.PushBranch(hoover.BranchPrimaryName);
+        if (LogKeys.Hoovered(Repo, hoover) is Branch branch && !branch.IsCurrent && !branch.IsLocalCurrent)
+            BranchCmds.PushBranch(hoover.BranchPrimaryName);
+        else
+            BranchCmds.PushCurrentBranch();
     }
 
     void OnKeyU()
     {
-        var branch = HooveredBranch();
-        if (branch == null || branch.IsCurrent || branch.IsLocalCurrent)
-        {
+        if (IsRefused(LogKeys.Pull(Repo, hoover)))
+            return;
+
+        if (LogKeys.Hoovered(Repo, hoover) is Branch branch && !branch.IsCurrent && !branch.IsLocalCurrent)
+            BranchCmds.PullBranch(hoover.BranchPrimaryName);
+        else
             BranchCmds.PullCurrentBranch();
-            return;
-        }
-
-        if (!BranchPushPullCommands.CanPullBranch(ServerRepo, branch))
-        {
-            status.Notice(BranchPushPullCommands.WhyNoPullBranch(ServerRepo, branch));
-            return;
-        }
-        BranchCmds.PullBranch(hoover.BranchPrimaryName);
     }
-
-    // The branch the branch menu would be for, i.e. as the menu's Push and Pull see it
-    Branch? HooveredBranch() => hoover.IsBranch ? ServerRepo.BranchByName[hoover.BranchPrimaryName] : null;
 
     void OnKeyS()
     {
-        if (!hoover.IsBranch)
-        {
-            status.Notice("Highlight a branch with ← → first, and 's' switches to it");
+        if (IsRefused(LogKeys.Switch(Repo, hoover)))
             return;
-        }
 
-        var branchName = hoover.BranchPrimaryName;
-        var currentName = ServerRepo.CurrentBranch().PrimaryName;
-        var branch = ServerRepo.BranchByName[branchName];
-        if (branch.LocalName != "")
-            branchName = branch.LocalName;
+        BranchCmds.SwitchTo(LogKeys.HooveredLocal(Repo, hoover).Name);
+    }
 
-        if (branch.PrimaryName == currentName)
-        {
-            status.Notice($"Already on '{branch.NiceNameUnique}'");
-            return;
-        }
+    // Says why a key does nothing where the cursor is, if it does nothing, see LogKeys
+    bool IsRefused(KeyAction action)
+    {
+        if (action.CanAct)
+            return false;
 
-        BranchCmds.SwitchTo(branchName);
+        status.Notice(action.WhyNot);
+        return true;
     }
 
     void OnKeyEnter()
