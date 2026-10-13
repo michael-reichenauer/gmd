@@ -20,7 +20,7 @@ static class MenuRows
                     return Text.BrightMagenta(ToSeparatorText(ms, items.Count, dimensions));
 
                 // Color if disabled or not
-                var titleColor = item.IsDisabled ? Color.Dark : Color.White;
+                var titleColor = item.IsDisabled ? Color.Dark : item.TextColor ?? Color.White;
 
                 // Title text might need to be truncated, and a detail is cut first, at its start,
                 // since the end of a path is what tells it apart

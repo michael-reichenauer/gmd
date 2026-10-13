@@ -213,6 +213,7 @@ static class StartRows
         if (newVersion != "")
         { // Never left out, since a new version is said nowhere else on the page but the bar's ⇓
             Blank();
+            Line(Indented(Text.BrightMagenta("Update available"), width));
             var update = Text.BrightGreen($"Update to Gmd {newVersion} ...");
             Item(new StartItem(StartAction.Update), ItemRow("u", update, width));
         }

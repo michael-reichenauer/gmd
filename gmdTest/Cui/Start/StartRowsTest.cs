@@ -97,6 +97,7 @@ public class StartRowsTest
         );
     }
 
+    // Under a heading of its own, as the repositories are, and in green
     [TestMethod]
     public void TestANewVersionIsOfferedFirst()
     {
@@ -105,13 +106,16 @@ public class StartRowsTest
         Assert.AreEqual(
             """
             |
+            |                       Update available
             |                       u  Update to Gmd 1.5.1450.12 ...
             |
             |                       Recent repositories
             |                     ▸ 1  gmd       ~/code/gmd
             """,
-            string.Join("\n", Picture(page).Split('\n').Take(5))
+            string.Join("\n", Picture(page).Split('\n').Take(6))
         );
+        Assert.AreEqual("                       mmmmmm mmmmmmmmm", TextColors.Of(page.Row(1, false)));
+        Assert.AreEqual("                       C  gggggg gg ggg ggggggggggg ggg", TextColors.Of(page.Row(2, false)));
         Assert.AreEqual(StartAction.OpenRepo, page.Items[page.FirstItem].Action, "Enter still opens a repository");
     }
 
