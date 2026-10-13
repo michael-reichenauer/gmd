@@ -590,7 +590,8 @@ got and how many conflicts are left, e.g.
 
 **Continue** carries on once every conflicted file is resolved and marked
 resolved (`git add`); a rebase over several commits may then stop again on
-the next one, and it says so. **Skip This Commit** drops the commit it
+the next one, which is shown as the first stop was, with the files and the
+way on. **Skip This Commit** drops the commit it
 stopped on and carries on with the rest. **Abort** throws the whole
 operation away and puts the working folder back as it was.
 

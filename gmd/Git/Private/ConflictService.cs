@@ -423,7 +423,9 @@ class ConflictService : IConflictService
     // Carrying on can stop again on the next commit, which is not a failure of the command but the
     // normal shape of a rebase over several commits, and it can be refused because the conflict the
     // operation stopped on has not been resolved. Both come back as a non-zero exit, so they are
-    // told apart by what git printed — the same sniffing BranchService does when starting one.
+    // told apart by what git printed — the same sniffing BranchService does when starting one. A
+    // stop is a ConflictError, as any command's that stops on conflicts, so it is shown as one
+    // (RepoCommands.ShowConflicts) rather than as git's output in an error box.
     static Result ToResult(Result<string> result, string verb)
     {
         if (result is not CmdError e)
@@ -431,7 +433,7 @@ class ConflictService : IConflictService
 
         var output = $"{e.Output}\n{e.ErrorOutput}";
         if (output.Contains("CONFLICT"))
-            return new Error($"The {verb} stopped on more conflicts.\nResolve them and continue again.", e);
+            return new ConflictError($"The {verb} stopped on more conflicts", e);
 
         if (output.Contains("needs merge") || output.Contains("edit all merge conflicts"))
             return new Error(

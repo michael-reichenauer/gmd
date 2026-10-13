@@ -1070,7 +1070,7 @@ public class GitIntegrationTest
         var result = await repo.Git.ContinueOperationAsync(repo.Path);
 
         var error = AssertError(result);
-        StringAssert.Contains(error.Message, "stopped on more conflicts");
+        Assert.IsInstanceOfType<ConflictError>(error);
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual(GitOperation.Rebase, status.Operation, "Still rebasing, now on the second commit");
         Assert.AreEqual(2, status.OperationStep);

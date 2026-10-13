@@ -1,3 +1,4 @@
+using gmd.Git;
 using gmd.Git.Private;
 using gmdTest.Utils;
 
@@ -229,6 +230,7 @@ public class ConflictServiceTest
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
         var e = AssertError(result);
+        Assert.IsInstanceOfType<ConflictError>(e, "Shown as a conflict, not as an error");
         StringAssert.Contains(e.Message, "stopped on more conflicts");
     }
 
