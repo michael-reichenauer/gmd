@@ -90,15 +90,16 @@ static class MessageDlg
 
         var d = CreateDialog(useErrorColors, title, message, buttonList);
 
-        // Setup actions
-        Clicked = -1;
+        // The button clicked, -1 for none, i.e. Esc. Local to this box: a box shown over it, e.g. one
+        // posted from the background, would otherwise leave its own answer for Esc here to return.
+        var clicked = -1;
         for (int n = 0; n < buttonList.Count; n++)
         {
             int buttonId = n;
             var b = buttonList[n];
             b.Clicked += () =>
             {
-                Clicked = buttonId;
+                clicked = buttonId;
                 Application.RequestStop();
             };
             if (b.IsDefault)
@@ -109,7 +110,7 @@ static class MessageDlg
 
         // Run the modal; do not shutdown the main loop driver when done
         Application.Run(d);
-        return Clicked;
+        return clicked;
     }
 
     // Creates the dialog sized to fit the message, with the buttons (if any) on its last row.
@@ -162,8 +163,6 @@ static class MessageDlg
 
         return d;
     }
-
-    public static int Clicked { get; private set; } = -1;
 
     internal static int GetButtonsWidth(IReadOnlyList<Button> buttons)
     {
