@@ -13,9 +13,7 @@ static class Threading
 
     internal static void AssertIsMainThread()
     {
-        if (CurrentId > mainThreadId)
-        {
-            Asserter.FailFast($"Current thread {CurrentId} != {mainThreadId}");
-        }
+        if (CurrentId != mainThreadId)
+            throw Asserter.Fail($"Current thread {CurrentId} != {mainThreadId}");
     }
 }

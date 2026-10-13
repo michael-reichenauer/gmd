@@ -513,7 +513,7 @@ class DiffService : IDiffService
             DiffMode.DiffAdded => (Text)Text.Green(text),
             DiffMode.DiffRemoved => (Text)Text.Red(text),
             DiffMode.DiffConflicts => (Text)Text.BrightYellow(text),
-            _ => throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"),
+            _ => throw Asserter.Fail($"Unknown diffMode {fd.DiffMode}"),
         };
     }
 
@@ -531,7 +531,7 @@ class DiffService : IDiffService
             DiffMode.DiffModified => "Modified:",
             DiffMode.DiffAdded => "Added:",
             DiffMode.DiffRemoved => "Removed:",
-            _ => throw Asserter.FailFast($"Unknown diffMode {fd.DiffMode}"),
+            _ => throw Asserter.Fail($"Unknown diffMode {fd.DiffMode}"),
         };
     }
 }

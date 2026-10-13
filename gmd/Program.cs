@@ -28,7 +28,7 @@ class Program
             return Askpass.Answer(args);
 
         var t = Timing.Start();
-        ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
+        ExceptionHandling.HandleUnhandledExceptions(UI.ShutdownFromAnyThread);
 
         // Setup dependency injection by registering all types in this assembly
         dependencyInjection.RegisterAllAssemblyTypes();
@@ -95,7 +95,6 @@ class Program
     bool HandleUIMainLoopError(Exception e)
     {
         ExceptionHandling.OnMainLoopException(e);
-        LogFile.CloseAsync().Wait();
         return false; // End loop after error
     }
 

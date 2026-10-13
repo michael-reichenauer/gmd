@@ -79,6 +79,14 @@ static class UI
         Application.RequestStop();
     }
 
+    // Ends the main loop from whichever thread a failure is on (ExceptionHandling); before the loop
+    // runs there is none to end, and the exception thrown ends gmd
+    internal static void ShutdownFromAnyThread()
+    {
+        if (Application.MainLoop is MainLoop loop)
+            loop.Invoke(() => Application.RequestStop());
+    }
+
     internal static int InfoMessage(string title, string message, params string[] buttons)
     {
         return InfoMessage(title, message, 0, buttons);

@@ -30,7 +30,7 @@ static class WorktreeLocations
             // that way lands where Claude would have put it
             WorktreeLocation.Claude => Path.Join(root, ".claude", "worktrees", name.TrimPrefix("worktree-")),
             WorktreeLocation.Local => Path.Join(root, ".worktrees", name),
-            _ => throw Asserter.FailFast($"Unknown location {location}"),
+            _ => throw Asserter.Fail($"Unknown location {location}"),
         };
     }
 

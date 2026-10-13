@@ -216,9 +216,18 @@ public class ResultTest
         Assert.AreEqual("boom", e.Message);
     }
 
-    // Catch turns the failures of an API into errors, but not a bug in the use of a result, which
-    // would otherwise be shown to the user as an ordinary failure instead of reaching the crash
-    // handler: a null value, or reading the error of a value inside the guarded call
+    // Catch turns the failures of an API into errors, but not a bug of gmd's own, which would
+    // otherwise be shown to the user as an ordinary failure instead of reaching the crash handler: a
+    // broken assert, ...
+    [TestMethod]
+    public void TestCatchLetsAssertsThrough()
+    {
+        Assert.ThrowsExactly<AssertException>(() => Result.Catch(() => throw Asserter.Fail("Broken")));
+        Assert.ThrowsExactly<AssertException>(() => Result.Catch<int>(() => throw Asserter.Fail("Broken")));
+    }
+
+    // ... or a bug in the use of a result: a null value, or reading the error of a value inside the
+    // guarded call
     [TestMethod]
     public void TestCatchLetsResultBugsThrough()
     {

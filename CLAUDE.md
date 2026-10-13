@@ -418,7 +418,11 @@ not change the string's value.
 Terminal.Gui has a single main loop thread. Marshal back with `UI.Post(...)`
 (`Cui/Common/UI.cs`), assert with `UI.AssertOnUIThread()` / `Threading.AssertIsMainThread()`.
 Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMessage`.
-`Asserter.FailFast` deliberately kills the process on broken invariants.
+A broken invariant is `throw Asserter.Fail(...)` (or `Asserter.Requires(...)`), reported to
+`ExceptionHandling` before it is thrown, which logs it and stops the main loop, so a catch that takes
+it for a failure cannot hide it; `Result.Catch` and `IsNotFatal` let it through. So does every other
+bug, an exception no one caught on the main loop, in a `RunInBackground` task or on a thread of its
+own, and `Program` says what failed once the terminal is given back.
 
 ### Persistence
 

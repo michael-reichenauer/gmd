@@ -2,57 +2,75 @@ using System.Diagnostics;
 
 namespace gmd.Utils;
 
-// Handles unhandled exceptions top ensure they are logged and program is restarted or shut down
+// What happens when gmd fails on a bug, wherever it does: an exception no one caught, on the UI
+// main loop, in a task or on a thread of its own, or a broken assert, which is reported before it
+// is thrown (Asserter). The first is logged, kept as the Failure for Program to tell once the
+// terminal is given back, and stops the UI main loop; any after it are logged. With a debugger
+// attached it breaks there instead, and gmd runs on.
+//
+// The log is left open, for what is logged while gmd stops, and Program closes it at the end; only
+// an exception that ends the process at once (UnhandledException) has the log written out first.
 internal static class ExceptionHandling
 {
-    private static readonly TimeSpan MinTimeBeforeAutoRestart = TimeSpan.FromSeconds(10);
+    static readonly TimeSpan LogFlushTimeout = TimeSpan.FromSeconds(2);
 
-    private static bool hasDisplayedErrorMessageBox;
-    private static bool hasFailed;
-    private static bool hasShutdown;
-    private static DateTime StartTime = DateTime.UtcNow;
-    private static Action shutdown = () => { };
+    static int hasFailed;
+    static Action stop = () => { };
 
     // What ended gmd, if an error did, for Program to say once the terminal is given back: a crash
     // used to end gmd without a word, as if it had simply quit
     public static string? Failure { get; private set; }
 
-    public static void HandleUnhandledExceptions(Action shutdownCallback)
+    public static void HandleUnhandledExceptions(Action stopMainLoop)
     {
-        shutdown = shutdownCallback;
-        // Add the event handler for handling non-UI thread exceptions to the event.
-        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-            HandleException("app domain exception", e.ExceptionObject as Exception ?? new Exception());
+        stop = stopMainLoop;
 
-        // Log exceptions that hasn't been handled when a Task is finalized.
-        TaskScheduler.UnobservedTaskException += (s, e) =>
+        // An exception on a thread of its own, after which the runtime ends the process
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
-            HandleException("unobserved task exception", e.Exception);
+            Handle("Unhandled exception", e.ExceptionObject as Exception ?? new Exception($"{e.ExceptionObject}"));
+            LogFile.CloseAsync().Wait(LogFlushTimeout);
+        };
+
+        // A task that failed and that nothing awaited, found when it is collected
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Handle("Unobserved task exception", e.Exception);
             e.SetObserved();
         };
 
-        // Add event handler for fatal exceptions using catch condition "when (e.IsNotFatal())"
-        FatalExceptionsExtensions.FatalException += (s, e) => HandleException(e.Message, e.Exception);
-
-        // Add handler for asserts
-        Asserter.AssertOccurred += (s, e) => HandleException("Assert failed", e.Exception);
+        Asserter.Failed += e => Handle("Assert failed", e);
     }
 
-    public static void OnBackgroundTaskException(Exception exception)
-    {
-        HandleException("RunInBackground error", exception);
-    }
+    public static void OnBackgroundTaskException(Exception exception) => Handle("RunInBackground error", exception);
 
     // An error the UI main loop's own handler caught (Program.HandleUIMainLoopError). The loop ends
-    // with it, so there is nothing to shut down, only the failure to note.
+    // with it, so there is nothing to stop, only the failure to note.
     public static void OnMainLoopException(Exception exception)
     {
-        if (hasFailed)
+        if (IsFirst(exception, "Unhandled UI main loop exception"))
+            Failure = Describe(exception);
+    }
+
+    static void Handle(string errorType, Exception exception)
+    {
+        if (!IsFirst(exception, errorType))
             return;
 
-        hasFailed = true;
         Failure = Describe(exception);
-        Log.Exception(exception, "Unhandled UI main loop exception");
+        if (Debugger.IsAttached)
+            Debugger.Break(); // An unhandled exception, an assert or a failed RunInBackground task
+        else
+            stop();
+    }
+
+    // Logs the failure, and says whether it is the first, i.e. the one that stops gmd, from
+    // whichever thread it is on
+    static bool IsFirst(Exception exception, string errorType)
+    {
+        var isFirst = Interlocked.Exchange(ref hasFailed, 1) == 0;
+        Log.Exception(exception, isFirst ? errorType : $"{errorType}, after gmd has failed already");
+        return isFirst;
     }
 
     // The innermost exception, since RunInBackground and the task machinery wrap the one that
@@ -63,108 +81,4 @@ internal static class ExceptionHandling
             exception = exception.InnerException;
         return $"{exception.GetType().Name}: {exception.Message}";
     }
-
-    // public static void HandleDispatcherUnhandledException()
-    // {
-    // 	// Add the event handler for handling UI thread exceptions to the event
-    // 	Application.Current.DispatcherUnhandledException += (s, e) =>
-    // 	{
-    // 		HandleException("dispatcher exception", e.Exception);
-    // 		e.Handled = true;
-    // 	};
-
-    // 	WpfBindingTraceListener.Register();
-
-    // 	isDispatcherInitialized = true;
-    // }
-
-    static void HandleException(string errorType, Exception exception)
-    {
-        if (hasFailed)
-        {
-            return;
-        }
-
-        hasFailed = true;
-        Failure = Describe(exception);
-
-        string errorMessage = $"Unhandled {errorType}";
-        Log.Exception(exception, errorMessage);
-
-        if (Debugger.IsAttached)
-        {
-            // NOTE: If you end up here a task resulted in an unhandled exception
-            Debugger.Break();
-        }
-        else
-        {
-            Shutdown(errorMessage, exception);
-        }
-    }
-
-    static void Shutdown(string message, Exception e)
-    {
-        if (hasShutdown)
-        {
-            // Shutdown already in progress
-            return;
-        }
-
-        hasShutdown = true;
-
-        // if (isDispatcherInitialized)
-        // {
-        // 	var dispatcher = GetApplicationDispatcher();
-        // 	if (dispatcher.CheckAccess())
-        // 	{
-        // 		ShowExceptionDialog(e);
-        // 	}
-        // 	else
-        // 	{
-        // 		dispatcher.Invoke(() => ShowExceptionDialog(e));
-        // 	}
-        // }
-
-        if (Debugger.IsAttached)
-        {
-            Debugger.Break();
-        }
-
-        LogFile.CloseAsync().Wait();
-
-        shutdown();
-
-        // if (DateTime.Now - StartTime >= MinTimeBeforeAutoRestart)
-        // {
-        // 	StartInstanceService.StartInstance(Environment.CurrentDirectory);
-        // }
-
-        // if (isDispatcherInitialized)
-        // {
-        // 	Application.Current.Shutdown(0);
-        // }
-        // else
-        // {
-        // 	throw new Exception($"Unhandled exception {message}", e);
-        // }
-    }
-
-    private static void ShowExceptionDialog(Exception e)
-    {
-        if (hasDisplayedErrorMessageBox)
-        {
-            return;
-        }
-
-        if (DateTime.UtcNow - StartTime < MinTimeBeforeAutoRestart)
-        {
-            Console.WriteLine("Sorry, but an unexpected error just occurred");
-            StartTime = DateTime.UtcNow;
-        }
-
-        hasDisplayedErrorMessageBox = true;
-    }
-
-    // private static Dispatcher GetApplicationDispatcher() =>
-    // 	Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
 }

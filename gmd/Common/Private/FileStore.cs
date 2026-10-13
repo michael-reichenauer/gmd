@@ -59,7 +59,7 @@ class FileStore : IFileStore
         {
             Result.Catch(() => File.Delete(tempPath));
             // Thrown, so that state which never reached the file is not cached as if it had
-            throw Asserter.FailFast($"Failed to write '{path}': {e.Message}");
+            throw Asserter.Fail($"Failed to write '{path}': {e.Message}");
         }
         cache[path] = state!;
     }
@@ -72,7 +72,7 @@ class FileStore : IFileStore
         {
             var jsonResult = Result.Catch(() => File.ReadAllText(path));
             if (jsonResult is not string json)
-                throw Asserter.FailFast($"Failed to read '{path}': {jsonResult.Error.Message}");
+                throw Asserter.Fail($"Failed to read '{path}': {jsonResult.Error.Message}");
             if (Deserialize<T>(json, out var why) is T state)
             {
                 cache[path] = state;
@@ -81,7 +81,7 @@ class FileStore : IFileStore
 
             var asidePath = path + UnreadableSuffix;
             if (Result.Catch(() => File.Move(path, asidePath, overwrite: true)) is Error e)
-                throw Asserter.FailFast($"Failed to set aside unreadable '{path}': {e.Message}");
+                throw Asserter.Fail($"Failed to set aside unreadable '{path}': {e.Message}");
             Log.Warn($"'{path}' could not be read, so it was set aside as '{asidePath}' and started anew: {why}");
         }
 
