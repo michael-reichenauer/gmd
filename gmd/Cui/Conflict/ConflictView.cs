@@ -1,6 +1,5 @@
 using gmd.Common;
 using gmd.Cui.Common;
-using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -149,7 +148,7 @@ class ConflictView : IConflictView
 
         view.Add(header, border, contentView, resultBorder, resultView);
         if (config.ShowKeyHints)
-            view.Add(new KeyHintBar(KeyHints.ForConflict, () => null));
+            view.Add(new KeyHintBar(ConflictHints.For, () => null));
         RegisterShortcuts(contentView);
 
         // The result pane follows the cursor, so walking the file walks through the decisions

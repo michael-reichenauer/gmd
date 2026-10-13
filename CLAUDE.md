@@ -168,9 +168,10 @@ Key types and flow:
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
   on — what most keys act on — as state and index math with no view, so it is unit testable.
   `KeyHints.cs` decides the key-hint line at the bottom, the keys that do something where the
-  cursor is, again with no view; `KeyHintBar` draws it. The diff, blame and conflict views have a
-  `KeyHintBar` of their own (`KeyHints.ForDiff`, `ForBlame`, `ForConflict`). When a key's behavior
-  changes, check the hint for it.
+  cursor is, again with no view; `KeyHintBar` draws it, with the layout of `KeyHintLine` (both in
+  `Cui/Common/`). The diff, blame and conflict views and the start page have a `KeyHintBar` of their
+  own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). When a
+  key's behavior changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
   `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`,
   run through `CommandRunner`), menus into `*Menu.cs`.

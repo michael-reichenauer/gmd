@@ -1,6 +1,5 @@
 using gmd.Common;
 using gmd.Cui.Common;
-using gmd.Cui.RepoView;
 using gmd.Installation;
 using gmd.Server;
 using Terminal.Gui;
@@ -113,7 +112,7 @@ class StartView : IStartView
     {
         var page = Page();
         var numbered = page.Items.Count(i => i.Number > 0);
-        return KeyHints.ForStart(numbered, Selected(page).Repo?.IsRecent == true);
+        return StartHints.For(numbered, Selected(page).Repo?.IsRecent == true);
     }
 
     public void OnBarClicked(ApplicationBarItem item)

@@ -1,7 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
-using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -109,7 +108,7 @@ class BlameView : IBlameView
         hintBar = config.ShowKeyHints
             ? new KeyHintBar(
                 () =>
-                    KeyHints.ForBlame(
+                    BlameHints.For(
                         isShowDetails,
                         CurrentRow?.Commit.PreviousId is not (null or ""),
                         backStack.Count > 0

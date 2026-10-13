@@ -1,7 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Cui.Conflict;
-using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -124,7 +123,7 @@ class DiffView : IDiffView
         diffView.Add(contentView);
         hintBar = config.ShowKeyHints
             ? new KeyHintBar(
-                () => KeyHints.ForDiff(this.commitId == Repo.UncommittedId, conflictState.Files.Count > 0),
+                () => DiffHints.For(this.commitId == Repo.UncommittedId, conflictState.Files.Count > 0),
                 () => null
             )
             : null;

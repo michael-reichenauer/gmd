@@ -1,12 +1,11 @@
-using gmd.Cui.Common;
 using Terminal.Gui;
 
-namespace gmd.Cui.RepoView;
+namespace gmd.Cui.Common;
 
-// The key-hint line at the bottom of the log view, see KeyHints for what it says, and the line a
-// status message is shown on for a few seconds instead, see StatusLine. It asks for both when it is
-// drawn, and the log view marks it for drawing whenever it draws itself, which is whenever
-// anything the hints depend on changes: the row, the hoover, the selection or the repo.
+// The key-hint line at the bottom of a view, see KeyHintLine, and the line a status message is shown
+// on for a few seconds instead, see StatusLine. It asks for both when it is drawn, and the log view
+// marks it for drawing whenever it draws itself, which is whenever anything the hints depend on
+// changes: the row, the hoover, the selection or the repo.
 class KeyHintBar : View
 {
     readonly Func<IReadOnlyList<KeyHint>> getHints;
@@ -27,8 +26,8 @@ class KeyHintBar : View
     {
         Clear();
         var text = getMessage() is StatusMessage message
-            ? KeyHints.ToText(message, Frame.Width)
-            : KeyHints.ToText(getHints(), Frame.Width);
+            ? KeyHintLine.ToText(message, Frame.Width)
+            : KeyHintLine.ToText(getHints(), Frame.Width);
         text.Draw(this, 0, 0);
     }
 }
