@@ -15,6 +15,10 @@ namespace gmd.Cui.Worktrees;
 // what tells worktrees apart.
 static class WorktreeRows
 {
+    // Marks a branch checked out in another worktree, i.e. another folder, in the log; the top bar
+    // counts the other worktrees with it too. A house, for the folder the branch lives in.
+    public const string WorktreeMarker = "⌂";
+
     const int MarkerWidth = 2;
     const int KindWidth = 8;
     const int BranchWidth = 22;

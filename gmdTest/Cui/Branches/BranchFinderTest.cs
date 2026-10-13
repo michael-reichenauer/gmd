@@ -1,7 +1,7 @@
-using gmd.Cui.RepoView;
+using gmd.Cui.Branches;
 using gmdTest.Fixtures;
 
-namespace gmdTest.Cui.RepoView;
+namespace gmdTest.Cui.Branches;
 
 // Which branches the Find Branch dialog lists for what has been typed, and in what order
 [TestClass]

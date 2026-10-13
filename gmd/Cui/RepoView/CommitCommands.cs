@@ -174,7 +174,16 @@ class CommitCommands : ICommitCommands
         if (!await CheckBinaryOrLargeAddedFilesAsync())
             return CommitResult.Cancelled;
 
-        if (!commitDlg.Show(repo, isAmend, commits, out var message, out var paths))
+        if (
+            !commitDlg.Show(
+                repo.Repo,
+                () => ShowUncommittedDiff(true),
+                isAmend,
+                commits,
+                out var message,
+                out var paths
+            )
+        )
             return CommitResult.Cancelled;
 
         // A pre-commit hook can make a commit take a while, e.g. one that formats the code. The
@@ -577,7 +586,7 @@ class CommitCommands : ICommitCommands
         if (CommitRewrite.WhyNotAmend(repo.Repo, commit) is var whyNot && whyNot != "")
             return new Notice(whyNot);
 
-        if (!commitDlg.ShowAmend(repo, commit, out var message, out var paths))
+        if (!commitDlg.ShowAmend(repo.Repo, () => ShowUncommittedDiff(true), commit, out var message, out var paths))
             return Result.Ok;
 
         using (status.Progress($"Amending {commit.Sid}"))

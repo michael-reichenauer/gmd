@@ -1,5 +1,4 @@
 using gmd.Cui.Common;
-using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -176,7 +175,7 @@ class FindBranchDlg : IFindBranchDlg
             : b.IsInView ? "o"
             : " ";
         var name = b.IsGitBranch ? $" {b.NiceNameUnique}" : $"~{b.NiceNameUnique}";
-        var initials = BranchMenu.Initials(repo.CommitById[b.TipId].Author);
+        var initials = repo.CommitById[b.TipId].Author.Initials();
 
         var nameWidth = Math.Max(0, width - 4 - initials.Length - 1);
         var nameText = name.Length > nameWidth ? name[..Math.Max(0, nameWidth - 1)] + "┅" : name.PadRight(nameWidth);

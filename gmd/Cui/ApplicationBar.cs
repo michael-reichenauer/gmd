@@ -1,6 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
-using gmd.Cui.RepoView;
+using gmd.Cui.Worktrees;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -226,8 +226,8 @@ class ApplicationBar : View, IApplicationBar
 
         var text = Common.Text.Dark(", ");
         text = others.Any(w => w.HasChanges)
-            ? text.Yellow(RepoWriter.WorktreeMarker)
-            : text.White(RepoWriter.WorktreeMarker);
+            ? text.Yellow(WorktreeRows.WorktreeMarker)
+            : text.White(WorktreeRows.WorktreeMarker);
         return text.Dark($"{others.Count}");
     }
 

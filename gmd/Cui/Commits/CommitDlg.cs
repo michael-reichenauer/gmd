@@ -1,6 +1,5 @@
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
-using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -8,9 +7,11 @@ namespace gmd.Cui.Commits;
 
 interface ICommitDlg
 {
-    // The message, and the paths to commit, or null for all the changes, see CommitFiles
+    // The message, and the paths to commit, or null for all the changes, see CommitFiles. Ctrl+D
+    // shows the uncommitted diff, with showDiff.
     bool Show(
-        IViewRepo repo,
+        Repo repo,
+        Action showDiff,
         bool isAmend,
         IReadOnlyList<Server.Commit>? commits,
         out string message,
@@ -19,7 +20,13 @@ interface ICommitDlg
 
     // The new message of an older commit not pushed yet, and the paths of the files to add to it,
     // none at first, and none for a new message alone
-    bool ShowAmend(IViewRepo repo, Server.Commit commit, out string message, out IReadOnlyList<string> paths);
+    bool ShowAmend(
+        Repo repo,
+        Action showDiff,
+        Server.Commit commit,
+        out string message,
+        out IReadOnlyList<string> paths
+    );
 }
 
 class CommitDlg : ICommitDlg
@@ -37,7 +44,8 @@ class CommitDlg : ICommitDlg
     }
 
     public bool Show(
-        IViewRepo repo,
+        Repo repo,
+        Action showDiff,
         bool isAmend,
         IReadOnlyList<Server.Commit>? commits,
         out string commitMessage,
@@ -46,7 +54,7 @@ class CommitDlg : ICommitDlg
     {
         this.commits = commits;
         paths = null;
-        if (!isAmend && repo.Repo.Status.IsOk)
+        if (!isAmend && repo.Status.IsOk)
         {
             commitMessage = "";
             return false;
@@ -55,30 +63,32 @@ class CommitDlg : ICommitDlg
         // The files, to untick what is not to be committed. Not while an operation is in progress,
         // whose result git commits whole, refusing a commit of some files of a merge, nor for an
         // amend with no changes, which rewords the last commit.
-        var files = repo.Repo.Status.IsMerging ? null : new CommitFiles(repo.Repo.Status);
-        var message = isAmend ? repo.Repo.CurrentCommit().Message : repo.Repo.Status.MergeMessage;
-        var isOk = ShowDialog(repo, isAmend, null, message, files, out commitMessage);
+        var files = repo.Status.IsMerging ? null : new CommitFiles(repo.Status);
+        var message = isAmend ? repo.CurrentCommit().Message : repo.Status.MergeMessage;
+        var isOk = ShowDialog(repo, showDiff, isAmend, null, message, files, out commitMessage);
         paths = files?.PathsToCommit;
         return isOk;
     }
 
     public bool ShowAmend(
-        IViewRepo repo,
+        Repo repo,
+        Action showDiff,
         Server.Commit commit,
         out string commitMessage,
         out IReadOnlyList<string> paths
     )
     {
         commits = null;
-        var files = new CommitFiles(repo.Repo.Status, isTicked: false);
-        var isOk = ShowDialog(repo, true, commit, commit.Message, files, out commitMessage);
+        var files = new CommitFiles(repo.Status, isTicked: false);
+        var isOk = ShowDialog(repo, showDiff, true, commit, commit.Message, files, out commitMessage);
         paths = files.TickedPaths;
         return isOk;
     }
 
     // The dialog of a commit, or of an amend, of the last commit or of an older one
     bool ShowDialog(
-        IViewRepo repo,
+        Repo repo,
+        Action showDiff,
         bool isAmend,
         Server.Commit? older,
         string original,
@@ -88,10 +98,10 @@ class CommitDlg : ICommitDlg
     {
         (string subjectPart, string messagePart) = CommitMessage.Split(original);
 
-        int filesCount = repo.Repo.Status.ChangesCount;
+        int filesCount = repo.Status.ChangesCount;
         // The current branch, which the top row is only while there are changes: with none it is
         // the newest commit shown, of whichever branch, e.g. main after a fetch
-        string branchName = repo.Repo.CurrentBranch()?.NiceNameUnique ?? "";
+        string branchName = repo.CurrentBranch()?.NiceNameUnique ?? "";
         var title = isAmend ? "Amend" : "Commit";
         if (files?.Files.Count == 0)
             files = null;
@@ -105,7 +115,7 @@ class CommitDlg : ICommitDlg
                 ? Heading(title, filesCount, isAmend, files, branchName)
                 : OlderHeading(older, files, branchName);
 
-        var dlg = new UIDialog(title, 74, 18 + listHeight, (key) => OnKey(repo, key));
+        var dlg = new UIDialog(title, 74, 18 + listHeight, (key) => OnKey(showDiff, key));
 
         var heading = dlg.AddLabel(1, 0, HeadingText());
         heading.Width = Dim.Fill(); // It grows as files are ticked again, see UILabel.Text
@@ -214,11 +224,11 @@ class CommitDlg : ICommitDlg
         return text.White($" {path}");
     }
 
-    private bool OnKey(IViewRepo repo, Key key)
+    private bool OnKey(Action showDiff, Key key)
     {
         if (key == (Key.D | Key.CtrlMask) || key == (Key.Space | Key.CtrlMask))
         {
-            repo.CommitCmds.ShowUncommittedDiff(true);
+            showDiff();
             return true;
         }
         if (key == (Key.A | Key.CtrlMask))

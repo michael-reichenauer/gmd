@@ -1,6 +1,6 @@
 using gmd.Server;
 
-namespace gmd.Cui.RepoView;
+namespace gmd.Cui.Branches;
 
 // Which branches the Find Branch dialog lists for what has been typed, best match first. A branch
 // matches when its name contains every word typed, case ignored, in any order. The order is what

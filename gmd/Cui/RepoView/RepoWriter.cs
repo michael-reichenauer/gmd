@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
 using gmd.Cui.Graphs;
+using gmd.Cui.Worktrees;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -21,10 +22,6 @@ interface IRepoWriter
 class RepoWriter : IRepoWriter
 {
     const int markersWidth = 3; //  1 current marker and 1 ahead/behind and one space
-
-    // Marks a branch checked out in another worktree, i.e. another folder; the top bar counts the
-    // other worktrees with it too. A house, for the folder the branch lives in.
-    public const string WorktreeMarker = "⌂";
 
     readonly IBranchColorService branchColorService;
     readonly IGraphWriter graphWriter;
@@ -198,7 +195,7 @@ class RepoWriter : IRepoWriter
         }
         if (isInOtherWorktree)
         {
-            text.White(WorktreeMarker);
+            text.White(WorktreeRows.WorktreeMarker);
             return;
         }
 
@@ -397,7 +394,7 @@ class RepoWriter : IRepoWriter
             // the folder it lives in — the same glyph the top bar counts the other worktrees with
             var marker =
                 b.IsCurrent ? "● "
-                : repo.Repo.WorktreePathOf(b) != "" ? $"{WorktreeMarker} "
+                : repo.Repo.WorktreePathOf(b) != "" ? $"{WorktreeRows.WorktreeMarker} "
                 : "";
 
             if (b.IsGitBranch)
