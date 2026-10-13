@@ -221,7 +221,13 @@ class BranchMenu : IBranchMenu
                         ? why
                     : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
             )
-            .Item("Hide Branch", "h", () => cmds.HideBranch(branchName))
+            .Item(
+                "Hide Branch",
+                "h",
+                () => cmds.HideBranch(branchName),
+                () => !b.IsMainBranch,
+                () => Why.AlwaysShown(b)
+            )
             // The same rules as the 'u' and 'p' keys on a highlighted branch, see
             // BranchPushPullCommands.CanPullBranch
             .Item(
@@ -547,8 +553,8 @@ class BranchMenu : IBranchMenu
         return Menu
             .Items.Separator(hiddenBranches.Any(), "Show")
             .Items(ToBranchesItems(hiddenBranches, b => cmds.ShowBranch(b.Name, false), null, true))
-            .Separator(shownBranches.Any() || isRowBranchHidable, "Hide")
-            .Items(ToBranchesItems(shownBranches, b => cmds.HideBranch(b.Name, false)))
+            .Separator(shownBranches.Any(b => !b.IsMainBranch) || isRowBranchHidable, "Hide")
+            .Items(ToBranchesItems(shownBranches.Where(b => !b.IsMainBranch), b => cmds.HideBranch(b.Name, false)))
             .Items(isRowBranchHidable, ToBranchesItems(new[] { rowBranch }, b => cmds.HideBranch(b.Name, false)));
     }
 

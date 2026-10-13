@@ -132,9 +132,17 @@ class BranchCommands : IBranchCommands
         ShowBranch(branch.Name, false);
     }
 
+    // Hides a branch, and those made from it, but never the main branch, which is always shown: Enter
+    // on a commit of main alone and the menus reach here too
     public void HideBranch(string name, bool hideAllBranches = false)
     {
         var repo = context.ViewRepo;
+        if (!hideAllBranches && repo.Repo.BranchByName[name] is { IsMainBranch: true } main)
+        {
+            status.Notice(Why.AlwaysShown(main));
+            return;
+        }
+
         Repo newRepo = server.HideBranch(repo.Repo, name, hideAllBranches);
         RecordShown(newRepo, "Hide", hideAllBranches ? "All Branches" : Quoted(name), hideAllBranches ? "" : name);
         SetRepo(newRepo);

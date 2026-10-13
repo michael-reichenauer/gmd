@@ -588,7 +588,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
     fixed above. The keys whose meaning depends on the cursor (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`)
     are decided in `LogKeys`, which `RepoViewInput` and `KeyHints` both ask. Left: the menus decide
     apart from both, through the shared rules (`CanPushBranch`, `CommitRewrite`, …) where there are
-    some; `h` on main hides every branch while its hint leaves it out, and the menu offers it.
+    some.
   - `IDiffView` cannot be told what its source supports: line history (`git log -L`, which takes no
     context) offers `+` / `-` and says the context changed; the diff of an uncommitted line from blame
     offers commit and discard, and a discard leaves the blame stale. A `DiffSource` record (reload,

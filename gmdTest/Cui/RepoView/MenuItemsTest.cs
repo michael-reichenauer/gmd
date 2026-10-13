@@ -57,7 +57,7 @@ public class MenuItemsTest
             Merge into main >  [e]  (disabled)
             Merge main into >  [⇧e]  (disabled)
             Rebase and Push onto >  (disabled)
-            Hide Branch  [h]
+            Hide Branch  [h]  (disabled)
             Pull  [u]  (disabled)
             Push  [p]
             Create Branch ...  [b]
@@ -76,6 +76,15 @@ public class MenuItemsTest
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main"))
         );
+    }
+
+    // The main branch is always shown, so its Hide Branch is greyed out, saying so: it did nothing
+    [TestMethod]
+    public async Task TestTheMainBranchCannotBeHidden()
+    {
+        var items = BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main").ToList();
+
+        Assert.AreEqual("'main' is the main branch, which is always shown", WhyNot(items, "Hide Branch"));
     }
 
     // A branch checked out in another worktree can be neither checked out, pulled, merged into
@@ -154,7 +163,7 @@ public class MenuItemsTest
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
         Assert.AreEqual(14, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(8, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(7, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]

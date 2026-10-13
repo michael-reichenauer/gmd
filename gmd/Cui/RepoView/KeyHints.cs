@@ -91,8 +91,7 @@ static class KeyHints
         // the only one, Enter does nothing to offer.
         if (isOnRow && repo.GetCommitBranches(true).Any(b => !b.IsMainBranch))
             hints.Add(new("Enter", "show/hide"));
-        if (!branch.IsMainBranch)
-            hints.Add(new("h", "hide"));
+        Add(hints, "h", LogKeys.Hide(repo, hoover));
         Add(hints, "d", LogKeys.Diff(repo, hoover, selection));
         Add(hints, "p", LogKeys.Push(repo, hoover));
         Add(hints, "u", LogKeys.Pull(repo, hoover));

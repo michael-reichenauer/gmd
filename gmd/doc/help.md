@@ -131,7 +131,8 @@ hidden until it next becomes current.
 - `Enter` on a highlighted branch where it has a `╮` or `╯` beside it, or a
   click there, shows that hidden branch, or opens **Show/Hide Branch** when
   there are several. The same hides it again.
-- `h` hides the highlighted branch, and the branches made from it.
+- `h` hides the highlighted branch, and the branches made from it. The main
+  branch is always shown, so it cannot be hidden.
   **Hide All Branches** goes back to showing just main.
 - `Backspace` undoes the last show or hide, going back to the branches
   shown before it, one step at a time. **Undo** under **Branches** in the

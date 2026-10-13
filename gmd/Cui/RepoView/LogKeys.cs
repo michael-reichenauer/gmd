@@ -113,6 +113,17 @@ static class LogKeys
         return new(isConflicts ? "resolve" : "diff");
     }
 
+    // 'h' hides the highlighted branch, else the row's branch, which is not hinted. The main branch
+    // is always shown: 'h' on it, and its menu item, did nothing and said nothing.
+    public static KeyAction Hide(IViewRepo repo, Hoover hoover)
+    {
+        var branch = Hoovered(repo, hoover) ?? repo.RowBranch;
+        if (branch.IsMainBranch)
+            return KeyAction.No(Why.AlwaysShown(branch));
+
+        return new(hoover.IsBranch ? "hide" : "");
+    }
+
     // 'b' makes a branch from the highlighted branch, else at the row's commit
     public static KeyAction NewBranch(IViewRepo repo, Hoover hoover) =>
         !hoover.IsBranch && repo.RowCommit.IsUncommitted

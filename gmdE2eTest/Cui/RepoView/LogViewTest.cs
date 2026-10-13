@@ -741,7 +741,11 @@ public class LogViewTest
             repo.Path
         );
 
-        // And hiding it again gives back exactly the screen we started with
+        // And hiding it again gives back exactly the screen we started with. The highlight is still on
+        // main, which is always shown, so it moves on to dev first: 'h' on main used to hide every
+        // branch made from it, dev too, and says main is always shown now.
+        gmd.Send("Right");
+        gmd.WaitForStable();
         gmd.Send("h");
         ScreenText.AssertEqual(ScreenText.Of(before, repo.Path), gmd.WaitUntilGone("More dev work"), repo.Path);
     }

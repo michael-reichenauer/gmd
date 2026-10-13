@@ -115,6 +115,26 @@ public class LogKeysTest
         );
     }
 
+    // 'h' hides the highlighted branch, or the row's, but never the main branch, which is always
+    // shown: it did nothing there, and said nothing
+    [TestMethod]
+    public async Task TestTheMainBranchIsNotHidden()
+    {
+        var view = await ViewOf(Branches(), "dev");
+
+        Assert.AreEqual(new KeyAction("hide"), LogKeys.Hide(view, HooverOn(view, "dev", "d1")));
+        Assert.AreEqual(
+            "'main' is the main branch, which is always shown",
+            LogKeys.Hide(view, HooverOn(view, "main", "c2")).WhyNot
+        );
+        view.CurrentIndex = view.Repo.CommitById[RepoBuilder.Sha("c2")].ViewIndex;
+        Assert.AreEqual(
+            "'main' is the main branch, which is always shown",
+            LogKeys.Hide(view, new Hoover()).WhyNot,
+            "Nor main's row with no branch highlighted"
+        );
+    }
+
     // The uncommitted row is no commit to start a branch at, a branch highlighted there is
     [TestMethod]
     public async Task TestANewBranchStartsAtACommitOrABranch()

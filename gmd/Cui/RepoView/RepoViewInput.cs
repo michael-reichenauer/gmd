@@ -132,7 +132,7 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.s, OnKeyS);
         commitsView.RegisterKeyHandler(Key.e, OnKeyE);
         commitsView.RegisterKeyHandler(Key.E, OnKeyShiftE);
-        commitsView.RegisterKeyHandler(Key.h, () => BranchCmds.HideBranch(GetBranchName()));
+        commitsView.RegisterKeyHandler(Key.h, OnKeyH);
         // Back to the branches shown before the last show or hide, as a browser goes back a page
         commitsView.RegisterKeyHandler(Key.Backspace, () => BranchCmds.UndoShowOrHide());
         commitsView.RegisterKeyHandler(Key.w, () => WorktreeCmds.ShowWorktrees());
@@ -192,6 +192,14 @@ class RepoViewInput
     }
 
     string GetBranchName() => hoover.IsBranch ? hoover.BranchPrimaryName : Repo.RowBranch.Name;
+
+    void OnKeyH()
+    {
+        if (IsRefused(LogKeys.Hide(Repo, hoover)))
+            return;
+
+        BranchCmds.HideBranch(GetBranchName());
+    }
 
     void OnKeyF()
     {
