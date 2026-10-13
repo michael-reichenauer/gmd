@@ -34,8 +34,6 @@ static class UI
         onActivated = activated;
     }
 
-    public static void CloseDialog() => Application.RequestStop();
-
     // Keys are dropped while git works, but not in a dialog, see KeyGate
     static readonly KeyGate keys = new();
 
@@ -59,8 +57,6 @@ static class UI
     {
         Application.MainLoop.Invoke(action);
     }
-
-    internal static void ShowCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Default);
 
     internal static void HideCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 

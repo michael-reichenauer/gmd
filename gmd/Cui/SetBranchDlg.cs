@@ -16,9 +16,6 @@ interface ISetBranchDlg
 
 class SetBranchDlg : ISetBranchDlg
 {
-    IReadOnlyList<string> items = new List<string>();
-    IReadOnlyList<Text> itemTexts = new List<Text>();
-
     public Result<string> Show(
         string commitSid,
         bool isBranchSetByUser,
@@ -32,11 +29,14 @@ class SetBranchDlg : ISetBranchDlg
         (var width, var height) = (50, 22);
         (var x, var y, var w, var h) = (1, 5, width - 5, height - 12);
 
-        IReadOnlyList<string> items = possibleBranches;
-        itemTexts = items
+        // A name too long for the list is cut at its start, which is the end that tells branches apart,
+        // and marked so, to the width of the list: the cut kept two characters too many, which the
+        // list then cut off the end
+        var items = possibleBranches;
+        IReadOnlyList<Text> itemTexts = items
             .Select(item =>
-                item.Length > w - 1
-                    ? Text.Dark("…").White(item[Math.Max(0, item.Length - w - 1)..]).ToText()
+                item.Length > w
+                    ? Text.Dark("┅").White(item[^(w - 1)..]).ToText()
                     : Text.White(item.Max(w, true)).ToText()
             )
             .ToList();
@@ -47,7 +47,6 @@ class SetBranchDlg : ISetBranchDlg
         var listView = dlg.AddContentView(x, y, w, h, itemTexts);
         listView.IsShowCursor = false;
         listView.IsScrollMode = false;
-        listView.IsCursorMargin = false;
         listView.IsHighlightCurrentIndex = true;
         dlg.AddBorderView(listView, Color.Dark);
 
@@ -72,8 +71,7 @@ class SetBranchDlg : ISetBranchDlg
         );
         unsetBtn.Enabled = isBranchSetByUser;
 
-        View focusView = items.Any() ? listView : nameField;
-        if (!dlg.ShowOkCancel(focusView) && !isUnsetClicked)
+        if (!dlg.ShowOkCancel(listView) && !isUnsetClicked)
             return new Error();
         return nameField.Text;
     }

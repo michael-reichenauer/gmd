@@ -153,7 +153,6 @@ class RepoView : IRepoView, IRepoViewInputHost
             Height = Dim.Fill(),
             IsFocus = true,
             IsShowCursor = false,
-            IsCursorMargin = false,
             IsScrollMode = false,
             IsHighlightCurrentIndex = false,
             IsCustomShowSelection = true,

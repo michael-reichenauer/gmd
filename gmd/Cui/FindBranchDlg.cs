@@ -59,7 +59,6 @@ class FindBranchDlg : IFindBranchDlg
         listView = dlg.AddContentView(0, ListY, Dim.Fill(), height - ListY - 3, OnGetContent);
         listView.IsShowCursor = false;
         listView.IsScrollMode = false;
-        listView.IsCursorMargin = false;
         statusLabel = dlg.AddLabel(1, height - 3);
 
         findField.KeyUp += e =>

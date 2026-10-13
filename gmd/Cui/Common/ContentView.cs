@@ -28,7 +28,6 @@ class ContentView : View
     readonly Dictionary<MouseFlags, OnMouseCallbackReturn> mouses = [];
 
     const int topBorderHeight = 1;
-    const int cursorWidth = 1;
     const int verticalScrollbarWidth = 1;
 
     readonly IReadOnlyList<Text>? contentRows;
@@ -62,8 +61,6 @@ class ContentView : View
         remove => scroll.CurrentIndexChange -= value;
     }
 
-    public event Action<Selection>? SelectionChange;
-
     // Whether the view has the focus as drawn, where two views share the keys and Tab moves between
     // them: the log and its commit details, and the blame and its. A view on its own leaves it on.
     public bool IsFocus { get; set; } = true;
@@ -82,12 +79,10 @@ class ContentView : View
     public int ViewWidth => Frame.Width;
     public bool IsShowCursor { get; set; } = true;
     public bool IsScrollMode { get; set; } = false;
-    public bool IsCursorMargin { get; set; } = false;
     public bool IsTopBorder { get; set; } = false;
     public bool IsHideCursor { get; set; } = false;
-    public int ContentX => IsCursorMargin ? cursorWidth : 0;
     public int ContentY => IsTopBorder ? topBorderHeight : 0;
-    public int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
+    public int ContentWidth => Frame.Width - verticalScrollbarWidth;
     public int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
     public Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
     public int SelectStartIndex => selection.StartIndex;
@@ -282,7 +277,7 @@ class ContentView : View
                     txt = IsHighlightCurrentIndex && index == CurrentIndex && HasFocus ? row.ToHighlight() : row;
                 }
 
-                txt.Draw(this, ContentX, y++);
+                txt.Draw(this, 0, y++);
             }
         );
 
@@ -330,7 +325,7 @@ class ContentView : View
                     copyText.AppendLine(txt.ToString());
                 }
 
-                txt.Draw(this, ContentX, y++);
+                txt.Draw(this, 0, y++);
             }
         );
 
@@ -393,7 +388,6 @@ class ContentView : View
         }
 
         SetNeedsDisplay();
-        SelectionChange?.Invoke(Selection);
     }
 
     void DrawTopBorder()

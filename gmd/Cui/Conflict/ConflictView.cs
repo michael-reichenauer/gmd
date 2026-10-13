@@ -124,7 +124,6 @@ class ConflictView : IConflictView
             Height = Dim.Fill(ResultHeight + 1 + hintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
-            IsCursorMargin = false,
             IsHighlightCurrentIndex = true,
         };
 
@@ -142,7 +141,6 @@ class ConflictView : IConflictView
             Height = ResultHeight,
             IsShowCursor = false,
             IsScrollMode = true,
-            IsCursorMargin = false,
             IsFocus = false,
             // Shows the result only. Were it focusable, Tab (the toplevel's next-view key) or a
             // click would move the focus here, off the file, and every key after it would go nowhere

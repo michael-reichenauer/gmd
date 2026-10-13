@@ -106,7 +106,6 @@ class UIComboTextField : TextField
 
         listView.IsShowCursor = false;
         listView.IsScrollMode = false;
-        listView.IsCursorMargin = false;
         listView.ColorScheme = ColorSchemes.TextField;
         listView.SetNeedsDisplay();
 

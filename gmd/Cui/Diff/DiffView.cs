@@ -118,7 +118,6 @@ class DiffView : IDiffView
             Height = Dim.Fill(hintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
-            IsCursorMargin = false,
             IsCustomShowSelection = true,
         };
 

@@ -10,9 +10,6 @@ static class MessageDlg
     internal static int ShowInfo(string title, string message, int defaultButton = 0, params string[] buttons) =>
         ShowFull(false, title, message, defaultButton, buttons);
 
-    internal static int ShowError(string message, int defaultButton = 0, params string[] buttons) =>
-        ShowFull(true, "Error !", message, defaultButton, buttons);
-
     internal static int ShowError(string title, string message, int defaultButton = 0, params string[] buttons) =>
         ShowFull(true, title, message, defaultButton, buttons);
 

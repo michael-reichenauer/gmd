@@ -126,7 +126,6 @@ class BlameView : IBlameView
             Height = Dim.Fill(HintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
-            IsCursorMargin = false,
             IsCustomShowSelection = true,
         };
 
