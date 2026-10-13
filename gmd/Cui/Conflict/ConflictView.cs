@@ -437,9 +437,12 @@ class ConflictView : IConflictView
         });
     }
 
+    // Up to where the longest line ends at the right of a pane: with no bound, → went on into
+    // blank panes for as long as it was held
     void Scroll(int step)
     {
-        rowStartX = Math.Max(0, rowStartX + step);
+        var pane = ConflictColumns.Calculate(contentView.ContentWidth, isShowBase).Pane;
+        rowStartX = Math.Clamp(rowStartX + step, 0, Math.Max(0, rows.MaxLength - pane));
         contentView.SetNeedsDisplay();
     }
 

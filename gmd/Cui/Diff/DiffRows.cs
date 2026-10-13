@@ -34,11 +34,13 @@ class DiffRows
         int rightLineNbr
     )
     {
-        if (left.Length > MaxLength)
+        // The filler of a side with no line is no text to scroll to: it is 300 wide, and counted, it
+        // let the diff scroll that far into blank columns
+        if (left != DiffService.NoLine && left.Length > MaxLength)
         {
             MaxLength = left.Length;
         }
-        if (right.Length > MaxLength)
+        if (right != DiffService.NoLine && right.Length > MaxLength)
         {
             MaxLength = right.Length;
         }

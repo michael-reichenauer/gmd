@@ -38,6 +38,36 @@ public class DiffRowsTest
         Assert.AreEqual(-1, FileHistory().IndexOf(DiffAnchor.None));
     }
 
+    // How far the diff scrolls sideways: to the end of its longest line, not of the filler of a side
+    // that has no line there
+    [TestMethod]
+    public void TestTheLongestLineIsOfTextNotOfTheFiller()
+    {
+        var added = new FileDiff(
+            "a.txt",
+            "a.txt",
+            false,
+            false,
+            DiffMode.DiffModified,
+            [
+                new SectionDiff(
+                    "1,1 +1,2",
+                    1,
+                    1,
+                    1,
+                    2,
+                    [new LineDiff(DiffMode.DiffSame, "one"), new LineDiff(DiffMode.DiffAdded, "two")]
+                ),
+            ]
+        );
+        var rows = new CuiDiffService().ToDiffRows([
+            new CommitDiff(Id("c1"), "Test", new DateTime(2025, 1, 1), "Add two", [added]),
+        ]);
+        Assert.IsTrue(rows.Rows.Any(r => r.Left == CuiDiffService.NoLine), "The added line has nothing beside it");
+
+        Assert.IsTrue(rows.MaxLength < 80, $"{rows.MaxLength}");
+    }
+
     // c1 is the newest, so it is shown first, as git log lists them
     static DiffRows FileHistory() =>
         new CuiDiffService().ToDiffRows([CommitOf("c1", "newer"), CommitOf("c2", "older")]);
