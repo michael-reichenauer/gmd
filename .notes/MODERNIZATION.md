@@ -533,11 +533,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - `Cmd` reads output by lines (`BeginOutputReadLine`), which also break at a lone `\r`, and drops
     every `\r`, so the diff of a file with a bare CR in a line is split there, and a change of line
     endings alone shows nothing. Not tried end to end.
-  - The timers of `Progress` and `MessageDlg` are `System.Threading.Timer`s that pulse a view and
-    dereference `Application.MainLoop` on a thread pool thread. An exception there ends the process
-    from `AppDomain.UnhandledException`, with no `Application.Shutdown`, so the terminal is left as
-    Terminal.Gui set it. Posting the pulse with `UI.AddTimeout` would keep it on the main loop. (`Progress`'s read the marquee
-    field twice after its null check, against a `Stop` on the main loop; it reads it once now.)
+  - *Done 2026-10-14:* the timers of `Progress` and `MessageDlg` were `System.Threading.Timer`s
+    that pulsed a view and dereferenced `Application.MainLoop` on a thread pool thread, where an
+    exception ended the process with the terminal left as Terminal.Gui set it. They are main loop
+    timeouts now (`UI.AddTimeout`), which also need no `Wakeup`. `MessageDlg.ShowWhile` is only
+    reached by an update, which a dev build never offers, so its marquee was not seen running.
   - A failure stops gmd with `Application.RequestStop()`, posted to the main loop
     (`UI.ShutdownFromAnyThread`), which ends the current toplevel: with a modal dialog open, maybe
     only the dialog. Not verified.

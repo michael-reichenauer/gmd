@@ -2,7 +2,6 @@ using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
-// cspell:ignore Wakeup
 static class MessageDlg
 {
     const int pulseInterval = 100;
@@ -40,21 +39,24 @@ static class MessageDlg
             })
         );
 
-        using (
-            new Timer(
-                _ =>
-                {
-                    marquee.Pulse();
-                    Application.MainLoop.Driver.Wakeup();
-                },
-                null,
-                pulseInterval,
-                pulseInterval
-            )
-        )
+        // Pulsed on the main loop, as every view is touched: from a thread pool timer, an exception
+        // ended the process, with no Application.Shutdown to give the terminal back
+        var pulse = UI.AddTimeout(
+            TimeSpan.FromMilliseconds(pulseInterval),
+            _ =>
+            {
+                marquee.Pulse();
+                return true;
+            }
+        );
+        try
         {
             // Run the modal; do not shutdown the main loop driver when done
             Application.Run(d);
+        }
+        finally
+        {
+            UI.RemoveTimeout(pulse);
         }
         isClosed = true;
     }
