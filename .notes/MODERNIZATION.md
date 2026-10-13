@@ -605,8 +605,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
     the colors already. Not measured.
   - Smaller: the diff's right-side line numbers after conflict markers are 3 low; the resolver's
     result pane cannot be scrolled and its panes do not expand tabs; `b` there can move the cursor
-    to another conflict; a drag starts a row and a column after the press; `h` on main hides every
-    branch; `g` on main says nothing; Merge says nothing when already merged; Add Tag says the tag
+    to another conflict; a drag starts a row and a column after the press;
+    `g` on main says nothing; Merge says nothing when already merged; Add Tag says the tag
     failed when only its push did; the commit diff and blame are opened outside the command's `Do`;
     `CommitFromMenu` and `AmendOlderCommit` keep a 100 ms `UI.AddTimeout` whose reason is unknown;
     Init proposes the start folder, `~` when gmd is started there; `UIComboTextField` adds a `Leave`
