@@ -310,6 +310,18 @@ Add new open issues and findings here as work lands; keep them short and drop th
   only the checks gmd makes by itself, so `--update` and the update dialog look for a release even
   so; the dialog used to say there was none. The reflective copy into the one `Config` instance
   stays, as every class holds that instance. (2026-10-13)
+- Found by the review of `gmd/Utils` (2026-10-13):
+  - A `~/gmd.log` that gmd cannot write, as one a `sudo gmd` leaves owned by root, hung gmd at start
+    on a blank screen, for good: the log's static constructor asserted, the assert's handler waited
+    for the log to close, and the writing thread waited for the static constructor. The file is now
+    replaced when it cannot be emptied, and gmd logs nowhere rather than fail (`LogFile.Open`).
+  - `TrimPrefix` / `TrimSuffix`, which trim branch names in the inference, compared with the user's
+    culture, which ignores a soft hyphen or a zero width joiner, so trimming `origin/` off
+    `orig\u00ADin/dev` left `/dev`. And the log wrote its times in the culture's calendar, the year
+    1448 under ar-SA.
+  - `Files.IsText` read characters, so UTF-16 with a byte order mark read as text, which git merges
+    as binary: a conflicted UTF-16 file was refused with an error rather than resolved whole. It
+    reads bytes now, as git does.
 
 ---
 
@@ -414,6 +426,25 @@ Add new open issues and findings here as work lands; keep them short and drop th
     as a side effect, for the branch menu's own branches. 4 ms; worth moving when that is touched.
   - `KeyValueService.PushValueAsync` passes `--set-upstream`, which means nothing for a ref outside
     `refs/heads`.
+
+- Left by the review of `gmd/Utils` (2026-10-13):
+  - 78 more `StartsWith` / `EndsWith` / `IndexOf` with a string and no `StringComparison` outside
+    Utils, 44 in `Server/Private` and 21 in `Git/Private`, culture-sensitive as `TrimPrefix` was.
+    CA1310 / CA1307 as warnings would list them; the inference ones want an `InferenceDumpTest`
+    before and after.
+  - A failure before the UI runs, e.g. a `~/.gmdconfig` that cannot be written, ends gmd with the
+    runtime's "Unhandled exception" and a stack trace rather than `Program.CrashMessage`, which only
+    follows the main loop.
+  - `Cmd` reads output by lines (`BeginOutputReadLine`), which also break at a lone `\r`, and drops
+    every `\r`, so the diff of a file with a bare CR in a line is split there, and a change of line
+    endings alone shows nothing. Not tried end to end.
+  - The timers of `Progress` and `MessageDlg` are `System.Threading.Timer`s that pulse a view and
+    dereference `Application.MainLoop` on a thread pool thread. An exception there ends the process
+    from `AppDomain.UnhandledException`, with no `Application.Shutdown`, so the terminal is left as
+    Terminal.Gui set it. Posting the pulse with `UI.AddTimeout` would keep it on the main loop.
+  - A failure stops gmd with `Application.RequestStop()`, posted to the main loop
+    (`UI.ShutdownFromAnyThread`), which ends the current toplevel: with a modal dialog open, maybe
+    only the dialog. Not verified.
 
 **Inference pipeline**
 
