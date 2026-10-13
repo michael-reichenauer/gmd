@@ -577,8 +577,9 @@ to the buttons, since Enter inside it is a newline.
 
 A file with no text to merge is not shown in columns; it asks the one
 question it can, and which question depends on which sides still have the
-file. A binary file both sides changed asks which version to use. A file
-only one side has (one deleted it, or each renamed it differently) asks
+file. A binary file both sides changed asks which version to use. A text
+file whose conflict markers were taken out by hand, in an editor, is marked
+resolved as it is, or one side is taken after all. A file only one side has (one deleted it, or each renamed it differently) asks
 whether to keep it or accept the deletion. A file neither side has any
 longer can only be removed, and says so rather than offering a version that
 is not there.

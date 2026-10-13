@@ -610,9 +610,15 @@ class ConflictView : IConflictView
     // Both sides exist, so the question is which one to take. A binary file is the usual case.
     void ShowSideChoice()
     {
+        if (!file.IsBinary)
+        {
+            ShowHandResolvedChoice();
+            return;
+        }
+
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
-            $"{file.Path} {WhyWholeFile()}, so it is resolved as a whole file.",
+            $"{file.Path} is binary, so it is resolved as a whole file.",
             2,
             ["Use Ours", "Use Theirs", "Cancel"]
         );
@@ -620,6 +626,27 @@ class ConflictView : IConflictView
         if (choice == 0)
             RunWholeFileChoice(() => server.UseWholeFileAsync(file.Path, true, repoPath));
         else if (choice == 1)
+            RunWholeFileChoice(() => server.UseWholeFileAsync(file.Path, false, repoPath));
+    }
+
+    // A text file both sides changed with no markers left in it has been resolved by hand, outside
+    // gmd, but not marked so. It is marked resolved as it is, or one side is taken after all: the two
+    // sides were all that was offered, and either threw the hand merge away.
+    void ShowHandResolvedChoice()
+    {
+        var choice = UI.InfoMessage(
+            $"Resolve {file.Path}",
+            $"{file.Path} has no conflict markers left in it, as if resolved by hand.\n\n"
+                + "Mark it resolved as it is, or take one side for the whole file?",
+            3,
+            ["Mark Resolved", "Use Ours", "Use Theirs", "Cancel"]
+        );
+
+        if (choice == 0)
+            RunWholeFileChoice(() => server.KeepConflictedFileAsync(file.Path, repoPath));
+        else if (choice == 1)
+            RunWholeFileChoice(() => server.UseWholeFileAsync(file.Path, true, repoPath));
+        else if (choice == 2)
             RunWholeFileChoice(() => server.UseWholeFileAsync(file.Path, false, repoPath));
     }
 
@@ -660,8 +687,6 @@ class ConflictView : IConflictView
     // done. The caller used to read the conflicts again on that return, while git was still checking
     // the file out or removing it, and could list it as conflicted still.
     void RunWholeFileChoice(Func<Task<Result>> action) => Run(action, onChanged);
-
-    string WhyWholeFile() => file.IsBinary ? "is binary" : "has no text conflicts";
 
     // Which side did what, since 'ours' and 'theirs' is exactly the wrong way round to say it here
     string DeleteQuestion() =>

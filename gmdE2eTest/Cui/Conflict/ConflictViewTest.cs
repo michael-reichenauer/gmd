@@ -373,6 +373,35 @@ public class ConflictViewTest
         );
     }
 
+    // A file whose markers were taken out by hand, in an editor, but not marked resolved: the two
+    // sides were the only choices, and either threw the hand merge away. It is marked resolved as it is.
+    [TestMethod]
+    public async Task TestAFileResolvedByHandIsMarkedResolvedAsItIs()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        var merged = string.Join("\n", Enumerable.Range(1, 80).Select(i => $"line {i} merged by hand")) + "\n";
+        await File.WriteAllTextAsync(Path.Join(repo.Path, "long.txt"), merged);
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        gmd.WaitFor("Enter resolve");
+        gmd.Send("Enter");
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Mark Resolved"), "no conflict markers left in it");
+        for (var i = 0; i < 3; i++) // From Cancel, the default, to Mark Resolved
+        {
+            gmd.Send("Left");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Enter resolve");
+        Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has it resolved");
+        Assert.AreEqual(merged, await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt")), "As it was merged");
+    }
+
     static void OpenTheResolver(TmuxSession gmd)
     {
         gmd.WaitFor("CONFLICTS");
