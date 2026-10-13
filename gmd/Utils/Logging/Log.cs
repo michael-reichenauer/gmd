@@ -62,6 +62,6 @@ static class Log
 
     private static void Write(string level, string msg, string memberName, string sourceFilePath, int sourceLineNumber)
     {
-        ConfigLogger.Write(level, msg, memberName, sourceFilePath, sourceLineNumber);
+        LogFile.Write(level, msg, memberName, sourceFilePath, sourceLineNumber);
     }
 }

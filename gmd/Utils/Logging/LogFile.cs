@@ -5,7 +5,7 @@ using static System.Environment;
 
 namespace gmd.Utils.Logging;
 
-static class ConfigLogger
+static class LogFile
 {
     static readonly string LogFileName = "gmd.log";
     static readonly string LevelInfo = "INFO ";
@@ -19,7 +19,7 @@ static class ConfigLogger
 
     static TaskCompletionSource doneTask = new TaskCompletionSource();
 
-    static ConfigLogger()
+    static LogFile()
     {
         Task.Factory.StartNew(ProcessLogs, TaskCreationOptions.LongRunning).RunInBackground();
         // string path = $"{Environment.GetFolderPath(SpecialFolder.UserProfile)}/gmd.log";

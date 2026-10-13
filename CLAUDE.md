@@ -54,7 +54,7 @@ at this working tree; use a throwaway repo, exactly as `TempRepo` does.
 
 **Redirect `HOME` whenever you start gmd yourself.** A gmd run does not merely read the developer's
 home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`) and
-**truncates `~/gmd.log`**. Neither path can be redirected — `ConfigService` and `ConfigLogger` both
+**truncates `~/gmd.log`**. Neither path can be redirected — `ConfigService` and `LogFile` both
 anchor on `SpecialFolder.UserProfile` with no override — so `HOME` is the only lever, and on Unix
 it also isolates `~/.gitconfig` from the git commands gmd runs. Seed `{"CheckUpdates": false}` into
 that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` looks for
@@ -664,7 +664,7 @@ Other things to know:
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
   (`[AssemblyInitialize]`) before anything can log — otherwise `scripts/test` truncates the
   developer's `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
-  `ConfigLogger` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
+  `LogFile` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
   `gmdE2eTest/TestSetup.cs` does the same for its own process, since each test assembly runs its own
   `[AssemblyInitialize]`.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:

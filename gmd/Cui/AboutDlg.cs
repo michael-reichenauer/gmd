@@ -42,7 +42,7 @@ class AboutDlg : IAboutDlg
             + "\n"
             + $"Project: {Project.Url}\n"
             + $"Issues:  {Project.IssuesUrl}\n"
-            + $"Log:     {ConfigLogger.FilePath}";
+            + $"Log:     {LogFile.FilePath}";
 
         UI.InfoMessage("About", msg);
     }

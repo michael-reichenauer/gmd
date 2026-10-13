@@ -43,11 +43,11 @@ class Program
         program.Run();
 
         Log.Info($"Done, running for {t}");
-        ConfigLogger.CloseAsync().Wait();
+        LogFile.CloseAsync().Wait();
 
         if (ExceptionHandling.Failure is string failure)
         {
-            Console.Error.WriteLine(CrashMessage(failure, ConfigLogger.FilePath));
+            Console.Error.WriteLine(CrashMessage(failure, LogFile.FilePath));
             return 1;
         }
         return 0;
@@ -95,7 +95,7 @@ class Program
     bool HandleUIMainLoopError(Exception e)
     {
         ExceptionHandling.OnMainLoopException(e);
-        ConfigLogger.CloseAsync().Wait();
+        LogFile.CloseAsync().Wait();
         return false; // End loop after error
     }
 

@@ -130,7 +130,7 @@ internal static class ExceptionHandling
             Debugger.Break();
         }
 
-        ConfigLogger.CloseAsync().Wait();
+        LogFile.CloseAsync().Wait();
 
         shutdown();
 
