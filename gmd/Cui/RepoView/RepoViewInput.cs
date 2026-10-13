@@ -235,7 +235,7 @@ class RepoViewInput
                 BranchCmds.ShowBranch(ServerRepo.CurrentBranch().Name, false);
                 break;
             case ApplicationBarItem.Status:
-                CommitCmds.CommitFromMenu(false);
+                CommitCmds.Commit(false);
                 break;
             case ApplicationBarItem.Behind:
                 Menus.ShowPullMenu(x - 5, y);

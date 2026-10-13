@@ -605,7 +605,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
     branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
     the colors already. Not measured.
   - Smaller: the commit diff and blame are opened outside the command's `Do`;
-    `CommitFromMenu` and `AmendOlderCommit` keep a 100 ms `UI.AddTimeout` whose reason is unknown;
     Init proposes the start folder, `~` when gmd is started there; `UIComboTextField` adds a `Leave`
     handler per open and shows Terminal.Gui's context menu; `MoveToEndOfContent` leaves the view
     3 rows full; `UnicodeSetsDlg` (dev only) shows wrong characters above U+FFFF and lists a set twice.

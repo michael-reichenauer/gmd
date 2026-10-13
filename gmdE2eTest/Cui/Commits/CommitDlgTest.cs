@@ -337,6 +337,27 @@ public class CommitDlgTest
         StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "Commit 2 changes on 'main':");
     }
 
+    // The same from the commit menu's Commit, which was opened a moment late, by a 100 ms timeout,
+    // since in a dialog opened from a menu Ctrl-D once showed no diff. A menu runs an item only once
+    // it has closed now, and the dialog opens at once.
+    [TestMethod]
+    public async Task TestTheCommitDialogOfTheMenuShowsTheUncommittedDiff()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        gmd.Send("Enter");
+        gmd.WaitFor("Commit 2 changes");
+
+        gmd.Send("C-d");
+        gmd.WaitFor("Added: epsilon.txt");
+        gmd.Send("Escape");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "Commit 2 changes on 'main':");
+    }
+
     // A key the diff has no use for does nothing, and in particular is not typed into the message
     // waiting in the commit dialog below it. The diff was not modal, so such a key went on down the
     // stack of views to the dialog's text field.

@@ -19,7 +19,6 @@ interface ICommitCommands
 {
     void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null);
     Task<Result<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null);
-    void CommitFromMenu(bool isAmend);
 
     void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
@@ -107,21 +106,6 @@ class CommitCommands : ICommitCommands
     public bool CanUndoUncommitted() => !context.ViewRepo.Repo.Status.IsOk;
 
     public void ToggleDetails() => repoView.ToggleDetails();
-
-    public void CommitFromMenu(bool isAmend)
-    {
-        // For some unknown reason, calling commit directly from the menu will
-        // Show the commit dialog, but diff will not work since async/await does not seem to work
-        // However wrapping with a timeout seems to work as desired.
-        UI.AddTimeout(
-            TimeSpan.FromMilliseconds(100),
-            (_) =>
-            {
-                Commit(isAmend);
-                return false;
-            }
-        );
-    }
 
     public void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null) =>
         Do(async repo =>
@@ -573,16 +557,8 @@ class CommitCommands : ICommitCommands
         });
 
     // An older commit, given a new message, the changes in the files ticked, or both, in the commit
-    // dialog. Opened from the menu as Commit is, with a moment's delay, see CommitFromMenu.
-    public void AmendOlderCommit(string id) =>
-        UI.AddTimeout(
-            TimeSpan.FromMilliseconds(100),
-            (_) =>
-            {
-                Do(repo => AmendOlderCommitAsync(id));
-                return false;
-            }
-        );
+    // dialog
+    public void AmendOlderCommit(string id) => Do(repo => AmendOlderCommitAsync(id));
 
     async Task<Result> AmendOlderCommitAsync(string id)
     {
