@@ -151,7 +151,8 @@ class CommitService : ICommitService
     }
 
     // What CleanWorkingFolderAsync would delete, as git's dry run of the same clean lists it: every
-    // file git does not track, the ignored ones too, a folder named once rather than its files
+    // file git does not track, the ignored ones too, a folder named once rather than its files. A
+    // path is quoted when it needs it (QuotedPath).
     public async Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd)
     {
         var result = await cmd.RunAsync("git", "clean -n -x -d", wd);
@@ -162,7 +163,7 @@ class CommitService : ICommitService
         return output
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Where(l => l.StartsWith(Prefix))
-            .Select(l => l[Prefix.Length..])
+            .Select(l => QuotedPath.Unquote(l[Prefix.Length..]))
             .ToList();
     }
 

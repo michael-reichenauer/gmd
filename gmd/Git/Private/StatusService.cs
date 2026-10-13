@@ -8,7 +8,10 @@ interface IStatusService
 
 class StatusService : IStatusService
 {
-    const string StatusArgs = "status -s --porcelain --ahead-behind --untracked-files=all";
+    // '-z' gives every path as it is, where without it git quotes a path with a space, a '"' or a
+    // character that is not ASCII, the last as octal escapes, which were kept: a file with an 'ä'
+    // in its name could be neither committed by name, discarded, nor blamed.
+    const string StatusArgs = "status --porcelain -z --untracked-files=all";
 
     private readonly ICmd cmd;
 
@@ -34,9 +37,12 @@ class StatusService : IStatusService
         return Parse(output, wd);
     }
 
-    private Result<Status> Parse(string statusText, string wd)
+    // An entry per path, 'XY <path>', NUL separated, where X is what the index has and Y what the
+    // working tree has. A rename or a copy is 'XY <path>' followed by an entry of the path it was
+    // renamed or copied from.
+    Result<Status> Parse(string statusText, string wd)
     {
-        var lines = statusText.Split('\n');
+        var entries = statusText.Split('\0');
 
         int conflicted = 0;
         List<ConflictedFile> conflicts = [];
@@ -50,45 +56,51 @@ class StatusService : IStatusService
         List<string> renamedSourceFiles = [];
         List<string> renamedTargetFiles = [];
 
-        foreach (var lineText in lines)
+        for (var i = 0; i < entries.Length; i++)
         {
-            string line = lineText.Trim();
-            if (line == "")
+            var entry = entries[i];
+            if (entry.Length < 4)
             {
-                continue;
+                continue; // The empty one after the last NUL
             }
+            var (x, y, path) = (entry[0], entry[1], entry[3..]);
+            var from = IsRenameOrCopy(x) || IsRenameOrCopy(y) ? entries.ElementAtOrDefault(++i) ?? "" : "";
 
             // The seven unmerged codes. The kind is kept rather than discarded: it is the only
             // record of what git could not merge, and it decides what can be offered for the path
             // (a modify/delete has no text to merge, only a keep-or-delete choice).
-            if (ToConflictKind(line) is ConflictKind kind)
+            if (ToConflictKind(x, y) is ConflictKind kind)
             {
                 conflicted++;
-                conflicts.Add(new ConflictedFile(line.Substring(3).Trim().Replace("\"", ""), kind));
+                conflicts.Add(new ConflictedFile(path, kind));
+                continue;
             }
-            // Untracked, or staged as new ('A ', 'AM', 'AD'), or intended to be (' A', which the trim
-            // has made 'A' followed by the path): a new file either way, which discarding deletes
-            else if (line.StartsWith("?? ") || line.StartsWith('A'))
+
+            // What the change is to the user is the index's code, or the working tree's when the
+            // index has none
+            switch (x != ' ' ? x : y)
             {
-                added++;
-                addedFiles.Add(line.Substring(2).Trim().Replace("\"", ""));
-            }
-            else if (line.StartsWith("D"))
-            {
-                deleted++;
-                deletedFiles.Add(line.Substring(2).Trim().Replace("\"", ""));
-            }
-            else if (line.StartsWith("R"))
-            {
-                renamed++;
-                var parts = line.Substring(2).Split(" -> ");
-                renamedSourceFiles.Add(parts[0].Trim().Replace("\"", ""));
-                renamedTargetFiles.Add(parts[1].Trim().Replace("\"", ""));
-            }
-            else
-            {
-                modified++;
-                modifiedFiles.Add(line.Substring(2).Trim().Replace("\"", ""));
+                // Untracked, or staged as new ('A ', 'AM', 'AD'), or intended to be (' A'): a new
+                // file either way, which discarding deletes. A copy is a new file too.
+                case '?':
+                case 'A':
+                case 'C':
+                    added++;
+                    addedFiles.Add(path);
+                    break;
+                case 'D':
+                    deleted++;
+                    deletedFiles.Add(path);
+                    break;
+                case 'R':
+                    renamed++;
+                    renamedSourceFiles.Add(from);
+                    renamedTargetFiles.Add(path);
+                    break;
+                default:
+                    modified++;
+                    modifiedFiles.Add(path);
+                    break;
             }
         }
         var operation = GetOperationStatus(wd);
@@ -115,12 +127,7 @@ class StatusService : IStatusService
         );
     }
 
-    // The XY code of an unmerged path, or null if the line is not one. The space at index 2 is part
-    // of the test, as the 'UU ' prefixes it replaces were, so the Substring(3) below is always the
-    // path. Note the line has already been trimmed, which is why a staged add ('A  x') reaches the
-    // modified branch instead — see the note on TestParseCounts.
-    static ConflictKind? ToConflictKind(string line) =>
-        line.Length > 3 && line[2] == ' ' ? ToConflictKind(line[0], line[1]) : null;
+    static bool IsRenameOrCopy(char code) => code is 'R' or 'C';
 
     static ConflictKind? ToConflictKind(char x, char y) =>
         (x, y) switch

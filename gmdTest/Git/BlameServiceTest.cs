@@ -164,6 +164,29 @@ public class BlameServiceTest
         Assert.AreEqual("Not Committed Yet", blame.CommitById[Id0].Author);
     }
 
+    // The paths of 'filename' and 'previous' are quoted when they need it, as in a diff, here for
+    // the 'Ä' and the 'ä', and are what the drill-down to the version before blames
+    [TestMethod]
+    public async Task TestParseQuotedPaths()
+    {
+        var output = $"""
+            {Id2} 1 1 1
+            author Bob
+            author-mail <bob@example.com>
+            author-time 1800000000
+            author-tz +0000
+            summary Renamed
+            previous {Id1} "b\303\244se.md"
+            filename "\303\204rende.md"
+            →text
+            """;
+
+        var blame = await GetBlameAsync(output);
+
+        Assert.AreEqual("Ärende.md", blame.CommitById[Id2].Path);
+        Assert.AreEqual("bäse.md", blame.CommitById[Id2].PreviousPath);
+    }
+
     // A blank line in the file is a bare tab. Tabs within a line are kept verbatim, so a copy of
     // the blamed lines yields the file's own text; expanding them is the view's job.
     [TestMethod]

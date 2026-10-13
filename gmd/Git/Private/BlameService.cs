@@ -133,13 +133,14 @@ class BlameService : IBlameService
                     isBoundary = true;
                     break;
                 case "previous":
-                    // 'previous <sha> <path>', where the path is the name before a rename
+                    // 'previous <sha> <path>', where the path is the name before a rename. Both
+                    // paths are quoted when they need it, as in a diff (QuotedPath).
                     var parts = value.Split(' ', 2);
                     previousId = parts[0];
-                    previousPath = parts.Length > 1 ? parts[1] : path;
+                    previousPath = parts.Length > 1 ? QuotedPath.Unquote(parts[1]) : path;
                     break;
                 case "filename":
-                    filePath = value;
+                    filePath = QuotedPath.Unquote(value);
                     break;
             }
         }

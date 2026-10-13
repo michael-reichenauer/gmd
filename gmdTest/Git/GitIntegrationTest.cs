@@ -1741,6 +1741,31 @@ public class GitIntegrationTest
         Assert.AreEqual("z", file.SectionDiffs.Single().LineDiffs.Single(l => l.DiffMode == DiffMode.DiffAdded).Line);
     }
 
+    // A file with a name git quotes, here for the 'Ä', through what is done to a file by its name.
+    // The status gave the name with git's octal escapes, so it could not be committed by name,
+    // discarded or blamed, and the list of a commit's files to pick one from had it the same way.
+    [TestMethod]
+    public async Task TestAFileWithANameGitQuotes()
+    {
+        await repo.CommitFileAsync("Ärende.md", "one\n", "First");
+        repo.WriteFile("Ärende.md", "one\ntwo\n");
+        repo.WriteFile("nöw.txt", "new\n");
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        CollectionAssert.AreEqual(new[] { "Ärende.md" }, status.ModifiedFiles);
+        CollectionAssert.AreEqual(new[] { "nöw.txt" }, status.AddedFiles);
+        CollectionAssert.AreEqual(new[] { "nöw.txt" }, Value(await repo.Git.GetFilesToCleanAsync(repo.Path)).ToArray());
+
+        Ok(await repo.Git.CommitFilesAsync("Second", false, status.ModifiedFiles, repo.Path));
+        Ok(await repo.Git.UndoUncommittedFileAsync(status.AddedFiles[0], repo.Path));
+
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "Committed, and the new file discarded");
+        var files = Value(await repo.Git.GetFileAsync("HEAD", repo.Path));
+        CollectionAssert.AreEqual(new[] { "Ärende.md" }, files.ToArray());
+        var blame = Value(await repo.Git.GetBlameAsync(files[0], "HEAD", repo.Path));
+        Assert.AreEqual("Ärende.md", blame.CommitById[blame.Lines[1].CommitId].Path);
+    }
+
     // With log.showSignature git checks the signature of each signed commit and writes what it
     // found before the commit, on stdout, in the log's own output, so a signed commit's id was the
     // text of that check

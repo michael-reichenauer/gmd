@@ -144,15 +144,16 @@ internal class LogService : ILogService
         return await Task.Run(() => ParseLines(output));
     }
 
+    // The paths of the files at the reference, NUL separated (-z), since git otherwise quotes a
+    // path that has a character that is not ASCII
     public async Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd)
     {
-        var args = $"ls-tree -r {reference} --name-only";
+        var args = $"ls-tree -r -z --name-only {reference}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
 
-        // Wrap parsing in separate task thread, since it might be a lot of commits to parse
-        return output.Split('\n').ToList();
+        return output.Split('\0', StringSplitOptions.RemoveEmptyEntries).ToList();
     }
 
     public async Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd)
