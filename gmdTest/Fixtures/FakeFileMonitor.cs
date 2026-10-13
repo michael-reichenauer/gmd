@@ -1,5 +1,5 @@
 using gmd.Server;
-using gmd.Server.Private.Augmented.Private;
+using gmd.Server.Private;
 
 namespace gmdTest.Fixtures;
 
@@ -21,21 +21,19 @@ class FakeFileMonitor : IFileMonitor
 
     public void Monitor(string workingFolder, IReadOnlyList<string> excludedFolders) { }
 
-    // How many times the monitor was paused, i.e. how many writes held it
+    // How many times the monitor was paused, i.e. how many writes held it, and whether it is now
     public int PauseCount { get; private set; }
+    public bool IsPaused => pauses > 0;
+    int pauses;
 
     public IDisposable Pause()
     {
         PauseCount++;
-        return new NotPaused();
+        pauses++;
+        return new Disposable(() => pauses--);
     }
 
-    public void SetReadRepoTime(DateTime time) { }
+    public void ReadingRepo() { }
 
-    public void SetReadStatusTime(DateTime time) { }
-
-    class NotPaused : IDisposable
-    {
-        public void Dispose() { }
-    }
+    public void ReadingStatus() { }
 }

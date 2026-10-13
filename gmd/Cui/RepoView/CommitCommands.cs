@@ -539,7 +539,7 @@ class CommitCommands : ICommitCommands
             if (!squashDlg.Show(repo, commits, out var message))
                 return Result.Ok;
 
-            if (await server.SquashCommits(repo.Repo, id1, id2, message) is Error e)
+            if (await server.SquashCommitsAsync(repo.Repo, id1, id2, message) is Error e)
             {
                 return new Error("Failed to squash commits", e);
             }

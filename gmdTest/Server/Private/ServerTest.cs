@@ -224,4 +224,44 @@ public class ServerTest
             .BranchWithRemote("main", "c5", isCurrent: true)
             .BranchWithRemote("dev", "d1")
             .LocalBranch("feat", "f1");
+
+    // Every write the user asks for runs with the file monitor paused, in one place (Server.Paused),
+    // so that it is not told of as a change while it runs; the command refreshes once it is done.
+    // Some were and some were not, by whether they passed through the augmented service: a stash or
+    // a cherry-pick was not.
+    [TestMethod]
+    public async Task TestEveryWritePausesTheFileMonitor()
+    {
+        var b = ThreeBranches();
+        var git = new FakeGit(RepoBuilder.NoChanges);
+        var monitor = new FakeFileMonitor();
+        git.Monitor = monitor;
+        var server = b.NewServer(git, monitor);
+
+        AssertOk(await server.StashAsync("Work", "/wd"));
+        AssertOk(await server.CherryPickAsync("abc", "/wd"));
+        AssertOk(await server.AddWorktreeAsync("/wd-dev", "dev", false, "", "/wd"));
+        AssertOk(await server.PruneWorktreesAsync("/wd"));
+
+        CollectionAssert.AreEqual(new[] { "stash Work (paused)", "cherry-pick abc (paused)" }, git.WriteCalls);
+        Assert.AreEqual(4, monitor.PauseCount);
+        Assert.IsFalse(monitor.IsPaused, "Resumed after each");
+    }
+
+    // ... but the fetch, which runs in the background: paused, it would hold back the user's own
+    // changes while it runs, and what it fetched is told of like any other change
+    [TestMethod]
+    public async Task TestTheFetchDoesNotPauseTheFileMonitor()
+    {
+        var b = ThreeBranches();
+        var git = new FakeGit(RepoBuilder.NoChanges);
+        var monitor = new FakeFileMonitor();
+        git.Monitor = monitor;
+        var server = b.NewServer(git, monitor);
+
+        AssertOk(await server.FetchAsync("/wd"));
+
+        CollectionAssert.AreEqual(new[] { "fetch" }, git.WriteCalls);
+        Assert.AreEqual(0, monitor.PauseCount);
+    }
 }

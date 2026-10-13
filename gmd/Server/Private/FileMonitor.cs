@@ -1,7 +1,7 @@
 using gmd.Git;
 using gmd.Utils.GlobPatterns;
 
-namespace gmd.Server.Private.Augmented.Private;
+namespace gmd.Server.Private;
 
 interface IFileMonitor
 {
@@ -12,11 +12,11 @@ interface IFileMonitor
     // of their own (linked worktrees nested in it), whose changes are not this folder's status.
     void Monitor(string workingFolder, IReadOnlyList<string> excludedFolders);
     IDisposable Pause();
-    void SetReadRepoTime(DateTime time);
-    void SetReadStatusTime(DateTime time);
-}
 
-public delegate bool Ignorer(string path);
+    // A read of the repo, or of the status, starts, which sees the changes told of so far
+    void ReadingRepo();
+    void ReadingStatus();
+}
 
 // Turns file system events into two debounced events: FileChanged, i.e. the status may have
 // changed, and RepoChanged, i.e. the commits or branches may have. Three watchers feed them, since
@@ -103,7 +103,7 @@ class FileMonitor : IFileMonitor
             .Select(w => w.Path)
             .ToList();
 
-    public void SetReadRepoTime(DateTime time)
+    public void ReadingRepo()
     {
         lock (syncRoot)
         {
@@ -112,7 +112,7 @@ class FileMonitor : IFileMonitor
         }
     }
 
-    public void SetReadStatusTime(DateTime time)
+    public void ReadingStatus()
     {
         lock (syncRoot)
         {

@@ -61,7 +61,7 @@ public class AugmenterTest
         Assert.IsFalse(dev.IsMain);
         Assert.IsFalse(dev.IsCurrent);
         Assert.AreEqual("dev", dev.Branch);
-        Assert.AreEqual(2, dev.ChangesCount);
+        Assert.AreEqual(-1, dev.ChangesCount, "Read after the repo is shown, so unknown in a read repo");
     }
 
     // What the other worktrees can be in: locked (in use), prunable (folder gone, but the branch
@@ -84,11 +84,11 @@ public class AugmenterTest
         var dev = repo.Worktrees[1];
         Assert.IsTrue(dev.IsLocked);
         Assert.AreEqual("claude session 42", dev.LockReason);
-        Assert.AreEqual(0, dev.ChangesCount);
+        Assert.AreEqual(-1, dev.ChangesCount, "Read after the repo is shown, so unknown in a read repo");
 
         var feat = repo.Worktrees[2];
         Assert.IsTrue(feat.IsPrunable);
-        Assert.AreEqual(-1, feat.ChangesCount, "A missing folder has no status to read");
+        Assert.AreEqual(-1, feat.ChangesCount);
         Assert.AreEqual("/test/repo-feat", repo.Branches["feat"].WorktreePath, "Held until pruned");
 
         var detached = repo.Worktrees[3];

@@ -1,8 +1,8 @@
 using gmd.Server;
-using gmd.Server.Private.Augmented.Private;
+using gmd.Server.Private;
 using gmdTest.Fixtures;
 
-namespace gmdTest.Server.Private.Augmented.Private;
+namespace gmdTest.Server.Private;
 
 // FileMonitor watches the working folder and turns a burst of file system events into at most one
 // change event per second. Characterization tests: they pin what the debounce does today.
@@ -181,12 +181,12 @@ public class FileMonitorTest
     }
 
     [TestMethod]
-    public void TestSetReadStatusTimeClearsOnlyTheFileChange()
+    public void TestReadingStatusClearsOnlyTheFileChange()
     {
         monitor.FileChange(filePath);
         monitor.RepoChange(refPath, "refs/heads/main", WatcherChangeTypes.Changed);
 
-        monitor.SetReadStatusTime(now);
+        monitor.ReadingStatus();
         now += pastDelay;
 
         mainThread.Tick();
@@ -195,12 +195,12 @@ public class FileMonitorTest
     }
 
     [TestMethod]
-    public void TestSetReadRepoTimeClearsBothChanges()
+    public void TestReadingRepoClearsBothChanges()
     {
         monitor.FileChange(filePath);
         monitor.RepoChange(refPath, "refs/heads/main", WatcherChangeTypes.Changed);
 
-        monitor.SetReadRepoTime(now);
+        monitor.ReadingRepo();
         now += pastDelay;
 
         mainThread.Tick();

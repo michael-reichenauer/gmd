@@ -462,7 +462,6 @@ public class ViewRepoCreaterTest
             HasRemoteOnly: false,
             AmbiguousTipId: "",
             AmbiguousBranchNames: [],
-            PullMergeBranchNames: [],
             AncestorNames: ancestorNames.ToList(),
             RelatedBranchNames: [],
             IsCircularAncestors: false,

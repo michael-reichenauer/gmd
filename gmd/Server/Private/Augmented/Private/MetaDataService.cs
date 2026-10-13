@@ -6,7 +6,6 @@ namespace gmd.Server.Private.Augmented.Private;
 
 public class MetaData
 {
-    //public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
     public Dictionary<string, string> CommitBranchBySid { get; set; } = [];
 
     internal void SetCommitBranch(string sid, string branchName)
@@ -110,7 +109,10 @@ interface IMetaDataService
 // The metadata is read, changed and written whole, so every change is made under one lock, each on
 // what the one before wrote. Otherwise a change made in the background, e.g. keeping what the reflog
 // witnessed, and one the user made meanwhile each wrote a copy of its own, and the later write lost
-// the other change. A fetch holds it too, since the pull overwrites the local value it merges into.
+// the other change. A fetch holds it too, since the merge with origin's is written as the local value.
+//
+// Origin's value is fetched into a record of its own (IGit.FetchValueAsync), beside the local value,
+// and the two are merged three ways against the record from before the fetch, see Merge.
 [SingleInstance]
 class MetaDataService : IMetaDataService
 {
@@ -142,14 +144,6 @@ class MetaDataService : IMetaDataService
         return Result.Catch(() =>
             JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value")
         );
-    }
-
-    public async Task<Result> SetMetaDataAsync(string path, MetaData metaData)
-    {
-        using (await LockAsync())
-        {
-            return await WriteMetaDataAsync(path, metaData);
-        }
     }
 
     // Changes the latest metadata and writes it
@@ -199,40 +193,74 @@ class MetaDataService : IMetaDataService
 
     async Task<Result> FetchAndMergeMetaDataAsync(string path)
     {
-        // Lets get current local value so we can merge local and remote values
         var local = await GetMetaDataAsync(path);
         if (local is not MetaData localMetaData)
             return local.Error;
 
-        // Pull latest data from remote server. Never asking for a login, since it runs beside the fetch
-        // or push the user asked for, which asks: one question per command, and it is best effort.
-        Result pulled;
+        // Origin's as last fetched or pushed, which says what changed on which side since. None before
+        // the first fetch, or one by a gmd that fetched over the local value instead.
+        var lastOrigin = await GetOriginMetaDataAsync(path) is MetaData last ? last : null;
+
+        // Never asking for a login, since it runs beside the fetch or push the user asked for, which
+        // asks: one question per command, and it is best effort.
+        Result fetched;
         using (Askpass.NeverAsk())
         {
-            pulled = await git.PullValueAsync(metaDataKey, path);
+            fetched = await git.FetchValueAsync(metaDataKey, path);
         }
-        if (pulled is Error pullError)
+        if (fetched is Error fetchError)
         {
-            // Could not pull remote value,
-            if (IsNoRemoteKey(pullError))
-            { // Key does not exist on remote server,
-                return Result.Ok;
-            }
-
-            // Failed to fetch remote value,
-            return pullError;
+            // Nobody pushed any metadata yet, which is no failure
+            return IsNoRemoteKey(fetchError) ? Result.Ok : fetchError;
         }
 
-        // Lets get remote value after remote server pull
-        var remote = await GetMetaDataAsync(path);
-        if (remote is not MetaData remoteMetaData)
-            return remote.Error;
+        var origin = await GetOriginMetaDataAsync(path);
+        if (origin is not MetaData originMetaData)
+            return origin.Error;
 
-        // Merge previous local and new remote data
-        if (await MergeLocalAndRemote(path, localMetaData, remoteMetaData) is Error e)
-            return e;
+        if (!Merge(localMetaData, lastOrigin, originMetaData))
+            return Result.Ok;
+        return await WriteMetaDataAsync(path, localMetaData);
+    }
 
-        return Result.Ok;
+    async Task<Result<MetaData>> GetOriginMetaDataAsync(string path)
+    {
+        var read = await git.GetOriginValueAsync(metaDataKey, path);
+        if (read is not string json)
+            return read.Error;
+
+        return Result.Catch(() =>
+            JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value")
+        );
+    }
+
+    // Merges origin's values into the local ones, and says whether any changed. A value changed here
+    // since the last fetch or push, and not on origin, is kept; any other that differs takes origin's,
+    // so that every clone ends up the same: one changed on origin only, one changed on both sides, and
+    // any at all when there is no record of origin's from before. Without that record, every value
+    // that differed took origin's, so a change made here to a value origin had, e.g. a renamed branch
+    // or an ambiguity resolved again, was undone by the next fetch, every five minutes, until pushed.
+    internal static bool Merge(MetaData local, MetaData? lastOrigin, MetaData origin)
+    {
+        var isChanged = false;
+        foreach (var (key, originValue) in origin.CommitBranchBySid)
+        {
+            if (local.CommitBranchBySid.TryGetValue(key, out var localValue) && localValue == originValue)
+                continue;
+
+            var isChangedHereOnly =
+                localValue != null
+                && lastOrigin != null
+                && lastOrigin.CommitBranchBySid.TryGetValue(key, out var lastValue)
+                && lastValue == originValue;
+            if (isChangedHereOnly)
+                continue;
+
+            local.CommitBranchBySid[key] = originValue;
+            isChanged = true;
+        }
+
+        return isChanged;
     }
 
     // Keeps what the reflog witnessed, the facts that are not kept already. Written only when there
@@ -265,50 +293,13 @@ class MetaDataService : IMetaDataService
             return Result.Ok;
         }
 
-        // Never asking for a login, as the pull above
+        // Never asking for a login, as the fetch above
         using (Timing.Start())
         using (Askpass.NeverAsk())
         {
             await git.PushValueAsync(metaDataKey, path);
             return Result.Ok;
         }
-    }
-
-    async Task<Result> MergeLocalAndRemote(string path, MetaData localMetaData, MetaData remoteMetaData)
-    {
-        // We will merge before and after values and if different we will then push it
-
-        // Check if metadata count has changed
-        bool hasChanged = remoteMetaData.CommitBranchBySid.Count != localMetaData.CommitBranchBySid.Count;
-
-        // Merge data, we prefer remote data. Let iterate all remote data first
-        foreach (var pair in remoteMetaData.CommitBranchBySid)
-        {
-            var key = pair.Key;
-            var remoteValue = pair.Value;
-
-            if (!localMetaData.CommitBranchBySid.TryGetValue(key, out var localValue))
-            { // The local is missing a value for that key, setting remote value
-                localMetaData.CommitBranchBySid[key] = remoteValue;
-                localValue = remoteValue;
-                hasChanged = true;
-            }
-
-            if (remoteValue != localValue)
-            { // The remote value has changed (unusual)
-                localMetaData.CommitBranchBySid[key] = remoteValue;
-                hasChanged = true;
-            }
-        }
-
-        if (hasChanged)
-        { // The local meta data had some new values, or remote was different,
-            // We need to set and push the merged collection;
-            if (await WriteMetaDataAsync(path, localMetaData) is Error e)
-                return e;
-        }
-
-        return Result.Ok;
     }
 
     bool IsNoLocalKey(Error e) => e.Message.Contains("Not a valid object name");

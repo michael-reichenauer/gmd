@@ -104,23 +104,4 @@ public class AugmentedServiceTest
         );
         Assert.IsTrue(updated.Worktrees[0].IsCurrent, "Found by the repo's path when none was current before");
     }
-
-    [TestMethod]
-    public async Task TestWorktreeWritesGoToGitWithTheFileMonitorPaused()
-    {
-        var git = new FakeGit();
-        var monitor = new FakeFileMonitor();
-        var service = RepoBuilder.NewAugmentedService(git, new FakeMetaDataService(new MetaData()), monitor);
-
-        AssertOk(await service.AddWorktreeAsync(Dev, "dev", true, "main", Main));
-        AssertOk(await service.AddWorktreeAsync(Dev, "dev", false, "", Main));
-        AssertOk(await service.RemoveWorktreeAsync(Dev, true, Main));
-        AssertOk(await service.PruneWorktreesAsync(Main));
-
-        CollectionAssert.AreEqual(
-            new[] { $"add {Dev} dev new main", $"add {Dev} dev existing", $"remove {Dev} --force", "prune" },
-            git.WorktreeCalls.ToArray()
-        );
-        Assert.AreEqual(4, monitor.PauseCount, "Each write holds the monitor, as the other writes do");
-    }
 }

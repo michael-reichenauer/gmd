@@ -17,6 +17,8 @@ public class UndoIntegrationTest
     TempRepo repo = null!;
     readonly FakeRepoConfig config = new();
     AugmentedService service = null!;
+    UndoService undo = null!;
+    CommitRewriteService rewrite = null!;
 
     [TestInitialize]
     public async Task Init()
@@ -28,6 +30,8 @@ public class UndoIntegrationTest
             new FakeFileMonitor(),
             config
         );
+        undo = new UndoService(repo.Git, config);
+        rewrite = new CommitRewriteService(repo.Git, config);
     }
 
     [TestCleanup]
@@ -44,7 +48,7 @@ public class UndoIntegrationTest
     async Task<UndoStep> UndoAsync(string branch = "main")
     {
         var (augmented, step) = await LastStepAsync(branch);
-        AssertOk(await service.UndoStepAsync(augmented, step));
+        AssertOk(await undo.UndoStepAsync(augmented, step));
         return step;
     }
 
@@ -212,7 +216,7 @@ public class UndoIntegrationTest
         var (augmented, step) = await LastStepAsync("other");
         await repo.GitAsync($"branch -f other {c1}");
 
-        var error = AssertError(await service.UndoStepAsync(augmented, step));
+        var error = AssertError(await undo.UndoStepAsync(augmented, step));
 
         StringAssert.Contains(error.Message, "'other' has moved since it was read");
         Assert.AreEqual(c1, (await repo.GitAsync("rev-parse other")).Trim());
@@ -228,7 +232,7 @@ public class UndoIntegrationTest
         var (augmented, step) = await LastStepAsync();
         var c3 = await repo.CommitFileAsync("b.txt", "three\n", "Third");
 
-        var error = AssertError(await service.UndoStepAsync(augmented, step));
+        var error = AssertError(await undo.UndoStepAsync(augmented, step));
 
         StringAssert.Contains(error.Message, "'main' has moved since it was read");
         Assert.AreEqual(c3, await repo.HeadIdAsync());
@@ -247,7 +251,7 @@ public class UndoIntegrationTest
         await repo.GitAsync($"-C \"{path}\" commit -m Dev");
         var (augmented, step) = await LastStepAsync("dev");
 
-        AssertError(await service.UndoStepAsync(augmented, step));
+        AssertError(await undo.UndoStepAsync(augmented, step));
     }
 
     // A squash is several moves of the branch, which gmd records as one change, so a single undo
@@ -262,7 +266,7 @@ public class UndoIntegrationTest
         var newer = await repo.CommitFileAsync("c.txt", "c\n", "Newer");
         var tip = hasNewerCommits ? await repo.CommitFileAsync("d.txt", "d\n", "On top") : newer;
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
-        AssertOk(await service.SquashCommits(augmented, newer, older, "Squashed"));
+        AssertOk(await rewrite.SquashCommitsAsync(augmented, newer, older, "Squashed"));
         Assert.AreEqual(hasNewerCommits ? "On top" : "Squashed", (await repo.GitAsync("log --format=%s -1")).Trim());
 
         var undone = await UndoAsync();
@@ -286,7 +290,7 @@ public class UndoIntegrationTest
         await repo.CommitFileAsync("d.txt", "d\n", "Local on top");
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        AssertOk(await service.SquashCommits(augmented, newer, older, "Squashed"));
+        AssertOk(await rewrite.SquashCommitsAsync(augmented, newer, older, "Squashed"));
 
         Assert.AreEqual("Local on top\nSquashed\nInitial", (await repo.GitAsync("log --format=%s")).Trim());
     }
@@ -305,7 +309,7 @@ public class UndoIntegrationTest
         var local = await repo.CommitFileAsync("d.txt", "d\n", "Local");
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        var error = AssertError(await service.SquashCommits(augmented, newer, older, "Squashed"));
+        var error = AssertError(await rewrite.SquashCommitsAsync(augmented, newer, older, "Squashed"));
 
         StringAssert.Contains(error.Message, "Only commits on the current branch can be squashed");
         Assert.AreEqual(local, await repo.HeadIdAsync());

@@ -1,10 +1,8 @@
 namespace gmd.Server.Private.Augmented.Private;
 
-// Augmenter augments repos of git repo information, The augmentations
-// adds information not available in git directly, but can be inferred by parsing the
-// git information.
-// Examples of augmentation is which branch a commits belongs to and the hierarchical structure
-// of branches.
+// Turns the git repo into the work repo the inference runs on, and runs it (BranchStructureService):
+// the branches paired with their remote branches, the commits with their tags and stashes, and the
+// worktrees, undo steps and remote rewrites, then each commit's branch, and the names shown.
 interface IAugmenter
 {
     Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo);
@@ -27,7 +25,7 @@ class Augmenter : IAugmenter
 
     WorkRepo GetAugRepo(GitRepo gitRepo)
     {
-        var status = StatusConverter.ToStatus(gitRepo.Status);
+        var status = GitConverter.ToStatus(gitRepo.Status);
         WorkRepo repo = new WorkRepo(gitRepo.TimeStamp, gitRepo.Path, status, gitRepo.IntegrationNames);
 
         AddAugStashes(repo, gitRepo); // Must be done before adding augmented commits
@@ -93,26 +91,10 @@ class Augmenter : IAugmenter
         var current = CurrentWorktree(repo, gitRepo);
         foreach (var w in gitRepo.Worktrees)
         {
+            // The changes of the other worktrees are read after the repo is shown, so unknown here
             var isCurrent = w == current;
-            var changes =
-                isCurrent ? repo.Status.ChangesCount
-                : gitRepo.WorktreeChanges.TryGetValue(w.Path, out var count) ? count
-                : -1;
-            repo.Worktrees.Add(
-                new Worktree(
-                    w.Path,
-                    w.Branch,
-                    w.HeadId,
-                    w.IsMain,
-                    isCurrent,
-                    w.IsDetached,
-                    w.IsLocked,
-                    w.LockReason,
-                    w.IsPrunable,
-                    w.PruneReason,
-                    changes
-                )
-            );
+            var changes = isCurrent ? repo.Status.ChangesCount : -1;
+            repo.Worktrees.Add(GitConverter.ToWorktree(w, isCurrent, changes));
 
             if (!isCurrent && w.Branch != "" && repo.Branches.TryGetValue(w.Branch, out var branch))
             {
@@ -199,10 +181,9 @@ class Augmenter : IAugmenter
     {
         gitRepo.Tags.ForEach(t =>
         {
-            var tag = new Tag(t.Name, t.CommitId);
             if (repo.CommitsById.TryGetValue(t.CommitId, out var c))
             {
-                c.Tags.Add(tag);
+                c.Tags.Add(GitConverter.ToTag(t));
             }
         });
     }
@@ -211,7 +192,7 @@ class Augmenter : IAugmenter
     {
         gitRepo.Stashes.ForEach(s =>
         {
-            var stash = new Stash(s.Id, s.Name, s.Branch, s.ParentId, s.IndexId, s.Message);
+            var stash = GitConverter.ToStash(s);
             repo.Stashes.Add(stash);
             repo.StashById[s.Id] = stash;
             repo.StashById[s.IndexId] = stash;
