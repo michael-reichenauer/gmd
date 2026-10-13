@@ -1,14 +1,13 @@
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace gmd.Utils.Logging;
 
 static class Log
 {
-    private static readonly string LevelDebug = "DEBUG";
-    private static readonly string LevelInfo = "INFO ";
-    private static readonly string LevelWarn = "WARN ";
-    private static readonly string LevelError = "ERROR";
+    const string LevelDebug = "DEBUG";
+    const string LevelInfo = "INFO ";
+    const string LevelWarn = "WARN ";
+    const string LevelError = "ERROR";
 
     public static void Debug(
         string msg,
@@ -59,24 +58,6 @@ static class Log
     )
     {
         Write(LevelError, $"{msg}\n{e}", memberName, sourceFilePath, sourceLineNumber);
-    }
-
-    public static void Exception(
-        Exception e,
-        Timing.StopParameter stop = default(Timing.StopParameter),
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0
-    )
-    {
-        Write(LevelError, $"{e}", memberName, sourceFilePath, sourceLineNumber);
-    }
-
-    // Trying to hide non usable function from code intellisense
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static new bool ReferenceEquals(object objA, object objB)
-    {
-        throw new Exception("Assertion does not implement ReferenceEquals, use Ensure or Require");
     }
 
     private static void Write(string level, string msg, string memberName, string sourceFilePath, int sourceLineNumber)

@@ -185,17 +185,6 @@ class Cmd : ICmd
         return Task.Run(() => CommandRaw(path, args, workingDirectory, skipLogError, skipLog));
     }
 
-    public static Result<string> Run(string cmd, string workingDirectory = "")
-    {
-        var index = cmd.IndexOf(' ');
-        if (index == -1)
-            return new Cmd().Command(cmd, "", workingDirectory);
-
-        var path = cmd[..index];
-        var args = cmd[(index + 1)..];
-        return new Cmd().Command(path, args, workingDirectory);
-    }
-
     public Result<string> Command(
         string path,
         string args,

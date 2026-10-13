@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace gmd.Utils;
 
 // Some useful string extensions that are missing in .NET
@@ -52,21 +50,6 @@ public static class StringExtensions
         }
 
         return source.Substring(0, SidLength);
-    }
-
-    public static string ToJson(this object? source)
-    {
-        if (source == null)
-            return "";
-
-        var json = Result.Catch(() =>
-            JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true })
-        );
-        return json switch
-        {
-            string text => text,
-            Error e => $"<Error: {e}>",
-        };
     }
 
     public static string Txt(this Version? source)

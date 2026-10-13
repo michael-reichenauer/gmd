@@ -49,13 +49,6 @@ public class StringExtensionsTest
         Assert.AreEqual("", "abc".Max(0));
     }
 
-    [TestMethod]
-    public void TestToJson()
-    {
-        Assert.AreEqual("{\n  \"Name\": \"dev\"\n}", new { Name = "dev" }.ToJson().Replace("\r\n", "\n"));
-        Assert.AreEqual("", ((object?)null).ToJson());
-    }
-
     // The version text in the About dialog: 'major.minor' is the hand set version and the two in
     // parenthesis are derived from the build time
     [TestMethod]

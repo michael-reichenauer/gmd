@@ -21,9 +21,6 @@ public class EnumerableExtensionsTest
     public void TestJoin()
     {
         Assert.AreEqual("a-bb-ccc-bb", Names.Join("-"));
-        Assert.AreEqual("a-bb-ccc-bb", Names.Join('-'));
-        Assert.AreEqual("A, BB, CCC, BB", Names.JoinBy(n => n.ToUpper(), ", "));
-        Assert.AreEqual("A-BB-CCC-BB", Names.Join(n => n.ToUpper(), '-'));
         Assert.AreEqual("", Array.Empty<string>().Join("-"));
     }
 
@@ -51,19 +48,6 @@ public class EnumerableExtensionsTest
         CollectionAssert.AreEqual(new[] { "a", "b", "c" }, list);
     }
 
-    // The item is added when nothing matches the predicate, i.e. the predicate decides what
-    // 'already exists' means, not the item itself
-    [TestMethod]
-    public void TestTryAddBy()
-    {
-        List<string> list = ["a"];
-
-        list.TryAddBy(n => n == "a", "b");
-        list.TryAddBy(n => n == "c", "c");
-
-        CollectionAssert.AreEqual(new[] { "a", "c" }, list);
-    }
-
     [TestMethod]
     public void TestContainsBy()
     {
@@ -86,41 +70,5 @@ public class EnumerableExtensionsTest
         Assert.AreEqual(3, Names.FindLastIndexBy(n => n.Length == 2), "The last match");
         Assert.AreEqual(0, Names.FindLastIndexBy(n => n == "a"));
         Assert.AreEqual(-1, Names.FindLastIndexBy(n => n == "zz"), "No match");
-    }
-
-    [TestMethod]
-    public void TestAdd()
-    {
-        CollectionAssert.AreEqual(new[] { "a", "bb", "ccc", "bb", "d", "e" }, Names.Add("d", "e").ToArray());
-        CollectionAssert.AreEqual(Names, Names.Add().ToArray(), "The source is not changed");
-    }
-
-    // Distinct by a comparison of two items rather than by a key, so it works for types without a
-    // usable Equals
-    [TestMethod]
-    public void TestDistinctBy()
-    {
-        CollectionAssert.AreEqual(new[] { "a", "bb", "ccc" }, Names.DistinctBy((x, y) => x == y).ToArray());
-
-        string[] names = ["a", "bb", "cc", "d"];
-        CollectionAssert.AreEqual(
-            new[] { "a", "bb" },
-            names.DistinctBy((x, y) => x.Length == y.Length).ToArray(),
-            "Compared by length, so 'cc' and 'd' are duplicates"
-        );
-    }
-
-    [TestMethod]
-    public void TestDistinctByRequiresItsArguments()
-    {
-        IEnumerable<string>? nothing = null;
-        Assert.ThrowsExactly<ArgumentNullException>(() =>
-        {
-            nothing!.DistinctBy((x, y) => x == y).ToList();
-        });
-        Assert.ThrowsExactly<ArgumentNullException>(() =>
-        {
-            Names.DistinctBy((Func<string, string, bool>)null!).ToList();
-        });
     }
 }

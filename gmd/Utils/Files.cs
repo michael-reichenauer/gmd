@@ -95,26 +95,6 @@ static class Files
         return !isBinary;
     }
 
-    public static Result<string> GetEmbeddedFileContentText(string name)
-    {
-        var streamResult = GetEmbeddedFileStream(name);
-        if (streamResult is not Stream stream)
-            return streamResult.Error;
-
-        try
-        {
-            using (stream)
-            {
-                using StreamReader reader = new StreamReader(stream);
-                return reader.ReadToEnd();
-            }
-        }
-        catch (Exception ex)
-        {
-            return new Error(ex);
-        }
-    }
-
     // Opens an embedded resource as a stream, for content that is not text or is too large to
     // want as one string (the spell check dictionary). The caller disposes the stream.
     public static Result<Stream> GetEmbeddedFileStream(string name)
