@@ -19,6 +19,27 @@ static class Files
             ? StringComparison.OrdinalIgnoreCase
             : StringComparison.Ordinal;
 
+    // A path as a shell writes it, with the home folder as '~', so the part that tells folders apart
+    // is what is read: '~/code/gmd' for '/home/me/code/gmd'. A path outside home is left as it is,
+    // and so is '/home/meow', which only starts with the same letters.
+    public static string ShortHomePath(string path, string home)
+    {
+        home = home.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (home == "" || !path.StartsWith(home, PathComparison))
+            return path;
+
+        var rest = path[home.Length..];
+        if (rest.Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) == "")
+            return "~";
+        if (rest[0] != Path.DirectorySeparatorChar && rest[0] != Path.AltDirectorySeparatorChar)
+            return path;
+
+        return "~" + rest.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    // The user's home folder, '~'
+    public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
     // A path for a new folder named 'name' in 'parent', numbered '-1', '-2', ... if the name is
     // taken, so a dialog can propose a folder that does not exist yet
     public static string UniqueFolderPath(string parent, string name)

@@ -42,8 +42,7 @@ internal static class GitDir
 
         while (true)
         {
-            var gitPath = Path.Join(current, GitFolder);
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
+            if (IsRoot(current))
             {
                 return Resolve(current);
             }
@@ -57,6 +56,15 @@ internal static class GitDir
         }
 
         return new Error($"No '.git' folder was found in:\n'{path}'\n or in any parent folders.");
+    }
+
+    // Whether a folder is the root of a working tree, i.e. holds '.git', a folder or the file of a
+    // linked worktree or a submodule. Only looks, so it starts no git process and is quick enough to
+    // ask of every folder listed on the start page.
+    public static bool IsRoot(string path)
+    {
+        var gitPath = Path.Join(path, GitFolder);
+        return Directory.Exists(gitPath) || File.Exists(gitPath);
     }
 
     // Resolves the git dirs of a known working tree root
