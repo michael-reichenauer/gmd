@@ -5,8 +5,10 @@ namespace gmd.Common.Private;
 // Read and write objects to specified file as json text.
 interface IFileStore
 {
-    T Get<T>(string path);
-    T Set<T>(string path, Action<T> set);
+    T Get<T>(string path)
+        where T : new();
+    T Set<T>(string path, Action<T> set)
+        where T : new();
 }
 
 // Several gmd instances can share a file (~/.gmdconfig always, a repository's .gmdconfig when it is
@@ -26,12 +28,14 @@ class FileStore : IFileStore
     readonly Dictionary<string, object> cache = [];
 
     public T Get<T>(string path)
+        where T : new()
     {
         lock (cache)
             return cache.TryGetValue(path, out var cached) ? (T)cached : Read<T>(path);
     }
 
     public T Set<T>(string path, Action<T> set)
+        where T : new()
     {
         lock (cache)
         {
@@ -62,34 +66,28 @@ class FileStore : IFileStore
 
     // The file as it is now, which another instance may have written since this one last read it
     T Read<T>(string path)
+        where T : new()
     {
-        try
+        if (File.Exists(path))
         {
-            if (File.Exists(path))
+            var jsonResult = Result.Catch(() => File.ReadAllText(path));
+            if (jsonResult is not string json)
+                throw Asserter.FailFast($"Failed to read '{path}': {jsonResult.Error.Message}");
+            if (Deserialize<T>(json, out var why) is T state)
             {
-                var jsonResult = Result.Catch(() => File.ReadAllText(path));
-                if (jsonResult is not string json)
-                    throw Asserter.FailFast(jsonResult.Error.Message);
-                if (Deserialize<T>(json, out var why) is T state)
-                {
-                    cache[path] = state;
-                    return state;
-                }
-
-                var asidePath = path + UnreadableSuffix;
-                if (Result.Catch(() => File.Move(path, asidePath, overwrite: true)) is Error e)
-                    throw Asserter.FailFast($"Failed to set aside unreadable '{path}': {e.Message}");
-                Log.Warn($"'{path}' could not be read, so it was set aside as '{asidePath}' and started anew: {why}");
+                cache[path] = state;
+                return state;
             }
 
-            var initial = (T)Activator.CreateInstance(typeof(T))!;
-            Write(path, initial);
-            return initial;
+            var asidePath = path + UnreadableSuffix;
+            if (Result.Catch(() => File.Move(path, asidePath, overwrite: true)) is Error e)
+                throw Asserter.FailFast($"Failed to set aside unreadable '{path}': {e.Message}");
+            Log.Warn($"'{path}' could not be read, so it was set aside as '{asidePath}' and started anew: {why}");
         }
-        catch (Exception e)
-        {
-            throw Asserter.FailFast($"Failed to read '{path}': {e.Message}");
-        }
+
+        var initial = new T();
+        Write(path, initial);
+        return initial;
     }
 
     // Null for text that is not json of the type, an empty file included, with why in 'why'

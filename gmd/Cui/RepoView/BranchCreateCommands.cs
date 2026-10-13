@@ -23,7 +23,7 @@ class BranchCreateCommands : IBranchCreateCommands
     readonly IStatusLine status;
     readonly IRepoView repoView;
     readonly IServer server;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
     readonly ICreateBranchDlg createBranchDlg;
     readonly IRenameBranchDlg renameBranchDlg;
     readonly IDeleteBranchDlg deleteBranchDlg;
@@ -34,7 +34,7 @@ class BranchCreateCommands : IBranchCreateCommands
         IStatusLine status,
         IRepoView repoView,
         IServer server,
-        IRepoConfig repoConfig,
+        IRepoConfigService repoConfig,
         ICreateBranchDlg createBranchDlg,
         IRenameBranchDlg renameBranchDlg,
         IDeleteBranchDlg deleteBranchDlg

@@ -81,7 +81,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly Func<IViewRepo, IRepoViewMenus> newMenuService;
     readonly Config config;
     readonly IUpdater updater;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
@@ -123,7 +123,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         Func<IViewRepo, IRepoViewMenus> newMenuService,
         Config config,
         IUpdater updater,
-        IRepoConfig repoConfig,
+        IRepoConfigService repoConfig,
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,

@@ -13,10 +13,10 @@ interface IConfigDlg
 class ConfigDlg : IConfigDlg
 {
     readonly Config config;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
     private readonly IUpdater updater;
 
-    internal ConfigDlg(Config config, IRepoConfig repoConfig, IUpdater updater)
+    internal ConfigDlg(Config config, IRepoConfigService repoConfig, IUpdater updater)
     {
         this.config = config;
         this.repoConfig = repoConfig;

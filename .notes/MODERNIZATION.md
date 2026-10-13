@@ -303,6 +303,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   it is never half written, and a write reads the file afresh, so two instances no longer drop each
   other's changes (the recent folders, a word added to the dictionary, the shown branches of a repo
   open twice). (2026-10-08)
+- The user config held its defaults until the UI was ready (`Config.Init`, in `MainView.OnReady`) or
+  something was set, so whatever read it earlier read the defaults, unnoticed: `gmd --update` checked
+  with the default `CheckUpdates` and no cached ETag. `Config` now loads the stored values when it is
+  created (`IConfigService.Load`, no more `Lazy` cycle between the two), and `CheckUpdates` turns off
+  only the checks gmd makes by itself, so `--update` and the update dialog look for a release even
+  so; the dialog used to say there was none. The reflective copy into the one `Config` instance
+  stays, as every class holds that instance. (2026-10-13)
 
 ---
 
@@ -474,8 +481,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
   `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both
   `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
-  `*RowService`; `[SingleInstance]` is matched by the attribute's name string and `FileStore` uses
-  `Activator.CreateInstance`; the vulnerability grep in `scripts/build` never fails the build,
+  `*RowService`; `[SingleInstance]` is matched by the attribute's name string; the vulnerability grep in `scripts/build` never fails the build,
   `scripts/log.bat` hard-codes one user's home, `scripts/installtools` sets `safe.directory` to
   `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`. (`run.bat`
   dropping its arguments was fixed when the scripts moved into `scripts/`, and `gmd_linux` and
@@ -492,16 +498,15 @@ Add new open issues and findings here as work lands; keep them short and drop th
   and 25 of 62 `Do(` bodies end in `Refresh(); return Result.Ok;` — a `CommandContext` and a
   `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
   first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
-  layout state inside the server model; `ConfigService` syncs a second `Config` by a reflective
-  property copy and `Config` has two constructors; static leftovers (`Build.IsWindows` assignable,
+  layout state inside the server model; static leftovers (`Build.IsWindows` assignable,
   `BranchService.remotePrefix`, `MessageDlg.Clicked`, `Updater`'s static task cache, the single
   `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
-  `ResentParentFolders`, `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
-  synchronous, `TipID` vs `TipId`, `RepoConfigImpl`); dead code (`exampleRunes.cs`, the commented
+  `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
+  synchronous, `TipID` vs `TipId`); dead code (`exampleRunes.cs`, the commented
   blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`, `TagService`,
   `BranchService`, `FileMonitor`, `WindowsClipboard`); 23 type names declared in both `gmd/Git` and
   `gmd/Server/Repo.cs`, some identical — share the leaf records only; no tests for
-  `ProgramCommands` and `Updater`, and `FakeGit` implements 12 of 76 members.
+  `Updater`, and `FakeGit` implements 12 of 76 members.
 - Not recommended: removing the one-implementation interfaces (they are the DI and test-double
   seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
 

@@ -9,8 +9,8 @@ namespace gmdTest;
 // command goes through gmd.Utils.Cmd, which logs, and ConfigLogger's static constructor
 // TRUNCATES ~/gmd.log the first time anything in the process logs at all. So 'scripts/test' wiped the
 // log that 'scripts/log' exists to read, which is exactly when a developer is most likely to be
-// reading it. The same redirect also covers ~/.gmdconfig and ~/.gmdstate*, should a test ever
-// reach the services that write those.
+// reading it. The same redirect also covers ~/.gmdconfig, should a test ever reach the service
+// that writes it.
 //
 // This is the same move TmuxSession makes for the gmd it starts, applied to the test process
 // itself: gmd anchors all of its state on SpecialFolder.UserProfile with no override, and on

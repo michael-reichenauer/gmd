@@ -116,10 +116,10 @@ class MetaDataService : IMetaDataService
 {
     const string metaDataKey = "data";
     readonly IGit git;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
     readonly SemaphoreSlim changing = new(1, 1);
 
-    internal MetaDataService(IGit git, IRepoConfig repoConfig)
+    internal MetaDataService(IGit git, IRepoConfigService repoConfig)
     {
         this.git = git;
         this.repoConfig = repoConfig;

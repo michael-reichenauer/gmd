@@ -19,9 +19,9 @@ interface IViewRepoCreater
 class ViewRepoCreater : IViewRepoCreater
 {
     readonly IViewRepoConverter converter;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
 
-    internal ViewRepoCreater(IViewRepoConverter converter, IRepoConfig repoConfig)
+    internal ViewRepoCreater(IViewRepoConverter converter, IRepoConfigService repoConfig)
     {
         this.converter = converter;
         this.repoConfig = repoConfig;

@@ -1,4 +1,3 @@
-using gmd.Common;
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmd.Cui.RepoView;
@@ -18,7 +17,6 @@ partial class MainView : IMainView
     readonly IRepoView repoView;
     readonly IStartView startView;
     readonly IGit git;
-    readonly Config config;
     readonly ISpellChecker spellChecker;
     readonly IAskpassServer askpassServer;
     readonly ILoginDlg loginDlg;
@@ -31,7 +29,6 @@ partial class MainView : IMainView
         IRepoView repoView,
         IStartView startView,
         IGit git,
-        Config config,
         ISpellChecker spellChecker,
         IStatusLine statusLine,
         IAskpassServer askpassServer,
@@ -43,7 +40,6 @@ partial class MainView : IMainView
         this.repoView = repoView;
         this.startView = startView;
         this.git = git;
-        this.config = config;
         this.spellChecker = spellChecker;
         this.askpassServer = askpassServer;
         this.loginDlg = loginDlg;
@@ -99,8 +95,7 @@ partial class MainView : IMainView
     void OnReady()
     {
         Threading.SetUp();
-        config.Init();
-        spellChecker.WarmUp(); // Loads the dictionary, with the user's words from the config just read
+        spellChecker.WarmUp(); // Loads the dictionary, with the user's words from the config
 
         // From now on what git asks is asked in a dialog, before the first fetch of a repo is started
         askpassServer.Start(loginDlg.AskAsync);
