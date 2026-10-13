@@ -664,15 +664,10 @@ public class BranchTest
         gmd.WaitForStable();
         gmd.Send("E");
 
+        // Said on the status line, as the merge the other way says it, not in a box to dismiss
         Assert.AreEqual(
-            """
-                                                   ╭ Merge ─────────────────────────────────╮
-                                                   │'main' is already up to date with 'dev'.│
-                                                   │                                        │
-                                                   │                [◦ OK ◦]                │
-                                                   ╰────────────────────────────────────────╯
-            """,
-            ScreenText.Rows(gmd.WaitFor("already up to date"), repo.Path, 17, 5)
+            "Nothing to merge: 'main' is already up to date with 'dev'",
+            ScreenText.LastLine(gmd.WaitFor("Nothing to merge"))
         );
 
         // Left on the branch it started on, with nothing committed anywhere
