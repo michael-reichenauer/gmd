@@ -307,7 +307,8 @@ folder on your `PATH`.
 ### Updating
 
 Gmd checks for new releases every hour and shows ⇓ in its top bar when there is one. Click it,
-or pick **Update to Latest Version** at the top of the menu. From the command line, run:
+or pick **Update to Gmd <version> ...**, in green at the top of the menu and of the start page.
+From the command line, run:
 
 ```bash
 gmd --update

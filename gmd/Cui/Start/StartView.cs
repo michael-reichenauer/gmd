@@ -183,21 +183,12 @@ class StartView : IStartView
         if (page == null || pageSize != (view.ContentWidth, view.ContentHeight))
         {
             pageSize = (view.ContentWidth, view.ContentHeight);
-            page = StartRows.Of(repos, NewVersion(), pageSize.Width, pageSize.Height);
+            page = StartRows.Of(repos, config.Releases.UpdateVersion(), pageSize.Width, pageSize.Height);
         }
         return page;
     }
 
     (int Width, int Height) pageSize;
-
-    // The version there is to update to, or "" when there is none
-    string NewVersion()
-    {
-        var releases = config.Releases;
-        return releases.IsUpdateAvailable() && Version.TryParse(releases.LatestVersion, out var latest)
-            ? latest.Txt()
-            : "";
-    }
 
     // The selected item, found again by what it is when the page was laid out anew, or the first
     StartItem Selected(StartPage page)

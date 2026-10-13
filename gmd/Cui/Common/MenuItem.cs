@@ -13,6 +13,10 @@ record MenuItem(string Text, string Shortcut, Action Action, Func<bool>? CanExec
     // A second text after the item's own, drawn dark and lined up across the items that have one,
     // such as a repository's path after its name. Cut first when the menu is too narrow for both.
     public string Detail { get; init; } = "";
+
+    // The color of the text, white unless given, such as the green of the offer of a new version,
+    // which is green on the start page too. A greyed out item is dark whatever this is.
+    public Color? TextColor { get; init; }
 }
 
 // To create a sub menu

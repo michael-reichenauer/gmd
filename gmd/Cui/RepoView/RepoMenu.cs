@@ -147,13 +147,19 @@ class RepoMenu : IRepoMenu
             .Item($"Abort {name}", "", () => cmds.AbortOperation());
     }
 
-    public IEnumerable<MenuItem> GetNewReleaseItems()
+    public IEnumerable<MenuItem> GetNewReleaseItems() =>
+        NewReleaseItems(config.Releases.UpdateVersion(), () => cmds.UpdateRelease());
+
+    // The offer of a new version, as the start page makes it: under 'Update available', and green.
+    // None when there is no new version, i.e. "".
+    internal static IEnumerable<MenuItem> NewReleaseItems(string updateVersion, Action update)
     {
-        if (!config.Releases.IsUpdateAvailable())
+        if (updateVersion == "")
             return Menu.Items;
+
         return Menu
-            .Items.Separator("New Release Available !!!")
-            .Item("Update to Latest Version", "", () => cmds.UpdateRelease())
+            .Items.Separator("Update available")
+            .Item(new MenuItem($"Update to Gmd {updateVersion} ...", "", update) { TextColor = Color.BrightGreen })
             .Separator();
     }
 

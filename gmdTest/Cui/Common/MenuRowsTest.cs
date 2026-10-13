@@ -132,6 +132,30 @@ public class MenuRowsTest
         Assert.AreEqual("|web-shop    2|", Picture(items, "Open", screenWidth: 14).Split('\n')[1]);
     }
 
+    // An item can have a color of its own, as the offer of a new version is green, unless it is
+    // greyed out, which is dark like any other
+    [TestMethod]
+    public void TestAnItemIsDrawnInItsOwnColorUnlessGreyedOut()
+    {
+        List<MenuItem> items =
+        [
+            Item("Update") with
+            {
+                TextColor = Color.BrightGreen,
+            },
+            Item("Greyed") with
+            {
+                TextColor = Color.BrightGreen,
+                IsDisabled = true,
+            },
+        ];
+
+        var rows = Rows(items, "T");
+
+        Assert.AreEqual(Color.BrightGreen, rows[0].Fragments[0].Color);
+        Assert.AreEqual(Color.Dark, rows[1].Fragments[0].Color);
+    }
+
     static List<MenuItem> Mixed =>
         [
             Item("One", "a"),

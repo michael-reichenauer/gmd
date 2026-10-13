@@ -73,6 +73,10 @@ public class Releases
         }
         return v1 > v2;
     }
+
+    // The version there is to update to, as gmd writes a version, or "" when there is none
+    public string UpdateVersion() =>
+        IsUpdateAvailable() && Version.TryParse(LatestVersion, out var latest) ? latest.Txt() : "";
 }
 
 // Some Config utility functions, these are not part of the Config class because Config

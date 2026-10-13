@@ -583,6 +583,25 @@ public class MenuItemsTest
         Assert.AreEqual("", Items(RepoMenuOf(await ViewOf(Fixture())).GetNewReleaseItems()));
     }
 
+    // A new version is offered as on the start page: under 'Update available', in green. Built from
+    // the version alone, since a test run never has one to offer (a Debug build is a dev instance).
+    [TestMethod]
+    public void TestANewReleaseIsOfferedUnderAHeadingInGreen()
+    {
+        var items = RepoMenu.NewReleaseItems("1.5.1450.12", () => { }).ToList();
+
+        Assert.AreEqual(
+            """
+            --- Update available ---
+            Update to Gmd 1.5.1450.12 ...
+            ---
+            """,
+            Items(items)
+        );
+        Assert.AreEqual(Color.BrightGreen, items[1].TextColor);
+        Assert.AreEqual("", Items(RepoMenu.NewReleaseItems("", () => { })));
+    }
+
     // One line per item: the text, its shortcut, and '(disabled)' where the menu would grey it out.
     // Mirrors the rule in Menu.Show, which is IsDisabled, CanExecute and an empty sub menu.
     static string Items(IEnumerable<MenuItem> items) =>
