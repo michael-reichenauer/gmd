@@ -419,12 +419,11 @@ class BranchCommands : IBranchCommands
         Do(async () =>
         {
             var cb = repo.Repo.CurrentBranch();
-            if (cb.RemoteName != "")
-            {
-                var rcb = repo.Repo.BranchByName[cb.RemoteName];
-
-                if (cb.TipId == rcb.TipId && rcb.BottomId == rcb.TipId) { }
-            }
+            if (WhyNotRebaseAndPush(repo.Repo, cb) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+            var ontoName = repo.Repo.BranchByName.TryGetValue(onto, out var b) ? b.NiceNameUnique : onto;
+            if (cb.RemoteName != "" && !Confirm.RebaseAndPush(cb.NiceNameUnique, ontoName, cb.RemoteName))
+                return Result.Ok;
 
             if (await server.RebaseBranchAsync(repo.Repo, onto) is Error e)
                 return new Error($"Failed to rebase branch {onto}", e);
@@ -432,6 +431,14 @@ class BranchCommands : IBranchCommands
             Refresh();
             return Result.Ok;
         });
+
+    // A rebased branch that is on origin is pushed with force, leased on origin's tip as shown, so a
+    // commit origin has and the branch has not would be dropped from origin: the fetch that brought
+    // it in moved the lease along with it. Such commits are pulled first. "" when it can be rebased.
+    internal static string WhyNotRebaseAndPush(Repo repo, Branch current) =>
+        current.RemoteName != "" && current.BehindCount > 0
+            ? $"'{current.RemoteName}' has commits '{current.NiceNameUnique}' has not, which the push would drop: pull them first"
+            : "";
 
     public void DiffBranchesBranch(string branchName1, string branchName2) =>
         Do(async () =>

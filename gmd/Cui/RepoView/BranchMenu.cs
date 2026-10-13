@@ -215,6 +215,8 @@ class BranchMenu : IBranchMenu
                 whyNot: () =>
                     !isCurrent ? "Only the current branch is rebased: switch to it first"
                     : !isStatusOK ? Why.Changes
+                    : BranchCommands.WhyNotRebaseAndPush(repo.Repo, repo.Repo.CurrentBranch()) is var why && why != ""
+                        ? why
                     : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
             )
             .Item("Hide Branch", "h", () => cmds.HideBranch(branchName))
@@ -413,6 +415,8 @@ class BranchMenu : IBranchMenu
         var sb = selectedBranch;
         var isCurrent = sb.IsCurrent || sb.IsLocalCurrent;
         if (!repo.Repo.Status.IsOk || !isCurrent)
+            return Menu.Items;
+        if (BranchCommands.WhyNotRebaseAndPush(repo.Repo, repo.Repo.CurrentBranch()) != "")
             return Menu.Items;
 
         var primaryBranch = repo.Repo.ViewBranches.First(b => b.Name == sb.PrimaryName);
