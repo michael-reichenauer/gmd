@@ -83,7 +83,8 @@ class ApplicationBar : View, IApplicationBar
             .ForEach(i => items.Add(Common.Text.Empty));
         items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta(" Gmd ");
         items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
-        items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
+        // The search only once there is a repo to search, i.e. not on the start page, see SetRepo
+        items[(int)ApplicationBarItem.Search] = Common.Text.Empty;
         items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
         items[(int)ApplicationBarItem.Close] = Common.Text.White("X");
 
@@ -179,6 +180,7 @@ class ApplicationBar : View, IApplicationBar
         items[(int)ApplicationBarItem.Stash] =
             stashCount > 0 ? Common.Text.Dark(", ").White("ß").Dark($"{stashCount}") : Common.Text.Empty;
         items[(int)ApplicationBarItem.Worktrees] = GetWorktrees(repo);
+        items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
         UpdateView();
     }
 

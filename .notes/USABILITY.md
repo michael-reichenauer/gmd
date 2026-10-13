@@ -499,8 +499,8 @@ all of it fixed since (Tier 1 below):
   - `1` opens help, `5` sets a commit's branch by hand, and `y` goes to the current branch.
 - **Starting outside a repository is unexplained.** A "Recent Repos" menu opens with no word on why.
   With no recent repositories it starts with a bare separator. *Superseded (2026-10-13):* a start
-  page replaced the menu; it says the folder is not a repository, numbers the repositories to open
-  and explains each action to someone who has opened none.
+  page replaced the menu; it numbers the repositories to open, and explains each action to someone
+  who has opened none.
 
 ### 3. Consistency: the same key or word should mean the same thing
 

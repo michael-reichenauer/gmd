@@ -15,8 +15,8 @@ namespace gmdE2eTest.Cui;
 [TestClass]
 public class MainViewTest
 {
-    // Someone who has not opened a repository yet is told why the page is shown and what each
-    // action does, and the first action is selected, so Enter does something
+    // Someone who has not opened a repository yet is told what each action does, and the first one
+    // is selected, so Enter does something. No search in the bar, there being nothing to search.
     [TestMethod]
     public void TestTheStartPageForSomeoneNew()
     {
@@ -25,25 +25,23 @@ public class MainViewTest
 
         ScreenText.AssertEqual(
             """
-             Gmd                                                                                                     [Ϙ Search] ? X
+             Gmd                                                                                                                ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-                                  Gmd · a Git client where you choose which branches are shown
-                                  ~/Downloads is not a git repository
-
-                                ▸ o  Open a folder ...            browse to a repository on this computer
-                                  c  Clone a repository ...       copy one from GitHub or another server
-                                  i  Init a repository here ...   start a new one in ~/Downloads
-                                  ?  Help                         how to read the log, in the browser
-                                  a  About                        the version, and where to report a problem
-                                  q  Quit
+                                  ▸ o  Open a folder ...        browse to a repository on this computer
+                                    c  Clone a repository ...   copy one from GitHub or another server
+                                    i  Init a repository ...    start a new, empty one
+                                    ?  Help                     how to read the log, in the browser
+                                    a  About                    the version, and where to report a problem
+                                    q  Quit
             """,
             gmd.WaitFor("Quit")
         );
     }
 
     // The recent repositories that are still repositories, most recent first, then the ones in the
-    // folder gmd was started in that are not recent ones, numbered on from them, and no dot folder
+    // folder gmd was started in that are not recent ones, numbered on from them, and no dot folder,
+    // then the actions under a line
     [TestMethod]
     public void TestTheStartPageListsTheRepositories()
     {
@@ -59,26 +57,24 @@ public class MainViewTest
 
         ScreenText.AssertEqual(
             """
-             Gmd                                                                                                     [Ϙ Search] ? X
+             Gmd                                                                                                                ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-                                         Gmd · a Git client where you choose which branches are shown
-                                         ~/code is not a git repository
+                                                         Recent repositories
+                                                       ▸ 1  web-shop  ~/code/web-shop
+                                                         2  dotfiles  ~/dotfiles
 
-                                         Recent repositories
-                                       ▸ 1  web-shop  ~/code/web-shop
-                                         2  dotfiles  ~/dotfiles
+                                                         Repositories in ~/code
+                                                         3  api       ~/code/api
+                                                         4  gmd       ~/code/gmd
 
-                                         Repositories in ~/code
-                                         3  api       ~/code/api
-                                         4  gmd       ~/code/gmd
-
-                                         o  Open a folder ...
-                                         c  Clone a repository ...
-                                         i  Init a repository in ~/code ...
-                                         ?  Help
-                                         a  About
-                                         q  Quit
+                                                         ────────────────────────────
+                                                         o  Open a folder ...
+                                                         c  Clone a repository ...
+                                                         i  Init a repository ...
+                                                         ?  Help
+                                                         a  About
+                                                         q  Quit
             """,
             gmd.WaitFor("Quit")
         );
@@ -241,7 +237,7 @@ public class MainViewTest
         var home = Home();
         var downloads = In(home, "Downloads");
         using var gmd = TmuxSession.StartGmd(home, downloads);
-        StringAssert.Contains(gmd.WaitFor("Quit"), "i  Init a repository here ...   start a new one in ~/Downloads");
+        StringAssert.Contains(gmd.WaitFor("Quit"), "i  Init a repository ...    start a new, empty one");
 
         gmd.Send("i");
         gmd.WaitFor("Init Repo");
@@ -321,21 +317,22 @@ public class MainViewTest
         Assert.IsTrue(gmd.IsRunning, "A click beside the items should not quit gmd");
     }
 
-    // -m shows the page inside a repository too, which is then not said to be no repository
+    // -m shows the page inside a repository too, and Init proposes no folder inside it, nesting a
+    // repository being seldom meant
     [TestMethod]
     public async Task TestTheStartPageInsideARepository()
     {
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo.Path, extraArgs: "-m");
+        gmd.WaitFor("Quit");
 
-        var screen = gmd.WaitFor("Quit");
+        gmd.Send("i");
 
-        Assert.IsFalse(screen.Contains("is not a git repository"), screen);
-        StringAssert.Contains(screen, "i  Init a repository ...");
+        StringAssert.Contains(gmd.WaitFor("Init Repo"), "│ Path:              ");
     }
 
-    // On a small terminal the page leaves out the title and the line saying why it is shown, and
-    // lists fewer repositories, rather than putting the actions out of sight
+    // On a small terminal the page leaves out its spacing and lists fewer repositories, rather than
+    // putting the actions out of sight
     [TestMethod]
     public void TestASmallTerminalKeepsTheActionsInSight()
     {
@@ -350,7 +347,6 @@ public class MainViewTest
         StringAssert.Contains(screen, "▸ 1  recent01");
         StringAssert.Contains(screen, "… and 9 more");
         StringAssert.Contains(screen, "q  Quit");
-        Assert.IsFalse(screen.Contains("a Git client"), screen);
     }
 
     // A home with the repositories given, as '.git' folders, and a 'Downloads' folder with none

@@ -111,12 +111,9 @@ class StartPage
     }
 }
 
-// Lays out the start page, the view gmd shows when it is started outside a repository: what it is,
-// why this page is shown, the repositories to open, each with the number key that opens it, and
-// the actions, each with its letter key.
-//
-//      Gmd · a Git client where you choose which branches are shown
-//      ~/Downloads is not a git repository
+// Lays out the start page, the view gmd shows when it is started outside a repository: the
+// repositories to open, each with the number key that opens it, and the actions, each with its
+// letter key, under a line.
 //
 //      Recent repositories
 //    ▸ 1  gmd          ~/code/gmd
@@ -125,6 +122,7 @@ class StartPage
 //      Repositories in ~/Downloads
 //      3  scratch      ~/Downloads/scratch
 //
+//      ──────────────────────────────────
 //      o  Open a folder ...
 //      c  Clone a repository ...
 //      ...
@@ -141,12 +139,20 @@ static class StartRows
     const int minExplainWidth = 12;
     const int shortListCount = 3;
 
-    // No version in the title, which About has: its length would move the centered page, and so every
-    // picture of it, whenever the version gained a digit
-    const string tagline = "a Git client where you choose which branches are shown";
+    // The actions, and what each does, said to someone who has not opened a repository with gmd
+    // before. Init proposes a folder in its dialog, where it can be changed, so it is named there.
+    static readonly IReadOnlyList<(StartAction Action, string Label, string Explanation)> Actions =
+    [
+        (StartAction.OpenFolder, "Open a folder ...", "browse to a repository on this computer"),
+        (StartAction.Clone, "Clone a repository ...", "copy one from GitHub or another server"),
+        (StartAction.Init, "Init a repository ...", "start a new, empty one"),
+        (StartAction.Help, "Help", "how to read the log, in the browser"),
+        (StartAction.About, "About", "the version, and where to report a problem"),
+        (StartAction.Quit, "Quit", ""),
+    ];
 
     // How much of the page is kept
-    record Fit(bool IsSpaced, bool IsTitle, bool IsWhy, int MaxRecent, int MaxInFolder);
+    record Fit(bool IsSpaced, int MaxRecent, int MaxInFolder);
 
     public static StartPage Of(StartRepos repos, string newVersion, int width, int height)
     {
@@ -161,27 +167,20 @@ static class StartRows
         return page!;
     }
 
-    // All of the page, then less of it: first the spacing and the title, then the line saying why
-    // the page is shown, then the repositories beyond the first few, the ones in the folder first.
-    // Whatever is still too tall scrolls.
+    // All of the page, then less of it: first the spacing, then the repositories beyond the first
+    // few, the ones in the folder first. Whatever is still too tall scrolls.
     static IEnumerable<Fit> Fits()
     {
-        var all = new Fit(true, true, true, int.MaxValue, int.MaxValue);
-        var dense = all with { IsSpaced = false, IsTitle = false };
+        var all = new Fit(true, int.MaxValue, int.MaxValue);
+        var dense = all with { IsSpaced = false };
         yield return all;
         yield return dense;
         yield return dense with
         {
-            IsWhy = false,
-        };
-        yield return dense with
-        {
-            IsWhy = false,
             MaxInFolder = shortListCount,
         };
         yield return dense with
         {
-            IsWhy = false,
             MaxInFolder = shortListCount,
             MaxRecent = shortListCount,
         };
@@ -192,6 +191,7 @@ static class StartRows
         List<Text> rows = [];
         List<int> rowItems = [];
         List<StartItem> items = [];
+        var lineRow = -1;
 
         void Line(Text text)
         {
@@ -210,11 +210,6 @@ static class StartRows
             items.Add(item);
         }
 
-        Blank();
-        if (fit.IsTitle)
-            Line(Indented(Text.BrightMagenta("Gmd").Dark($" · {tagline}"), width));
-        if (fit.IsWhy && !repos.IsFolderInRepo)
-            Line(Indented(Text.White(CutStart(repos.ShownFolder, width / 2)).Dark(" is not a git repository"), width));
         if (newVersion != "")
         { // Never left out, since a new version is said nowhere else on the page but the bar's ⇓
             Blank();
@@ -254,13 +249,17 @@ static class StartRows
             repos.InFolder.Count - inFolder.Count + repos.MoreInFolder
         );
 
-        // The actions, said what they do to someone who has not opened a repository with gmd before
+        // The actions, under a line that sets them apart from what is above them, if anything is
         Blank();
+        if (items.Any())
+        {
+            lineRow = rows.Count;
+            Line(Text.Empty); // Drawn below, as wide as the rest of the page
+        }
         var isExplained = !repos.Recent.Any();
-        var actions = Actions(repos, isExplained, width);
-        var explainX = labelX + actions.Max(a => a.Label.Length) + 3;
+        var explainX = labelX + Actions.Max(a => a.Label.Length) + 3;
         var explainWidth = width - explainX - 1;
-        foreach (var (action, label, explanation) in actions)
+        foreach (var (action, label, explanation) in Actions)
         {
             var text = Text.White(label);
             if (isExplained && explanation != "" && explainWidth >= minExplainWidth)
@@ -268,33 +267,13 @@ static class StartRows
             Item(new StartItem(action), ItemRow(new StartItem(action).Key, text, width));
         }
 
+        if (lineRow >= 0)
+        {
+            var lineWidth = rows.Max(r => r.Length) - indent;
+            rows[lineRow] = Indented(Text.BrightMagenta(new string('─', Math.Max(0, lineWidth))), width);
+        }
+
         return new StartPage(Centered(rows, width), rowItems, items);
-    }
-
-    static IReadOnlyList<(StartAction Action, string Label, string Explanation)> Actions(
-        StartRepos repos,
-        bool isExplained,
-        int width
-    )
-    {
-        // Init where gmd was started, said by name while that is short enough to read at a glance. Said
-        // beside it instead when the actions are explained, which keeps the explanations' column in.
-        var folder = repos.ShownFolder;
-        var isNamed = !isExplained && folder.Length <= 30 && labelX + 25 + folder.Length < width;
-        var (init, initExplained) =
-            repos.IsFolderInRepo || repos.Folder == "" ? ("Init a repository ...", "start a new, empty one")
-            : isNamed ? ($"Init a repository in {folder} ...", "")
-            : ("Init a repository here ...", $"start a new one in {folder}");
-
-        return
-        [
-            (StartAction.OpenFolder, "Open a folder ...", "browse to a repository on this computer"),
-            (StartAction.Clone, "Clone a repository ...", "copy one from GitHub or another server"),
-            (StartAction.Init, init, initExplained),
-            (StartAction.Help, "Help", "how to read the log, in the browser"),
-            (StartAction.About, "About", "the version, and where to report a problem"),
-            (StartAction.Quit, "Quit", ""),
-        ];
     }
 
     //     1  gmd          ~/code/gmd

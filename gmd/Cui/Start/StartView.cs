@@ -126,9 +126,6 @@ class StartView : IStartView
             case ApplicationBarItem.Close:
                 UI.Shutdown();
                 break;
-            case ApplicationBarItem.Search:
-                status.Notice("Search is for the log of a repository, open one first");
-                break;
         }
     }
 

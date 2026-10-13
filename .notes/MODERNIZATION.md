@@ -93,9 +93,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 - Merge the current branch *into* another branch (`E`, and `Merge to` in the branch menu).
 - A start page in place of the start menu (2026-10-13): what gmd shows outside a repository is a
-  page in the place of the log, saying why, listing the recent repositories and those in the folder
-  gmd was started in by name and `~/...` path, each opened by its number, with the actions on a
-  letter each and explained to someone new. Init, clone and browse start in that folder, and the
+  page in the place of the log, listing the recent repositories and those in the folder gmd was
+  started in by name and `~/...` path, each opened by its number, with the actions under a line, on
+  a letter each and explained to someone new. Init, clone and browse start in that folder, and the
   open menu (`o`) lists and numbers the repositories the same way.
 - Blame a file: runs of one commit bracketed in the gutter, age heat, drill-down with `P`.
 - Adjustable diff context per file (`+` / `-`: 6 → 15 → the whole file).
