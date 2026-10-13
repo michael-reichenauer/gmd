@@ -24,6 +24,7 @@ class CreateBranchDlg : ICreateBranchDlg
         var isPublishBox = dlg.AddCheckBox(1, 5, "Publish", isPublish);
 
         dlg.Validate(() => nameField.Text != "", "Empty branch name");
+        dlg.ValidateRefName(() => nameField.Text, "branch");
 
         if (!dlg.ShowOkCancel(nameField))
             return new Error();

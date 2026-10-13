@@ -133,6 +133,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
         };
 
         dlg.Validate(() => BranchText() != "", "Empty branch name");
+        dlg.ValidateRefName(BranchText, "branch", when: IsNew);
         dlg.Validate(
             () => !heldBranches.ContainsKey(BranchText()),
             $"The branch is already checked out in another worktree.\nGit allows a branch in one worktree only."

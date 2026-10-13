@@ -9,11 +9,6 @@ interface IRenameBranchDlg
 
 class RenameBranchDlg : IRenameBranchDlg
 {
-    // Characters and forms git refuses in a branch name (see 'git check-ref-format'). The name is
-    // also passed to git as part of an unquoted command line, so white space has to be rejected
-    // here rather than left to git.
-    static readonly char[] invalidChars = [' ', '\t', '~', '^', ':', '?', '*', '[', '\\'];
-
     public Result<string> Show(string branchName, bool hasRemote, IReadOnlyList<string> existingNames)
     {
         var dlg = new UIDialog("Rename Branch", 60, 9);
@@ -26,10 +21,10 @@ class RenameBranchDlg : IRenameBranchDlg
 
         dlg.Validate(() => name.Text != "", "Empty branch name");
         dlg.Validate(() => name.Text != branchName, "Same branch name");
-        dlg.Validate(() => IsValidName(name.Text), $"Invalid branch name:\n{name.Text}");
+        dlg.ValidateRefName(() => name.Text, "branch");
         dlg.Validate(
             () => !existingNames.Contains(name.Text) && !existingNames.Contains($"origin/{name.Text}"),
-            $"Branch already exists:\n{name.Text}"
+            "A branch of that name exists already"
         );
 
         if (!dlg.ShowOkCancel(name))
@@ -37,17 +32,4 @@ class RenameBranchDlg : IRenameBranchDlg
 
         return name.Text;
     }
-
-    internal static bool IsValidName(string name) =>
-        name != ""
-        && name.IndexOfAny(invalidChars) == -1
-        && !name.Contains("..")
-        && !name.Contains("@{")
-        && !name.Contains("//")
-        && !name.StartsWith('/')
-        && !name.EndsWith('/')
-        && !name.StartsWith('-')
-        && !name.StartsWith('.')
-        && !name.EndsWith('.')
-        && !name.EndsWith(".lock");
 }

@@ -35,6 +35,7 @@ class AddTagDlg : IAddTagDlg
         var push = canPush ? dlg.AddCheckBox(1, 10, "Push to origin", true) : null;
 
         dlg.Validate(() => name.Text != "", "Empty tag name");
+        dlg.ValidateRefName(() => name.Text, "tag");
 
         if (!dlg.ShowOkCancel(name))
             return new Error();
