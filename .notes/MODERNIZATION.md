@@ -65,6 +65,18 @@ Add new open issues and findings here as work lands; keep them short and drop th
   through (`FakeHttp`, and `LoopbackServer` for what HttpClient does with a slow or broken
   connection) and `RunningGmd` handing in the gmd to update, since the test process is a dotnet host.
   From no tests to 49. A real update of a running gmd was tried by hand on Linux arm64.
+- `gmd/Cui` reviewed (2026-10-13), by five reviewers in parallel and every finding checked against
+  the code before it was acted on: 32 commits, the bugs under Bugs fixed. Structure: the key-hint
+  line is `Cui/Common`'s (`KeyHint`, `KeyHintBar`, `KeyHintLine`) and each view's hints are beside
+  it (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`), which ends the diff, blame,
+  conflict and start views' dependency on `RepoView/` (the folders depended on each other); the
+  Cui `DiffService` / `BlameService` are `DiffRowService` / `BlameRowService`; rules that the
+  menus, the keys and the hints each had a copy of are one function each (`CommitRewrite.
+  WhyNotUncommit` / `WhyNotSquash`, `BranchCommands.WhyNotRebaseAndPush`, `BranchPushPullCommands.
+  CanPushBranch` / `CanPull`, `Selection.IsRows`, `RefName.IsValid`); and the index math that was
+  in views went beside them (`MenuDimensions.ItemAt`, `DiffRows.AnchorAt` / `IndexOf`,
+  `DiffRowService.CopyText`, `KeyGate`, `ContentView.ShowCurrentIndex`). Some 60 members nothing
+  used are gone. What is left, the structure included, is under Open issues.
 
 **The result type is a C# 15 union** (2026-09-11)
 
@@ -351,6 +363,45 @@ Add new open issues and findings here as work lands; keep them short and drop th
     of their tips, which a cherry pick, a rebase or another machine's clock gets wrong, and so merged
     the remote branch without the local commits. They go by git's ahead and behind counts now
     (`BranchWriteService.MergeTipName`).
+- Found by the review of `gmd/Cui` (2026-10-13), each with a regression test unless said:
+  - *Rebase and Push onto* pushed with force with no question, on an Enter in its sub menu, and its
+    lease, origin's tip as shown, let it drop commits someone else pushed once a fetch brought them.
+    It asks now, and refuses a branch origin has commits for that it has not
+    (`BranchCommands.WhyNotRebaseAndPush`).
+  - Saving the resolver with conflicts undecided staged the file, markers and all: git no longer
+    listed it as conflicted, so the diff did not offer it, and the reopened resolver had lost the
+    ancestor and the sides. A file is staged once nothing in it is undecided (`ConflictService.
+    ResolveAsync`). A file resolved by hand in an editor could only be overwritten with a side; it can
+    be marked resolved as it is.
+  - Gmd stopped on: a click in an empty menu; `m` (and clicks) after the log shrank under the cursor;
+    the key hints of a highlighted local branch once a fetch pruned origin's copy, with no key
+    pressed; *Uncommit … and Newer* on the first commit; a range *Cherry Pick* of rows of two
+    branches; Ctrl+C after a drag in the empty rows under a short log. A pool-thread race in the
+    progress timer could end the process as well (not reproduced).
+  - A click on a menu's title or bottom border ran the item next to it (the push menu's *Push All*,
+    say), and the pointer picked an item scrolled out of view. Esc on a question answered Yes when
+    a message box had been shown over it (`MessageDlg.Clicked`, a static).
+  - The keyboard stayed dead after a menu opened by a click while a background read ran was closed
+    once the read was done (`UI.EnableInput` put back what it found; `KeyGate` now).
+  - Create Branch, Add Tag and Add Worktree took a name with a space, which git took as two
+    arguments: `fix dev` made a branch `fix` at dev's tip and checked it out (`RefName.IsValid`).
+  - Keys and menus that disagreed with their hints or with each other: the branch menu's Push of the
+    current branch skipped the force push question `p` asks; Pull All was greyed out with any change
+    while Shift-U pulled the other branches; `b` on the uncommitted row, `d` and `m` with rows
+    selected and a branch highlighted, Shift-E on a branch held by another worktree, `d` on a branch
+    with changes, `c` in the diff of a commit, and Squash, Uncommit and a diverged push offered where
+    they then failed.
+  - Amend could not reword the last commit while there were changes; the commit dialog named the
+    newest commit's branch rather than the current one; a copy of an added file's lines kept the line
+    number gutter; Scroll to a file left the cursor in the file before; `+` / `-` in a file history
+    went back to the newest commit; Back in blame put the cursor off the screen; a click in the
+    resolver landed two rows high; the diff and the resolver scrolled sideways into blank space; the
+    log squeezed branch tips and tags into 6 columns, and dropped a branch rune from a graph cut to
+    fit; Clone into a browsed folder was undone by the next key in the uri; `gmd -d -m` took `-m`
+    for the folder; the large file question said 0 B. (The last three have no test.)
+  - Cancelled create and rename dialogs refreshed and fetched; Continue and Skip refreshed twice at
+    once on a new stop. The graph's column placement tested every pair twice, which was most of the
+    time of a refresh with all branches shown (3.2 of git's 4 s, not measured again).
 - Found by the review of `gmd/Installation` (2026-10-13), the updater:
   - An update over a link slower than about 8 Mbit/s always failed: the binary, some 100 MB, was read
     whole within HttpClient's 100 second timeout. It is streamed now, given up on only when nothing
@@ -411,8 +462,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
   binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
   no Ctrl+C: `i` and `Shift-I` copy them, as the commit menu's *Copy Commit Id* and *Copy Commit
   Message* do (2026-10-07).
-- `BlameView.ScrollToCommit` calls `SetCurrentIndex` before `ScrollToShowIndex`, which puts the
-  cursor on the last visible row rather than the target. Scroll first, then set the cursor.
 - `UILabel.Text`'s setter sizes the label from the text it is *replacing*, so a header that grows is
   clipped. `BlameView` works around it with `Width = Dim.Fill()`; the setter is the fix.
 - Pull all only considers shown branches; a hidden branch that is behind is neither pulled nor
@@ -437,7 +486,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
     that large, such a branch counts as absent: the record is listed, and git refuses the restore.
 - A repo with no commits still offers Uncommit (git refuses the reset). Ctrl+O is documented as
   activating OK but is bound nowhere; dialogs are accepted with Tab then Enter. The merge-from menu
-  lists only shown branches, so with only `main` shown it is an empty box.
+  lists only shown branches, so with only `main` shown it is an empty box (a click in it no longer
+  stops gmd).
 - Cosmetic and pinned by tests: a cut sid, author or time column carries no `┅` marker (the
   subject column does); a binary file is headed `Modified:`; `FileSize` never shows a fraction. (A
   staged added file used to be counted as modified, which stopped being cosmetic once discarding a
@@ -469,7 +519,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
     `diff.suppressBlankEmpty` set an empty context line, written as an empty line, ends the hunk.
     Reading by the counts would also be what a combined diff (`diff --cc`) needs.
   - Branch and tag names go to git unquoted. Git refuses a space and a backslash in a ref name,
-    but not a `"`, which would split the argument.
+    but not a `"`, which would split the argument. The dialogs that ask for a name refuse both
+    since the review of `gmd/Cui` (`RefName.IsValid`); a name git has from elsewhere is not checked.
 
 - Left by the review of `gmd/Utils` (2026-10-13):
   - 78 more `StartsWith` / `EndsWith` / `IndexOf` with a string and no `StringComparison` outside
@@ -485,7 +536,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - The timers of `Progress` and `MessageDlg` are `System.Threading.Timer`s that pulse a view and
     dereference `Application.MainLoop` on a thread pool thread. An exception there ends the process
     from `AppDomain.UnhandledException`, with no `Application.Shutdown`, so the terminal is left as
-    Terminal.Gui set it. Posting the pulse with `UI.AddTimeout` would keep it on the main loop.
+    Terminal.Gui set it. Posting the pulse with `UI.AddTimeout` would keep it on the main loop. (`Progress`'s read the marquee
+    field twice after its null check, against a `Stop` on the main loop; it reads it once now.)
   - A failure stops gmd with `Application.RequestStop()`, posted to the main loop
     (`UI.ShutdownFromAnyThread`), which ends the current toplevel: with a modal dialog open, maybe
     only the dialog. Not verified.
@@ -505,6 +557,58 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - An empty repo's branch is shown as `main` whatever its unborn HEAD is named
     (`AugmentedService.EmptyGitRepo`).
 
+- Left by the review of `gmd/Cui` (2026-10-13). The structure first:
+  - The command classes and menus are rebuilt with every snapshot of the repo: each `ShowRepo` (every
+    refresh, every show or hide, every key typed in the search) builds a `ViewRepo`, eight command
+    classes and three menus through Autofac, with the dialogs they take. So a command holds the repo
+    of when it was made, which is why `CommandRunner`, `MergeToBranch` and `MarkHiddenNewsSeen` have
+    to read `repoView.ViewRepo` again after a refresh, and `IViewRepo` doubles as a service locator
+    (`repo.Cmds`, `.BranchCmds`). Commands made once that read the current snapshot when they run,
+    with roadmap C's `CommandContext`, would end that class of bug. Roadmap C is worse than written:
+    eight classes, about 65 `Do` sites, and `IBranchCommands` is some 30 forwarders.
+  - `gmd/Cui` itself holds 41 files in one namespace: the graph (`Graph`, `GraphCreater`,
+    `GraphWriter`), 25 dialogs, their `*Rows`, the login, the worktrees, the main view and the bar.
+    Grouping them by feature, as Diff, Blame, Conflict and Start already are, would read better:
+    `Cui/Graphs/` (not `Graph/`, which as a namespace hides the `Graph` type in `gmd.Cui.RepoView`),
+    `Commits/` (CommitDlg, CommitFiles, CommitMessage, SquashDlg, AddStashDlg, CommitDetailsView),
+    `Branches/` (Create, Rename, Delete, SetBranch, FindBranch, RefNameValidation), `Tags/`,
+    `Recovery/` (LostWork*, DeletedBranch*, RestoreBranchDlg), `Worktrees/`, `Login/`, Clone and Init
+    into `Start/`, FilterDlg into `RepoView/`; MainView, ApplicationBar, About, Config, Update and
+    HelpPage stay. Pure movement, best done when no other branch is open on these files.
+    `CommitDlg` / `FindBranchDlg` / `ApplicationBar` still reach into `RepoView` (`IViewRepo`,
+    `BranchMenu.Initials`, `RepoWriter.WorktreeMarker`), the last folder cycle.
+  - `Cui/Common` is three things: the widget toolkit (ContentView, UIDialog and its views, Menu,
+    ListDlg, MessageDlg, the browse dialogs, Text, Color), app services (UI, Progress, StatusLine,
+    Confirm, BranchColorService, which needs the server's repo) and the spelling input helpers.
+    Splitting it is for the Terminal.Gui 2.x port, which it would make smaller: 19 of its 36 files
+    touch Terminal.Gui, 18 more outside it, nearly all of those through `Key`, `Dim` / `Pos` and
+    `Application.RequestStop`.
+  - `RepoView.cs` (870 lines) schedules refreshes (six entry points, two flags, two pending
+    changes), and a read that finishes after a newer one can show the older repo: a status read
+    started before a refresh and done after it, or a show by mouse during a refresh. A plain
+    `RepoRefresher` with a generation counter, testable with a fake server, would fix both. Not
+    reproduced.
+  - Keys, hints and menus each decide what is possible, and drift: most of what was fixed above. A
+    decision per key, used by `RepoViewInput` and `KeyHints` alike, would end it, as the shared
+    rules did for the ones fixed.
+  - `IDiffView` cannot be told what its source supports: line history (`git log -L`, which takes no
+    context) offers `+` / `-` and says the context changed; the diff of an uncommitted line from blame
+    offers commit and discard, and a discard leaves the blame stale. A `DiffSource` record (reload,
+    has context, can commit) in place of `DiffReload` would carry it.
+  - `Text` measures columns in UTF-16 units, so a CJK character or an emoji in a subject moves the
+    sid, author and time columns, and a cut can split a surrogate pair.
+  - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every
+    branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
+    the colors already. Not measured.
+  - Smaller: the diff's right-side line numbers after conflict markers are 3 low; the resolver's
+    result pane cannot be scrolled and its panes do not expand tabs; `b` there can move the cursor
+    to another conflict; a drag starts a row and a column after the press; `h` on main hides every
+    branch; `g` on main says nothing; Merge says nothing when already merged; Add Tag says the tag
+    failed when only its push did; the commit diff and blame are opened outside the command's `Do`;
+    `CommitFromMenu` and `AmendOlderCommit` keep a 100 ms `UI.AddTimeout` whose reason is unknown;
+    Init proposes the start folder, `~` when gmd is started there; `UIComboTextField` adds a `Leave`
+    handler per open and shows Terminal.Gui's context menu; `MoveToEndOfContent` leaves the view
+    3 rows full; `UnicodeSetsDlg` (dev only) shows wrong characters above U+FFFF and lists a set twice.
 - Left by the review of `gmd/Installation` (2026-10-13):
   - The Windows swap (rename the running exe aside, the new one in, back on failure, each rename
     tried five times) runs in the tests on Linux only, where any file can be renamed. Windows allows
@@ -570,8 +674,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **Performance** (measured 2026-09-26, see Findings)
 
 - The graph with all branches shown is now nearly all of such a refresh: 4 s for git's 5,900
-  branches, 9 s for kubernetes' 11,000. Of git's 4 s, `GraphCreater.SetBranchesXLocation` is 3.2 s
-  (each branch tested for overlap against every placed one), the sort by column 0.4 s (Sorter, whose
+  branches, 9 s for kubernetes' 11,000. Of git's 4 s, `GraphCreater.SetBranchesXLocation` was 3.2 s
+  (each branch tested for overlap against every branch, twice: since 2026-10-13 once, not measured
+  again; testing only the branches placed before it is the next step, nearly equivalent), the sort by column 0.4 s (Sorter, whose
   order of equal columns is the drawing), `SetGraph` 0.3 s. Only after the user asks for all branches
   (asked to confirm above 20), but then every refresh pays it.
 - Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
@@ -593,10 +698,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 - A, correctness, each with a regression test: `FileStore` (*done 2026-10-08:* the lost update, the
   unsynchronized cache, a malformed file); 13 `async void` handlers
-  (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
-  `IDiffService` / `IBlameService` are declared in both
-  `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
-  `*RowService`; the vulnerability grep in `scripts/build` never fails the build,
+  (`DiffView` ×6, `Menu` ×4, `BlameView` ×3, and `RepoView.RefreshAndCommit` posts an async lambda;
+  `MainView`'s are gone) whose exceptions bypass the result path (*done 2026-10-13:* the Cui
+  `IDiffService` / `IBlameService` twins of `gmd.Git`'s are `*RowService`); the vulnerability grep in `scripts/build` never fails the build,
   `scripts/log.bat` hard-codes one user's home, `scripts/installtools` sets `safe.directory` to
   `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`. (`run.bat`
   dropping its arguments was fixed when the scripts moved into `scripts/`, and `gmd_linux` and
@@ -614,13 +718,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
   first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
   layout state inside the server model; static leftovers (`Build.IsWindows` assignable,
-  `MessageDlg.Clicked`, the single
-  `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
+  `Menu.StatusLine`, set by MainView, the single
+  `UI.onActivated` slot; `MessageDlg.Clicked` is gone); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
   `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
   synchronous, `TipID` vs `TipId`, in `Git.Branch` and the augmented `WorkBranch` alike, and
-  `Status.IsMerging`, which is any operation in progress); dead code (`exampleRunes.cs`, the
-  commented blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`,
-  `FileMonitor`, `WindowsClipboard`); and `FakeGit` implements 12 of 76 members.
+  `Status.IsMerging`, which is any operation in progress); dead code (the
+  commented blocks in `UnicodeSetsDlg`, `ExceptionHandling`, `Cmd`, `FileMonitor`,
+  `WindowsClipboard`; `exampleRunes.cs` and `ConfigDlg`'s and `MainView`'s are gone); and `FakeGit` implements 12 of 76 members.
 - Not recommended: splitting `IServer` by area (decided 2026-10-13: every member is used and the
   command classes span the areas, so each would take several interfaces and couple no less);
   removing the one-implementation interfaces (they are the DI and test-double seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
@@ -716,7 +820,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (`TestRemoveWorktreeAndItsBranchFromTheDialog`, the `Kind    Branch` wait after `w`), and again
   not reproduced: a full rerun and 21 runs of the worktree tests were green. Once more on
   2026-09-24 (`TestStashPopBringsTheChangesBack`, message not captured), and green alone three
-  times, in an E2e rerun and in a full rerun. Recorded so nobody hunts a flake that is not biting.
+  times, in an E2e rerun and in a full rerun. Once more on 2026-10-13 (`TestPushATagFromTheList`, a
+  menu walk one item short right after a push, i.e. a key dropped while the refresh ran), green
+  alone three times. Recorded so nobody hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The end-to-end tests were about four of `scripts/test`'s four and a half minutes, nearly all waiting:
@@ -961,9 +1067,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   dialog's text field. `UI.RunDialog` makes whatever it runs modal. A modal toplevel is not made
   `Application.Top`, so the log view goes on redrawing underneath, followed by a redraw of the view
   over it; that is by design and is what a `Dialog` has always done.
-- `UI.EnableInput` captures and restores `RootKeyEvent`. If progress reaches zero while a dialog is
-  open, the restore puts back "swallow everything" and input is dead for good — keep the dialog
-  inside the command's `Do`.
+- Keys are dropped while git works (`UI.StopInput`), and a dialog takes them while it is open. A
+  dialog that put back, when it closed, the `RootKeyEvent` it found left the keyboard dead for good
+  once progress had ended while it was open, which a menu opened by a click during a background read
+  did; whether keys are dropped is decided afresh at every change now (`KeyGate`, 2026-10-13).
 - `Application.Begin` brings the subview holding the focus to the front of the toplevel
   (`EnsuresTopOnFront`), so a view added to `Application.Top` after the main view — the progress
   marquee — is behind it once any dialog has run. `Progress.Activated` fronts it again, and only once
@@ -979,8 +1086,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   initializer form. `Text.ToLine(width)` repeats the first character,
   `Subtext(…, isFillRest: true)` pads. There is no `Key` for `+` / `-` / `=`; cast the ascii code.
   `Y = -1` on a dialog means "as high as possible", and a `Dialog` given no position is centered.
-- `ContentScroll` never clamps a cursor the content shrank past, so a reload restores it. Calling
-  `SetCurrentIndex` before `ScrollToShowIndex` applies the scroll delta to the cursor twice.
+- `ContentScroll` never clamps a cursor the content shrank past, so a reload restores it; read the
+  row through `IViewRepo.CurrentIndex`, which is clamped, never the view's (`m` stopped gmd on it).
+  Calling `SetCurrentIndex` before `ScrollToShowIndex` applies the scroll delta to the cursor twice,
+  hence `ContentView.ShowCurrentIndex`, which does both in the right order.
 - The highlight and selection are drawn on the columns after the graph only, and a highlighted row
   colors its spaces where an ordinary one does not. Read color snapshots with that in mind.
 - `Program.Main` resolves the DI graph before `Application.Init()`, so no constructor may touch
