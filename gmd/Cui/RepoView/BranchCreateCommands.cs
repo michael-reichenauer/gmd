@@ -104,10 +104,16 @@ class BranchCreateCommands : IBranchCreateCommands
             }
         });
 
+    // The uncommitted row is no commit to start a branch at, which the menu and the hints say, and
+    // 'b' asked for a name and then failed in git
+    public const string NoCommitToStartAt = "A branch starts at a commit: move to one first";
+
     public void CreateBranchFromCommit() =>
         Do(async () =>
         {
             var commit = repo.RowCommit;
+            if (commit.IsUncommitted)
+                return new Notice(NoCommitToStartAt);
             return await CreateBranchAtAsync(commit.BranchName, commit.Id, "", true);
         });
 

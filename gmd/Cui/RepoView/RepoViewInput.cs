@@ -168,10 +168,17 @@ class RepoViewInput
         Menus.ShowOpenBranchMenu(x + 2, MenuY(index));
     }
 
+    // Selected rows go first, as the key hints say, then a highlighted branch: with both, 'd' opened
+    // the branch's diff menu while the hints offered the diff of the rows
     void OnKeyD()
     {
-        if (hoover.IsBranch)
+        if (hoover.IsBranch && !commitsView.Selection.IsRows)
         {
+            if (!ServerRepo.Status.IsOk)
+            { // The branch diff menu lists nothing then, see BranchMenu.GetBranchDiffItems
+                status.Notice(Why.Changes);
+                return;
+            }
             Menus.ShowDiffBranchToMenu(hoover.ColumnIndex + 2, MenuY(hoover.RowIndex), hoover.BranchName);
             return;
         }
@@ -303,10 +310,16 @@ class RepoViewInput
         }
 
         // A branch git no longer has would be recreated by the checkout, so it is not offered,
-        // exactly as in the branch menu
+        // exactly as in the branch menu, nor one checked out in another worktree, which git refuses
+        // to check out here
         if (!branch.IsGitBranch)
         {
             status.Notice($"'{branch.NiceNameUnique}' no longer exists, so nothing can be merged into it");
+            return;
+        }
+        if (ServerRepo.WorktreePathOf(branch) != "")
+        {
+            status.Notice(Why.InWorktree(branch));
             return;
         }
 
@@ -398,7 +411,7 @@ class RepoViewInput
 
     void OnMenu()
     {
-        if (hoover.IsBranch)
+        if (hoover.IsBranch && !commitsView.Selection.IsRows)
         {
             var branch = Repo
                 .Graph.GetRowBranches(Repo.CurrentIndex)

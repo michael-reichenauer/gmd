@@ -3,6 +3,9 @@ namespace gmd.Cui.Common;
 record class Selection(int X1, int I1, int X2, int I2, int InitialIndex)
 {
     public bool IsEmpty => X1 == X2 && I1 == I2;
+
+    // Several rows, which is what a range diff, a squash or a copy of commits act on
+    public bool IsRows => I2 > I1;
 }
 
 // The selected region of a ContentView: the selected rows, and the selected columns of the row

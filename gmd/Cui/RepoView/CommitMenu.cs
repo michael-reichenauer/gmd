@@ -75,7 +75,7 @@ class CommitMenu : ICommitMenu
                 "b",
                 () => repo.BranchCmds.CreateBranchFromCommit(),
                 () => !c.IsUncommitted,
-                () => "A branch starts at a commit: move to one first"
+                () => BranchCreateCommands.NoCommitToStartAt
             )
             .Item(
                 $"Merge Commit into {cb?.ShortNiceUniqueName()}",

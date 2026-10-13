@@ -41,7 +41,7 @@ static class KeyHints
 
     public static IReadOnlyList<KeyHint> For(IViewRepo repo, Hoover hoover, Selection selection, bool isDetailsShown)
     {
-        if (selection.I2 > selection.I1)
+        if (selection.IsRows)
             return ForSelectedRows();
 
         return hoover.IsBranch ? ForBranch(repo, hoover) : ForCommit(repo, isDetailsShown);
