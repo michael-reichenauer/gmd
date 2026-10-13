@@ -6,7 +6,6 @@ namespace gmd.Server.Private.Augmented.Private;
 
 public class MetaData
 {
-    //public Dictionary<string, string> CommitBranchBySid { get; set; } = new Dictionary<string, string>();
     public Dictionary<string, string> CommitBranchBySid { get; set; } = [];
 
     internal void SetCommitBranch(string sid, string branchName)
@@ -145,14 +144,6 @@ class MetaDataService : IMetaDataService
         return Result.Catch(() =>
             JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value")
         );
-    }
-
-    public async Task<Result> SetMetaDataAsync(string path, MetaData metaData)
-    {
-        using (await LockAsync())
-        {
-            return await WriteMetaDataAsync(path, metaData);
-        }
     }
 
     // Changes the latest metadata and writes it

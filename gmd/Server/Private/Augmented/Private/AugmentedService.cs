@@ -4,11 +4,9 @@ using GitStatus = gmd.Git.Status;
 
 namespace gmd.Server.Private.Augmented.Private;
 
-// AugmentedRepoService returns augmented repos of git repo information, The augmentations
-// adds information not available in git directly, but can be inferred by parsing the
-// git information.
-// Examples of augmentation is which branch a commits belongs to and the hierarchical structure
-// of branches.
+// The augmented repo: what git has, read with one git command per kind in parallel, plus what gmd
+// infers from it and git does not record, i.e. which branch each commit is on and how the branches
+// relate (BranchStructureService), and what the reflogs say (undo steps, remote rewrites).
 [SingleInstance]
 class AugmentedService : IAugmentedService
 {
@@ -50,7 +48,6 @@ class AugmentedService : IAugmentedService
     public event Action<ChangeEvent>? RepoChange;
     public event Action<ChangeEvent>? StatusChange;
 
-    // GetRepoAsync returns an augmented repo based on new git info like branches, commits, ...
     public async Task<Result<Repo>> GetRepoAsync(string path)
     {
         var rootPathResult = git.RootPath(path);
@@ -66,7 +63,6 @@ class AugmentedService : IAugmentedService
         return await GetAugmentedRepoAsync(gitRepo);
     }
 
-    // GetRepoAsync returns the updated augmented repo with git status .
     public async Task<Result<Repo>> UpdateRepoStatusAsync(Repo repo)
     {
         // Get latest git status
@@ -171,44 +167,30 @@ class AugmentedService : IAugmentedService
         }
     }
 
+    // Fetches the branches and, beside them, the metadata, whose failure is not the fetch's: there is
+    // none on origin until someone pushes it, and a remote that fails fails the fetch as well
     public async Task<Result> FetchAsync(string path)
     {
-        // using (Timing.Start("Fetched"))
-        {
-            // pull meta data, but ignore error, if error is key not exist, it can be ignored,
-            // if error is remote error, the following fetch will handle that
-            // Start both tasks in parallel and await later
-            var metaDataTask = metaDataService.FetchMetaDataAsync(path);
-            var fetchTask = git.FetchAsync(path);
+        var metaDataTask = metaDataService.FetchMetaDataAsync(path);
+        var fetchTask = git.FetchAsync(path);
+        await Task.WhenAll(metaDataTask, fetchTask);
 
-            await Task.WhenAll(metaDataTask, fetchTask);
-
-            // Return the result of the fetch task (ignoring the metaData result)
-            return fetchTask.Result;
-        }
+        return fetchTask.Result;
     }
 
-    public Task<Result> FetchMetaDataAsync(string path) => metaDataService.FetchMetaDataAsync(path);
-
     // The branch write operations, which need the augmented repo to work out what git to run
-    public Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
-        branchWriteService.CreateBranchAsync(repo, newBranchName, isCheckout, wd);
+    public Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout) =>
+        branchWriteService.CreateBranchAsync(repo, newBranchName, isCheckout);
 
     public Task<Result> CreateBranchFromBranchAsync(
         Repo repo,
         string newBranchName,
         string sourceBranch,
-        bool isCheckout,
-        string wd
-    ) => branchWriteService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout, wd);
+        bool isCheckout
+    ) => branchWriteService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout);
 
-    public Task<Result> CreateBranchFromCommitAsync(
-        Repo repo,
-        string newBranchName,
-        string sha,
-        bool isCheckout,
-        string wd
-    ) => branchWriteService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
+    public Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout) =>
+        branchWriteService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout);
 
     public Task<Result> RenameBranchAsync(string oldName, string newName, string wd) =>
         branchWriteService.RenameBranchAsync(oldName, newName, wd);
@@ -224,13 +206,13 @@ class AugmentedService : IAugmentedService
 
     public Task<Result> RebaseBranchAsync(Repo repo, string name) => branchWriteService.RebaseBranchAsync(repo, name);
 
-    // GetGitRepoAsync returns a fresh git repo info object with commits, branches, ...
+    // What git has: the commits, branches, tags, status, stashes, worktrees and reflogs, read in parallel
     async Task<Result<GitRepo>> GetGitRepoAsync(string path)
     {
         Timing t = Timing.Start();
 
         var timeStamp = DateTime.UtcNow;
-        fileMonitor.SetReadRepoTime(timeStamp);
+        fileMonitor.ReadingRepo();
 
         // Start some git commands in parallel to get commits, branches, status, ...
         var logTask = git.GetLogAsync(maxCommitCount, path);
@@ -382,7 +364,7 @@ class AugmentedService : IAugmentedService
     static IReadOnlyList<string> OtherWorktreeFolders(GitRepo gitRepo) =>
         gitRepo.Worktrees.Where(w => !Files.IsSamePath(w.Path, gitRepo.Path)).Select(w => w.Path).ToList();
 
-    public async Task<Result> SquashCommits(Repo repo, string id1, string id2, string message)
+    public async Task<Result> SquashCommitsAsync(Repo repo, string id1, string id2, string message)
     {
         using (fileMonitor.Pause())
         {
@@ -975,14 +957,13 @@ class AugmentedService : IAugmentedService
         }
     }
 
-    // GetGitStatusAsync returns a fresh git status
     async Task<Result<GitStatus>> GetGitStatusAsync(string path)
     {
-        fileMonitor.SetReadStatusTime(DateTime.UtcNow);
+        fileMonitor.ReadingStatus();
         return await git.GetStatusAsync(path);
     }
 
-    // GetAugmentedRepoAsync returns an augmented git repo, and monitors working folder changes
+    // The git repo augmented, and its working folder watched from now on
     async Task<Result<Repo>> GetAugmentedRepoAsync(GitRepo gitRepo)
     {
         fileMonitor.Monitor(gitRepo.Path, OtherWorktreeFolders(gitRepo));
@@ -1005,7 +986,6 @@ class AugmentedService : IAugmentedService
     Task<Result> KeepWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed) =>
         metaDataService.AddWitnessedAsync(path, witnessed);
 
-    // GetUpdatedAugmentedRepoStatus an updated augmented repo with new status
     Repo GetUpdatedAugmentedRepoStatus(Repo repo, GitStatus gitStatus)
     {
         Timing t = Timing.Start();

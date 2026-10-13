@@ -167,7 +167,6 @@ public record Branch(
     bool HasRemoteOnly,
     string AmbiguousTipId,
     IReadOnlyList<string> AmbiguousBranchNames,
-    IReadOnlyList<string> PullMergeBranchNames,
     IReadOnlyList<string> AncestorNames,
     IReadOnlyList<string> RelatedBranchNames,
     bool IsCircularAncestors,

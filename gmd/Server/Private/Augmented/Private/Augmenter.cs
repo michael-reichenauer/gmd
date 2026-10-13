@@ -1,10 +1,8 @@
 namespace gmd.Server.Private.Augmented.Private;
 
-// Augmenter augments repos of git repo information, The augmentations
-// adds information not available in git directly, but can be inferred by parsing the
-// git information.
-// Examples of augmentation is which branch a commits belongs to and the hierarchical structure
-// of branches.
+// Turns the git repo into the work repo the inference runs on, and runs it (BranchStructureService):
+// the branches paired with their remote branches, the commits with their tags and stashes, and the
+// worktrees, undo steps and remote rewrites, then each commit's branch, and the names shown.
 interface IAugmenter
 {
     Task<WorkRepo> GetAugRepoAsync(GitRepo gitRepo);
@@ -93,11 +91,9 @@ class Augmenter : IAugmenter
         var current = CurrentWorktree(repo, gitRepo);
         foreach (var w in gitRepo.Worktrees)
         {
+            // The changes of the other worktrees are read after the repo is shown, so unknown here
             var isCurrent = w == current;
-            var changes =
-                isCurrent ? repo.Status.ChangesCount
-                : gitRepo.WorktreeChanges.TryGetValue(w.Path, out var count) ? count
-                : -1;
+            var changes = isCurrent ? repo.Status.ChangesCount : -1;
             repo.Worktrees.Add(
                 new Worktree(
                     w.Path,

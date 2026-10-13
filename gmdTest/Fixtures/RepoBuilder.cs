@@ -332,7 +332,9 @@ class RepoBuilder
 
     // A linked worktree of the repo, at 'worktreePath' with 'branch' checked out — which must be
     // a declared local branch, and is then marked as git marks it, i.e. checked out elsewhere.
-    // 'changes' is its number of uncommitted changes; -1 means it could not be read. The main
+    // 'changes' is its number of uncommitted changes, as read after the repo is shown, so in the
+    // augmented and view repos, while AugmentAsync has it unknown, -1, as a read repo does; -1
+    // means it could not be read. The main
     // worktree (the repo itself, at its path) is added by itself as soon as any is declared.
     public RepoBuilder Worktree(
         string worktreePath,
@@ -382,7 +384,6 @@ class RepoBuilder
             stashes,
             isTruncated,
             AllWorktrees(),
-            worktreeChanges,
             reflog,
             integrationNames,
             recordedSteps,
@@ -448,7 +449,12 @@ class RepoBuilder
         if (result is not Repo repoWithUncommitted)
             throw new InvalidOperationException($"Failed to add the uncommitted commit: {result.Error}");
 
-        return repoWithUncommitted;
+        // The changes of the other worktrees, which gmd reads after the repo is shown
+        // (GetUpdatedWorktreesRepoAsync), so a read repo has them unknown until then
+        var worktrees = repoWithUncommitted
+            .Worktrees.Select(w => worktreeChanges.TryGetValue(w.Path, out var n) ? w with { ChangesCount = n } : w)
+            .ToList();
+        return repoWithUncommitted with { Worktrees = worktrees };
     }
 
     // The view repo the UI renders, i.e. only the branches the user chose to show (with their

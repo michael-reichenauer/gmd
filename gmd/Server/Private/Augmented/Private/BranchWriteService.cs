@@ -9,15 +9,9 @@ namespace gmd.Server.Private.Augmented.Private;
 // pair holds the tip to merge or rebase onto.
 interface IBranchWriteService
 {
-    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
-    Task<Result> CreateBranchFromBranchAsync(
-        Repo repo,
-        string newBranchName,
-        string sourceBranch,
-        bool isCheckout,
-        string wd
-    );
-    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout);
+    Task<Result> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout);
+    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> SwitchToAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name);
@@ -38,8 +32,9 @@ class BranchWriteService : IBranchWriteService
         this.metaDataService = metaDataService;
     }
 
-    public async Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd)
+    public async Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout)
     {
+        var wd = repo.Path;
         Log.Info($"Create branch {newBranchName} ...");
         Commit? currentCommit = null;
         var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
@@ -67,10 +62,10 @@ class BranchWriteService : IBranchWriteService
         Repo repo,
         string newBranchName,
         string sourceBranch,
-        bool isCheckout,
-        string wd
+        bool isCheckout
     )
     {
+        var wd = repo.Path;
         Log.Info($"Create branch {newBranchName} ...");
 
         var source = repo.BranchByName[sourceBranch];
@@ -87,14 +82,9 @@ class BranchWriteService : IBranchWriteService
         }
     }
 
-    public async Task<Result> CreateBranchFromCommitAsync(
-        Repo repo,
-        string newBranchName,
-        string sha,
-        bool isCheckout,
-        string wd
-    )
+    public async Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout)
     {
+        var wd = repo.Path;
         Log.Info($"Create branch {newBranchName} from {sha} ...");
         using (fileMonitor.Pause())
         {
@@ -145,7 +135,7 @@ class BranchWriteService : IBranchWriteService
         // Not a git branch so the branch was deleted, lets recreate it
         var tip = repo.CommitById[branch.TipId];
 
-        return await CreateBranchFromCommitAsync(repo, branch.NiceName, tip.Id, true, repo.Path);
+        return await CreateBranchFromCommitAsync(repo, branch.NiceName, tip.Id, true);
     }
 
     public async Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name)

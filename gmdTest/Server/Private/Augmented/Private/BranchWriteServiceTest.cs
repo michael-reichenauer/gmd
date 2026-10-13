@@ -131,7 +131,7 @@ public class BranchWriteServiceTest
         var git = new FakeGit();
         var service = new BranchWriteService(git, new FakeFileMonitor(), new FakeMetaDataService(metaData));
 
-        AssertOk(await service.CreateBranchFromBranchAsync(repo, "feature", "origin/dev", false, "/wd"));
+        AssertOk(await service.CreateBranchFromBranchAsync(repo, "feature", "origin/dev", false));
 
         CollectionAssert.AreEqual(new[] { $"feature at {RepoBuilder.Sid("d1")}" }, git.CreateBranchCalls);
         CollectionAssert.AreEqual(new[] { RepoBuilder.Sid("d1") }, metaData.CommitBranchBySid.Keys.ToArray());

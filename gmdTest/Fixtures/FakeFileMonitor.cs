@@ -30,9 +30,9 @@ class FakeFileMonitor : IFileMonitor
         return new NotPaused();
     }
 
-    public void SetReadRepoTime(DateTime time) { }
+    public void ReadingRepo() { }
 
-    public void SetReadStatusTime(DateTime time) { }
+    public void ReadingStatus() { }
 
     class NotPaused : IDisposable
     {

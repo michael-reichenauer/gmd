@@ -12,8 +12,10 @@ interface IFileMonitor
     // of their own (linked worktrees nested in it), whose changes are not this folder's status.
     void Monitor(string workingFolder, IReadOnlyList<string> excludedFolders);
     IDisposable Pause();
-    void SetReadRepoTime(DateTime time);
-    void SetReadStatusTime(DateTime time);
+
+    // A read of the repo, or of the status, starts, which sees the changes told of so far
+    void ReadingRepo();
+    void ReadingStatus();
 }
 
 public delegate bool Ignorer(string path);
@@ -103,7 +105,7 @@ class FileMonitor : IFileMonitor
             .Select(w => w.Path)
             .ToList();
 
-    public void SetReadRepoTime(DateTime time)
+    public void ReadingRepo()
     {
         lock (syncRoot)
         {
@@ -112,7 +114,7 @@ class FileMonitor : IFileMonitor
         }
     }
 
-    public void SetReadStatusTime(DateTime time)
+    public void ReadingStatus()
     {
         lock (syncRoot)
         {

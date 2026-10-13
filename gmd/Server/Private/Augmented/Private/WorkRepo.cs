@@ -12,8 +12,6 @@ class WorkRepo
     public List<WorkCommit> Commits { get; } = [];
     public Dictionary<string, WorkCommit> CommitsById { get; } = [];
     public Dictionary<string, WorkBranch> Branches { get; } = [];
-    public List<Tag> Tags { get; } = [];
-    public Dictionary<string, Tag> TagById { get; } = [];
     public List<Stash> Stashes { get; } = [];
     public Dictionary<string, Stash> StashById { get; } = [];
     public List<Worktree> Worktrees { get; } = [];
@@ -75,7 +73,6 @@ class WorkCommit
     public bool IsAmbiguousTip { get; set; }
     public bool IsBranchSetByUser { get; set; }
     public bool IsParentsSwapped { get; set; } // A pull merge, see CommitGraphService
-    public bool IsUncommitted { get; set; }
 
     public List<string> ParentIds { get; }
     public WorkCommit? FirstParent { get; set; }

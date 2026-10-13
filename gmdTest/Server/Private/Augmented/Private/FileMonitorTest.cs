@@ -181,12 +181,12 @@ public class FileMonitorTest
     }
 
     [TestMethod]
-    public void TestSetReadStatusTimeClearsOnlyTheFileChange()
+    public void TestReadingStatusClearsOnlyTheFileChange()
     {
         monitor.FileChange(filePath);
         monitor.RepoChange(refPath, "refs/heads/main", WatcherChangeTypes.Changed);
 
-        monitor.SetReadStatusTime(now);
+        monitor.ReadingStatus();
         now += pastDelay;
 
         mainThread.Tick();
@@ -195,12 +195,12 @@ public class FileMonitorTest
     }
 
     [TestMethod]
-    public void TestSetReadRepoTimeClearsBothChanges()
+    public void TestReadingRepoClearsBothChanges()
     {
         monitor.FileChange(filePath);
         monitor.RepoChange(refPath, "refs/heads/main", WatcherChangeTypes.Changed);
 
-        monitor.SetReadRepoTime(now);
+        monitor.ReadingRepo();
         now += pastDelay;
 
         mainThread.Tick();

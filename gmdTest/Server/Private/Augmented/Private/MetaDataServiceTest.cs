@@ -36,10 +36,7 @@ public class MetaDataServiceTest
     [TestMethod]
     public async Task TestSetAndGetRoundTrip()
     {
-        var metaData = new MetaData();
-        metaData.SetCommitBranch("abc123", "dev");
-
-        AssertOk(await service.SetMetaDataAsync(Path, metaData));
+        AssertOk(await service.UpdateMetaDataAsync(Path, m => m.SetCommitBranch("abc123", "dev")));
         var read = AssertOk(await service.GetMetaDataAsync(Path));
 
         Assert.IsTrue(read.TryGetCommitBranch("abc123", out var name, out var isSetByUser));
@@ -208,10 +205,16 @@ public class MetaDataServiceTest
     public async Task TestFetchKeepsARemovedChoiceRemoved()
     {
         EnableSync();
-        var local = new MetaData();
-        local.SetCommitBranch("abc123", "dev");
-        local.RemoveCommitBranch("abc123");
-        AssertOk(await service.SetMetaDataAsync(Path, local));
+        AssertOk(
+            await service.UpdateMetaDataAsync(
+                Path,
+                m =>
+                {
+                    m.SetCommitBranch("abc123", "dev");
+                    m.RemoveCommitBranch("abc123");
+                }
+            )
+        );
         git.RemoteValues[Key] = git.Values[Key];
 
         AssertOk(await service.FetchMetaDataAsync(Path));

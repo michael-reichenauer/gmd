@@ -1,22 +1,20 @@
 namespace gmd.Server.Private.Augmented;
 
-// AugmentedRepoService returns augmented repos of git repo information, The augmentations
-// adds information not available in git directly, but can be inferred by parsing the
-// git information.
-// Examples of augmentation is which branch a commits belongs to and the hierarchical structure
-// of branches.
+// The augmented repo: what git has, read with one git command per kind in parallel, plus what gmd
+// infers from it and git does not record, i.e. which branch each commit is on and how the branches
+// relate (BranchStructureService), and what the reflogs say (undo steps, remote rewrites).
 interface IAugmentedService
 {
-    // RepoChange events when git repo changes like new commit, new branches, ...
+    // The commits or branches may have changed, e.g. a commit, a fetch or a checkout
     public event Action<ChangeEvent> RepoChange;
 
-    // StatusChange events when working folder changes like changed, added or removed files.
+    // The working folder may have changed, i.e. the status: files changed, added or removed
     public event Action<ChangeEvent> StatusChange;
 
-    // GetRepoAsync returns an augmented repo based on new git info like branches, commits, ...
+    // The repo read afresh, and augmented, with no branches shown yet
     Task<Result<Repo>> GetRepoAsync(string path);
 
-    // UpdateRepoStatusAsync returns the repo with new fresh git status ...
+    // The repo with the status read afresh, the rest as it was
     Task<Result<Repo>> UpdateRepoStatusAsync(Repo augRepo);
 
     // The repo with the worktrees re-read: which exist, and the uncommitted changes of each
@@ -26,15 +24,9 @@ interface IAugmentedService
     Task<Result> PruneWorktreesAsync(string wd);
 
     Task<Result> FetchAsync(string path);
-    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
-    Task<Result> CreateBranchFromBranchAsync(
-        Repo augmentedRepo,
-        string newBranchName,
-        string sourceBranch,
-        bool isCheckout,
-        string wd
-    );
-    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout);
+    Task<Result> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout);
+    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
 
     Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
@@ -50,7 +42,7 @@ interface IAugmentedService
     Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
-    Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
+    Task<Result> SquashCommitsAsync(Repo repo, string id1, string id2, string msg);
 
     // An older commit not pushed yet, given a new message and the changes in the paths, or taken out
     Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths);

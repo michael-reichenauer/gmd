@@ -132,7 +132,7 @@ public class LostWorkIntegrationTest
         await repo.GitAsync("reset --hard HEAD~1");
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        AssertOk(await service.CreateBranchFromCommitAsync(augmented, "restored", lost, false, repo.Path));
+        AssertOk(await service.CreateBranchFromCommitAsync(augmented, "restored", lost, false));
 
         Assert.AreEqual(lost, (await repo.GitAsync("rev-parse restored")).Trim());
         Assert.AreEqual(0, (await LostWorkAsync()).Count);

@@ -64,7 +64,7 @@ class WorkRepoConverter : IWorkRepoConverter
             BranchTips: c.BranchTips,
             IsCurrent: c.IsCurrent,
             IsDetached: c.IsDetached,
-            IsUncommitted: c.IsUncommitted,
+            IsUncommitted: false, // The uncommitted commit is added to the repo after this, see Uncommitted
             IsConflicted: false,
             IsAhead: false,
             IsBehind: false,
@@ -109,7 +109,6 @@ class WorkRepoConverter : IWorkRepoConverter
             AmbiguousTipId: b.AmbiguousTip?.Id ?? "",
             RelatedBranchNames: b.RelatedBranches.Select(bb => bb.Name).ToList(),
             AmbiguousBranchNames: b.AmbiguousBranches.Select(bb => bb.Name).ToList(),
-            PullMergeBranchNames: b.PullMergeChildBranches.Select(bb => bb.Name).ToList(),
             AncestorNames: b.Ancestors.Select(bb => bb.Name).ToList(),
             X: 0,
             IsIn: false,

@@ -61,7 +61,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 if (createBranchDlg.Show(currentBranchName, "") is not CreateBranchResult rsp)
                     return Result.Ok;
 
-                if (await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout, repo.Path) is Error e)
+                if (await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout) is Error e)
                 {
                     return new Error($"Failed to create branch {rsp.Name}", e);
                 }
@@ -89,13 +89,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 if (createBranchDlg.Show(name, "") is not CreateBranchResult rsp)
                     return Result.Ok;
 
-                var created = await server.CreateBranchFromBranchAsync(
-                    repo.Repo,
-                    rsp.Name,
-                    name,
-                    rsp.IsCheckout,
-                    repo.Path
-                );
+                var created = await server.CreateBranchFromBranchAsync(repo.Repo, rsp.Name, name, rsp.IsCheckout);
                 if (created is Error e)
                 {
                     return new Error($"Failed to create branch {rsp.Name}", e);
@@ -139,13 +133,7 @@ class BranchCreateCommands : IBranchCreateCommands
             if (createBranchDlg.Show(fromName, commitId.Sid(), name, isPublish) is not CreateBranchResult rsp)
                 return Result.Ok;
 
-            var created = await server.CreateBranchFromCommitAsync(
-                repo.Repo,
-                rsp.Name,
-                commitId,
-                rsp.IsCheckout,
-                repo.Path
-            );
+            var created = await server.CreateBranchFromCommitAsync(repo.Repo, rsp.Name, commitId, rsp.IsCheckout);
             if (created is Error e)
             {
                 return new Error($"Failed to create branch {rsp.Name}", e);

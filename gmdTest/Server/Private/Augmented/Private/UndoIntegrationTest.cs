@@ -262,7 +262,7 @@ public class UndoIntegrationTest
         var newer = await repo.CommitFileAsync("c.txt", "c\n", "Newer");
         var tip = hasNewerCommits ? await repo.CommitFileAsync("d.txt", "d\n", "On top") : newer;
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
-        AssertOk(await service.SquashCommits(augmented, newer, older, "Squashed"));
+        AssertOk(await service.SquashCommitsAsync(augmented, newer, older, "Squashed"));
         Assert.AreEqual(hasNewerCommits ? "On top" : "Squashed", (await repo.GitAsync("log --format=%s -1")).Trim());
 
         var undone = await UndoAsync();
@@ -286,7 +286,7 @@ public class UndoIntegrationTest
         await repo.CommitFileAsync("d.txt", "d\n", "Local on top");
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        AssertOk(await service.SquashCommits(augmented, newer, older, "Squashed"));
+        AssertOk(await service.SquashCommitsAsync(augmented, newer, older, "Squashed"));
 
         Assert.AreEqual("Local on top\nSquashed\nInitial", (await repo.GitAsync("log --format=%s")).Trim());
     }
@@ -305,7 +305,7 @@ public class UndoIntegrationTest
         var local = await repo.CommitFileAsync("d.txt", "d\n", "Local");
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        var error = AssertError(await service.SquashCommits(augmented, newer, older, "Squashed"));
+        var error = AssertError(await service.SquashCommitsAsync(augmented, newer, older, "Squashed"));
 
         StringAssert.Contains(error.Message, "Only commits on the current branch can be squashed");
         Assert.AreEqual(local, await repo.HeadIdAsync());

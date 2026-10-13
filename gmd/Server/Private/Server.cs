@@ -96,14 +96,14 @@ class Server : IServer
 
     (string Key, IReadOnlySet<string> Ids)? lastFileSearch;
 
-    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = true)
+    public IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll)
     {
         if (commitId == Repo.UncommittedId)
             return new List<Branch>();
 
+        // The branches of the commits next to it but its own, and its own when it is its tip, all of
+        // them or only those not shown
         bool FilterOnShown(Commit cc) => isAll || !cc.IsInView;
-        // Getting all branches that are not the same as the commit branch.
-        // Also exclude branches that are shown if isNotShown is true
         var commit = repo.CommitById[commitId];
         var branch = repo.BranchByName[commit.BranchName];
 
@@ -205,8 +205,9 @@ class Server : IServer
     {
         Log.Info($"Hide {name}, HideAllBranches: {hideAllBranches}");
 
+        // The main branch is always shown, so it alone is left
         if (hideAllBranches)
-            return viewRepoCreater.GetViewRepoAsync(repo, new[] { "main" });
+            return viewRepoCreater.GetViewRepoAsync(repo, [repo.AllBranches.First(b => b.IsMainBranch).Name]);
 
         var branch = repo.BranchByName[name];
         branch = repo.BranchByName[branch.PrimaryName];
@@ -310,24 +311,18 @@ class Server : IServer
         return converter.ToBlame(gitBlame);
     }
 
-    public Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd) =>
-        augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout, wd);
+    public Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout) =>
+        augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout);
 
     public Task<Result> CreateBranchFromBranchAsync(
         Repo repo,
         string newBranchName,
         string sourceBranch,
-        bool isCheckout,
-        string wd
-    ) => augmentedService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout, wd);
+        bool isCheckout
+    ) => augmentedService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout);
 
-    public Task<Result> CreateBranchFromCommitAsync(
-        Repo repo,
-        string newBranchName,
-        string sha,
-        bool isCheckout,
-        string wd
-    ) => augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout, wd);
+    public Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout) =>
+        augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout);
 
     public Task<Result> RenameBranchAsync(string oldName, string newName, string wd) =>
         augmentedService.RenameBranchAsync(oldName, newName, wd);
@@ -543,7 +538,7 @@ class Server : IServer
             return await git.CloneAsync(uri, path, wd);
     }
 
-    public async Task<Result> InitRepoAsync(string path, string wd) => await git.InitRepoAsync(path, wd);
+    public Task<Result> InitRepoAsync(string path, string wd) => git.InitRepoAsync(path, wd);
 
     public Task<Result> StashAsync(string message, string wd) => git.StashAsync(message, wd);
 
@@ -597,8 +592,8 @@ class Server : IServer
 
     public Task<Result> SwitchToCommitAsync(string commitId, string wd) => git.CheckoutAsync(commitId, wd);
 
-    public Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg) =>
-        augmentedService.SquashCommits(repo, id1, id2, msg);
+    public Task<Result> SquashCommitsAsync(Repo repo, string id1, string id2, string msg) =>
+        augmentedService.SquashCommitsAsync(repo, id1, id2, msg);
 
     public Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths) =>
         augmentedService.AmendOlderCommitAsync(repo, id, message, paths);

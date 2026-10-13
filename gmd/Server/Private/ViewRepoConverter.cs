@@ -212,7 +212,7 @@ class ViewRepoConverter : IViewRepoConverter
         viewCommits = viewCommits.Select((c, i) => c with { IsInView = true, ViewIndex = i }).ToList();
         viewCommits.ForEach(c => allCommits[commitIndexById[c.Id]] = c);
 
-        viewBranches = viewBranches.Select((b, i) => b with { IsInView = true }).ToList();
+        viewBranches = viewBranches.Select(b => b with { IsInView = true }).ToList();
         viewBranches.ForEach(b => allBranches[branchIndexByName[b.Name]] = b);
 
         // The repo time stamp is when the read the repo came from started, which says what changes it
