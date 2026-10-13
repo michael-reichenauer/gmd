@@ -52,6 +52,9 @@ class Updater : IUpdater
     readonly IGitHubReleases gitHubReleases;
     readonly IBinaryInstaller installer;
 
+    readonly object updateLock = new();
+    Task<Result<Version>>? update; // The update in progress, which a second one waits for
+    Version? installedVersion; // Installed by this gmd, and run once gmd is started again
     bool isUpdateCheckerRunning = false;
 
     internal Updater(Config config, IGitHubReleases gitHubReleases, IBinaryInstaller installer)
@@ -94,7 +97,19 @@ class Updater : IUpdater
         );
     }
 
-    internal async Task<Result<Version>> UpdateAsync(RunningGmd self)
+    // One at a time: the update dialog and the regular check can both start one, and a second one
+    // waits for the first rather than download and install the same binary again beside it
+    internal Task<Result<Version>> UpdateAsync(RunningGmd self)
+    {
+        lock (updateLock)
+        {
+            if (update is not { IsCompleted: false })
+                update = UpdateOnceAsync(self);
+            return update;
+        }
+    }
+
+    async Task<Result<Version>> UpdateOnceAsync(RunningGmd self)
     {
         if (self.IsDotNetHost)
             return self.Version;
@@ -112,9 +127,16 @@ class Updater : IUpdater
             return self.Version;
         }
 
+        // The running gmd is still the old version, so the new one is still newer, but it is in place
+        if (installedVersion != null && installedVersion >= available.Version)
+        {
+            Log.Info($"Already installed {installedVersion}, which runs once gmd is started again");
+            return installedVersion;
+        }
+
         var release = SelectRelease();
         var binary = ReleaseChoice.Binary(release, self.BinaryNames);
-        if (binary == null)
+        if (binary == null || !Version.TryParse(release.Version, out var version))
         {
             Log.Warn($"Failed to download new version, no binary for this platform in {release.Version}");
             return new Error("No binary available");
@@ -123,7 +145,8 @@ class Updater : IUpdater
         if (await installer.InstallAsync(binary.Url, release.Version, ThisPath(self)) is Error installError)
             return installError;
 
-        return new Version(SelectRelease().Version);
+        installedVersion = version;
+        return version;
     }
 
     async Task StartCheckUpdatesRegularly(RunningGmd self)
@@ -142,22 +165,19 @@ class Updater : IUpdater
         {
             await CheckUpdateAvailableAsync(self);
 
-            if (config.CheckUpdates && config.AutoUpdate)
+            if (config.CheckUpdates && config.AutoUpdate && IsToInstall(self))
             {
-                if (await IsUpdateAvailableAsync(self) is UpdateAvailability { IsAvailable: true })
+                if (await UpdateAsync(self) is Version updatedVersion)
                 {
-                    if (await UpdateAsync(self) is Version updatedVersion)
+                    UI.Post(() =>
                     {
-                        UI.Post(() =>
-                        {
-                            UI.InfoMessage(
-                                "Restart for New Version ",
-                                $"Gmd has been updated to: {updatedVersion}\n"
-                                    + "and the new version will run at next starts.\n\n"
-                                    + "Restart gmd if you want to run the updated version now."
-                            );
-                        });
-                    }
+                        UI.InfoMessage(
+                            "Restart for New Version ",
+                            $"Gmd has been updated to: {updatedVersion}\n"
+                                + "and the new version will run at next starts.\n\n"
+                                + "Restart gmd if you want to run the updated version now."
+                        );
+                    });
                 }
             }
 
@@ -203,6 +223,13 @@ class Updater : IUpdater
 
         return new UpdateAvailability(true, latest);
     }
+
+    // Whether the release the last check found is newer than the running gmd, and than the version
+    // it installed already, which it would otherwise install again at every check until restarted
+    bool IsToInstall(RunningGmd self) =>
+        Version.TryParse(config.Releases.LatestVersion, out var latest)
+        && latest > self.Version
+        && (installedVersion == null || latest > installedVersion);
 
     Release SelectRelease() => ReleaseChoice.Select(config.Releases, config.AllowPreview);
 

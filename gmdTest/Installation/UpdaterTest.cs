@@ -82,6 +82,64 @@ public class UpdaterTest
         StringAssert.Contains(e.AllMessages(), "Disk full");
     }
 
+    // The update dialog and the regular check can both start an update, and the second waits for the
+    // first rather than download and install the same binary beside it
+    [TestMethod]
+    public async Task TestTwoUpdatesAtOnceInstallOnce()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+        var installing = new TaskCompletionSource<Result>();
+        installer.InstallTask = () => installing.Task;
+
+        var first = updater.UpdateAsync(Running);
+        var second = updater.UpdateAsync(Running);
+        installing.SetResult(Result.Ok);
+
+        Assert.AreEqual(new Version("1.6.1444.870"), AssertOk(await first));
+        Assert.AreEqual(new Version("1.6.1444.870"), AssertOk(await second));
+        Assert.AreEqual(1, installer.Calls.Count);
+    }
+
+    // The running gmd is still the old version after an update, so the release is still newer than
+    // it, and the regular check of a gmd left open installed it again every hour
+    [TestMethod]
+    public async Task TestAnInstalledVersionIsNotInstalledAgain()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+
+        AssertOk(await updater.UpdateAsync(Running));
+        var again = AssertOk(await updater.UpdateAsync(Running));
+
+        Assert.AreEqual(new Version("1.6.1444.870"), again);
+        Assert.AreEqual(1, installer.Calls.Count);
+    }
+
+    [TestMethod]
+    public async Task TestANewerReleaseAfterAnUpdateIsInstalled()
+    {
+        var (updater, _, releases, installer) = NewUpdater(stable: "1.6.1444.870");
+        AssertOk(await updater.UpdateAsync(Running));
+
+        releases.Stable = ReleaseChoiceTest.NewRelease("1.6.1445.10", false, "gmd_linux_x64");
+        var newer = AssertOk(await updater.UpdateAsync(Running));
+
+        Assert.AreEqual(new Version("1.6.1445.10"), newer);
+        Assert.AreEqual(2, installer.Calls.Count);
+    }
+
+    [TestMethod]
+    public async Task TestAFailedUpdateIsTriedAgain()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+        installer.InstallTask = () => Task.FromResult<Result>(new Error("Timed out"));
+        AssertError(await updater.UpdateAsync(Running));
+
+        installer.InstallTask = () => Task.FromResult(Result.Ok);
+        AssertOk(await updater.UpdateAsync(Running));
+
+        Assert.AreEqual(2, installer.Calls.Count);
+    }
+
     static (Updater, Config, FakeGitHubReleases, FakeInstaller) NewUpdater(string stable)
     {
         var config = new FakeConfigService().Config;
