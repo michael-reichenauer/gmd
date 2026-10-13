@@ -73,8 +73,10 @@ public class ConfigServiceTest
 
         public RedirectedStore(string path) => this.path = path;
 
-        public T Get<T>(string _) => store.Get<T>(path);
+        public T Get<T>(string _)
+            where T : new() => store.Get<T>(path);
 
-        public T Set<T>(string _, Action<T> set) => store.Set(path, set);
+        public T Set<T>(string _, Action<T> set)
+            where T : new() => store.Set(path, set);
     }
 }

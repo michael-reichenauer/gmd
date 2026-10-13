@@ -481,8 +481,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
   `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both
   `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
-  `*RowService`; `[SingleInstance]` is matched by the attribute's name string and `FileStore` uses
-  `Activator.CreateInstance`; the vulnerability grep in `scripts/build` never fails the build,
+  `*RowService`; `[SingleInstance]` is matched by the attribute's name string; the vulnerability grep in `scripts/build` never fails the build,
   `scripts/log.bat` hard-codes one user's home, `scripts/installtools` sets `safe.directory` to
   `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`. (`run.bat`
   dropping its arguments was fixed when the scripts moved into `scripts/`, and `gmd_linux` and
