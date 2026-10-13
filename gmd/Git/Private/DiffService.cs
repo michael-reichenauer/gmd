@@ -356,20 +356,35 @@ class DiffService : IDiffService
     // it would take to support them.
     static (FileDiff?, int, bool) ParseFileDiff(int i, string[] lines)
     {
-        if (i >= lines.Length || !lines[i].StartsWith("diff --git "))
+        if (i >= lines.Length || !lines[i].StartsWith(DiffGitPrefix))
         {
             return (null, i, false);
         }
 
-        string files = lines[i][11..];
-        var otherIndex = files.IndexOf(" b/");
-        string before = files[2..otherIndex];
-        string after = files[(otherIndex + 3)..];
-        bool isRenamed = before != after;
+        var (before, after) = ParseDiffGitPaths(lines[i][DiffGitPrefix.Length..]);
         i++;
 
-        (DiffMode diffMode, i) = ParseDiffMode(i, lines);
-        (i, var isBinary) = ParsePossibleIndexRows(i, lines);
+        // The extended header, up to the first hunk or the next file, of which only what is said
+        // here matters: whether the file is new, deleted or binary, and the paths of a rename. The
+        // rest ('index', 'old mode', 'new mode', 'similarity index', '---', '+++') is passed over,
+        // whichever there are and in whatever order. They used to be expected in one order, and
+        // the hunks of a file whose mode changed too were lost.
+        var diffMode = DiffMode.DiffModified;
+        var isBinary = false;
+        for (; i < lines.Length && !IsEndOfFileHeader(lines[i]); i++)
+        {
+            var line = lines[i];
+            if (line.StartsWith("new file mode "))
+                diffMode = DiffMode.DiffAdded;
+            else if (line.StartsWith("deleted file mode "))
+                diffMode = DiffMode.DiffRemoved;
+            else if (line.StartsWith("Binary files "))
+                isBinary = true;
+            else if (TryGetPath(line, "rename from ", out var from) || TryGetPath(line, "copy from ", out from))
+                before = from;
+            else if (TryGetPath(line, "rename to ", out var to) || TryGetPath(line, "copy to ", out to))
+                after = to;
+        }
 
         (var sectionDiffs, i) = ParseSectionDiffs(i, lines);
         if (sectionDiffs.Any(sd => sd.LineDiffs.Any(ld => ld.DiffMode == DiffMode.DiffConflictStart)))
@@ -377,64 +392,52 @@ class DiffService : IDiffService
             diffMode = DiffMode.DiffConflicts;
         }
 
-        return (new FileDiff(before, after, isRenamed, isBinary, diffMode, sectionDiffs), i, true);
+        return (new FileDiff(before, after, before != after, isBinary, diffMode, sectionDiffs), i, true);
     }
 
-    static (DiffMode, int) ParseDiffMode(int i, string[] lines)
-    {
-        if (lines[i].StartsWith("new file mode"))
-        {
-            i++;
-            return (DiffMode.DiffAdded, i);
-        }
-        if (lines[i].StartsWith("deleted file mode"))
-        {
-            i++;
-            return (DiffMode.DiffRemoved, i);
-        }
-        if (lines[i].StartsWith("similarity "))
-        { // 3 lines with rename info
-            i += 3;
-            return (DiffMode.DiffModified, i);
-        }
-        if (lines[i].StartsWith("rename "))
-        { // 2 lines with rename info
-            i += 2;
-            return (DiffMode.DiffModified, i);
-        }
+    const string DiffGitPrefix = "diff --git ";
 
-        return (DiffMode.DiffModified, i);
+    static bool IsEndOfFileHeader(string line) =>
+        line.StartsWith("@@ ") || line.StartsWith("diff --") || line.StartsWith("commit ");
+
+    static bool TryGetPath(string line, string prefix, out string path)
+    {
+        path = line.StartsWith(prefix) ? QuotedPath.Unquote(line[prefix.Length..]) : "";
+        return path != "";
     }
 
-    static (int, bool) ParsePossibleIndexRows(int i, string[] lines)
+    // The two paths of a 'diff --git a/<path> b/<path>' line, without their 'a/' and 'b/'. Git
+    // quotes either of them that has a character that needs it (QuotedPath), but not one with a
+    // space, which makes the line ambiguous unless both are the same path. They are for every diff
+    // of a file but a rename's or a copy's, and those say both paths again on lines of their own.
+    // The paths used to be split at the first ' b/', so a quoted one threw, and one with ' b/' in
+    // it was split in the wrong place.
+    static (string Before, string After) ParseDiffGitPaths(string text)
     {
-        bool isBinary = false;
-        if (i >= lines.Length)
-            return (i, isBinary);
-        if (lines[i].StartsWith("index "))
+        var (before, after) = SplitDiffGitPaths(text);
+        return (before.TrimPrefix("a/"), after.TrimPrefix("b/"));
+    }
+
+    static (string, string) SplitDiffGitPaths(string text)
+    {
+        if (text.StartsWith('"'))
         {
-            i++;
+            var end = QuotedPath.EndOfQuoted(text);
+            return (QuotedPath.Unquote(text[..end]), QuotedPath.Unquote(text[Math.Min(end + 1, text.Length)..]));
         }
-        if (i >= lines.Length)
-            return (i, isBinary);
-        if (lines[i].StartsWith("Binary "))
-        {
-            isBinary = true;
-            i++;
-        }
-        if (i >= lines.Length)
-            return (i, isBinary);
-        if (lines[i].StartsWith("--- "))
-        {
-            i++;
-        }
-        if (i >= lines.Length)
-            return (i, isBinary);
-        if (lines[i].StartsWith("+++ "))
-        {
-            i++;
-        }
-        return (i, isBinary);
+
+        // Only the second is quoted, and the first then has no '"' of its own, or it would be too
+        var quoted = text.IndexOf(" \"");
+        if (quoted > 0 && text.EndsWith('"'))
+            return (text[..quoted], QuotedPath.Unquote(text[(quoted + 1)..]));
+
+        // The same path twice, 'a/<path> b/<path>', is split in the middle
+        var middle = text.Length / 2;
+        if (text.Length % 2 == 1 && text[middle] == ' ' && text[2..middle] == text[(middle + 3)..])
+            return (text[..middle], text[(middle + 1)..]);
+
+        var other = text.IndexOf(" b/");
+        return other > 0 ? (text[..other], text[(other + 1)..]) : (text, text);
     }
 
     static (IReadOnlyList<SectionDiff>, int) ParseSectionDiffs(int i, string[] lines)
@@ -528,15 +531,15 @@ class DiffService : IDiffService
         }
         if (lines[i].StartsWith("+"))
         {
-            return (new LineDiff(DiffMode.DiffAdded, AsLine(lines[i++])), i++, true);
+            return (new LineDiff(DiffMode.DiffAdded, AsLine(lines[i++])), i, true);
         }
         if (lines[i].StartsWith("-"))
         {
-            return (new LineDiff(DiffMode.DiffRemoved, AsLine(lines[i++])), i++, true);
+            return (new LineDiff(DiffMode.DiffRemoved, AsLine(lines[i++])), i, true);
         }
         if (lines[i].StartsWith(" "))
         {
-            return (new LineDiff(DiffMode.DiffSame, AsLine(lines[i++])), i++, true);
+            return (new LineDiff(DiffMode.DiffSame, AsLine(lines[i++])), i, true);
         }
 
         return (null, i, false);

@@ -1711,6 +1711,36 @@ public class GitIntegrationTest
             );
     }
 
+    // The paths of a diff as git writes them: quoted when they have a character that is not ASCII,
+    // which made the diff throw, and not when they have a space, which split a path with ' b/' in it
+    // in the wrong place. And the hunks of a file whose mode changed too, which were lost.
+    [TestMethod]
+    public async Task TestDiffOfFilesWithAnyName()
+    {
+        await repo.CommitFileAsync("base.txt", "one\n", "First");
+        Directory.CreateDirectory(Path.Join(repo.Path, "x b"));
+        repo.WriteFile("x b/y.txt", "y\n");
+        repo.WriteFile("Ärende.md", "x\n");
+        await repo.GitAsync("mv base.txt bäse.txt");
+        var c2 = await repo.CommitAsync("Second");
+        repo.WriteFile("x b/y.txt", "y\nz\n");
+        await repo.GitAsync("add .");
+        await repo.GitAsync("update-index --chmod=+x \"x b/y.txt\"");
+        await repo.GitAsync("commit -m Third");
+        var c3 = await repo.HeadIdAsync();
+
+        var second = Value(await repo.Git.GetCommitDiffAsync(c2, 6, repo.Path));
+        var third = Value(await repo.Git.GetCommitDiffAsync(c3, 6, repo.Path));
+
+        Assert.AreEqual(
+            "base.txt bäse.txt DiffModified, x b/y.txt x b/y.txt DiffAdded, Ärende.md Ärende.md DiffAdded",
+            string.Join(", ", second.FileDiffs.Select(f => $"{f.PathBefore} {f.PathAfter} {f.DiffMode}"))
+        );
+        var file = third.FileDiffs.Single();
+        Assert.AreEqual("x b/y.txt", file.PathAfter);
+        Assert.AreEqual("z", file.SectionDiffs.Single().LineDiffs.Single(l => l.DiffMode == DiffMode.DiffAdded).Line);
+    }
+
     // With log.showSignature git checks the signature of each signed commit and writes what it
     // found before the commit, on stdout, in the log's own output, so a signed commit's id was the
     // text of that check

@@ -251,6 +251,95 @@ public class DiffServiceTest
         Assert.AreEqual(0, file.SectionDiffs.Count);
     }
 
+    // Captured from real git: the paths git quotes, each of the two on its own, with the bytes of a
+    // character that is not ASCII as octal escapes; a path with a space, which git does not quote in
+    // the 'diff --git' line, but ends with a tab on the '---' and '+++' lines; a mode change before the
+    // hunks; and a path with ' b/' in it, where the two paths used to be split
+    const string SpecialPathsOutput = """
+        commit d25338945bb5b79d865b2242512894d55f5fe047
+        Author: t <a@b>
+        Date:   2026-10-13 12:04:37 +0200
+
+            Special paths
+
+        diff --git a/a b.txt b/a b.txt
+        old mode 100644
+        new mode 100755
+        index 975fbec..ebf9bec
+        --- a/a b.txt<TAB>
+        +++ b/a b.txt<TAB>
+        @@ -1 +1,2 @@
+         y
+        +more
+        diff --git a/base.txt "b/b\303\244se.txt"
+        similarity index 50%
+        rename from base.txt
+        rename to "b\303\244se.txt"
+        index 7898192..9327e29 100644
+        --- a/base.txt
+        +++ "b/b\303\244se.txt"
+        @@ -1 +1,2 @@
+         a
+        +m
+        diff --git "a/q\"t.txt" "b/q\"t.txt"
+        new file mode 100644
+        index 0000000..b680253
+        --- /dev/null
+        +++ "b/q\"t.txt"
+        @@ -0,0 +1 @@
+        +z
+        diff --git "a/\303\204rende.md" "b/\303\204rende.md"
+        deleted file mode 100644
+        index 587be6b..0000000
+        --- "a/\303\204rende.md"
+        +++ /dev/null
+        @@ -1 +0,0 @@
+        -x
+        diff --git a/x b/y.txt b/x b/y.txt
+        index 587be6b..aee5fdc 100644
+        --- a/x b/y.txt<TAB>
+        +++ b/x b/y.txt<TAB>
+        @@ -1 +1 @@
+        -x
+        +y
+        diff --git "a/\303\266.bin" "b/\303\266.bin"
+        index d630fa5..370a411 100644
+        Binary files "a/\303\266.bin" and "b/\303\266.bin" differ
+        diff --git a/run.sh b/run.sh
+        old mode 100644
+        new mode 100755
+        """;
+
+    [TestMethod]
+    public async Task TestParseSpecialPaths()
+    {
+        var diff = await GetCommitDiffAsync(SpecialPathsOutput.Replace("<TAB>", "\t"));
+
+        Assert.AreEqual(
+            """
+            a b.txt DiffModified: +more
+            base.txt -> bäse.txt DiffModified: +m
+            q"t.txt DiffAdded: +z
+            Ärende.md DiffRemoved: -x
+            x b/y.txt DiffModified: -x +y
+            ö.bin DiffModified binary
+            run.sh DiffModified
+            """,
+            string.Join("\n", diff.FileDiffs.Select(Summary))
+        );
+
+        static string Summary(FileDiff f)
+        {
+            var path = f.IsRenamed ? $"{f.PathBefore} -> {f.PathAfter}" : f.PathAfter;
+            var changes = f
+                .SectionDiffs.SelectMany(s => s.LineDiffs)
+                .Where(l => l.DiffMode != DiffMode.DiffSame)
+                .Select(l => (l.DiffMode == DiffMode.DiffAdded ? "+" : "-") + l.Line);
+            return $"{path} {f.DiffMode}{(f.IsBinary ? " binary" : "")}"
+                + (changes.Any() ? $": {string.Join(" ", changes)}" : "");
+        }
+    }
+
     // The hunk header '@@ -1,3 +1,3 @@' is kept as ChangedIndexes without the leading '-'
     [TestMethod]
     public async Task TestParseSectionIndexes()
