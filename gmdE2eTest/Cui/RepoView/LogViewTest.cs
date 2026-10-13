@@ -746,6 +746,39 @@ public class LogViewTest
         ScreenText.AssertEqual(ScreenText.Of(before, repo.Path), gmd.WaitUntilGone("More dev work"), repo.Path);
     }
 
+    // A log that shrinks under the cursor leaves the cursor where it was, past its last row (see
+    // ContentScroll), and 'm' opened the commit menu for the row the cursor is on, which threw and
+    // ended gmd. The menu is the last commit's, as the key hints and every key already take it.
+    [TestMethod]
+    public async Task TestTheMenuKeyAfterTheLogShrankUnderTheCursor()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        // Show dev from the merge commit, which puts the cursor on dev's tip, then down to the last row
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        foreach (var _ in Enumerable.Range(0, 3))
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right"); // The hoover followed down onto main, and right of it is the commit
+        gmd.WaitForStable();
+
+        // Back to dev hidden, two rows fewer, so the cursor is below the last of them
+        gmd.Send("BSpace");
+        gmd.WaitUntilGone("More dev work");
+        gmd.Send("m");
+
+        StringAssert.Contains(gmd.WaitFor("Commit: 9dc406"), "Commit Diff", "The menu of 'Initial', the last row");
+        Assert.IsTrue(gmd.IsRunning, "gmd is still running");
+    }
+
     // Backspace goes back to the branches shown before the last show or hide, one step at a time, as
     // a browser goes back a page, and says what it undid. With nothing left to undo it says so,
     // rather than doing nothing. The rows are compared without the bottom one, which the message

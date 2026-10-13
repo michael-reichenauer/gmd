@@ -203,34 +203,3 @@ public class FolderBrowseDlg
         return item.ToString();
     }
 }
-
-public abstract class TreeBuilder<T> : ITreeBuilder<T>
-{
-    public bool SupportsCanExpand { get; protected set; } = false;
-
-    public virtual bool CanExpand(T toExpand) => GetChildren(toExpand).Any();
-
-    public abstract IEnumerable<T> GetChildren(T forObject);
-
-    public TreeBuilder(bool supportsCanExpand)
-    {
-        SupportsCanExpand = supportsCanExpand;
-    }
-}
-
-public class DelegateTreeBuilder<T> : TreeBuilder<T>
-{
-    readonly Func<T, IEnumerable<T>> childGetter;
-    readonly Func<T, bool> canExpand;
-
-    public DelegateTreeBuilder(Func<T, IEnumerable<T>> childGetter, Func<T, bool> canExpand)
-        : base(true)
-    {
-        this.childGetter = childGetter;
-        this.canExpand = canExpand;
-    }
-
-    public override bool CanExpand(T toExpand) => canExpand?.Invoke(toExpand) ?? base.CanExpand(toExpand);
-
-    public override IEnumerable<T> GetChildren(T forObject) => childGetter.Invoke(forObject);
-}

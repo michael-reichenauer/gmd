@@ -65,7 +65,6 @@ class ListDlg<TItem, TChoice>
         var list = dlg.AddContentView(2, 2, listWidth, listHeight, items.Select(i => row(i, listWidth)).ToList());
         list.IsShowCursor = false;
         list.IsScrollMode = false;
-        list.IsCursorMargin = false;
         list.IsHighlightCurrentIndex = true;
         dlg.AddBorderView(list, Color.Dark);
 

@@ -1,6 +1,8 @@
 using gmd.Cui.Blame;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
+using gmd.Cui.Tags;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -106,9 +108,6 @@ class CommitCommands : ICommitCommands
         IReadOnlyList<Server.Commit>? commits = null
     ) => repoView.RefreshAndCommit(addName, commitId, commits);
 
-    public void RefreshAndFetch(string addName = "", string commitId = "") =>
-        repoView.RefreshAndFetch(addName, commitId);
-
     public bool CanUndoUncommitted() => !repo.Repo.Status.IsOk;
 
     public void ToggleDetails() => repoView.ToggleDetails();
@@ -175,7 +174,16 @@ class CommitCommands : ICommitCommands
         if (!await CheckBinaryOrLargeAddedFilesAsync())
             return CommitResult.Cancelled;
 
-        if (!commitDlg.Show(repo, isAmend, commits, out var message, out var paths))
+        if (
+            !commitDlg.Show(
+                repo.Repo,
+                () => ShowUncommittedDiff(true),
+                isAmend,
+                commits,
+                out var message,
+                out var paths
+            )
+        )
             return CommitResult.Cancelled;
 
         // A pre-commit hook can make a commit take a while, e.g. one that formats the code. The
@@ -343,17 +351,10 @@ class CommitCommands : ICommitCommands
             var (i1, i2) = (selection.I1, selection.I2);
             if (i2 - i1 > 0)
             { // User selected range of commits
-                var c1 = repo.Repo.ViewCommits[i1];
-                var c2 = repo.Repo.ViewCommits[i2];
-                var commits = new List<Commit>();
-                var current = c1;
-                while (current != c2)
-                {
-                    commits.Add(current);
-                    current = repo.Repo.CommitById[current.ParentIds[0]];
-                }
-                commits.Add(current);
-                commits.Reverse();
+                if (CommitsToPick(repo.Repo, i1, i2) is not { } commits)
+                    return new Notice(
+                        "The selected commits are not one line of commits: select the commits of a branch"
+                    );
 
                 foreach (var commit in commits)
                 {
@@ -493,12 +494,40 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
+    // The selected rows as commits to pick, oldest first: the newest and the commits down git's first
+    // parents to the oldest, or null when the oldest is not on that line, e.g. rows of two branches,
+    // or the uncommitted changes are among them. The walk used to go on past the first commit and
+    // threw there, ending gmd.
+    internal static IReadOnlyList<Commit>? CommitsToPick(Repo repo, int i1, int i2)
+    {
+        var (newest, oldest) = (repo.ViewCommits[i1], repo.ViewCommits[i2]);
+        if (newest.IsUncommitted || oldest.IsUncommitted)
+            return null;
+
+        List<Commit> commits = [newest];
+        var c = newest;
+        while (c.Id != oldest.Id)
+        {
+            if (c.GitParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.GitParentIds[0], out var parent))
+                return null;
+            c = parent;
+            commits.Add(c);
+        }
+
+        commits.Reverse();
+        return commits;
+    }
+
     public void UncommitUntilCommit(string id) =>
         Do(async () =>
         {
             var commit = repo.Repo.CommitById[id];
-            var parentId = repo.Repo.CommitById[commit.ParentIds[0]].Id;
-            if (await server.UncommitUntilCommitAsync(parentId, repo.Path) is Error e)
+            if (CommitRewrite.WhyNotUncommit(repo.Repo, commit) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+
+            // Down git's first parent, the line the branch was made along, which a pull merge whose
+            // parents gmd swaps to draw it does not show first
+            if (await server.UncommitUntilCommitAsync(commit.GitParentIds[0], repo.Path) is Error e)
             {
                 return new Error($"Failed to undo commit", e);
             }
@@ -512,19 +541,8 @@ class CommitCommands : ICommitCommands
         {
             var c1 = repo.Repo.CommitById[id1];
             var c2 = repo.Repo.CommitById[id2];
-            if (!c2.ParentIds.Any())
-                return new Error("Last commit does not have a parent");
-            if (c1.BranchName != c2.BranchName)
-                return new Error("Commits are not on the same branch");
-            var branch = repo.Repo.BranchByName[c1.BranchName];
-
-            // Both flags, as 'Uncommit X and Newer' asks it in CommitMenu. IsLocalCurrent is only ever
-            // set on a *remote* branch whose local branch is current (Augmenter.cs), so asking for
-            // it alone refused every commit that had not been pushed yet — the local branch never
-            // carries the flag. Which was the wrong way round: the commits it did allow were the
-            // ones already published.
-            if (!branch.IsCurrent && !branch.IsLocalCurrent)
-                return new Error("Commits not on current branch");
+            if (CommitRewrite.WhyNotSquash(repo.Repo, c1, c2) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
 
             var commits = new List<Commit>();
             var c = c1;
@@ -536,7 +554,7 @@ class CommitCommands : ICommitCommands
                 c = repo.Repo.CommitById[c.ParentIds[0]];
             }
 
-            if (!squashDlg.Show(repo, commits, out var message))
+            if (!squashDlg.Show(commits, out var message))
                 return Result.Ok;
 
             if (await server.SquashCommitsAsync(repo.Repo, id1, id2, message) is Error e)
@@ -568,7 +586,7 @@ class CommitCommands : ICommitCommands
         if (CommitRewrite.WhyNotAmend(repo.Repo, commit) is var whyNot && whyNot != "")
             return new Notice(whyNot);
 
-        if (!commitDlg.ShowAmend(repo, commit, out var message, out var paths))
+        if (!commitDlg.ShowAmend(repo.Repo, () => ShowUncommittedDiff(true), commit, out var message, out var paths))
             return Result.Ok;
 
         using (status.Progress($"Amending {commit.Sid}"))
@@ -848,7 +866,7 @@ class CommitCommands : ICommitCommands
         var largeFiles = addFiles
             .Where(f => !binaryFiles.Contains(f))
             .Where(f => Files.IsLarger(Path.Join(repo.Path, f), 100 * 1000))
-            .Select(f => $"{f} ({Files.FileSize(f).FileSize()})")
+            .Select(f => $"{f} ({Files.FileSize(Path.Join(repo.Path, f)).FileSize()})")
             .ToList();
 
         if (largeFiles.Any())

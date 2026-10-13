@@ -395,6 +395,58 @@ public class CommitTest
         StringAssert.Contains(await repo.GitAsync("status -sb"), "[ahead 1]");
     }
 
+    // Amend with changes in the working tree ticks them all, to amend with, and unticking them all
+    // gives the last commit a new message alone. A ticked file was asked for, so the message could
+    // not be fixed without taking work in progress into the commit.
+    [TestMethod]
+    public async Task TestAmendTheMessageAloneWithChangesThere()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        repo.WriteFile("alpha.txt", "alpha\nchanged\n");
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(8));
+        gmd.WaitFor("Initial");
+        gmd.Send("a");
+        gmd.WaitFor("Amend 1 change on 'main'");
+
+        gmd.SendText(" amended");
+        gmd.WaitFor("Add zeta amended");
+        gmd.Send("Tab"); // Into the message body
+        gmd.WaitForStable();
+        gmd.Send("Tab"); // And the file list
+        gmd.WaitForStable();
+        gmd.Send("Space");
+        gmd.WaitFor("Amend the last commit on 'main'");
+        gmd.Send("M-o");
+
+        gmd.WaitFor("Amended the last commit");
+        Assert.AreEqual("Add zeta amended", await repo.GitAsync("log --format=%s -1"));
+        Assert.AreEqual(
+            "zeta.txt",
+            (await repo.GitAsync("show --name-only --format= HEAD")).Trim(),
+            "The files it had"
+        );
+        Assert.AreEqual(
+            " M alpha.txt",
+            (await repo.GitAsync("status --porcelain")).TrimEnd(),
+            "The change left as it was"
+        );
+    }
+
+    // The heading names the current branch. It named the branch of the top row, which with no
+    // changes is the newest commit shown, here main's, while dev is checked out.
+    [TestMethod]
+    public async Task TestTheAmendHeadingNamesTheCurrentBranch()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.GitAsync("checkout -q dev");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("More dev work");
+
+        gmd.Send("a");
+
+        StringAssert.Contains(gmd.WaitFor("Amend the last commit"), "Amend the last commit on 'dev':");
+    }
+
     // The guard that makes amend safe: once the commit is on the remote it is not offered at all,
     // and the key silently does nothing rather than rewriting published history.
     [TestMethod]

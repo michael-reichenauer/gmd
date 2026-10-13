@@ -182,20 +182,12 @@ public class ContentViewTest
         Assert.AreEqual(91, view.FirstIndex);
     }
 
-    // The cursor is drawn in a margin to the left of the content, and the scrollbar in one to the
-    // right, so both are taken off the width the content is asked to fill.
+    // The scrollbar is drawn in a column to the right, which is taken off the width the content is
+    // asked to fill
     [TestMethod]
-    public void TestCursorMarginTakesTheFirstColumnOfTheView()
+    public void TestTheScrollbarIsTakenOffTheContentWidth()
     {
-        var view = NewView(100);
-
-        Assert.AreEqual(0, view.ContentX);
-        Assert.AreEqual(19, view.ContentWidth); // 20 wide, less the scrollbar
-
-        view.IsCursorMargin = true;
-
-        Assert.AreEqual(1, view.ContentX);
-        Assert.AreEqual(18, view.ContentWidth);
+        Assert.AreEqual(19, NewView(100).ContentWidth); // 20 wide, less the scrollbar
     }
 
     static ContentView NewView(int rowCount, int width = 20, int height = 10)

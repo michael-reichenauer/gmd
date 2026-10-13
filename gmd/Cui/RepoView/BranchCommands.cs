@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Cui.Branches;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
 using gmd.Server;
@@ -20,12 +21,9 @@ interface IBranchCommands
 
     void ShowWorktrees();
     void CreateWorktree(string branchName);
-    void OpenWorktree(string path);
 
-    void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
     void DiffBranchesBranch(string branchName1, string branchName2);
 
-    void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
     void CreateBranchFromLostCommit(string commitId, string madeOnName);
@@ -41,15 +39,10 @@ interface IBranchCommands
     void PushCurrentBranch();
     void PushBranch(string name);
     void PushAllBranches();
-    void PublishCurrentBranch();
     void PullCurrentBranch();
     void PullBranch(string name);
     void PullAllBranches();
     void RestoreOrigin(string name);
-    bool CanPushCurrentBranch();
-    bool CanPush();
-    bool CanPull();
-    bool CanPullCurrentBranch();
 
     void SetBranchManuallyAsync();
     void MoveBranch(string commonName, string otherCommonName, int delta);
@@ -117,9 +110,6 @@ class BranchCommands : IBranchCommands
         IReadOnlyList<Server.Commit>? commits = null
     ) => repoView.RefreshAndCommit(addName, commitId, commits);
 
-    public void RefreshAndFetch(string addName = "", string commitId = "") =>
-        repoView.RefreshAndFetch(addName, commitId);
-
     // Undoing the last change of a branch
     public void UndoLastChange(string branchName) => undoCmds.UndoLastChange(branchName);
 
@@ -128,8 +118,6 @@ class BranchCommands : IBranchCommands
     public void RestoreDeletedBranch() => undoCmds.RestoreDeletedBranch();
 
     // Creating and deleting branches
-    public void CreateBranch() => createCmds.CreateBranch();
-
     public void CreateBranchFromBranch(string name) => createCmds.CreateBranchFromBranch(name);
 
     public void CreateBranchFromCommit() => createCmds.CreateBranchFromCommit();
@@ -148,8 +136,6 @@ class BranchCommands : IBranchCommands
 
     public void PushAllBranches() => pushPullCmds.PushAllBranches();
 
-    public void PublishCurrentBranch() => pushPullCmds.PublishCurrentBranch();
-
     public void PullCurrentBranch() => pushPullCmds.PullCurrentBranch();
 
     public void PullBranch(string name) => pushPullCmds.PullBranch(name);
@@ -157,14 +143,6 @@ class BranchCommands : IBranchCommands
     public void PullAllBranches() => pushPullCmds.PullAllBranches();
 
     public void RestoreOrigin(string name) => pushPullCmds.RestoreOrigin(name);
-
-    public bool CanPushCurrentBranch() => pushPullCmds.CanPushCurrentBranch();
-
-    public bool CanPush() => pushPullCmds.CanPush();
-
-    public bool CanPull() => pushPullCmds.CanPull();
-
-    public bool CanPullCurrentBranch() => pushPullCmds.CanPullCurrentBranch();
 
     public void ShowBranch(
         string name,
@@ -324,10 +302,15 @@ class BranchCommands : IBranchCommands
             return new Error("Failed to stash the changes", stashError);
 
         if (await server.SwitchToAsync(repo.Repo, branchName) is Error switchError)
-        { // Back where it was, with the changes put back
-            await server.StashPopAsync("stash@{0}", repo.Path);
+        { // Back where it was, with the changes put back, or said to be in the stash if they could not be
+            var popped = await server.StashPopAsync("stash@{0}", repo.Path);
             Refresh();
-            return new Error($"Failed to switch to {name}", switchError);
+            return new Error(
+                popped is Error
+                    ? $"Failed to switch to {name}, and to put the changes back: they are in the stash, '{stashMessage}'"
+                    : $"Failed to switch to {name}",
+                switchError
+            );
         }
 
         if (await server.StashPopAsync("stash@{0}", repo.Path) is Error)
@@ -351,8 +334,6 @@ class BranchCommands : IBranchCommands
     public void ShowWorktrees() => worktreeCmds.ShowWorktrees();
 
     public void CreateWorktree(string branchName) => worktreeCmds.CreateWorktree(branchName);
-
-    public void OpenWorktree(string path) => worktreeCmds.OpenWorktree(path);
 
     Task<Result> OpenWorktreeAsync(string path) => worktreeCmds.OpenWorktreeAsync(path);
 
@@ -419,12 +400,11 @@ class BranchCommands : IBranchCommands
         Do(async () =>
         {
             var cb = repo.Repo.CurrentBranch();
-            if (cb.RemoteName != "")
-            {
-                var rcb = repo.Repo.BranchByName[cb.RemoteName];
-
-                if (cb.TipId == rcb.TipId && rcb.BottomId == rcb.TipId) { }
-            }
+            if (WhyNotRebaseAndPush(repo.Repo, cb) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+            var ontoName = repo.Repo.BranchByName.TryGetValue(onto, out var b) ? b.NiceNameUnique : onto;
+            if (cb.RemoteName != "" && !Confirm.RebaseAndPush(cb.NiceNameUnique, ontoName, cb.RemoteName))
+                return Result.Ok;
 
             if (await server.RebaseBranchAsync(repo.Repo, onto) is Error e)
                 return new Error($"Failed to rebase branch {onto}", e);
@@ -432,6 +412,14 @@ class BranchCommands : IBranchCommands
             Refresh();
             return Result.Ok;
         });
+
+    // A rebased branch that is on origin is pushed with force, leased on origin's tip as shown, so a
+    // commit origin has and the branch has not would be dropped from origin: the fetch that brought
+    // it in moved the lease along with it. Such commits are pulled first. "" when it can be rebased.
+    internal static string WhyNotRebaseAndPush(Repo repo, Branch current) =>
+        current.RemoteName != "" && current.BehindCount > 0
+            ? $"'{current.RemoteName}' has commits '{current.NiceNameUnique}' has not, which the push would drop: pull them first"
+            : "";
 
     public void DiffBranchesBranch(string branchName1, string branchName2) =>
         Do(async () =>
@@ -448,35 +436,6 @@ class BranchCommands : IBranchCommands
             message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
             var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
-            var diffsResult = await reload(DiffContext.Default);
-            if (diffsResult is not CommitDiff[] diffs)
-                return new Error("Failed to get diff", diffsResult.Error);
-
-            diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
-            return Result.Ok;
-        });
-
-    public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) =>
-        Do(async () =>
-        {
-            string message = "";
-            var branch = repo.Repo.BranchByName[branchName];
-            var sha1 = branch.TipId;
-            var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.Repo.CurrentBranch().TipId;
-            if (sha2 == Repo.UncommittedId)
-                return new Error("Cannot diff while uncommitted changes");
-
-            if (isSwitchOrder)
-            {
-                (sha2, sha1) = (sha1, sha2);
-                message = $"Diff '{branch.NiceName}' with '{repo.Repo.CurrentBranch().NiceName}'";
-            }
-            else
-            {
-                message = $"Diff '{repo.Repo.CurrentBranch().NiceName}' with '{branch.NiceName}'";
-            }
-
-            var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha1, sha2, message, n, repo.Path));
             var diffsResult = await reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);

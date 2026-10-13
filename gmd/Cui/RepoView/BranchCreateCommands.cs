@@ -1,5 +1,7 @@
 using gmd.Common;
+using gmd.Cui.Branches;
 using gmd.Cui.Common;
+using gmd.Cui.Recovery;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -8,7 +10,6 @@ namespace gmd.Cui.RepoView;
 // what to delete first, and then run the git command for them.
 interface IBranchCreateCommands
 {
-    void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
     void CreateBranchFromLostCommit(string commitId, string madeOnName);
@@ -51,37 +52,12 @@ class BranchCreateCommands : IBranchCreateCommands
         this.deleteBranchDlg = deleteBranchDlg;
     }
 
-    public void CreateBranch() =>
-        Do(async () =>
-        {
-            var branchName = "";
-            try
-            {
-                var currentBranchName = repo.Repo.CurrentBranch().Name;
-                if (createBranchDlg.Show(currentBranchName, "") is not CreateBranchResult rsp)
-                    return Result.Ok;
-
-                if (await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout) is Error e)
-                {
-                    return new Error($"Failed to create branch {rsp.Name}", e);
-                }
-                branchName = rsp.Name;
-
-                return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
-            }
-            finally
-            {
-                Refresh(branchName);
-            }
-        });
-
     public void CreateBranchFromBranch(string name) =>
         Do(async () =>
         {
             var branchName = "";
             try
             {
-                //var currentBranchName = repo.GetCurrentBranch().Name;
                 var branch = repo.Repo.BranchByName[name];
                 if (branch.LocalName != "")
                     name = branch.LocalName;
@@ -100,14 +76,20 @@ class BranchCreateCommands : IBranchCreateCommands
             }
             finally
             {
-                Refresh(branchName);
+                RefreshIfMade(branchName);
             }
         });
+
+    // The uncommitted row is no commit to start a branch at, which the menu and the hints say, and
+    // 'b' asked for a name and then failed in git
+    public const string NoCommitToStartAt = "A branch starts at a commit: move to one first";
 
     public void CreateBranchFromCommit() =>
         Do(async () =>
         {
             var commit = repo.RowCommit;
+            if (commit.IsUncommitted)
+                return new Notice(NoCommitToStartAt);
             return await CreateBranchAtAsync(commit.BranchName, commit.Id, "", true);
         });
 
@@ -144,8 +126,16 @@ class BranchCreateCommands : IBranchCreateCommands
         }
         finally
         {
-            Refresh(branchName);
+            RefreshIfMade(branchName);
         }
+    }
+
+    // Once the branch is made, whatever happened after, e.g. a push that failed: a dialog cancelled
+    // or a git refusal changed nothing, and refreshed, which also fetched, for nothing
+    void RefreshIfMade(string branchName)
+    {
+        if (branchName != "")
+            Refresh(branchName);
     }
 
     // Renames both the local and the remote branch, since renaming only the local branch would
@@ -198,7 +188,7 @@ class BranchCreateCommands : IBranchCreateCommands
             }
             finally
             {
-                Refresh(newName);
+                RefreshIfMade(newName);
             }
         });
 

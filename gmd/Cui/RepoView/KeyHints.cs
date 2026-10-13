@@ -3,45 +3,21 @@ using gmd.Server;
 
 namespace gmd.Cui.RepoView;
 
-record KeyHint(string Key, string Text);
-
-// A hint with no key, naming what the keys act on, drawn in the colors it is given
-record LabelHint(Text Label) : KeyHint("", Label.ToString());
-
-// The key-hint line at the bottom of the log view: the few keys that do something useful where
-// the cursor is, so that the keys are learned by using gmd rather than by reading the help first.
-// What is useful depends on what is under the cursor (a commit, the uncommitted changes, a
+// The log view's key-hint line, see KeyHintLine: the few keys that do something useful where the
+// cursor is. What is useful depends on what is under the cursor (a commit, the uncommitted changes, a
 // highlighted branch or several selected rows) and on the repo, e.g. 'p push' only while there is
-// something to push, and 'c continue' rather than 'c commit' during a rebase.
+// something to push, and 'c continue' rather than 'c commit' during a rebase. The line starts with
+// what the keys act on ('dev:' for a highlighted branch, 'commit on dev:' for the row), so it is the
+// last to go, then 'm menu', since every command is in a menu.
 //
-// A key is written the way it is typed, and a shifted one with '⇧', so '⇧p' is Shift-P, which is a
-// different command from 'p'.
-// The hints are listed most useful first, which is also the order they are dropped in, from the
-// end, when the line is too narrow for all of them. The line starts with what the keys act on
-// ('dev:' for a highlighted branch, 'commit on dev:' for the row), so it is the last to go, then
-// 'm menu', since every command is in a menu, and '? help' is always kept, at the right.
-//
-// The line is drawn as the log's bottom border, in the color of the line under the application bar,
-// with the hints set into it, so that it reads as the frame of the log and not as one more row of
-// it, which it did when it was the hints on their own.
-//
-// This is the decision and the layout, with no view, so it is tested without a terminal; the
-// line itself is drawn by KeyHintBar.
+// This is the decision, with no view, so it is tested without a terminal.
 static class KeyHints
 {
-    const string Gap = "  ";
-    static readonly KeyHint Help = new("?", "help");
-    static readonly KeyHint Menu = new("m", "menu");
-
-    // The border runs into the line for this long before the hints, and after the help. The lead is
-    // long enough that the hints start clearly inside a line, so the row reads as a border rather
-    // than as one more row of the log.
-    const string Lead = "──────────";
-    const string Tail = "──";
+    static readonly KeyHint Menu = KeyHintLine.Menu;
 
     public static IReadOnlyList<KeyHint> For(IViewRepo repo, Hoover hoover, Selection selection, bool isDetailsShown)
     {
-        if (selection.I2 > selection.I1)
+        if (selection.IsRows)
             return ForSelectedRows();
 
         return hoover.IsBranch ? ForBranch(repo, hoover) : ForCommit(repo, isDetailsShown);
@@ -56,120 +32,6 @@ static class KeyHints
             new("file:", "search changed files"),
             new("change:", "search changes"),
         ];
-
-    // The side views' lines, drawn by a KeyHintBar of their own. 'Esc close' comes early in each,
-    // since getting back to the log is the first thing to know in a view that covers it.
-    public static IReadOnlyList<KeyHint> ForDiff(bool isUncommitted, bool hasConflicts)
-    {
-        List<KeyHint> hints = [Menu, new("Esc", "close")];
-        if (hasConflicts)
-            hints.Add(new("Enter", "resolve"));
-        if (isUncommitted)
-            hints.Add(new("c", "commit"));
-        hints.AddRange([new("+ -", "context"), new("s", "to file")]);
-        if (isUncommitted)
-            hints.Add(new("u", "discard"));
-        hints.Add(new("←→", "columns"));
-        return hints;
-    }
-
-    public static IReadOnlyList<KeyHint> ForBlame(bool isDetailsShown, bool hasPrevious, bool canGoBack)
-    {
-        List<KeyHint> hints = [Menu, new("Esc", "close"), new("Enter", isDetailsShown ? "hide details" : "details")];
-        hints.Add(new("d", "diff"));
-        hints.Add(new("l", "line history"));
-        if (hasPrevious)
-            hints.Add(new("p", "previous"));
-        if (canGoBack)
-            hints.Add(new("Backspace", "back"));
-        hints.AddRange([new("i", "copy id"), new("g", "gutter")]);
-        return hints;
-    }
-
-    // The start page's line, shown in place of the log's until a repository is opened. The numbers
-    // open the listed repositories, and Delete takes the selected one off the recent list, which it
-    // only says where it can.
-    public static IReadOnlyList<KeyHint> ForStart(int numbered, bool canRemove)
-    {
-        List<KeyHint> hints = [new("Enter", "open")];
-        if (numbered > 0)
-            hints.Add(new(numbered == 1 ? "1" : $"1-{numbered}", "open repository"));
-        hints.AddRange([new("o", "open folder"), new("c", "clone"), new("i", "init")]);
-        if (canRemove)
-            hints.Add(new("Del", "remove from list"));
-        hints.Add(new("Esc", "quit"));
-        return hints;
-    }
-
-    // 1, 2, 3, 4 and 0 are said by the resolver's own result pane, for the conflict under the cursor
-    public static IReadOnlyList<KeyHint> ForConflict() =>
-        [
-            Menu,
-            new("Esc", "close"),
-            new("] [", "next, previous"),
-            new("s", "save"),
-            new("e", "edit"),
-            new("b", "ancestor"),
-            new("a", "whole file"),
-            new("u", "clear"),
-        ];
-
-    // The hints on one line of the given width, set into the border: as many as fit, from the left,
-    // and help at the right, with the border between them
-    //
-    //   ────────── m menu  d diff  f search ──────── ? help ──
-    public static Text ToText(IReadOnlyList<KeyHint> hints, int width)
-    {
-        // The border and its spaces around the hints, the help and the border around it
-        var frame = Lead.Length + 1 + 1 + 1 + 1 + Length(Help) + 1 + Tail.Length;
-        var shown = hints.ToList();
-        while (shown.Count > 0 && frame + Length(shown) > width)
-            shown.RemoveAt(shown.Count - 1);
-
-        var text = new TextBuilder().Color(Color.BrightMagenta, Lead);
-        if (shown.Count > 0)
-        {
-            text.Dark(" ");
-            for (int i = 0; i < shown.Count; i++)
-                Add(i == 0 ? text : text.Dark(Gap), shown[i]);
-            text.Dark(" ");
-        }
-
-        var border = width - text.Length - 1 - Length(Help) - 1 - Tail.Length;
-        if (border < 0)
-            return text; // Not even the help fits
-
-        text.Color(Color.BrightMagenta, new string('─', border)).Dark(" ");
-        Add(text, Help);
-        return text.Dark(" ").Color(Color.BrightMagenta, Tail);
-    }
-
-    // A status message, in place of the hints and set into the border the same way: green for what a
-    // command did, yellow for why a key did nothing, red for what failed in the background, and cyan
-    // for what a command is doing while it runs. Cut to the line if it is longer.
-    //
-    //   ────────── Pushed 'main' ─────────────────────────────
-    public static Text ToText(StatusMessage message, int width)
-    {
-        var room = Math.Max(0, width - Lead.Length - 2 - Tail.Length);
-        var text = message.Text.ReplaceLineEndings(" ");
-        text = text.Length > room ? text[..Math.Max(0, room - 1)] + "┅" : text;
-        var color = message.Kind switch
-        {
-            StatusKind.Info => Color.Green,
-            StatusKind.Notice => Color.Yellow,
-            StatusKind.Progress => Color.Cyan,
-            _ => Color.BrightRed,
-        };
-
-        var border = Math.Max(0, width - Lead.Length - 2 - text.Length);
-        return new TextBuilder()
-            .Color(Color.BrightMagenta, Lead)
-            .Dark(" ")
-            .Color(color, text)
-            .Dark(" ")
-            .Color(Color.BrightMagenta, new string('─', border));
-    }
 
     // The ranges the menu and 'd' work with: diff, squash and cherry-pick of the rows, and copying
     // them
@@ -290,16 +152,4 @@ static class KeyHints
         return Text.White(commit.IsUncommitted ? "changes on " : "commit on ")
             .Color(branch.Color, branch.B.NiceNameUnique);
     }
-
-    static void Add(TextBuilder text, KeyHint hint)
-    {
-        if (hint is LabelHint label)
-            text.Add(label.Label);
-        else
-            text.Cyan(hint.Key).Dark($" {hint.Text}");
-    }
-
-    static int Length(KeyHint hint) => hint.Key == "" ? hint.Text.Length : hint.Key.Length + 1 + hint.Text.Length;
-
-    static int Length(IReadOnlyList<KeyHint> hints) => hints.Sum(Length) + Math.Max(0, hints.Count - 1) * Gap.Length;
 }

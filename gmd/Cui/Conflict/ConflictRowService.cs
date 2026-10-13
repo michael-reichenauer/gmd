@@ -13,7 +13,7 @@ interface IConflictRowService
 // Turns a conflicted file and what the user has decided about it into drawn rows.
 //
 // Pure: no view, no ContentView, no driver — so the whole layout is snapshot testable through
-// Text.ToString(), which is how BlameService is tested.
+// Text.ToString(), which is how BlameRowService is tested.
 class ConflictRowService : IConflictRowService
 {
     const string PaneSeparator = "│";
@@ -112,9 +112,6 @@ class ConflictRowService : IConflictRowService
     // One drawn line: the panes side by side, or one text across the whole width
     public Text ToRowText(ConflictRow row, ConflictColumns columns, int startX)
     {
-        if (row.Mode == ConflictRowMode.Divider)
-            return row.Panes[0].ToLine(columns.TotalWidth);
-
         // Not padded: only the panes need to be, so their separators line up
         if (row.Mode == ConflictRowMode.SpanAll)
             return Scroll(row.Panes[0], startX, columns.TotalWidth, isPad: false);
@@ -141,8 +138,8 @@ class ConflictRowService : IConflictRowService
     }
 
     // Both sides scroll together, as the diff view's two columns do. 'isFillRest' pads to the pane
-    // width so the separators of every row line up — note ToLine is not that, it repeats the first
-    // character to draw a rule, which is what a Divider row wants and a pane very much does not.
+    // width so the separators of every row line up (ToLine is not that: it repeats the first
+    // character, to draw a rule).
     static Text Scroll(Text text, int startX, int width, bool isPad = true) =>
         width <= 0 ? Text.Empty : text.Subtext(startX, width, isFillRest: isPad);
 

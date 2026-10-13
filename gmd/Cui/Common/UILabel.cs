@@ -2,7 +2,8 @@ using Terminal.Gui;
 
 namespace gmd.Cui.Common;
 
-// A label that draws a styled Text and can be clicked, i.e. what Terminal.Gui's Label is not.
+// A label that draws a styled Text, which Terminal.Gui's Label does not, and takes the focus when
+// clicked. A click is handled with MouseClick, as the application bar does.
 class UILabel : View
 {
     Text text;
@@ -14,21 +15,12 @@ class UILabel : View
         this.text = Text.Empty;
     } // For some reason text need to be set to something, otherwise it will not be drawn
 
-    public UILabel(int x, int y, string text, bool autosize = true)
-        : base(x, y, text)
-    {
-        AutoSize = autosize;
-        this.text = Text.White(text);
-    }
-
     public UILabel(int x, int y, Text text, bool autosize = true)
         : base(x, y, text.ToString())
     {
         AutoSize = autosize;
         this.text = text;
     }
-
-    public event Action? Clicked;
 
     public override void Redraw(Rect bounds)
     {
@@ -67,7 +59,6 @@ class UILabel : View
                 SetNeedsDisplay();
             }
 
-            OnClicked();
             return true;
         }
         return false;
@@ -78,24 +69,5 @@ class UILabel : View
         Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
         return base.OnEnter(view);
-    }
-
-    public override bool ProcessHotKey(KeyEvent ke)
-    {
-        if (ke.Key == (Key.AltMask | HotKey))
-        {
-            if (!HasFocus)
-            {
-                SetFocus();
-            }
-            OnClicked();
-            return true;
-        }
-        return base.ProcessHotKey(ke);
-    }
-
-    public virtual void OnClicked()
-    {
-        Clicked?.Invoke();
     }
 }

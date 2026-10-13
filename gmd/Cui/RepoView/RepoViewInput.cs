@@ -1,4 +1,7 @@
+using gmd.Cui.App;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
+using gmd.Cui.Graphs;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -164,15 +167,22 @@ class RepoViewInput
     void OnKeyShiftCursorRight()
     {
         var x = !hoover.IsBranch ? Repo.Graph.Width + 2 : hoover.ColumnIndex;
-        var y = hoover.RowIndex == -1 ? Repo.CurrentIndex : hoover.RowIndex;
-        Menus.ShowOpenBranchMenu(x + 2, y + 1);
+        var index = hoover.RowIndex == -1 ? Repo.CurrentIndex : hoover.RowIndex;
+        Menus.ShowOpenBranchMenu(x + 2, MenuY(index));
     }
 
+    // Selected rows go first, as the key hints say, then a highlighted branch: with both, 'd' opened
+    // the branch's diff menu while the hints offered the diff of the rows
     void OnKeyD()
     {
-        if (hoover.IsBranch)
+        if (hoover.IsBranch && !commitsView.Selection.IsRows)
         {
-            Menus.ShowDiffBranchToMenu(hoover.ColumnIndex + 2, hoover.RowIndex + 1, hoover.BranchName);
+            if (!ServerRepo.Status.IsOk)
+            { // The branch diff menu lists nothing then, see BranchMenu.GetBranchDiffItems
+                status.Notice(Why.Changes);
+                return;
+            }
+            Menus.ShowDiffBranchToMenu(hoover.ColumnIndex + 2, MenuY(hoover.RowIndex), hoover.BranchName);
             return;
         }
 
@@ -274,7 +284,7 @@ class RepoViewInput
 
         // Current branch showing menu of branches to merge from
         var hb = Repo.Graph.BranchByName(branch.Name);
-        Menus.ShowMergeFromMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
+        Menus.ShowMergeFromMenu(hb.X * 2 + 3, MenuY(Repo.CurrentIndex));
     }
 
     // The mirror of OnKeyE: 'e' merges into the current branch, 'E' merges the current branch out
@@ -298,15 +308,21 @@ class RepoViewInput
         if (branch.IsCurrent)
         { // Current branch showing menu of branches to merge to
             var hb = Repo.Graph.BranchByName(branch.Name);
-            Menus.ShowMergeToMenu(hb.X * 2 + 3, Repo.CurrentIndex + 1);
+            Menus.ShowMergeToMenu(hb.X * 2 + 3, MenuY(Repo.CurrentIndex));
             return;
         }
 
         // A branch git no longer has would be recreated by the checkout, so it is not offered,
-        // exactly as in the branch menu
+        // exactly as in the branch menu, nor one checked out in another worktree, which git refuses
+        // to check out here
         if (!branch.IsGitBranch)
         {
             status.Notice($"'{branch.NiceNameUnique}' no longer exists, so nothing can be merged into it");
+            return;
+        }
+        if (ServerRepo.WorktreePathOf(branch) != "")
+        {
+            status.Notice(Why.InWorktree(branch));
             return;
         }
 
@@ -398,7 +414,7 @@ class RepoViewInput
 
     void OnMenu()
     {
-        if (hoover.IsBranch)
+        if (hoover.IsBranch && !commitsView.Selection.IsRows)
         {
             var branch = Repo
                 .Graph.GetRowBranches(Repo.CurrentIndex)
@@ -409,11 +425,26 @@ class RepoViewInput
                 return;
             }
 
-            Menus.ShowBranchMenu(branch.X * 2 + 3, commitsView.CurrentIndex + 1, hoover.BranchPrimaryName);
+            Menus.ShowBranchMenu(branch.X * 2 + 3, MenuY(Repo.CurrentIndex), hoover.BranchPrimaryName);
             return;
         }
 
-        Menus.ShowCommitMenu(Repo.Graph.Width + 5, commitsView.CurrentIndex + 1, commitsView.CurrentIndex);
+        // The row's commit, which is the last one when the log shrank under the cursor, e.g. after
+        // 'h': the cursor is left where it was, see ContentScroll, and the commit menu threw on it
+        Menus.ShowCommitMenu(Repo.Graph.Width + 5, MenuY(Repo.CurrentIndex), Repo.CurrentIndex);
+    }
+
+    // Where a menu opened by a key goes: its top border on the screen row above the commit, so its
+    // first item is on the commit's row, as a right-click puts it. The row on the screen rather
+    // than the commit's index, which put the menu that many rows lower once the log was scrolled.
+    int MenuY(int index) => index - commitsView.FirstIndex + 1;
+
+    // The commit at a row of the view, or -1 for the empty rows below the last one, where a click
+    // has no commit to act on: it put the cursor there, and the commit menu then threw
+    int RowAt(int y)
+    {
+        var index = y + commitsView.FirstIndex;
+        return index >= 0 && index < ServerRepo.ViewCommits.Count ? index : -1;
     }
 
     void OnCursorLeft()
@@ -550,7 +581,9 @@ class RepoViewInput
 
     void OnDoubleClicked(int x, int y)
     {
-        var index = y + commitsView.FirstIndex;
+        var index = RowAt(y);
+        if (index == -1)
+            return;
         commitsView.SetCurrentIndex(index);
 
         if (x > Repo.Graph.Width)
@@ -577,7 +610,9 @@ class RepoViewInput
 
     void OnClicked(int x, int y)
     {
-        var index = y + commitsView.FirstIndex;
+        var index = RowAt(y);
+        if (index == -1)
+            return;
         commitsView.SetCurrentIndex(index);
 
         if (
@@ -598,7 +633,9 @@ class RepoViewInput
 
     void OnClickedMiddle(int x, int y)
     {
-        var index = y + commitsView.FirstIndex;
+        var index = RowAt(y);
+        if (index == -1)
+            return;
         commitsView.SetCurrentIndex(index);
 
         if (Repo.Graph.TryGetBranchByPos(x, index, out var branch))
@@ -623,7 +660,9 @@ class RepoViewInput
 
     void OnRightClicked(int x, int y)
     {
-        int index = y + commitsView.FirstIndex;
+        var index = RowAt(y);
+        if (index == -1)
+            return;
         commitsView.SetCurrentIndex(index);
 
         if (x > Repo.Graph.Width)
@@ -655,8 +694,8 @@ class RepoViewInput
             return;
         }
 
-        var index = y + commitsView.FirstIndex;
-        if (Repo.Graph.TryGetBranchByPos(x, index, out var branch))
+        var index = RowAt(y);
+        if (index != -1 && Repo.Graph.TryGetBranchByPos(x, index, out var branch))
         { // Moved over a branch
             SetHooverBranch(branch, index);
             return;
@@ -669,7 +708,12 @@ class RepoViewInput
     {
         if (x > Repo.Graph.Width)
         {
-            var index = y + commitsView.FirstIndex;
+            var index = RowAt(y);
+            if (index == -1)
+            {
+                ClearHoover();
+                return;
+            }
             hoover.SetCommit(index, Repo.Graph.Width + 2, Repo.CurrentIndex);
             commitsView.SetNeedsDisplay();
             return;

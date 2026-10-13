@@ -55,8 +55,6 @@ class Menu
     public static MenuItem Item(string text, string shortcut, Action action, Func<bool>? canExecute = null) =>
         new MenuItem(text, shortcut, action, canExecute);
 
-    public static MenuItem Separator(string text = "") => new MenuSeparator(text);
-
     public static MenuItem SubMenu(
         string text,
         string shortcut,
@@ -145,8 +143,6 @@ class Menu
         await done.Task;
     }
 
-    public void Close() => CloseAsync().RunInBackground();
-
     // Called for all mouse events, both within and also outside this menu,
     // Skipping if not focused or not clicked events
     void OnRootMouseEvent(MouseEvent e)
@@ -167,9 +163,9 @@ class Menu
         (var x, var y) = ToViewCoordinates(screenX, screenY);
         if (!IsInside(x, y))
             return;
-        var index = y - 1;
+        var index = dimensions.ItemAt(y, itemsView.FirstIndex, items.Count);
 
-        if (index < 0 || index >= items.Count || !items.Any() || items[index].IsDisabled)
+        if (index == -1 || items[index].IsDisabled)
             return;
         itemsView.SetCurrentIndex(index);
     }
@@ -187,7 +183,7 @@ class Menu
         }
 
         // Is inside this menu, handle click
-        UI.Post(() => OnClick(x, y - 1));
+        UI.Post(() => OnClick(y));
     }
 
     ContentView CreateItemsView()
@@ -195,7 +191,6 @@ class Menu
         var view = dlg.AddContentView(0, 0, Dim.Fill(), Dim.Fill(), OnGetContent);
         view.IsShowCursor = false;
         view.IsScrollMode = false;
-        view.IsCursorMargin = false;
 
         view.RegisterKeyHandler(Key.Esc, () => OnKeyEsc());
         view.RegisterKeyHandler(Key.Enter, () => OnEnter());
@@ -289,9 +284,13 @@ class Menu
         action?.Invoke();
     }
 
-    void OnClick(int _, int y)
+    void OnClick(int y)
     {
-        itemsView.SetIndexAtViewY(y);
+        var index = dimensions.ItemAt(y, itemsView.FirstIndex, items.Count);
+        if (index == -1)
+            return;
+
+        itemsView.SetCurrentIndex(index);
         if (CurrentItem.IsDisabled)
         { // Clicked on disabled item, say why, and select the next enabled item
             SayWhyNot(CurrentItem);

@@ -294,7 +294,8 @@ public class ConflictViewTest
         gmd.Send("1");
         gmd.WaitFor("1 still to resolve");
         gmd.Send("S");
-        StringAssert.Contains(gmd.WaitFor("Saved"), "1 of its conflicts still have their markers in it");
+        StringAssert.Contains(gmd.WaitFor("Saved"), "was saved, with 1 of its conflicts still to resolve");
+        Assert.AreEqual("UU long.txt", (await repo.GitAsync("status --porcelain")).Trim(), "And it is not staged");
         gmd.Send("Enter");
 
         // Re-read, so what is left is one conflict rather than the second of two
@@ -330,6 +331,75 @@ public class ConflictViewTest
         var screen = gmd.WaitFor("] [ next, previous");
         StringAssert.Contains(ScreenText.LastLine(screen), "m menu  Esc close  ] [ next, previous  s save");
         StringAssert.Contains(screen, "press 1 for HEAD", "The result pane is still there, above the hints");
+    }
+
+    // A file one side deleted has no text to merge, so it is resolved whole, with no view of the
+    // resolver open. The choice returned before git had run, and the diff, read again at once, could
+    // still list the file as conflicted. It is read once git is done now.
+    [TestMethod]
+    public async Task TestKeepingAFileTheOtherSideDeletedResolvesIt()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAtAsync("file.txt", "one\n", "Initial", TempRepo.BaseTime);
+        await repo.GitAsync("checkout -q -b dev");
+        await repo.GitAsync("rm -q file.txt");
+        repo.GitAt(["commit", "-q", "-m", "Delete the file"], TempRepo.BaseTime.AddMinutes(1));
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("file.txt", "one\ntwo\n", "Change the file", TempRepo.BaseTime.AddMinutes(2));
+        await repo.GitAllowFailAsync("merge dev");
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        // Git's diff has nothing to show of a file one side deleted, so the diff lists no file, and
+        // Enter offers the conflicts to resolve
+        gmd.WaitFor("Enter resolve");
+        gmd.Send("Enter");
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Keep the File"), "file.txt was changed here but deleted on the other side.");
+        gmd.Send("Left"); // From Cancel, the default, past Delete It to Keep the File
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Enter resolve"); // The diff, read again, has no conflict left to resolve
+        Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has it resolved");
+        Assert.AreEqual(
+            "one\ntwo\n",
+            await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")),
+            "Kept as changed here"
+        );
+    }
+
+    // A file whose markers were taken out by hand, in an editor, but not marked resolved: the two
+    // sides were the only choices, and either threw the hand merge away. It is marked resolved as it is.
+    [TestMethod]
+    public async Task TestAFileResolvedByHandIsMarkedResolvedAsItIs()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        var merged = string.Join("\n", Enumerable.Range(1, 80).Select(i => $"line {i} merged by hand")) + "\n";
+        await File.WriteAllTextAsync(Path.Join(repo.Path, "long.txt"), merged);
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        gmd.WaitFor("Enter resolve");
+        gmd.Send("Enter");
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Mark Resolved"), "no conflict markers left in it");
+        for (var i = 0; i < 3; i++) // From Cancel, the default, to Mark Resolved
+        {
+            gmd.Send("Left");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Enter resolve");
+        Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has it resolved");
+        Assert.AreEqual(merged, await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt")), "As it was merged");
     }
 
     static void OpenTheResolver(TmuxSession gmd)

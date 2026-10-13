@@ -72,6 +72,16 @@ public class StringExtensionsTest
         Assert.AreEqual("0.91 (-1.-1)", new Version(0, 91).Txt(), "Missing parts are -1");
     }
 
+    // Who made a branch's last commit, as the branch lists show it
+    [TestMethod]
+    public void TestInitials()
+    {
+        Assert.AreEqual("T U", "Test User".Initials());
+        Assert.AreEqual("A", "  Anna  ".Initials());
+        Assert.AreEqual("J R", "John Ronald Tolkien".Initials(), "Two at most");
+        Assert.AreEqual("", "".Initials());
+    }
+
     // A size is rounded down to a whole unit
     [TestMethod]
     public void TestFileSize()

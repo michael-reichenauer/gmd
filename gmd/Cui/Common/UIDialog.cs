@@ -39,7 +39,6 @@ class UIDialog
     internal Dim Height { get; }
 
     internal bool IsOK => buttonsClicked.ContainsKey("OK");
-    internal bool IsCanceled => buttonsClicked.ContainsKey("Cancel");
 
     public View View { get; internal set; } = null!;
 
@@ -204,32 +203,6 @@ class UIDialog
         return textField;
     }
 
-    internal UITextView AddTextView(int x, int y, int w, int h, string text)
-    {
-        var textView = new UITextView()
-        {
-            X = x,
-            Y = y,
-            Width = w,
-            Height = h,
-            Text = text,
-            ColorScheme = ColorSchemes.TextField,
-        };
-        views.Add(textView);
-
-        var indicator = new Label(
-            textView.Frame.X - 1,
-            textView.Frame.Y + textView.Frame.Height,
-            "└" + new string('─', textView.Frame.Width) + "┘"
-        )
-        {
-            ColorScheme = ColorSchemes.Indicator,
-        };
-        views.Add(indicator);
-
-        return textView;
-    }
-
     internal ContentView AddContentView(int x, int y, Dim w, Dim h, GetContentCallback onGetContent)
     {
         var contentView = new ContentView(onGetContent)
@@ -302,7 +275,7 @@ class UIDialog
         return button;
     }
 
-    Button AddDlgButton(string text, bool isDefault = false, Func<bool>? clicked = null, bool isValidateAll = false)
+    Button AddDlgButton(string text, bool isDefault = false, bool isValidateAll = false)
     {
         Button button = new Button(text, isDefault) { ColorScheme = ColorSchemes.Button };
         button.Clicked += () =>
@@ -313,10 +286,6 @@ class UIDialog
             }
 
             buttonsClicked[text] = true;
-            if (clicked != null && !clicked())
-            {
-                return;
-            }
             Application.RequestStop();
         };
         buttons.Add(button);
@@ -324,14 +293,11 @@ class UIDialog
         return button;
     }
 
-    internal Button AddDlgOK(bool isDefault = true, Func<bool>? clicked = null) =>
-        AddDlgButton("OK", isDefault, clicked, true);
+    internal Button AddDlgOK(bool isDefault = true) => AddDlgButton("OK", isDefault, true);
 
-    internal Button AddDlgCancel(bool isDefault = false, Func<bool>? clicked = null) =>
-        AddDlgButton("Cancel", isDefault, clicked);
+    internal Button AddDlgCancel(bool isDefault = false) => AddDlgButton("Cancel", isDefault);
 
-    internal Button AddDlgClose(bool isDefault = false, Func<bool>? clicked = null) =>
-        AddDlgButton("Close", isDefault, clicked);
+    internal Button AddDlgClose(bool isDefault = false) => AddDlgButton("Close", isDefault);
 
     internal void Add(View view)
     {
@@ -348,7 +314,7 @@ class UIDialog
         return Show(setViewFocused ?? (isCancelDefault ? cancel : null));
     }
 
-    internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null, Action<View>? onAfterShow = null)
+    internal bool Show(View? setViewFocused = null, Action? onAfterAdd = null)
     {
         dlg =
             onKey != null || onMouse != null
@@ -376,17 +342,6 @@ class UIDialog
         if (onMouse != null)
             Application.GrabMouse(dlg);
 
-        if (onAfterShow != null)
-        {
-            UI.AddTimeout(
-                TimeSpan.FromMilliseconds(100),
-                (_) =>
-                {
-                    onAfterShow(dlg);
-                    return false;
-                }
-            );
-        }
         UI.RunDialog(dlg);
         if (onMouse != null)
             Application.UngrabMouse();

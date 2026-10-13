@@ -269,7 +269,8 @@ class ConflictService : IConflictService
         return name.Trim();
     }
 
-    // Applies one decision per conflict, in order, and writes the file back.
+    // Applies one decision per conflict, in order, and writes the file back, marked resolved once
+    // every conflict in it is decided.
     //
     // The file is re-read rather than passed back down, which is what makes the layer above able to
     // hold a narrowed model with no markers in it. It also makes a file that changed on disk while
@@ -314,13 +315,29 @@ class ConflictService : IConflictService
             file = ConflictParser.SetChoice(file, choice.Index, choice.Choice, manual);
         }
 
-        return await WriteAsync(file, wd);
+        if (WriteText(file, wd) is Error writeError)
+            return writeError;
+
+        // Marked resolved only once no conflict is left in it. Staging is what 'resolved' means to
+        // git, so a file staged with markers left in it is no longer among the conflicts git lists,
+        // and the stages the rest is resolved from are gone: the ancestor, and the two sides a whole
+        // file choice checks out.
+        return file.UnresolvedCount == 0 ? await MarkResolvedAsync(path, wd) : Result.Ok;
     }
 
-    // Writes the resolved text back and marks the path resolved. Nothing about line endings is
-    // done here: every line carries the terminator it was read with, so what comes out is what went
-    // in, and git's own check-in conversion then applies exactly as it would to a hand edit.
+    // Writes the resolved text back and marks the path resolved
     public async Task<Result> WriteAsync(ConflictFile file, string wd)
+    {
+        if (WriteText(file, wd) is Error e)
+            return e;
+
+        return await MarkResolvedAsync(file.Path, wd);
+    }
+
+    // Nothing about line endings is done here: every line carries the terminator it was read with,
+    // so what comes out is what went in, and git's own check-in conversion then applies exactly as
+    // it would to a hand edit.
+    static Result WriteText(ConflictFile file, string wd)
     {
         if (file.IsBinary)
             return new Error($"{file.Path} is binary, so there is no text to write");
@@ -332,7 +349,7 @@ class ConflictService : IConflictService
         if (Result.Catch(() => File.WriteAllText(fullPath, text, new UTF8Encoding(file.HasBom))) is Error e)
             return new Error($"Failed to write {file.Path}", e);
 
-        return await MarkResolvedAsync(file.Path, wd);
+        return Result.Ok;
     }
 
     // Staging a path is what 'resolved' means to git, for a file it merged and for one it deleted

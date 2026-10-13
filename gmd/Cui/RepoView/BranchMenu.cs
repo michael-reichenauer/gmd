@@ -165,7 +165,7 @@ class BranchMenu : IBranchMenu
                 "⇧u",
                 () => cmds.PullAllBranches(),
                 () => BranchPushPullCommands.CanPull(repo.Repo),
-                () => !repo.Repo.Status.IsOk ? Why.Changes : "Nothing to pull"
+                () => BranchPushPullCommands.WhyNoPull(repo.Repo)
             );
 
     public IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false)
@@ -215,6 +215,8 @@ class BranchMenu : IBranchMenu
                 whyNot: () =>
                     !isCurrent ? "Only the current branch is rebased: switch to it first"
                     : !isStatusOK ? Why.Changes
+                    : BranchCommands.WhyNotRebaseAndPush(repo.Repo, repo.Repo.CurrentBranch()) is var why && why != ""
+                        ? why
                     : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
             )
             .Item("Hide Branch", "h", () => cmds.HideBranch(branchName))
@@ -233,10 +235,18 @@ class BranchMenu : IBranchMenu
                 () => BranchPushPullCommands.CanPullBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPullBranch(repo.Repo, b)
             )
+            // The current branch on origin as 'p' pushes it, which asks whether to push it with force
+            // once it has diverged; one not on origin yet is published, which 'p' points here for
             .Item(
                 "Push",
                 "p",
-                () => cmds.PushBranch(branchName),
+                () =>
+                {
+                    if (isCurrent && cb.RemoteName != "")
+                        cmds.PushCurrentBranch();
+                    else
+                        cmds.PushBranch(branchName);
+                },
                 () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
             )
@@ -413,6 +423,8 @@ class BranchMenu : IBranchMenu
         var sb = selectedBranch;
         var isCurrent = sb.IsCurrent || sb.IsLocalCurrent;
         if (!repo.Repo.Status.IsOk || !isCurrent)
+            return Menu.Items;
+        if (BranchCommands.WhyNotRebaseAndPush(repo.Repo, repo.Repo.CurrentBranch()) != "")
             return Menu.Items;
 
         var primaryBranch = repo.Repo.ViewBranches.First(b => b.Name == sb.PrimaryName);
@@ -761,18 +773,8 @@ class BranchMenu : IBranchMenu
         );
     }
 
-    string ToBranchOwnerInitials(Branch b) => $"'{Initials(repo.Repo.CommitById[b.TipId].Author)}'";
-
-    // The initials of an author, e.g. 'T U' for Test User, which the branch lists show for who made
-    // the last commit of a branch. The Find Branch dialog shows them too.
-    internal static string Initials(string author) =>
-        string.Join(
-            ' ',
-            author
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Take(2)
-                .Select(p => p[0])
-        );
+    // Who made the last commit of a branch, as the Find Branch dialog shows it too
+    string ToBranchOwnerInitials(Branch b) => $"'{repo.Repo.CommitById[b.TipId].Author.Initials()}'";
 
     string ToBranchMenuName(Branch branch, bool canBeOutside = false, bool isNoShowIcon = false)
     {

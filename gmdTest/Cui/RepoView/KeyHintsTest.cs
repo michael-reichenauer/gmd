@@ -181,126 +181,6 @@ public class KeyHintsTest
         Assert.AreEqual("m menu  d diff  Ctrl-C copy", Hints(hints));
     }
 
-    // The line: the border, the hints from the left, the border on to the help at the right, and what
-    // does not fit dropped from the end rather than cut, so every hint shown is whole
-    // The diff, blame and conflict views have lines of their own, each its view's keys, the way back
-    // to the log early on. The diff offers commit and discard for the uncommitted changes only, and
-    // Enter for a conflict; blame offers 'p' for a line with an older version and Backspace after
-    // stepping back to one.
-    [TestMethod]
-    public void TestTheSideViewsHaveHintsOfTheirOwn()
-    {
-        static string Line(IReadOnlyList<KeyHint> hints) => string.Join("  ", hints.Select(h => $"{h.Key} {h.Text}"));
-
-        Assert.AreEqual(
-            "m menu  Esc close  + - context  s to file  ←→ columns",
-            Line(KeyHints.ForDiff(isUncommitted: false, hasConflicts: false))
-        );
-        Assert.AreEqual(
-            "m menu  Esc close  Enter resolve  c commit  + - context  s to file  u discard  ←→ columns",
-            Line(KeyHints.ForDiff(isUncommitted: true, hasConflicts: true))
-        );
-        Assert.AreEqual(
-            "m menu  Esc close  Enter details  d diff  l line history  i copy id  g gutter",
-            Line(KeyHints.ForBlame(isDetailsShown: false, hasPrevious: false, canGoBack: false))
-        );
-        Assert.AreEqual(
-            "m menu  Esc close  Enter hide details  d diff  l line history  p previous  Backspace back  i copy id  g gutter",
-            Line(KeyHints.ForBlame(isDetailsShown: true, hasPrevious: true, canGoBack: true))
-        );
-        Assert.AreEqual(
-            "m menu  Esc close  ] [ next, previous  s save  e edit  b ancestor  a whole file  u clear",
-            Line(KeyHints.ForConflict())
-        );
-    }
-
-    // The start page's line, until a repository is opened: the numbers only when it lists a
-    // repository, and Delete only on a recent one, which is all it can take off the list
-    [TestMethod]
-    public void TestTheStartPageHasHintsOfItsOwn()
-    {
-        static string Line(IReadOnlyList<KeyHint> hints) => string.Join("  ", hints.Select(h => $"{h.Key} {h.Text}"));
-
-        Assert.AreEqual(
-            "Enter open  1-4 open repository  o open folder  c clone  i init  Del remove from list  Esc quit",
-            Line(KeyHints.ForStart(numbered: 4, canRemove: true))
-        );
-        Assert.AreEqual(
-            "Enter open  1 open repository  o open folder  c clone  i init  Esc quit",
-            Line(KeyHints.ForStart(numbered: 1, canRemove: false))
-        );
-        Assert.AreEqual(
-            "Enter open  o open folder  c clone  i init  Esc quit",
-            Line(KeyHints.ForStart(numbered: 0, canRemove: false))
-        );
-    }
-
-    [TestMethod]
-    public void TestTheLineDropsTheHintsThatDoNotFit()
-    {
-        List<KeyHint> hints = [new("m", "menu"), new("d", "diff"), new("f", "search")];
-
-        Assert.AreEqual("────────── m menu  d diff  f search ──── ? help ──", KeyHints.ToText(hints, 50).ToString());
-        Assert.AreEqual("────────── m menu  d diff ── ? help ──", KeyHints.ToText(hints, 38).ToString());
-        Assert.AreEqual("────────────── ? help ──", KeyHints.ToText(hints, 24).ToString());
-        Assert.AreEqual("────────── ? help ──", KeyHints.ToText(hints, 20).ToString(), "The help is kept to the last");
-    }
-
-    // Set into a border in the color of the line under the application bar, so that it reads as the
-    // frame of the log rather than as one more row of it: the keys in cyan, what they do in dark gray,
-    // like the shortcuts in a menu, and the border in bright magenta
-    [TestMethod]
-    public void TestTheLineIsABorderWithTheKeysInCyan()
-    {
-        var text = KeyHints.ToText([new("d", "diff")], 34);
-
-        Assert.AreEqual("────────── d diff ────── ? help ──", text.ToString());
-        Assert.AreEqual("MMMMMMMMMMDCDDDDDDMMMMMMDCDDDDDDMM", Colors(text));
-    }
-
-    // A status message takes the line, set into the border the same way: green for what was done,
-    // yellow for why nothing was, red for a failure, cyan for what is being done, and cut with '┅'
-    // when it is longer than the line
-    [TestMethod]
-    public void TestAStatusMessageIsDrawnInTheColorOfItsKind()
-    {
-        var info = KeyHints.ToText(new StatusMessage("Pushed 'main'", StatusKind.Info, DateTime.UtcNow), 28);
-        var notice = KeyHints.ToText(new StatusMessage("Nothing to commit", StatusKind.Notice, DateTime.UtcNow), 32);
-        var failure = KeyHints.ToText(new StatusMessage("Fetch failed", StatusKind.Failure, DateTime.UtcNow), 28);
-        var progress = KeyHints.ToText(
-            new StatusMessage("Pushing 'main'...", StatusKind.Progress, DateTime.UtcNow),
-            32
-        );
-
-        Assert.AreEqual("────────── Pushed 'main' ───", info.ToString());
-        Assert.AreEqual(Color.Green, ColorOf(info, "Pushed"));
-        Assert.AreEqual(Color.Yellow, ColorOf(notice, "Nothing"));
-        Assert.AreEqual(Color.BrightRed, ColorOf(failure, "Fetch"));
-        Assert.AreEqual(Color.Cyan, ColorOf(progress, "Pushing"));
-    }
-
-    [TestMethod]
-    public void TestALongStatusMessageIsCut()
-    {
-        var text = KeyHints.ToText(
-            new StatusMessage("Nothing to push on 'feature/login'", StatusKind.Notice, DateTime.UtcNow),
-            28
-        );
-
-        Assert.AreEqual("────────── Nothing to pu┅ ──", text.ToString());
-    }
-
-    // One letter per cell: 'M' the magenta border, 'C' a cyan key, 'D' the dark rest
-    static string Colors(Text text) =>
-        string.Concat(
-            text.Fragments.Select(f => new string(
-                f.Color == Color.BrightMagenta ? 'M'
-                    : f.Color == Color.Cyan ? 'C'
-                    : 'D',
-                f.Text.Length
-            ))
-        );
-
     static Color ColorOf(Text text, string part) => text.Fragments.First(f => f.Text.Contains(part)).Color;
 
     static string Hints(FakeViewRepo view, Hoover? hoover = null, bool isDetailsShown = false) =>
@@ -308,7 +188,7 @@ public class KeyHintsTest
 
     // The line as drawn, colors and all
     static Text Line(FakeViewRepo view, Hoover? hoover = null) =>
-        KeyHints.ToText(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), false), 140);
+        KeyHintLine.ToText(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), false), 140);
 
     // A hint with no key is a label, e.g. the branch the keys act on
     static string Hints(IReadOnlyList<KeyHint> hints) =>

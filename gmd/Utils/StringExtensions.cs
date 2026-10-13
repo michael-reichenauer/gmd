@@ -44,6 +44,16 @@ public static class StringExtensions
         return source.Substring(0, source.Length - suffix.Length);
     }
 
+    // The initials of a name, at most two, e.g. 'T U' for 'Test User', as the branch lists show who
+    // made a branch's last commit
+    public static string Initials(this string name) =>
+        string.Join(
+            ' ',
+            name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(2)
+                .Select(p => p[0])
+        );
+
     public static string Sid(this string source)
     {
         if (source.Length <= SidLength)

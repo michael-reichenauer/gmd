@@ -109,6 +109,69 @@ public class BranchTest
         Assert.AreEqual("  dev\n* main", await repo.GitAsync("branch"), "No branch should have been created");
     }
 
+    // A name with a space went to git as two arguments, 'checkout -b fix main', which made a branch
+    // 'fix' at main's tip and checked it out. The dialog refuses it, and keeps the name to fix.
+    [TestMethod]
+    public async Task TestCreateBranchRefusesANameGitWouldTakeAsTwo()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Left"); // Hoovers main
+        gmd.WaitForStable();
+        gmd.Send("b");
+        gmd.WaitFor("Create Branch");
+
+        gmd.SendText("fix dev");
+        gmd.WaitFor("fix dev");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Not a branch name"), "no spaces");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Not a branch name");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Create Branch");
+        Assert.AreEqual("  dev\n* main", await repo.GitAsync("branch"), "No branch was created");
+    }
+
+    // The uncommitted row is no commit to start a branch at, which the commit menu and the hints say,
+    // and 'b' there opened Create Branch at 000000, which git then failed on
+    [TestMethod]
+    public async Task TestCreateBranchOnTheUncommittedRowSaysWhyNot()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("b");
+
+        Assert.AreEqual(
+            "A branch starts at a commit: move to one first",
+            ScreenText.LastLine(gmd.WaitFor("move to one first"))
+        );
+    }
+
+    // Rows selected go before a highlighted branch, as the key hints say: with a branch highlighted
+    // and rows selected, 'd' opened the branch's diff menu while the hints offered the rows' diff
+    [TestMethod]
+    public async Task TestDiffOfSelectedRowsWithABranchHighlighted()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Left"); // Hoovers main
+        gmd.WaitForStable();
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+
+        gmd.Send("d");
+
+        var screen = gmd.WaitFor("delta.txt");
+        Assert.IsFalse(screen.Contains("Diff Branch to"), "Not the branch's diff menu");
+    }
+
     // Renaming is menu only, so this is also the one test that drives a menu item all the way to
     // its command. The item is disabled for the main branch, hence renaming dev, and the fixture
     // has no origin, so this is the local half of a rename; the remote half is a push and a delete

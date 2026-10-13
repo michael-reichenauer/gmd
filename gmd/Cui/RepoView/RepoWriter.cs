@@ -1,4 +1,6 @@
 using gmd.Cui.Common;
+using gmd.Cui.Graphs;
+using gmd.Cui.Worktrees;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -15,16 +17,11 @@ interface IRepoWriter
         int width,
         Selection selection
     );
-    bool IShowSid { get; set; }
 }
 
 class RepoWriter : IRepoWriter
 {
     const int markersWidth = 3; //  1 current marker and 1 ahead/behind and one space
-
-    // Marks a branch checked out in another worktree, i.e. another folder; the top bar counts the
-    // other worktrees with it too. A house, for the folder the branch lives in.
-    public const string WorktreeMarker = "⌂";
 
     readonly IBranchColorService branchColorService;
     readonly IGraphWriter graphWriter;
@@ -36,8 +33,6 @@ class RepoWriter : IRepoWriter
         this.branchColorService = branchColorService;
         this.graphWriter = graphWriter;
     }
-
-    public bool IShowSid { get; set; } = true;
 
     public IEnumerable<Text> ToPage(
         IViewRepo repo,
@@ -119,7 +114,7 @@ class RepoWriter : IRepoWriter
         int commitWidth = width - (graphWidth + markersWidth);
         int authorWidth = 15;
         int timeWidth = 17; // ' yyyy-MM-dd HH:mm', the year in full, since '26-03-10' reads as 26 March
-        int sidWidth = IShowSid ? 7 : 0;
+        int sidWidth = 7;
 
         if (commitWidth < 70)
         { // Disabled sid, author and time if very narrow view
@@ -200,7 +195,7 @@ class RepoWriter : IRepoWriter
         }
         if (isInOtherWorktree)
         {
-            text.White(WorktreeMarker);
+            text.White(WorktreeRows.WorktreeMarker);
             return;
         }
 
@@ -260,7 +255,11 @@ class RepoWriter : IRepoWriter
             }
             else
             { // Need to shorten tags and tips a bit too, but give tags and tips at least each 3 chars and max 20
-                subjectWidth = Math.Min(columnWidth - 3 - 3, columnWidth - Math.Min(tagsWidth + tipsWidth, 20));
+                // (of their texts' lengths: the widths are still 0 here, which left them 6 together)
+                subjectWidth = Math.Min(
+                    columnWidth - 3 - 3,
+                    columnWidth - Math.Min(tagsText.Length + tipsText.Length, 20)
+                );
                 int rest = (columnWidth - subjectWidth) / 2;
                 tagsWidth = Math.Min(tagsText.Length, columnWidth - subjectWidth - rest);
                 tipsWidth = columnWidth - subjectWidth - tagsWidth;
@@ -395,7 +394,7 @@ class RepoWriter : IRepoWriter
             // the folder it lives in — the same glyph the top bar counts the other worktrees with
             var marker =
                 b.IsCurrent ? "● "
-                : repo.Repo.WorktreePathOf(b) != "" ? $"{WorktreeMarker} "
+                : repo.Repo.WorktreePathOf(b) != "" ? $"{WorktreeRows.WorktreeMarker} "
                 : "";
 
             if (b.IsGitBranch)

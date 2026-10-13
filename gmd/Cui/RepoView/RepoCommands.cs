@@ -1,5 +1,7 @@
 using gmd.Common;
+using gmd.Cui.App;
 using gmd.Cui.Common;
+using gmd.Cui.Start;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -15,7 +17,6 @@ interface IRepoCommands
     void InitRepo();
 
     void ShowRepo(string path);
-    void Refresh(string addName = "", string commitId = "");
     void RefreshAndFetch(string addName = "", string commitId = "");
 
     void UndoAllUncommittedChanged();
@@ -96,12 +97,6 @@ class RepoCommands : IRepoCommands
     public void OpenNewPullRequest(string name) => webCmds.OpenNewPullRequest(name);
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
-
-    public void RefreshAndCommit(
-        string addName = "",
-        string commitId = "",
-        IReadOnlyList<Server.Commit>? commits = null
-    ) => repoView.RefreshAndCommit(addName, commitId, commits);
 
     public void RefreshAndFetch(string addName = "", string commitId = "") =>
         repoView.RefreshAndFetch(addName, commitId);
@@ -377,7 +372,10 @@ class RepoCommands : IRepoCommands
 
             if (await server.ContinueOperationAsync(repo.Path) is Error e)
             {
-                Refresh(); // It may have got further before stopping again, so show where it is now
+                // It may have got further before stopping again, so show where it is now. Stopped on
+                // conflicts, CommandRunner refreshes, and a second refresh here ran beside it.
+                if (!Git.ConflictError.IsIn(e))
+                    Refresh();
                 return new Error($"Failed to continue {OperationName().ToLower()}", e);
             }
 
@@ -402,7 +400,8 @@ class RepoCommands : IRepoCommands
 
             if (await server.SkipOperationAsync(repo.Path) is Error e)
             {
-                Refresh();
+                if (!Git.ConflictError.IsIn(e)) // Then CommandRunner refreshes, see ContinueOperation
+                    Refresh();
                 return new Error($"Failed to skip commit", e);
             }
 

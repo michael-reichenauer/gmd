@@ -2,7 +2,7 @@ using gmd.Cui.Common;
 using gmd.Server;
 using gmdTest.Fixtures;
 
-namespace gmdTest.Cui;
+namespace gmdTest.Cui.Common;
 
 // A branch keeps the same color for as long as it exists, since the color is derived from the
 // branch name rather than from its position in the graph. These pin down the derived colors, so a

@@ -34,24 +34,29 @@ static class UI
         onActivated = activated;
     }
 
-    public static void CloseDialog() => Application.RequestStop();
+    // Keys are dropped while git works, but not in a dialog, see KeyGate
+    static readonly KeyGate keys = new();
 
     internal static void StopInput()
     {
-        Application.RootKeyEvent = (_) => true;
+        keys.GitStarted();
+        ApplyKeyGate();
     }
 
     internal static void StartInput()
     {
-        Application.RootKeyEvent = null;
+        keys.GitDone();
+        ApplyKeyGate();
     }
+
+    static void ApplyKeyGate() => Application.RootKeyEvent = keys.IsDropping ? DropKey : null;
+
+    static bool DropKey(KeyEvent _) => true;
 
     internal static void Post(Action action)
     {
         Application.MainLoop.Invoke(action);
     }
-
-    internal static void ShowCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Default);
 
     internal static void HideCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
@@ -127,12 +132,13 @@ static class UI
 
     static Disposable EnableInput()
     {
-        var rootKeyEvent = Application.RootKeyEvent;
-        Application.RootKeyEvent = null;
+        keys.DialogOpened();
+        ApplyKeyGate();
         onDeactivated?.Invoke();
         return new Disposable(() =>
         {
-            Application.RootKeyEvent = rootKeyEvent;
+            keys.DialogClosed();
+            ApplyKeyGate();
             onActivated?.Invoke();
         });
     }

@@ -13,8 +13,6 @@ class ContentScroll
 {
     readonly Func<int> getContentHeight;
 
-    readonly bool isMoveUpDownWrap = false; // Not used yet
-
     int currentIndex = 0;
 
     internal ContentScroll(Func<int> getContentHeight)
@@ -117,12 +115,12 @@ class ContentScroll
 
         if (newCurrent < 0)
         { // Reached top, wrap or stay
-            newCurrent = isMoveUpDownWrap ? TotalCount - 1 : 0;
+            newCurrent = 0;
         }
 
         if (newCurrent >= TotalCount)
         { // Reached bottom, wrap or stay
-            newCurrent = isMoveUpDownWrap ? 0 : TotalCount - 1;
+            newCurrent = TotalCount - 1;
         }
 
         if (newCurrent == CurrentIndex)

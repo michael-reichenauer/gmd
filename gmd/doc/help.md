@@ -555,7 +555,9 @@ next and previous one from wherever the cursor is.
 | Esc, q     | Close the resolver                                         |
 
 Nothing is written until `s`, so closing without saving leaves the file as
-it was, and closing with decisions unsaved asks first.
+it was, and closing with decisions unsaved asks first. A file saved with
+conflicts still undecided keeps their markers, and is marked resolved once
+none is left.
 
 `b` shows the version both sides started from, which is usually what
 settles which change to keep, and `0` resolves the conflict *to* it, the
@@ -575,8 +577,9 @@ to the buttons, since Enter inside it is a newline.
 
 A file with no text to merge is not shown in columns; it asks the one
 question it can, and which question depends on which sides still have the
-file. A binary file both sides changed asks which version to use. A file
-only one side has (one deleted it, or each renamed it differently) asks
+file. A binary file both sides changed asks which version to use. A text
+file whose conflict markers were taken out by hand, in an editor, is marked
+resolved as it is, or one side is taken after all. A file only one side has (one deleted it, or each renamed it differently) asks
 whether to keep it or accept the deletion. A file neither side has any
 longer can only be removed, and says so rather than offering a version that
 is not there.

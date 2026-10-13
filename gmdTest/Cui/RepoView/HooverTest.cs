@@ -1,5 +1,5 @@
-using gmd.Cui;
 using gmd.Cui.Common;
+using gmd.Cui.Graphs;
 using gmd.Cui.RepoView;
 using gmd.Server;
 using gmdTest.Fixtures;
@@ -330,6 +330,38 @@ public class HooverTest
         Assert.IsTrue(featHidden.BranchByName.ContainsKey("feat"), "Hidden, not gone");
 
         Assert.IsTrue(hoover.FollowRepo(GraphOf(featHidden)));
+
+        Assert.IsFalse(hoover.IsBranch);
+    }
+
+    // A local branch ahead of origin's has a column of its own, whose primary name is origin's. A
+    // fetch that prunes origin's left the local branch drawn, but as its own primary, and the key
+    // hints looked the hoover's old primary name up on every redraw, which threw and ended gmd with
+    // no key pressed, since the fetch runs every five minutes.
+    [TestMethod]
+    public async Task TestFollowRepoGivesUpABranchWhoseRemoteBranchIsPruned()
+    {
+        var ahead = await new RepoBuilder()
+            .Commit("x2", "Local work", "x1")
+            .Commit("x1", "Pushed work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .BranchWithRemote("x", "x2", remoteTipCommit: "x1", ahead: 1)
+            .ViewRepoAsync(ShowBranches.AllActive);
+        var graph = GraphOf(ahead);
+        var hoover = new Hoover();
+        var local = graph.GetRowBranches(0).First(b => b.B.Name == "x");
+        hoover.SetBranch(local, 0, 0);
+        Assert.AreEqual("origin/x", hoover.BranchPrimaryName, "The local branch is drawn as origin's");
+        var pruned = await new RepoBuilder()
+            .Commit("x2", "Local work", "x1")
+            .Commit("x1", "Pushed work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("x", "x2")
+            .ViewRepoAsync(ShowBranches.AllActive);
+
+        Assert.IsTrue(hoover.FollowRepo(GraphOf(pruned)));
 
         Assert.IsFalse(hoover.IsBranch);
     }

@@ -155,6 +155,16 @@ Key types and flow:
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
+- `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,
+  `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
+  details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
+  `Worktrees/` and `Login/`, with `Common/` for the widgets and services they share and `App/` for
+  the parts of the shell the views use (`ApplicationBar`, About, Config, Update, the help page).
+  `MainView`, which puts the views together, is alone in `Cui/` itself. The folders depend on each
+  other one way only, from `RepoView/` down to `Common/`, with no cycle: keep it so, since a type in
+  `gmd.Cui` is in scope in every folder below it without a using, so nothing else goes there. A
+  folder that would be named as a type is named in the plural, `Graphs/`: a namespace
+  `gmd.Cui.Graph` would hide the `Graph` type from every namespace below `gmd.Cui`.
 - `Cui/Start/` — the start page, shown in place of the log until a repo is opened: when gmd is
   started outside one, or with `-m`. `StartRepos` is what it lists, the recent repos and those in the
   start folder, read off the disk with no git process (`GitDir.IsRoot`); `StartRows` lays it out and
@@ -168,9 +178,10 @@ Key types and flow:
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
   on — what most keys act on — as state and index math with no view, so it is unit testable.
   `KeyHints.cs` decides the key-hint line at the bottom, the keys that do something where the
-  cursor is, again with no view; `KeyHintBar` draws it. The diff, blame and conflict views have a
-  `KeyHintBar` of their own (`KeyHints.ForDiff`, `ForBlame`, `ForConflict`). When a key's behavior
-  changes, check the hint for it.
+  cursor is, again with no view; `KeyHintBar` draws it, with the layout of `KeyHintLine` (both in
+  `Cui/Common/`). The diff, blame and conflict views and the start page have a `KeyHintBar` of their
+  own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). When a
+  key's behavior changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
   `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`,
   run through `CommandRunner`), menus into `*Menu.cs`.
@@ -180,7 +191,7 @@ Key types and flow:
   key-hint line writes it, and so are the keys named in status messages and in the reasons a greyed
   out item gives; the help and the README write `Shift-P` in their text. Item names are
   plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
-- `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
+- `Cui/Graphs/` — `GraphCreater`, `Graph` and `GraphWriter` turn a `Repo` into the drawn
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
@@ -220,12 +231,12 @@ unit testable — `*Rows`, `*Columns`, `ConflictResolution`. Each runs through `
 makes it modal, so a key it does not handle does nothing rather than reaching the log view below;
 register a letter with `RegisterLetterHandler`, which takes both cases, as its menu writes it.
 
-- **`Cui/Diff/`** — `DiffService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
+- **`Cui/Diff/`** — `DiffRowService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
   context larger than any file, since git has no "all". `DiffReload` is a delegate the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
-- **`Cui/Blame/`** — `BlameService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
+- **`Cui/Blame/`** — `BlameRowService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
   math, and steps detail down as the terminal narrows.
 - **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
@@ -254,7 +265,7 @@ layers, which calls `UI.Post` / `UI.InfoMessage` itself to say a new version was
 `gmd.Git` goes further: it is meant to stay a general git library, one that could be a library of
 its own. It uses nothing of gmd but itself and `gmd.Utils` (`Result`, `Cmd`, `Log` and small
 helpers), and knows nothing of the app: no UI wording or keys (a failed login says what failed, and
-`Cui/LoginAdvice.cs` what to do about it), no server ids (blame gives git's id of an uncommitted line,
+`Cui/Login/LoginAdvice.cs` what to do about it), no server ids (blame gives git's id of an uncommitted line,
 and `GitConverter` gmd's), no state of the app's (the current author is read with the repo).
 `GitNamespaceTest` reads the compiled code and fails if a type of `gmd.Git` names any other type of
 gmd or a package's. Its records are not shared with `gmd/Server/Repo.cs`, though several are copies:
@@ -452,7 +463,7 @@ The one exception to that layout is the end-to-end tier, which is a project of i
 shares with `gmdTest` (`TempRepo`, `TempHome`, `Proc`, `ResultAssert`) as linked files rather than
 copies, so they stay in `gmdTest/Fixtures/`. `scripts/test` runs both projects. Inside it the same
 rule holds: one class per area of the app, placed as the code it reaches is in `gmd/Cui/` —
-`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/WorktreeTest.cs` and so on. The
+`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/Worktrees/WorktreeTest.cs` and so on. The
 `Integration` and `E2e` categories are set once for the whole assembly in its `TestSetup.cs`, so a new
 class needs nothing but `[TestClass]` to be kept out of the fast run.
 
@@ -687,7 +698,7 @@ Other things to know:
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
-  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
+  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
@@ -805,6 +816,6 @@ write there asks for permission.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
   once `scripts/test` passes, so that the git log and its diffs are the review. Push only when asked.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (which `?` opens on
-  GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/HelpPage.cs`) needs updating
+  GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/App/HelpPage.cs`) needs updating
   too, and the known limits under *Is Gmd for You?* in the README when one of them is lifted. The
   development half of the old README is `docs/CONTRIBUTING.md`.

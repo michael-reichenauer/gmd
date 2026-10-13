@@ -75,7 +75,7 @@ class CommitMenu : ICommitMenu
                 "b",
                 () => repo.BranchCmds.CreateBranchFromCommit(),
                 () => !c.IsUncommitted,
-                () => "A branch starts at a commit: move to one first"
+                () => BranchCreateCommands.NoCommitToStartAt
             )
             .Item(
                 $"Merge Commit into {cb?.ShortNiceUniqueName()}",
@@ -147,6 +147,7 @@ class CommitMenu : ICommitMenu
         var current = repo.Repo.CurrentBranch();
         var step = BranchUndo.StepOf(repo.Repo, current);
         var whyNotDrop = CommitRewrite.WhyNotDrop(repo.Repo, repo.RowCommit);
+        var whyNotUncommit = CommitRewrite.WhyNotUncommit(repo.Repo, repo.RowCommit);
 
         return Menu
             .Items.Item(
@@ -186,11 +187,11 @@ class CommitMenu : ICommitMenu
                 () => !repo.Repo.Status.IsOk ? Why.Changes : "Only a commit not yet pushed can be uncommitted"
             )
             .Item(
-                $"Uncommit {id.Sid()} and Newer",
+                repo.RowCommit.IsUncommitted ? "Uncommit Commits" : $"Uncommit {id.Sid()} and Newer",
                 "",
                 () => cmds.UncommitUntilCommit(id),
-                () => repo.Repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent),
-                () => !repo.Repo.Status.IsOk ? Why.Changes : "Only commits on the current branch can be uncommitted"
+                () => whyNotUncommit == "",
+                () => whyNotUncommit
             )
             .Separator()
             .Item(
@@ -254,12 +255,14 @@ class CommitMenu : ICommitMenu
         var selection = repo.RepoView.Selection;
         var (i1, i2) = (selection.I1, selection.I2);
         var selected = "";
+        var whyNot = "Select the commits to squash with ⇧↑↓ first";
         Commit? c1 = null;
         Commit? c2 = null;
-        if (!selection.IsEmpty && i2 - i1 > 0)
+        if (selection.IsRows)
         { // User selected range of commits
             c1 = repo.Repo.ViewCommits[i1];
             c2 = repo.Repo.ViewCommits[i2];
+            whyNot = CommitRewrite.WhyNotSquash(repo.Repo, c1, c2);
             if (!c1.IsUncommitted && !c2.IsUncommitted)
             {
                 selected = $"{Sid(c1.Id)}...{Sid(c2.Id)}";
@@ -270,8 +273,8 @@ class CommitMenu : ICommitMenu
             selected == "" ? "Squash ..." : $"Squash {selected} ...",
             "",
             () => cmds.SquashCommits(c1!.Id, c2!.Id),
-            () => !selection.IsEmpty && selected != "" && repo.Status.IsOk,
-            () => selected == "" ? "Select the commits to squash with ⇧↑↓ first" : Why.Changes
+            () => c1 != null && whyNot == "",
+            () => whyNot
         );
     }
 

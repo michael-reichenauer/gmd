@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Cui.App;
 using gmd.Cui.Common;
 
 namespace gmd.Cui.RepoView;

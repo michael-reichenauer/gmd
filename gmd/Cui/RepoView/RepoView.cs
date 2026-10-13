@@ -1,5 +1,8 @@
 using gmd.Common;
+using gmd.Cui.App;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
+using gmd.Cui.Login;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
@@ -14,8 +17,6 @@ interface IRepoView
     View ApplicationBarView { get; }
     View KeyHintView { get; }
     int CurrentIndex { get; }
-    int ContentWidth { get; }
-    Point CurrentPoint { get; }
     Selection Selection { get; }
 
     // The shown repo, which is an immutable snapshot replaced on every refresh, so a command that
@@ -118,7 +119,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     internal RepoView(
         IServer server,
-        Func<View, int, IRepoWriter> newRepoWriter,
+        IRepoWriter repoWriter,
         Func<IRepoView, Repo, IViewRepo> newViewRepo,
         Func<IViewRepo, IRepoViewMenus> newMenuService,
         Config config,
@@ -155,7 +156,6 @@ class RepoView : IRepoView, IRepoViewInputHost
             Height = Dim.Fill(),
             IsFocus = true,
             IsShowCursor = false,
-            IsCursorMargin = false,
             IsScrollMode = false,
             IsHighlightCurrentIndex = false,
             IsCustomShowSelection = true,
@@ -164,7 +164,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         keyHintBar = new KeyHintBar(GetKeyHints, () => status.Current);
         status.Changed += OnStatusChanged;
 
-        repoWriter = newRepoWriter(commitsView, commitsView.ContentX);
+        this.repoWriter = repoWriter;
         repo = newViewRepo(this, Server.Repo.Empty);
         input = new RepoViewInput(
             this,
@@ -187,10 +187,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     public View KeyHintView => keyHintBar;
     public IApplicationBar ApplicationBar => applicationBarView;
 
-    public int ContentWidth => commitsView.ContentWidth;
-
     public int CurrentIndex => commitsView.CurrentIndex;
-    public Point CurrentPoint => commitsView.CurrentPoint;
 
     public Selection Selection => commitsView.Selection;
 
@@ -748,8 +745,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             if (branch != null)
             {
                 var tip = repo.Repo.CommitById[branch.TipId];
-                commitsView.ScrollToShowIndex(tip.ViewIndex);
-                commitsView.SetCurrentIndex(tip.ViewIndex);
+                commitsView.ShowCurrentIndex(tip.ViewIndex);
             }
         }
     }
@@ -758,10 +754,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     {
         var commit = repo.Repo.ViewCommits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
-        {
-            commitsView.ScrollToShowIndex(commit.ViewIndex);
-            commitsView.SetCurrentIndex(commit.ViewIndex);
-        }
+            commitsView.ShowCurrentIndex(commit.ViewIndex);
     }
 
     void OnCurrentIndexChange()

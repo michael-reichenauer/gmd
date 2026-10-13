@@ -141,6 +141,30 @@ public class BranchPushPullCommandsTest
         );
     }
 
+    // The branch menu's Push of a diverged branch that is not current, and 'p' with it highlighted,
+    // ran a plain push, which git refused with its non-fast-forward error in a box
+    [TestMethod]
+    public async Task TestADivergedBranchNotCheckedOutIsNotPushed()
+    {
+        var repo = await Mixed().ViewRepoAsync(ShowBranches.AllActive);
+        var branch = repo.BranchByName["origin/div"];
+
+        Assert.IsFalse(BranchPushPullCommands.CanPushBranch(repo, branch));
+        Assert.AreEqual(
+            "'div' and origin's have both moved on: switch to it and pull first",
+            BranchPushPullCommands.WhyNoPushBranch(repo, branch)
+        );
+    }
+
+    // The current one can, through PushCurrentBranch, which asks whether to push it with force
+    [TestMethod]
+    public async Task TestTheCurrentBranchDivergedIsPushedAfterAsking()
+    {
+        var repo = await Diverged().ViewRepoAsync();
+
+        Assert.IsTrue(BranchPushPullCommands.CanPushBranch(repo, repo.BranchByName["origin/main"]));
+    }
+
     // A branch checked out in another worktree is left alone as well, and silently: git refuses
     // to move it from here, and that worktree will pull it itself
     [TestMethod]
