@@ -516,11 +516,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   synchronous, `TipID` vs `TipId`, in `Git.Branch` and the augmented `WorkBranch` alike, and
   `Status.IsMerging`, which is any operation in progress); dead code (`exampleRunes.cs`, the
   commented blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`,
-  `FileMonitor`, `WindowsClipboard`); 23 type names declared in both `gmd/Git` and
-  `gmd/Server/Repo.cs`, some identical — share the leaf records only; no tests for
-  `Updater`, and `FakeGit` implements 12 of 76 members.
+  `FileMonitor`, `WindowsClipboard`); no tests for `Updater`, and `FakeGit` implements 12 of 76
+  members.
 - Not recommended: removing the one-implementation interfaces (they are the DI and test-double
-  seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
+  seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
+  records `gmd/Git` and `gmd/Server/Repo.cs` both declare, 14 of them copies (decided 2026-10-13:
+  `gmd.Git` is to stay a general git library, and the server's converters are its boundary, see
+  CLAUDE.md under Layering).
 
 **Deferred, with the reasoning so it is not redone**
 

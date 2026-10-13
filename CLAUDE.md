@@ -244,6 +244,16 @@ is its only user. Keep it that way: if a lower layer needs something else from t
 interface rather than reaching up. The one exception is `Installation/Updater.cs`, outside the
 layers, which calls `UI.Post` / `UI.InfoMessage` itself to say a new version was installed.
 
+`gmd.Git` goes further: it is meant to stay a general git library, one that could be a library of
+its own. It uses nothing of gmd but itself and `gmd.Utils` (`Result`, `Cmd`, `Log` and small
+helpers), and knows nothing of the app: no UI wording or keys (a failed login says what failed, and
+`Cui/LoginAdvice.cs` what to do about it), no server ids (blame gives git's id of an uncommitted line,
+and the server's converter gmd's), no state of the app's (the current author is read with the repo).
+`GitNamespaceTest` reads the compiled code and fails if a type of `gmd.Git` names any other type of
+gmd or a package's. Its records are not shared with `gmd/Server/Repo.cs`, though several are copies:
+the server's converters are the boundary between git's model and gmd's, so app-shaped members stay
+out of the git layer and a change in it does not ripple up into the UI.
+
 ### Dependency injection
 
 Autofac, configured in `gmd/Utils/DependencyInjection.cs`. `RegisterAllAssemblyTypes()`
