@@ -130,10 +130,12 @@ class Updater : IUpdater
             return availableResult.Error;
         }
 
+        // An error rather than the running version, which the update dialog took for the version it
+        // had updated to, and so said gmd was updated and quit
         if (!available.IsAvailable)
         {
             Log.Info("Already at latest release");
-            return self.Version;
+            return new Error("There is no newer version of gmd to update to");
         }
 
         // The running gmd is still the old version, so the new one is still newer, but it is in place
@@ -213,9 +215,10 @@ class Updater : IUpdater
             return new UpdateAvailability(false, self.Version);
         }
 
-        if (!release.Assets.Any())
+        // Not an update to offer when it has no binary for this platform, which failed once taken
+        if (ReleaseChoice.Binary(release, self.BinaryNames) == null)
         {
-            Log.Warn($"No remote binaries for {release.Version}");
+            Log.Warn($"No remote binary for this platform in {release.Version}");
             return new UpdateAvailability(false, self.Version);
         }
         config.Set(s =>

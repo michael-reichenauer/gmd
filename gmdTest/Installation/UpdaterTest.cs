@@ -36,6 +36,31 @@ public class UpdaterTest
         Assert.AreEqual(Running.Version, available.Version);
     }
 
+    // Offered, it failed once taken, as "No binary available"
+    [TestMethod]
+    public async Task TestAReleaseWithNoBinaryForThisPlatformIsNoUpdate()
+    {
+        var (updater, _, releases, _) = NewUpdater(stable: "1.6.1444.870");
+        releases.Stable = ReleaseChoiceTest.NewRelease("1.6.1444.870", false, "gmd_windows", "SHA256SUMS");
+
+        var available = AssertOk(await updater.IsUpdateAvailableAsync(Running));
+
+        Assert.IsFalse(available.IsAvailable);
+    }
+
+    // Not the running version, which the update dialog took for the version it had updated to, and so
+    // said gmd was updated and quit
+    [TestMethod]
+    public async Task TestAnUpdateWithNoNewerVersionIsAnError()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.518");
+
+        var e = AssertError(await updater.UpdateAsync(Running));
+
+        StringAssert.Contains(e.Message, "no newer version");
+        Assert.AreEqual(0, installer.Calls.Count);
+    }
+
     [TestMethod]
     public async Task TestADevInstanceIsOfferedNoUpdate()
     {
