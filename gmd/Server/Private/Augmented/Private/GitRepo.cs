@@ -26,7 +26,8 @@ class GitRepo
         IReadOnlyList<ReflogEntry>? reflog = null,
         IReadOnlyCollection<string>? integrationNames = null,
         IReadOnlyDictionary<string, RecordedStep>? recordedSteps = null,
-        IReadOnlyList<ReflogEntry>? remoteReflog = null
+        IReadOnlyList<ReflogEntry>? remoteReflog = null,
+        string currentAuthor = ""
     )
     {
         TimeStamp = timeStamp;
@@ -44,7 +45,11 @@ class GitRepo
         IntegrationNames = integrationNames ?? [];
         RecordedSteps = recordedSteps ?? new Dictionary<string, RecordedStep>();
         RemoteReflog = remoteReflog ?? [];
+        CurrentAuthor = currentAuthor;
     }
+
+    // The name commits are made with in the repository, its user.name, or "" when none is set
+    public string CurrentAuthor { get; }
 
     public DateTime TimeStamp { get; }
     public string Path { get; }

@@ -29,8 +29,6 @@ class Server : IServer
     public event Action<ChangeEvent>? RepoChange;
     public event Action<ChangeEvent>? StatusChange;
 
-    public string CurrentAuthor => git.CurrentAuthor;
-
     public async Task<Result<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         var repoResult = await augmentedService.GetRepoAsync(path);

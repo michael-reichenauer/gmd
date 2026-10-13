@@ -17,6 +17,7 @@ class WorkRepo
     public List<Stash> Stashes { get; } = [];
     public Dictionary<string, Stash> StashById { get; } = [];
     public List<Worktree> Worktrees { get; } = [];
+    public string CurrentAuthor { get; set; } = "";
 
     public WorkRepo(
         DateTime timeStamp,

@@ -56,8 +56,6 @@ internal class Git : IGit
         this.cmd = cmd;
     }
 
-    public string CurrentAuthor { get; private set; } = "";
-
     // The root of the working tree a folder is in. A linked worktree is a root of its own, even
     // when nested inside the main repository's folder — see GitDir.
     public Result<string> RootPath(string path)
@@ -66,11 +64,8 @@ internal class Git : IGit
         return found is GitDirInfo gitDir ? gitDir.RootPath : found.Error;
     }
 
-    public async Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
-    {
-        await SetCurrentAuthorAsync(wd);
-        return await logService.GetLogAsync(maxCount, wd);
-    }
+    public Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
+        logService.GetLogAsync(maxCount, wd);
 
     public Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         logService.GetMergeLogAsync(reference, wd);
@@ -344,11 +339,15 @@ internal class Git : IGit
         return output.TrimPrefix("git version ");
     }
 
-    async Task SetCurrentAuthorAsync(string path)
+    // Git exits with 1 when user.name is not set, which is an answer
+    public async Task<Result<string>> GetCurrentAuthorAsync(string wd)
     {
-        if (await cmd.RunAsync("git", "config user.name", path, true, true) is not string output)
-            return;
-        Log.Info($"user {output}");
-        CurrentAuthor = output.Trim();
+        var result = await cmd.RunRawAsync("git", "config user.name", wd, true, true);
+        if (result.ExitCode == 1)
+            return "";
+        if (result.ToResult() is not string name)
+            return result.ToResult().Error;
+
+        return name.Trim();
     }
 }

@@ -241,6 +241,7 @@ class AugmentedService : IAugmentedService
         var stashesTask = git.GetStashesAsync(path);
         var worktreesTask = git.GetWorktreesAsync(path);
         var reflogTask = git.GetReflogAsync(path);
+        var authorTask = git.GetCurrentAuthorAsync(path);
         await Task.WhenAll(
             logTask,
             branchesTask,
@@ -249,7 +250,8 @@ class AugmentedService : IAugmentedService
             metaDataTask,
             stashesTask,
             worktreesTask,
-            reflogTask
+            reflogTask,
+            authorTask
         );
 
         // Check all tasks for errors
@@ -283,6 +285,13 @@ class AugmentedService : IAugmentedService
             reflog = [];
         }
 
+        // Who the user is only picks out their own branches in the branch menu
+        if (authorTask.Result is not string currentAuthor)
+        {
+            Log.Warn($"Failed to read user.name, {authorTask.Result.Error}");
+            currentAuthor = "";
+        }
+
         var isTruncated = log.Count == maxCommitCount;
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
@@ -307,7 +316,8 @@ class AugmentedService : IAugmentedService
             reflog: reflog,
             integrationNames: config.IntegrationBranches.ToList(),
             recordedSteps: config.UndoSteps.ToDictionary(),
-            remoteReflog: remoteReflog
+            remoteReflog: remoteReflog,
+            currentAuthor: currentAuthor
         );
         Log.Info($"GitRepo {t} {gitRepo}");
 

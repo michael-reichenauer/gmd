@@ -4,7 +4,9 @@ interface IGit
 {
     Result<string> RootPath(string path);
     Task<Result<string>> GetVersionAsync();
-    string CurrentAuthor { get; }
+
+    // The name commits are made with in the repository, its user.name, or "" when none is set
+    Task<Result<string>> GetCurrentAuthorAsync(string wd);
 
     Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
 

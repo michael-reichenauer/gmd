@@ -15,7 +15,7 @@ class FakeGit : IGit
     public FakeGit()
         : this(new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, true, [], [], [], [], [], [])) { }
 
-    public string CurrentAuthor => "Test Author";
+    public Task<Result<string>> GetCurrentAuthorAsync(string wd) => Task.FromResult<Result<string>>("Test Author");
 
     // The status of the repo, or of another worktree's folder when one is set for that path
     public Task<Result<Status>> GetStatusAsync(string wd) =>

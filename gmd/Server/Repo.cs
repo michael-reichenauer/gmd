@@ -59,6 +59,9 @@ record Repo
     public IReadOnlyDictionary<string, RemoteRewrite> RemoteRewrites { get; init; } =
         new Dictionary<string, RemoteRewrite>();
 
+    // The name commits are made with in the repository, its user.name, or "" when none is set
+    public string CurrentAuthor { get; init; } = "";
+
     public static Repo Empty { get; } =
         new Repo(
             "",

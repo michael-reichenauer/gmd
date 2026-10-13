@@ -13,8 +13,6 @@ interface IServer
     event Action<ChangeEvent> RepoChange;
     event Action<ChangeEvent> StatusChange;
 
-    string CurrentAuthor { get; }
-
     Task<Result<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
     Task<Result<Repo>> GetUpdateStatusRepoAsync(Repo repo);
     Task<Result<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount);

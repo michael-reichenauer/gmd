@@ -327,6 +327,20 @@ public class AugmentedServiceIntegrationTest
         await repo.CommitAsync(status.MergeMessage);
     }
 
+    // Who the user is, for the branch menu's own branches, is read with the repo and kept with it in
+    // the view repo. It was a side effect of reading the log, kept by the git layer for whatever repo
+    // was read last. No user.name is no failure.
+    [TestMethod]
+    public async Task TestTheCurrentAuthorIsReadWithTheRepo()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+
+        Assert.AreEqual(TempRepo.AuthorName, ViewRepo(await AugmentedRepoAsync()).CurrentAuthor);
+
+        await repo.GitAsync("config --unset user.name");
+        Assert.AreEqual("", ViewRepo(await AugmentedRepoAsync()).CurrentAuthor);
+    }
+
     // The real augmented service over the real git services, with only the file monitor and the
     // shared meta data faked out
     async Task<Repo> AugmentedRepoAsync()
