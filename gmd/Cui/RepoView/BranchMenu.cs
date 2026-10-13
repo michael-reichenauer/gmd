@@ -165,7 +165,7 @@ class BranchMenu : IBranchMenu
                 "⇧u",
                 () => cmds.PullAllBranches(),
                 () => BranchPushPullCommands.CanPull(repo.Repo),
-                () => !repo.Repo.Status.IsOk ? Why.Changes : "Nothing to pull"
+                () => BranchPushPullCommands.WhyNoPull(repo.Repo)
             );
 
     public IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false)
@@ -235,10 +235,18 @@ class BranchMenu : IBranchMenu
                 () => BranchPushPullCommands.CanPullBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPullBranch(repo.Repo, b)
             )
+            // The current branch on origin as 'p' pushes it, which asks whether to push it with force
+            // once it has diverged; one not on origin yet is published, which 'p' points here for
             .Item(
                 "Push",
                 "p",
-                () => cmds.PushBranch(branchName),
+                () =>
+                {
+                    if (isCurrent && cb.RemoteName != "")
+                        cmds.PushCurrentBranch();
+                    else
+                        cmds.PushBranch(branchName);
+                },
                 () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
             )

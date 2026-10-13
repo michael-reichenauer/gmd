@@ -8,7 +8,7 @@ namespace gmd.Cui.RepoView;
 static class Why
 {
     // What most commands that change branches need first: git refuses to switch, merge, pull or
-    // rebase over changes it would have to overwrite, and gmd asks for a clean tree before a push
+    // rebase over changes it would have to overwrite
     public const string Changes = "Commit or stash the changes first";
 
     // What a push waits for: not changes, which a push leaves where they are, but a merge or rebase

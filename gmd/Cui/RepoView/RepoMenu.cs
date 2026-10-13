@@ -53,23 +53,21 @@ class RepoMenu : IRepoMenu
 
     public IEnumerable<MenuItem> GetRepoMenuItems()
     {
-        var isStatusOK = repo.Repo.Status.IsOk;
-
         return Menu
             .Items.Items(GetOperationItems())
             .Item(
                 "Pull All Branches",
                 "⇧u",
                 () => repo.BranchCmds.PullAllBranches(),
-                () => isStatusOK,
-                () => Why.Changes
+                () => BranchPushPullCommands.CanPull(repo.Repo),
+                () => BranchPushPullCommands.WhyNoPull(repo.Repo)
             )
             .Item(
                 "Push All Branches",
                 "⇧p",
                 () => repo.BranchCmds.PushAllBranches(),
-                () => !repo.Repo.Status.IsMerging,
-                () => Why.InProgress
+                () => BranchPushPullCommands.CanPush(repo.Repo),
+                () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push"
             )
             .Item("Search ...", "f", () => cmds.SearchFilterRepo())
             .Item(

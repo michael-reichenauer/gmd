@@ -484,11 +484,19 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // on origin can be pushed, which publishes it. The current branch is pulled with 'git pull',
     // which merges, so it can be pulled even when diverged; any other branch is updated with a
     // fetch, which only fast-forwards, and not at all while it is checked out in another worktree.
+    // A branch that is not current and has diverged from origin's cannot be pushed, since git refuses
+    // a push that is not a fast-forward; the current one goes through PushCurrentBranch, which asks
+    // whether to push it with force.
     internal static bool CanPushBranch(Repo repo, Branch b) =>
-        (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == "")) && !repo.Status.IsMerging;
+        (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == ""))
+        && (IsCurrent(b) || !b.HasRemoteOnly)
+        && !repo.Status.IsMerging;
 
     internal static string WhyNoPushBranch(Repo repo, Branch b) =>
-        repo.Status.IsMerging ? Why.InProgress : $"Nothing to push on '{b.NiceNameUnique}'";
+        repo.Status.IsMerging ? Why.InProgress
+        : b.HasLocalOnly && b.HasRemoteOnly
+            ? $"'{b.NiceNameUnique}' and origin's have both moved on: switch to it and pull first"
+        : $"Nothing to push on '{b.NiceNameUnique}'";
 
     // A branch whose remote branch a force push rewrote is pulled by taking the new version, so one
     // that is not checked out can be pulled when it has no commits of its own to move onto it. One a
@@ -527,8 +535,19 @@ class BranchPushPullCommands : IBranchPushPullCommands
         return !repo.Status.IsMerging && branch != null && branch.HasLocalOnly;
     }
 
+    // Whether Pull All has something to pull. The current branch is pulled with 'git pull', which
+    // needs the changes out of the way, while any other is fetched, which leaves the working tree
+    // alone, so changes stop only the current one, as PullAllBranches says when it is done. The menus
+    // greyed it out with any change, while Shift-U pulled the others.
     internal static bool CanPull(Repo repo) =>
-        repo.Status.IsOk && repo.ViewBranches.Any(b => b.HasRemoteOnly || ForcePushes.RewriteOf(repo, b) != null);
+        repo.ViewBranches.Any(b =>
+            (b.HasRemoteOnly || ForcePushes.RewriteOf(repo, b) != null) && (repo.Status.IsOk || !IsCurrent(b))
+        );
+
+    internal static string WhyNoPull(Repo repo) =>
+        !repo.Status.IsOk && IsCurrentBranchBehind(repo)
+            ? $"{Why.Changes}, then pull '{repo.CurrentBranch().NiceNameUnique}'"
+            : "Nothing to pull";
 
     internal static bool CanPullCurrentBranch(Repo repo)
     {

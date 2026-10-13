@@ -343,8 +343,8 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Pull All Branches  [⇧u]
-            Push All Branches  [⇧p]
+            Pull All Branches  [⇧u]  (disabled)
+            Push All Branches  [⇧p]  (disabled)
             Search ...  [f]
             Next Match  [n]  (disabled)
             Previous Match  [⇧n]  (disabled)
@@ -405,15 +405,42 @@ public class MenuItemsTest
         }
     }
 
-    // Uncommitted changes block a pull, which would move the working tree from under them, but not
-    // a push, which sends commits and leaves the changes where they are
+    // Push All and Pull All follow the rules of the ▲ and ▼ menus and of their keys: offered when
+    // there is something to push or pull. Uncommitted changes leave the current branch unpulled,
+    // since 'git pull' would move the working tree from under them, but not the others, which are
+    // fetched, and the menu greyed Pull All out with any change while Shift-U pulled them. A push
+    // sends commits and leaves the changes where they are.
     [TestMethod]
-    public async Task TestUncommittedChangesDisablePullingButNotPushing()
+    public async Task TestUncommittedChangesLeaveTheOtherBranchesToPullAndPush()
     {
-        var items = Items(RepoMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetRepoMenuItems());
+        var view = await ViewOf(
+            Fixture()
+                .Commit("o1", "Old on origin", "c1")
+                .BranchWithRemote("old", "c1", remoteTipCommit: "o1", behind: 1)
+                .WithStatus(modified: 1),
+            "old"
+        );
+        var items = Items(RepoMenuOf(view).GetRepoMenuItems());
 
-        StringAssert.Contains(items, "Pull All Branches  [⇧u]  (disabled)");
-        StringAssert.Contains(items, "Push All Branches  [⇧p]\n");
+        StringAssert.Contains(items, "Pull All Branches  [⇧u]\n");
+    }
+
+    [TestMethod]
+    public async Task TestUncommittedChangesLeaveNothingToPullWhenOnlyTheCurrentBranchIsBehind()
+    {
+        var view = await ViewOf(
+            new RepoBuilder()
+                .Commit("r1", "Remote", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c1", isCurrent: true, remoteTipCommit: "r1", behind: 1)
+                .WithStatus(modified: 1)
+        );
+
+        StringAssert.Contains(Items(RepoMenuOf(view).GetRepoMenuItems()), "Pull All Branches  [⇧u]  (disabled)");
+        Assert.AreEqual(
+            "Commit or stash the changes first, then pull 'main'",
+            BranchPushPullCommands.WhyNoPull(view.Repo)
+        );
     }
 
     // What does block a push is a merge or rebase stopped part way through, the branch being
