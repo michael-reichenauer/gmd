@@ -1,7 +1,10 @@
 # Change Log for Gmd
 --------------------
 
-144 releases:
+145 releases:
+
+## [v1.6.1444.518] - 2026-10-13
+- Improve notification about new available update
 
 ## [v1.5.1444.482] - 2026-10-13
 - Replace the start menu with a start page
