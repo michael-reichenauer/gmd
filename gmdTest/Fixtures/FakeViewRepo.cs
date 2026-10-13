@@ -17,7 +17,7 @@ class FakeViewRepo : IViewRepo
 {
     readonly IServer? server;
 
-    public FakeViewRepo(Repo repo, IRepoConfig? repoConfig = null, IServer? server = null)
+    public FakeViewRepo(Repo repo, IRepoConfigService? repoConfig = null, IServer? server = null)
     {
         this.server = server;
         Repo = repo;

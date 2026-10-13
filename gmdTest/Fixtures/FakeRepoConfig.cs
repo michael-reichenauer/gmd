@@ -2,9 +2,9 @@ using gmd.Common;
 
 namespace gmdTest.Fixtures;
 
-// An in-memory IRepoConfig, i.e. the per repo user choices (branch colors and branch order) that
+// An in-memory IRepoConfigService, i.e. the per repo user choices (branch colors and branch order) that
 // BranchColorService and ViewRepoCreater read, without touching '<repo>/.git/.gmdconfig'.
-class FakeRepoConfig : IRepoConfig
+class FakeRepoConfig : IRepoConfigService
 {
     readonly Dictionary<string, RepoConfig> configByPath = [];
 

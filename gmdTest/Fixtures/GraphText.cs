@@ -19,10 +19,10 @@ namespace gmdTest.Fixtures;
 static class GraphText
 {
     // The graph column alone, one row per commit in view
-    public static string Of(Repo repo, IRepoConfig? repoConfig = null) => Join(Rows(repo, repoConfig));
+    public static string Of(Repo repo, IRepoConfigService? repoConfig = null) => Join(Rows(repo, repoConfig));
 
     // The graph column followed by the commit subject, which makes the picture self describing
-    public static string WithSubjects(Repo repo, IRepoConfig? repoConfig = null)
+    public static string WithSubjects(Repo repo, IRepoConfigService? repoConfig = null)
     {
         var rows = Rows(repo, repoConfig);
         var width = rows.Any() ? rows.Max(r => r.Length) : 0;
@@ -32,14 +32,14 @@ static class GraphText
     // The color of every rune in the graph as one letter each, e.g. 'M' for the magenta main
     // branch, aligned below the runes of Of(). Branch colors are stable, so this shows which
     // branch each rune was drawn for.
-    public static string ColorsOf(Repo repo, IRepoConfig? repoConfig = null) =>
+    public static string ColorsOf(Repo repo, IRepoConfigService? repoConfig = null) =>
         Join(RowTexts(repo, repoConfig).Select(TextColors.Of));
 
-    static IReadOnlyList<string> Rows(Repo repo, IRepoConfig? repoConfig) =>
+    static IReadOnlyList<string> Rows(Repo repo, IRepoConfigService? repoConfig) =>
         RowTexts(repo, repoConfig).Select(t => t.ToString().TrimEnd()).ToList();
 
     // The drawn graph, one Text per commit in view, as the repo view writes them
-    static IReadOnlyList<Text> RowTexts(Repo repo, IRepoConfig? repoConfig)
+    static IReadOnlyList<Text> RowTexts(Repo repo, IRepoConfigService? repoConfig)
     {
         var branchColorService = new BranchColorService(repoConfig ?? new FakeRepoConfig());
         var graph = new GraphCreater(branchColorService).Create(repo);

@@ -503,7 +503,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `BranchService.remotePrefix`, `MessageDlg.Clicked`, `Updater`'s static task cache, the single
   `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
   `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
-  synchronous, `TipID` vs `TipId`, `RepoConfigImpl`); dead code (`exampleRunes.cs`, the commented
+  synchronous, `TipID` vs `TipId`); dead code (`exampleRunes.cs`, the commented
   blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`, `TagService`,
   `BranchService`, `FileMonitor`, `WindowsClipboard`); 23 type names declared in both `gmd/Git` and
   `gmd/Server/Repo.cs`, some identical — share the leaf records only; no tests for

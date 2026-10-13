@@ -24,7 +24,7 @@ class AugmentedService : IAugmentedService
     readonly IFileMonitor fileMonitor;
     readonly IMetaDataService metaDataService;
     readonly IBranchWriteService branchWriteService;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
 
     internal AugmentedService(
         IGit git,
@@ -33,7 +33,7 @@ class AugmentedService : IAugmentedService
         IFileMonitor fileMonitor,
         IMetaDataService metaDataService,
         IBranchWriteService branchWriteService,
-        IRepoConfig repoConfig
+        IRepoConfigService repoConfig
     )
     {
         this.repoConfig = repoConfig;

@@ -510,7 +510,7 @@ class RepoBuilder
         IGit git,
         IMetaDataService metaDataService,
         IFileMonitor fileMonitor,
-        IRepoConfig? repoConfig = null
+        IRepoConfigService? repoConfig = null
     )
     {
         return new AugmentedService(

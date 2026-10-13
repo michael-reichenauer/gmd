@@ -28,7 +28,7 @@ public class RepoConfigTest
     {
         var main = Path.Join(root, "main");
         Directory.CreateDirectory(Path.Join(main, ".git"));
-        var config = new RepoConfigImpl(new FileStore());
+        var config = new RepoConfigService(new FileStore());
 
         config.Set(main, c => c.Branches = ["dev"]);
 
@@ -42,7 +42,7 @@ public class RepoConfigTest
     {
         var main = Path.Join(root, "main");
         Directory.CreateDirectory(Path.Join(main, ".git"));
-        var config = new RepoConfigImpl(new FileStore());
+        var config = new RepoConfigService(new FileStore());
 
         config.Set(
             main,
@@ -58,7 +58,7 @@ public class RepoConfigTest
                 }
         );
 
-        var step = new RepoConfigImpl(new FileStore()).Get(main).UndoSteps["dev"];
+        var step = new RepoConfigService(new FileStore()).Get(main).UndoSteps["dev"];
         Assert.AreEqual(
             ("Squash", "Squashed", "a1", "a2", 3, true),
             (step.Kind, step.Name, step.BeforeId, step.AfterId, step.Moves, step.IsRedo)
@@ -77,7 +77,7 @@ public class RepoConfigTest
         var worktree = Path.Join(root, "main-dev");
         Directory.CreateDirectory(worktree);
         File.WriteAllText(Path.Join(worktree, ".git"), $"gitdir: {worktreeGitDir}\n");
-        var config = new RepoConfigImpl(new FileStore());
+        var config = new RepoConfigService(new FileStore());
 
         config.Set(main, c => c.Branches = ["dev"]);
         config.Set(worktree, c => c.BranchColors["dev"] = 3);

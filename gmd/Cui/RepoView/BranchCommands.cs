@@ -69,7 +69,7 @@ class BranchCommands : IBranchCommands
     readonly IDiffView diffView;
     readonly IBranchColorService branchColorService;
     readonly ISetBranchDlg setBranchDlg;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
     readonly IBranchCreateCommands createCmds;
     readonly IBranchPushPullCommands pushPullCmds;
     readonly IWorktreeCommands worktreeCmds;
@@ -86,7 +86,7 @@ class BranchCommands : IBranchCommands
         IBranchColorService branchColorService,
         ISetBranchDlg setBranchDlg,
         IFindBranchDlg findBranchDlg,
-        IRepoConfig repoConfig,
+        IRepoConfigService repoConfig,
         Func<IViewRepo, IRepoView, IBranchCreateCommands> newCreateCommands,
         Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands,
         Func<IViewRepo, IRepoView, IWorktreeCommands> newWorktreeCommands,

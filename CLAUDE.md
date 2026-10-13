@@ -462,8 +462,8 @@ changes the graph under test rather than failing loudly.
 chose to show — by building the real `AugmentedService` and `ViewRepoCreater` with the fakes in
 `gmdTest/Fixtures/` (`FakeGit`, `FakeFileMonitor`, `FakeMetaDataService`, `FakeRepoConfig`).
 `FakeGit` implements only the members the pipeline reaches and throws on the rest, so a test that
-starts depending on git fails loudly. `builder.Config` is the in-memory `IRepoConfig`, for tests
-that set branch colors or branch order. (`FakeMainThread` is separate — it stands in for `UI` in
+starts depending on git fails loudly. `builder.Config` is the in-memory `IRepoConfigService`, for
+tests that set branch colors or branch order. (`FakeMainThread` is separate — it stands in for `UI` in
 `FileMonitorTest`, which drives the timer tick by hand.)
 
 **`GraphText`** (`gmdTest/Fixtures/`) draws the graph of a view repo as plain text, so the

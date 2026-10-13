@@ -22,9 +22,9 @@ class BranchColorService : IBranchColorService
 {
     static readonly Color[] BranchColors = [Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow];
 
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
 
-    internal BranchColorService(IRepoConfig repoConfig)
+    internal BranchColorService(IRepoConfigService repoConfig)
     {
         this.repoConfig = repoConfig;
     }
