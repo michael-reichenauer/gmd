@@ -83,6 +83,30 @@ public class UpdaterTest
         StringAssert.Contains(e.AllMessages(), "Disk full");
     }
 
+    // A dev instance is a build, e.g. gmd/bin/Debug, which is never replaced by a release
+    [TestMethod]
+    public async Task TestADevInstanceIsNeverUpdated()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+
+        var e = AssertError(await updater.UpdateAsync(Running with { IsDevInstance = true }));
+
+        StringAssert.Contains(e.Message, "dev instance");
+        Assert.AreEqual(0, installer.Calls.Count);
+    }
+
+    // Taken to be 'gmd' when it was unknown, it was a file in the current folder, a repository
+    [TestMethod]
+    public async Task TestAGmdWithNoKnownPathIsNotUpdated()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+
+        var e = AssertError(await updater.UpdateAsync(Running with { Path = null }));
+
+        StringAssert.Contains(e.Message, "path of the gmd binary is not known");
+        Assert.AreEqual(0, installer.Calls.Count);
+    }
+
     // The update dialog and the regular check can both start an update, and the second waits for the
     // first rather than download and install the same binary beside it
     [TestMethod]

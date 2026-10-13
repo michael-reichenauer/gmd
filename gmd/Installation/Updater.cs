@@ -77,7 +77,9 @@ class Updater : IUpdater
         if (self.IsDotNetHost)
             return;
 
-        installer.CleanUp(ThisPath(self));
+        // A dev instance never installs anything to clean up after
+        if (!self.IsDevInstance && self.Path is string path)
+            installer.CleanUp(path);
         if (!config.CheckUpdates)
         {
             Log.Info("Check for updates is disabled");
@@ -111,8 +113,15 @@ class Updater : IUpdater
 
     async Task<Result<Version>> UpdateOnceAsync(RunningGmd self)
     {
-        if (self.IsDotNetHost)
-            return self.Version;
+        // The binary of a dev instance is a build, e.g. gmd/bin/Debug, which is never replaced by a
+        // release. It is never offered one either, but a guard there was all that stood between an
+        // update and a build of gmd that a developer runs.
+        if (self.IsDevInstance)
+            return new Error("A dev instance of gmd is not updated");
+
+        // Unknown is rare, but taken to be 'gmd', it was a file in the current folder, a repository
+        if (self.Path is not string path)
+            return new Error("The path of the gmd binary is not known, so it cannot be replaced");
 
         var availableResult = await IsUpdateAvailableAsync(self);
         if (availableResult is not UpdateAvailability available)
@@ -144,7 +153,7 @@ class Updater : IUpdater
 
         var checksums = ReleaseChoice.Checksums(release);
         var releaseBinary = new ReleaseBinary(version, binary.Name, binary.Url, checksums?.Url ?? "");
-        if (await installer.InstallAsync(releaseBinary, ThisPath(self)) is Error installError)
+        if (await installer.InstallAsync(releaseBinary, path) is Error installError)
             return installError;
 
         installedVersion = version;
@@ -234,6 +243,4 @@ class Updater : IUpdater
         && (installedVersion == null || latest > installedVersion);
 
     Release SelectRelease() => ReleaseChoice.Select(config.Releases, config.AllowPreview);
-
-    static string ThisPath(RunningGmd self) => self.Path ?? "gmd";
 }
