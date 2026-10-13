@@ -520,18 +520,13 @@ class GraphCreater : IGraphCreater
                 }
             }
 
-            // Ensure that siblings do not overlap (with a little margin if filter repo)
+            // Ensure that siblings do not overlap (with a little margin if filter repo). One test per
+            // pair: overlapping is symmetric, the margin widening either range by as much, so the
+            // second scan, which asked the same the other way round, doubled the time this takes,
+            // nearly all of a refresh with thousands of branches shown.
             var margin = isFilterRepo ? 1 : 0;
-            while (true)
+            while (branches.Any(v => IsOverlapping(v, b, margin)))
             {
-                if (
-                    null == branches.FirstOrDefault(v => IsOverlapping(v, b, margin))
-                    && null == branches.FirstOrDefault(v => IsOverlapping(b, v, margin))
-                )
-                { // Found a free spot for the branch
-                    break;
-                }
-
                 b.X++;
             }
         }
