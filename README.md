@@ -315,7 +315,9 @@ gmd --update
 ```
 
 The update replaces the executable where it is, so the folder must be writable by you. That is
-why it needs no `sudo` when gmd is in your home folder. The **Config ...** dialog can turn the
+why it needs no `sudo` when gmd is in your home folder. Before it replaces anything, the new version
+is checked against the release's checksums and run once, so a download that would not start is
+never installed. The **Config ...** dialog can turn the
 update check off, update automatically, or allow preview releases, which are built from the
 `dev` branch.
 

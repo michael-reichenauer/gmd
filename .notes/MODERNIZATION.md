@@ -58,6 +58,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   held them, three conversions twice; a repo's lookups follow its lists in a copy too.
   `FileMonitor` moved out of `Augmented/Private`. `IServer` was left one facade, by choice: every
   member is used, and the command classes span the areas, `CommitCommands` 27 members over five.
+- `gmd/Installation` reviewed (2026-10-13): `Updater` (one class, untested) is split into `Updater`
+  (when to check and update, one update at a time), `GitHubReleases` (the release list, with its
+  ETag), `ReleaseChoice` (the release and the binary for a platform, the platform handed in) and
+  `BinaryInstaller` (download, check, swap, clean up), with `IHttp` as the seam the tests answer
+  through (`FakeHttp`, and `LoopbackServer` for what HttpClient does with a slow or broken
+  connection) and `RunningGmd` handing in the gmd to update, since the test process is a dotnet host.
+  From no tests to 49. A real update of a running gmd was tried by hand on Linux arm64.
 
 **The result type is a C# 15 union** (2026-09-11)
 
@@ -344,6 +351,25 @@ Add new open issues and findings here as work lands; keep them short and drop th
     of their tips, which a cherry pick, a rebase or another machine's clock gets wrong, and so merged
     the remote branch without the local commits. They go by git's ahead and behind counts now
     (`BranchWriteService.MergeTipName`).
+- Found by the review of `gmd/Installation` (2026-10-13), the updater:
+  - An update over a link slower than about 8 Mbit/s always failed: the binary, some 100 MB, was read
+    whole within HttpClient's 100 second timeout. It is streamed now, given up on only when nothing
+    has come for a minute. A failed download was kept in a static field and handed back, faulted, to
+    every later update of that version until gmd was restarted.
+  - Nothing checked the new binary before it replaced gmd, and a file left at
+    `/tmp/gmd.<version>.RTXZERT` was installed unseen as "already downloaded". A download cut short
+    could leave a gmd that does not start, which no update can repair. The download is new each
+    time, beside the binary, and has to match the release's `SHA256SUMS` and to say its version when
+    run (`gmd --version`, as CI runs it) before the swap.
+  - The swap renamed the running binary aside and the new one in, and nothing renamed it back when
+    the second rename failed, leaving no gmd at all; a second gmd starting at that moment did that,
+    by deleting the new one, whose name was the one the clean-up deletes. Linux and macOS replace it
+    in one atomic rename now, and Windows renames the old one back.
+  - With Auto update on, a gmd left open installed the same release again every hour and opened
+    another "Restart for New Version" box each time, since the running gmd is still the old version.
+  - A folder with a space in its path failed every update (`chmod +x <path>`, unquoted). An update
+    with nothing newer made the dialog say gmd was updated, and quit it. A release with no binary
+    for this platform was offered. A release list with no ETag was dropped for the cached one.
 
 ---
 
@@ -479,6 +505,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - An empty repo's branch is shown as `main` whatever its unborn HEAD is named
     (`AugmentedService.EmptyGitRepo`).
 
+- Left by the review of `gmd/Installation` (2026-10-13):
+  - The Windows swap (rename the running exe aside, the new one in, back on failure, each rename
+    tried five times) runs in the tests on Linux only, where any file can be renamed. Windows allows
+    renaming a running exe but not replacing it; that part is only known to work from the users who
+    updated with the old code, which did the same renames. New there and untried: running the new
+    binary to check it, named `<binary>.update_<random>.exe` for that, and renaming it right after
+    it ran, which the retries are for. Try an updater change through two dev previews, with a real
+    update on Linux, macOS and Windows, before it goes to `main`.
+  - The update dialog shows "Updating ..." with no progress for the minutes a slow download takes,
+    and cannot be cancelled; the download itself could report its progress.
+  - The release list is the first page of `/releases`, 30 by creation date, which holds the latest
+    stable release only while fewer than about 25 previews are kept after it (five are).
+  - On Windows the run of the new binary to check it cannot be given a home folder of its own
+    (the user profile is not `HOME`); it writes only a missing config file, and there is one.
+
 **Inference pipeline**
 
 - Left open by the second round of the rules review (2026-09-26):
@@ -573,14 +614,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
   first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
   layout state inside the server model; static leftovers (`Build.IsWindows` assignable,
-  `MessageDlg.Clicked`, `Updater`'s static task cache, the single
+  `MessageDlg.Clicked`, the single
   `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
   `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
   synchronous, `TipID` vs `TipId`, in `Git.Branch` and the augmented `WorkBranch` alike, and
   `Status.IsMerging`, which is any operation in progress); dead code (`exampleRunes.cs`, the
   commented blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`,
-  `FileMonitor`, `WindowsClipboard`); no tests for `Updater`, and `FakeGit` implements 12 of 76
-  members.
+  `FileMonitor`, `WindowsClipboard`); and `FakeGit` implements 12 of 76 members.
 - Not recommended: splitting `IServer` by area (decided 2026-10-13: every member is used and the
   command classes span the areas, so each would take several interfaces and couple no less);
   removing the one-implementation interfaces (they are the DI and test-double seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
@@ -1005,3 +1045,24 @@ Add new open issues and findings here as work lands; keep them short and drop th
   turned every multi-line expected value in the tests into `\r\n` and failed 80 of them, the tag
   parser's included (`TrimSuffix("^{}")` no longer matched). `.gitattributes` now checks out LF on
   every platform and CSharpier writes LF, which a Debug build applies before compiling.
+
+**The updater**
+
+- `HttpClient.Timeout` covers the whole body for `GetByteArrayAsync` and `GetStringAsync`, which read
+  it at once, but only the headers with `HttpCompletionOption.ResponseHeadersRead`; reading the
+  stream after that has no limit but the token given to each read. A fake handler cannot show the
+  difference, since the stream it hands back is the test's own; `LoopbackServer` can.
+- `Cmd` sets `GMD_ASKPASS=1` for every program it starts, so that the ssh of a git it runs can ask gmd
+  for a passphrase. A gmd started through it takes itself for an askpass: run as `gmd --version`, it
+  answers "gmd did not ask: --version", and with the UI up it would ask the running gmd to show a
+  login dialog. The check of a new binary overrides the variable.
+- `File.Move(source, target, overwrite: true)` is `rename(2)` on Linux and macOS: atomic, and a
+  process running from the old file keeps it (`/proc/<pid>/exe` then says `(deleted)`). Windows lets
+  the file of a running program be renamed, not replaced or deleted. Writing into a running binary
+  fails on Linux ("text file busy") and ends a signed program on macOS.
+- GitHub's ETag for the release list is weak, `W/"…"`; `ETag.Tag` drops the `W/`, and GitHub answers
+  304 to either form. Every release since 0.97 has `SHA256SUMS`, and each asset also has a `digest`
+  (`sha256:…`) in the API, which the cached `Releases` does not keep.
+- The gmd versions out there update with their own code, so what they rely on outlives any change
+  here: the asset names, the `v<a.b.c.d>` tags, the `<binary>.tmp_` files they leave for the next
+  version to delete, `~/.gmdconfig`'s `Releases`, and the askpass channel.

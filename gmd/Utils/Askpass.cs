@@ -110,7 +110,12 @@ static class Askpass
     }
 
     // What an askpass sends: the token the gmd it asks gave out, which command asks, the kind of
-    // question, and the question
+    // question, and the question.
+    //
+    // The two ends can be different versions of gmd. The askpass is the binary at the path gmd was
+    // started from, which an update replaces while gmd runs, so a gmd left running after an update is
+    // asked by the new version. What goes over the channel, this and the answer, can change only in
+    // ways that both an older and a newer end still understand.
     internal record Request(string Token, string Id, string Command, string Kind, string Question);
 
     internal static void WriteRequest(BinaryWriter writer, Request request)
