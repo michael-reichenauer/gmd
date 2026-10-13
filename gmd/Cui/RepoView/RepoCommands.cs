@@ -1,6 +1,5 @@
 using gmd.Common;
 using gmd.Cui.Common;
-using gmd.Installation;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -53,7 +52,7 @@ class RepoCommands : IRepoCommands
     readonly IAboutDlg aboutDlg;
     readonly IHelpPage helpPage;
     readonly Config config;
-    readonly IUpdater updater;
+    readonly IUpdateDlg updateDlg;
     readonly IClipboardService clipboard;
     readonly IWebCommands webCmds;
 
@@ -68,7 +67,7 @@ class RepoCommands : IRepoCommands
         IAboutDlg aboutDlg,
         IHelpPage helpPage,
         Config config,
-        IUpdater updater,
+        IUpdateDlg updateDlg,
         IClipboardService clipboard,
         Func<IViewRepo, IWebCommands> newWebCommands
     )
@@ -83,7 +82,7 @@ class RepoCommands : IRepoCommands
         this.aboutDlg = aboutDlg;
         this.helpPage = helpPage;
         this.config = config;
-        this.updater = updater;
+        this.updateDlg = updateDlg;
         this.clipboard = clipboard;
         this.webCmds = newWebCommands(repo);
     }
@@ -411,42 +410,7 @@ class RepoCommands : IRepoCommands
             return Result.Ok;
         });
 
-    public void UpdateRelease() =>
-        Do(async () =>
-        {
-            await Task.Yield();
-
-            var releases = config.Releases;
-            var latest = Version.Parse(releases.LatestVersion);
-            var typeText = releases.IsPreview ? "(preview)" : "";
-            string msg =
-                $"A new release is available.\n\n"
-                + $"Running Version: {Build.Version().Txt()}\n"
-                + $"Built:           {Build.Time().ToLocalTime().Iso()}\n\n"
-                + $"New Version:     {latest.Txt()} {typeText}\n"
-                + $"Built:           {Build.GetBuildTime(releases.LatestVersion).ToLocalTime().Iso()}\n\n"
-                + "Do you want to update?";
-
-            var button = UI.InfoMessage("New Release", msg, ["Yes", "No"]);
-            if (button != 0)
-            {
-                Log.Info($"Skip update");
-                return Result.Ok;
-            }
-            Log.Info($"Updating release ...");
-            var updateTask = updater.UpdateAsync();
-            UI.ShowMessageWhile(
-                "Updating",
-                $"Updating to version {latest.Txt()},\nthis might take a while ...",
-                updateTask
-            );
-            if (await updateTask is Error e)
-                return e;
-
-            UI.InfoMessage("Restart Required", "A program restart is required after update,\nplease start gmd again.");
-            UI.Shutdown();
-            return Result.Ok;
-        });
+    public void UpdateRelease() => Do(() => updateDlg.ShowAsync());
 
     void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
 
