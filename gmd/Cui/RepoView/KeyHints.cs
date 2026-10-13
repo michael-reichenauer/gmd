@@ -86,6 +86,21 @@ static class KeyHints
         return hints;
     }
 
+    // The start page's line, shown in place of the log's until a repository is opened. The numbers
+    // open the listed repositories, and Delete takes the selected one off the recent list, which it
+    // only says where it can.
+    public static IReadOnlyList<KeyHint> ForStart(int numbered, bool canRemove)
+    {
+        List<KeyHint> hints = [new("Enter", "open")];
+        if (numbered > 0)
+            hints.Add(new(numbered == 1 ? "1" : $"1-{numbered}", "open repository"));
+        hints.AddRange([new("o", "open folder"), new("c", "clone"), new("i", "init")]);
+        if (canRemove)
+            hints.Add(new("Del", "remove from list"));
+        hints.Add(new("Esc", "quit"));
+        return hints;
+    }
+
     // 1, 2, 3, 4 and 0 are said by the resolver's own result pane, for the conflict under the cursor
     public static IReadOnlyList<KeyHint> ForConflict() =>
         [
