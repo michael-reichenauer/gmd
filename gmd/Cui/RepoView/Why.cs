@@ -18,6 +18,9 @@ static class Why
     // A branch gmd knows only from the message of the merge that brought it in, drawn '~'
     public static string Deleted(Branch b) => $"'{b.NiceNameUnique}' was deleted: gmd knows it from a merge message";
 
+    // The main branch is the line every other branch is drawn off, so it cannot be hidden
+    public static string AlwaysShown(Branch b) => $"'{b.NiceNameUnique}' is the main branch, which is always shown";
+
     // Git lets a branch be checked out in one worktree only, and moves it only there
     public static string InWorktree(Branch b) => $"'{b.NiceNameUnique}' is checked out in another worktree";
 }

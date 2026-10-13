@@ -42,7 +42,7 @@ interface IRepoCommands
 
 class RepoCommands : IRepoCommands
 {
-    readonly IViewRepo repo;
+    readonly CommandContext context;
 
     readonly IRepoView repoView;
     readonly IServer server;
@@ -58,11 +58,7 @@ class RepoCommands : IRepoCommands
     readonly IWebCommands webCmds;
 
     internal RepoCommands(
-        IViewRepo repo,
-        IRepoView repoView,
-        IServer server,
-        IProgress progress,
-        IStatusLine status,
+        CommandContext context,
         ICloneDlg cloneDlg,
         IInitRepoDlg initRepoDlg,
         IAboutDlg aboutDlg,
@@ -70,14 +66,14 @@ class RepoCommands : IRepoCommands
         Config config,
         IUpdateDlg updateDlg,
         IClipboardService clipboard,
-        Func<IViewRepo, IWebCommands> newWebCommands
+        Func<CommandContext, IWebCommands> newWebCommands
     )
     {
-        this.repo = repo;
-        this.repoView = repoView;
-        this.server = server;
-        this.progress = progress;
-        this.status = status;
+        this.context = context;
+        this.repoView = context.View;
+        this.server = context.Server;
+        this.progress = context.Progress;
+        this.status = context.Status;
         this.cloneDlg = cloneDlg;
         this.initRepoDlg = initRepoDlg;
         this.aboutDlg = aboutDlg;
@@ -85,7 +81,7 @@ class RepoCommands : IRepoCommands
         this.config = config;
         this.updateDlg = updateDlg;
         this.clipboard = clipboard;
-        this.webCmds = newWebCommands(repo);
+        this.webCmds = newWebCommands(context);
     }
 
     public void OpenRepoInBrowser() => webCmds.OpenRepo();
@@ -102,7 +98,7 @@ class RepoCommands : IRepoCommands
         repoView.RefreshAndFetch(addName, commitId);
 
     public void ShowRepo(string path) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (await repoView.ShowRepoAsync(path) is Error e)
             {
@@ -112,7 +108,7 @@ class RepoCommands : IRepoCommands
         });
 
     public void ShowBrowseRepoDialog() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var browser = new FolderBrowseDlg();
             if (browser.Show(config.RecentParentFolders()) is not string path)
@@ -130,7 +126,7 @@ class RepoCommands : IRepoCommands
     public void ShowHelp() => helpPage.ShowAsync().RunInBackground();
 
     public void Clone() =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (cloneDlg.Show(config.RecentParentFolders()) is not CloneInfo clone)
                 return Result.Ok;
@@ -148,7 +144,7 @@ class RepoCommands : IRepoCommands
         });
 
     public void InitRepo() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var parents = config.RecentParentFolders();
             var pathResult = initRepoDlg.Show(parents.Any() ? parents[0] + Path.DirectorySeparatorChar : "", parents);
@@ -168,7 +164,7 @@ class RepoCommands : IRepoCommands
         });
 
     public void SearchFilterRepo() =>
-        Do(async () =>
+        Do(async repo =>
         {
             await Task.CompletedTask;
             repoView.ShowFilter();
@@ -176,7 +172,7 @@ class RepoCommands : IRepoCommands
         });
 
     public void UndoAllUncommittedChanged() =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (!Confirm.UndoAllUncommitted())
                 return Result.Ok;
@@ -193,7 +189,7 @@ class RepoCommands : IRepoCommands
     // Discard All Changes and Ignored Files, in the commit menu's Undo. The question lists what
     // would be deleted, as git's dry run of the same clean has it.
     public void CleanWorkingFolder() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var toDeleteResult = await server.GetFilesToCleanAsync(repo.Path);
             if (toDeleteResult is not IReadOnlyList<string> toDelete)
@@ -212,7 +208,7 @@ class RepoCommands : IRepoCommands
 
     // The name of what git stopped part way through, e.g. "Rebase", for the menu items that act on
     // it. "Operation" when nothing is in progress, where those items are hidden anyway.
-    public string OperationName() => OperationName(repo.Repo.Status.Operation);
+    public string OperationName() => OperationName(context.ViewRepo.Repo.Status.Operation);
 
     static string OperationName(GitOperation operation) =>
         operation switch
@@ -229,6 +225,7 @@ class RepoCommands : IRepoCommands
     // "Rebasing 'dev' (3 of 7)  ·  2 conflicts"
     public string OperationSummary()
     {
+        var repo = context.ViewRepo;
         var s = repo.Repo.Status;
         var text = OperationName(s.Operation);
         if (s.OperationBranchName != "")
@@ -253,6 +250,7 @@ class RepoCommands : IRepoCommands
     // 'action' names what is about to happen, for the button that overrides the second warning.
     public async Task<bool> ConfirmConflictsResolvedAsync(string action)
     {
+        var repo = context.ViewRepo;
         if (repo.Repo.Status.Operation == GitOperation.None)
             return true;
 
@@ -261,7 +259,7 @@ class RepoCommands : IRepoCommands
         {
             var text = UnresolvedText(conflicted, action);
             if (UI.InfoMessage("Unresolved Conflicts", text, 0, ["Show Diff", "Cancel"]) == 0)
-                repo.CommitCmds.ShowUncommittedDiff();
+                context.CommitCmds.ShowUncommittedDiff();
             return false;
         }
 
@@ -281,7 +279,7 @@ class RepoCommands : IRepoCommands
             ["Show Diff", $"{action} Anyway", "Cancel"]
         );
         if (choice == 0)
-            repo.CommitCmds.ShowUncommittedDiff();
+            context.CommitCmds.ShowUncommittedDiff();
 
         return choice == 1;
     }
@@ -293,6 +291,7 @@ class RepoCommands : IRepoCommands
     // nothing has been resolved yet to lose.
     public void ShowConflicts()
     {
+        var repo = context.ViewRepo;
         var s = repo.Repo.Status;
         if (!s.IsMerging || s.Conflicted == 0)
             return; // E.g. resolved by git itself, with rerere
@@ -316,7 +315,7 @@ class RepoCommands : IRepoCommands
             ["Resolve Conflicts", $"Abort {name}", "Later"]
         );
         if (choice == 0)
-            repo.CommitCmds.ShowUncommittedDiff();
+            context.CommitCmds.ShowUncommittedDiff();
         else if (choice == 1)
             Abort(isAsked: true);
     }
@@ -344,7 +343,7 @@ class RepoCommands : IRepoCommands
     public void AbortOperation() => Abort(isAsked: false);
 
     void Abort(bool isAsked) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var name = OperationName();
             var isConfirmed =
@@ -364,7 +363,7 @@ class RepoCommands : IRepoCommands
     // Carries on with the commits the operation has left. Not offered for a merge, which is
     // finished by committing it instead.
     public void ContinueOperation() =>
-        Do(async () =>
+        Do(async repo =>
         {
             // Continuing is how a rebase makes its commit, so it needs the same gate as Commit
             if (!await ConfirmConflictsResolvedAsync("Continue"))
@@ -385,7 +384,7 @@ class RepoCommands : IRepoCommands
 
     // Drops the commit the operation stopped on and carries on with the rest
     public void SkipOperationCommit() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var name = OperationName();
             if (
@@ -409,14 +408,14 @@ class RepoCommands : IRepoCommands
             return Result.Ok;
         });
 
-    public void UpdateRelease() => Do(() => updateDlg.ShowAsync());
+    public void UpdateRelease() => Do(repo => updateDlg.ShowAsync());
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
+    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 
     // The id or the message of the commit on the cursor's row (i, Shift-I), the commonest things
     // copied from a log. The uncommitted changes have neither yet.
     public void CopyCommitId() =>
-        Do(async () =>
+        Do(async repo =>
         {
             await Task.Yield();
             var commit = repo.RowCommit;
@@ -430,7 +429,7 @@ class RepoCommands : IRepoCommands
         });
 
     public void CopyCommitMessage() =>
-        Do(async () =>
+        Do(async repo =>
         {
             await Task.Yield();
             var commit = repo.RowCommit;

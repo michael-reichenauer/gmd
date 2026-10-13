@@ -133,15 +133,11 @@ public class CommitCommandsTest
             .BranchWithRemote("main", "c3", isCurrent: true)
             .BranchWithRemote("dev", "d2");
 
-    // The predicates read nothing but repo.Repo, so the progress, server, dialogs and views the
-    // constructor takes are never reached
+    // The predicates read nothing but the shown repo, so the dialogs and views the constructor takes
+    // are never reached
     static CommitCommands Commands(Repo repo) =>
         new CommitCommands(
-            null!,
-            null!,
-            new FakeViewRepo(repo),
-            null!,
-            null!,
+            FakeRepoView.Context(new FakeViewRepo(repo)),
             null!,
             null!,
             null!,

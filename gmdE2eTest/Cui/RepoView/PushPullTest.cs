@@ -506,7 +506,8 @@ public class PushPullTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Restore origin/main from before the Force Push");
-        for (var i = 0; i < 3; i++)
+        // Two moves, Hide Branch being greyed out for main, which is always shown
+        for (var i = 0; i < 2; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();

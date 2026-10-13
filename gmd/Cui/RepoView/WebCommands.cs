@@ -22,40 +22,38 @@ interface IWebCommands
 // need no view.
 class WebCommands : IWebCommands
 {
-    readonly IViewRepo repo;
+    readonly CommandContext context;
     readonly IServer server;
     readonly IBrowserService browser;
     readonly IClipboardService clipboard;
     readonly IProgress progress;
     readonly IStatusLine status;
 
-    public WebCommands(
-        IViewRepo repo,
-        IServer server,
-        IBrowserService browser,
-        IClipboardService clipboard,
-        IProgress progress,
-        IStatusLine status
-    )
+    public WebCommands(CommandContext context, IBrowserService browser, IClipboardService clipboard)
     {
-        this.repo = repo;
-        this.server = server;
+        this.context = context;
+        this.server = context.Server;
         this.browser = browser;
         this.clipboard = clipboard;
-        this.progress = progress;
-        this.status = status;
+        this.progress = context.Progress;
+        this.status = context.Status;
     }
 
     public void OpenRepo() => Open("the repository", links => links.RepoUrl);
 
-    public void OpenBranch(string name) => Open("a branch", links => links.Branch(RemoteName(repo.Repo, name)));
+    public void OpenBranch(string name) =>
+        Open("a branch", links => links.Branch(RemoteName(context.ViewRepo.Repo, name)));
 
     public void OpenCommit(string commitId) => Open("a commit", links => links.Commit(commitId));
 
     public void OpenNewPullRequest(string name) =>
         Open(
             "a pull request",
-            links => links.NewPullRequest(RemoteName(repo.Repo, name), PullRequestBase(repo.Repo, name))
+            links =>
+                links.NewPullRequest(
+                    RemoteName(context.ViewRepo.Repo, name),
+                    PullRequestBase(context.ViewRepo.Repo, name)
+                )
         );
 
     // The branch's name on the remote, i.e. its remote branch without 'origin/', empty when it has
@@ -114,7 +112,7 @@ class WebCommands : IWebCommands
     static bool HasRemote(Repo repo) => repo.AllBranches.Any(b => b.IsRemote);
 
     void Open(string what, Func<WebLinks, string?> linkOf) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var remote = await server.GetRemoteUrlAsync(repo.Path);
             if (remote is not string remoteUrl)
@@ -144,5 +142,5 @@ class WebCommands : IWebCommands
         return Result.Ok;
     }
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
+    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 }

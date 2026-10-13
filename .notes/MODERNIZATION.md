@@ -558,14 +558,15 @@ Add new open issues and findings here as work lands; keep them short and drop th
     (`AugmentedService.EmptyGitRepo`).
 
 - Left by the review of `gmd/Cui` (2026-10-13). The structure first:
-  - The command classes and menus are rebuilt with every snapshot of the repo: each `ShowRepo` (every
-    refresh, every show or hide, every key typed in the search) builds a `ViewRepo`, eight command
-    classes and three menus through Autofac, with the dialogs they take. So a command holds the repo
-    of when it was made, which is why `CommandRunner`, `MergeToBranch` and `MarkHiddenNewsSeen` have
-    to read `repoView.ViewRepo` again after a refresh, and `IViewRepo` doubles as a service locator
-    (`repo.Cmds`, `.BranchCmds`). Commands made once that read the current snapshot when they run,
-    with roadmap C's `CommandContext`, would end that class of bug. Roadmap C is worse than written:
-    eight classes, about 65 `Do` sites, and `IBranchCommands` is some 30 forwarders.
+  - *Done 2026-10-14:* the command classes and menus were rebuilt with every snapshot of the repo
+    (every refresh, show or hide, and key typed in the search), eight command classes with their
+    dialogs through Autofac, and a command held the repo of when it was made, which is why
+    `CommandRunner`, `MergeToBranch` and `FindBranch` read `repoView.ViewRepo` again after a
+    refresh, and `IViewRepo` doubled as a service locator (`repo.Cmds`). The command classes are made
+    once now, with the view, and share a `CommandContext` (the repo shown now, the view, the server,
+    the status line, `Do`, and the command classes, `BranchCommands`' four forwarded ones included);
+    `Do(async repo => …)` hands a command the snapshot as it starts. `IViewRepo` is the snapshot
+    only, and the menus, still made with each one, take the commands from the context.
   - *Done 2026-10-13:* `gmd/Cui` held 41 files in one namespace, and is grouped by feature now, a
     namespace per folder (`Graphs/`, `Commits/`, `Branches/`, `Tags/`, `Recovery/`, `Worktrees/`,
     `Login/`, Clone and Init in `Start/`, FilterDlg in `RepoView/`, RefNameValidation in `Common/`),
@@ -578,14 +579,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
     Splitting it is for the Terminal.Gui 2.x port, which it would make smaller: 19 of its 36 files
     touch Terminal.Gui, 18 more outside it, nearly all of those through `Key`, `Dim` / `Pos` and
     `Application.RequestStop`.
-  - `RepoView.cs` (870 lines) schedules refreshes (six entry points, two flags, two pending
-    changes), and a read that finishes after a newer one can show the older repo: a status read
-    started before a refresh and done after it, or a show by mouse during a refresh. A plain
-    `RepoRefresher` with a generation counter, testable with a fake server, would fix both. Not
-    reproduced.
-  - Keys, hints and menus each decide what is possible, and drift: most of what was fixed above. A
-    decision per key, used by `RepoViewInput` and `KeyHints` alike, would end it, as the shared
-    rules did for the ones fixed.
+  - *Done 2026-10-14:* `RepoView.cs` schedules refreshes, and a read that finished after a newer one
+    showed the older repo again: a status read started before a refresh and done after it, two
+    refreshes at once (a command's is not held back by the flag a change's is), or a show or hide by
+    the user during a refresh, which the refresh, read with the branches from before, undid; and the
+    first of two reads to finish cleared the flags the other still needed. `RepoReads` counts the
+    reads running and every repo shown, and a read that something was shown since it started is
+    overtaken: a refresh reads again (three reads at most, then the last is shown), a status read
+    looks at its change again against the repo now shown. Not reproduced end to end: the reads of a
+    small repo are too quick for a show to land in one; a stress run (commits from outside while
+    showing and hiding) ended right, with no read overtaken.
+  - *Done 2026-10-14:* keys and hints each decided what is possible, and drifted: most of what was
+    fixed above. The keys whose meaning depends on the cursor (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`)
+    are decided in `LogKeys`, which `RepoViewInput` and `KeyHints` both ask. Left: the menus decide
+    apart from both, through the shared rules (`CanPushBranch`, `CommitRewrite`, …) where there are
+    some.
   - `IDiffView` cannot be told what its source supports: line history (`git log -L`, which takes no
     context) offers `+` / `-` and says the context changed; the diff of an uncommitted line from blame
     offers commit and discard, and a discard leaves the blame stale. A `DiffSource` record (reload,
@@ -597,8 +605,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
     the colors already. Not measured.
   - Smaller: the diff's right-side line numbers after conflict markers are 3 low; the resolver's
     result pane cannot be scrolled and its panes do not expand tabs; `b` there can move the cursor
-    to another conflict; a drag starts a row and a column after the press; `h` on main hides every
-    branch; `g` on main says nothing; Merge says nothing when already merged; Add Tag says the tag
+    to another conflict; a drag starts a row and a column after the press;
+    `g` on main says nothing; Merge says nothing when already merged; Add Tag says the tag
     failed when only its push did; the commit diff and blame are opened outside the command's `Do`;
     `CommitFromMenu` and `AmendOlderCommit` keep a 100 ms `UI.AddTimeout` whose reason is unknown;
     Init proposes the start folder, `~` when gmd is started there; `UIComboTextField` adds a `Leave`
@@ -708,10 +716,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   build; the workflow has no `concurrency` group, `timeout-minutes`, NuGet cache, `.trx` upload,
   coverage step or `NuGetAuditLevel` gate, and the fast tier never runs on Windows or
   macOS.
-- C, structure: the six `*Commands` classes repeat four fields, a constructor and a `Do` forwarder,
-  and 25 of 62 `Do(` bodies end in `Refresh(); return Result.Ok;` — a `CommandContext` and a
-  `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
-  first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
+- C, structure: (*done 2026-10-14:* the `*Commands` classes take a `CommandContext` in place of the
+  four fields they repeated, and `FakeRepoView.Context` makes them constructible in a test; about 25
+  `Do` bodies still end in `Refresh(); return Result.Ok;`, which a `DoAndRefresh` could take); `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
   layout state inside the server model; static leftovers (`Build.IsWindows` assignable,
   `Menu.StatusLine`, set by MainView, the single
   `UI.onActivated` slot; `MessageDlg.Clicked` is gone); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,

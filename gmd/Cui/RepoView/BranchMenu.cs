@@ -30,13 +30,15 @@ class BranchMenu : IBranchMenu
 
     readonly IRepoMenu repoMenu;
     readonly IViewRepo repo;
+    readonly CommandContext commands;
     readonly IBranchCommands cmds;
 
-    public BranchMenu(IRepoMenu repoMenu, IViewRepo repo)
+    public BranchMenu(IRepoMenu repoMenu, IViewRepo repo, CommandContext commands)
     {
         this.repoMenu = repoMenu;
         this.repo = repo;
-        this.cmds = repo.BranchCmds;
+        this.commands = commands;
+        this.cmds = commands.BranchCmds;
     }
 
     public void Show(int x, int y, string branchName)
@@ -126,14 +128,14 @@ class BranchMenu : IBranchMenu
             .Items.Item(
                 "Push Current Branch",
                 "p",
-                () => cmds.PushCurrentBranch(),
+                () => commands.PushPullCmds.PushCurrentBranch(),
                 () => BranchPushPullCommands.CanPushCurrentBranch(repo.Repo),
                 WhyNoPush
             )
             .Item(
                 "Push All Branches",
                 "⇧p",
-                () => cmds.PushAllBranches(),
+                () => commands.PushPullCmds.PushAllBranches(),
                 () => BranchPushPullCommands.CanPush(repo.Repo),
                 () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push"
             );
@@ -153,7 +155,7 @@ class BranchMenu : IBranchMenu
             .Items.Item(
                 "Pull Current Branch",
                 "u",
-                () => cmds.PullCurrentBranch(),
+                () => commands.PushPullCmds.PullCurrentBranch(),
                 () => BranchPushPullCommands.CanPullCurrentBranch(repo.Repo),
                 () =>
                     !repo.Repo.Status.IsOk
@@ -163,7 +165,7 @@ class BranchMenu : IBranchMenu
             .Item(
                 "Pull All Branches",
                 "⇧u",
-                () => cmds.PullAllBranches(),
+                () => commands.PushPullCmds.PullAllBranches(),
                 () => BranchPushPullCommands.CanPull(repo.Repo),
                 () => BranchPushPullCommands.WhyNoPull(repo.Repo)
             );
@@ -219,7 +221,13 @@ class BranchMenu : IBranchMenu
                         ? why
                     : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
             )
-            .Item("Hide Branch", "h", () => cmds.HideBranch(branchName))
+            .Item(
+                "Hide Branch",
+                "h",
+                () => cmds.HideBranch(branchName),
+                () => !b.IsMainBranch,
+                () => Why.AlwaysShown(b)
+            )
             // The same rules as the 'u' and 'p' keys on a highlighted branch, see
             // BranchPushPullCommands.CanPullBranch
             .Item(
@@ -228,9 +236,9 @@ class BranchMenu : IBranchMenu
                 () =>
                 {
                     if (isCurrent)
-                        cmds.PullCurrentBranch();
+                        commands.PushPullCmds.PullCurrentBranch();
                     else
-                        cmds.PullBranch(branchName);
+                        commands.PushPullCmds.PullBranch(branchName);
                 },
                 () => BranchPushPullCommands.CanPullBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPullBranch(repo.Repo, b)
@@ -243,9 +251,9 @@ class BranchMenu : IBranchMenu
                 () =>
                 {
                     if (isCurrent && cb.RemoteName != "")
-                        cmds.PushCurrentBranch();
+                        commands.PushPullCmds.PushCurrentBranch();
                     else
-                        cmds.PushBranch(branchName);
+                        commands.PushPullCmds.PushBranch(branchName);
                 },
                 () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
@@ -255,24 +263,24 @@ class BranchMenu : IBranchMenu
                 rewrite != null,
                 rewrite != null ? ForcePushes.RestoreLabel(rewrite) : "",
                 "",
-                () => cmds.RestoreOrigin(branchName),
+                () => commands.PushPullCmds.RestoreOrigin(branchName),
                 () => rewrite?.IsRestorable == true,
                 () => rewrite != null ? ForcePushes.WhyNoRestore(rewrite) : ""
             )
-            .Item("Create Branch ...", "b", () => cmds.CreateBranchFromBranch(b.Name))
+            .Item("Create Branch ...", "b", () => commands.CreateCmds.CreateBranchFromBranch(b.Name))
             // A folder with this branch checked out, or with a new branch started from it when it
             // is checked out already (here or in another worktree)
             .Item(
                 "Create Worktree ...",
                 "",
-                () => cmds.CreateWorktree(b.Name),
+                () => commands.WorktreeCmds.CreateWorktree(b.Name),
                 () => b.IsGitBranch,
                 () => Why.Deleted(b)
             )
             .Item(
                 "Rename Branch ...",
                 "",
-                () => cmds.RenameBranch(b.Name),
+                () => commands.CreateCmds.RenameBranch(b.Name),
                 // The current branch can be renamed, git moves HEAD with it, but a branch git no
                 // longer has cannot, the main branch is what the branch structure is based on, and
                 // a remote branch without a local branch has no local branch to rename
@@ -286,7 +294,7 @@ class BranchMenu : IBranchMenu
             .Item(
                 "Delete Branch ...",
                 "",
-                () => cmds.DeleteBranch(b.Name),
+                () => commands.CreateCmds.DeleteBranch(b.Name),
                 // Nor a branch checked out in another worktree, which git refuses to delete
                 () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent && !IsInWorktree(b),
                 () =>
@@ -302,7 +310,7 @@ class BranchMenu : IBranchMenu
             .Item(
                 BranchUndo.Label(step),
                 "",
-                () => cmds.UndoLastChange(b.Name),
+                () => commands.UndoCmds.UndoLastChange(b.Name),
                 () => BranchUndo.WhyNot(repo.Repo, b, step) == "",
                 () => BranchUndo.WhyNot(repo.Repo, b, step)
             )
@@ -325,14 +333,14 @@ class BranchMenu : IBranchMenu
             .Item(
                 "Open in Browser",
                 "",
-                () => repo.Cmds.OpenBranchInBrowser(branchName),
+                () => commands.RepoCmds.OpenBranchInBrowser(branchName),
                 () => WebCommands.CanOpenBranch(repo.Repo, branchName),
                 () => WebCommands.WhyNoOpenBranch(repo.Repo, branchName)
             )
             .Item(
                 "Create Pull Request in Browser",
                 "",
-                () => repo.Cmds.OpenNewPullRequest(branchName),
+                () => commands.RepoCmds.OpenNewPullRequest(branchName),
                 () => WebCommands.CanOpenNewPullRequest(repo.Repo, branchName),
                 () => WebCommands.WhyNoNewPullRequest(repo.Repo, branchName)
             )
@@ -545,8 +553,8 @@ class BranchMenu : IBranchMenu
         return Menu
             .Items.Separator(hiddenBranches.Any(), "Show")
             .Items(ToBranchesItems(hiddenBranches, b => cmds.ShowBranch(b.Name, false), null, true))
-            .Separator(shownBranches.Any() || isRowBranchHidable, "Hide")
-            .Items(ToBranchesItems(shownBranches, b => cmds.HideBranch(b.Name, false)))
+            .Separator(shownBranches.Any(b => !b.IsMainBranch) || isRowBranchHidable, "Hide")
+            .Items(ToBranchesItems(shownBranches.Where(b => !b.IsMainBranch), b => cmds.HideBranch(b.Name, false)))
             .Items(isRowBranchHidable, ToBranchesItems(new[] { rowBranch }, b => cmds.HideBranch(b.Name, false)));
     }
 

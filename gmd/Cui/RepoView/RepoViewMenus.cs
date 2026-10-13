@@ -28,11 +28,19 @@ class RepoViewMenus : IRepoViewMenus
     readonly ICommitMenu commitMenu;
     readonly IBranchMenu branchMenu;
 
-    internal RepoViewMenus(IViewRepo repo, Config config, IConfigDlg configDlg, DiffMark diffMark)
+    // Made with each snapshot of the repo, which a menu shows as it was when it was shown, with the
+    // command classes, which act on the repo as it is when they run
+    internal RepoViewMenus(
+        IViewRepo repo,
+        CommandContext commands,
+        Config config,
+        IConfigDlg configDlg,
+        DiffMark diffMark
+    )
     {
-        repoMenu = new RepoMenu(repo, repo.Cmds, config, configDlg);
-        branchMenu = new BranchMenu(repoMenu, repo);
-        commitMenu = new CommitMenu(repoMenu, branchMenu, repo, diffMark);
+        repoMenu = new RepoMenu(repo, commands, config, configDlg);
+        branchMenu = new BranchMenu(repoMenu, repo, commands);
+        commitMenu = new CommitMenu(repoMenu, branchMenu, repo, commands, diffMark);
     }
 
     public void ShowRepoMenu(int x, int y) => repoMenu.Show(x, y);

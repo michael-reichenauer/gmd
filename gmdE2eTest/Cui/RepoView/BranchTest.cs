@@ -134,6 +134,24 @@ public class BranchTest
         Assert.AreEqual("  dev\n* main", await repo.GitAsync("branch"), "No branch was created");
     }
 
+    // The main branch is always shown, so 'h' on it says so; it did nothing, and said nothing
+    [TestMethod]
+    public async Task TestHideOnTheMainBranchSaysItIsAlwaysShown()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Left"); // Hoovers main
+        gmd.WaitForStable();
+
+        gmd.Send("h");
+
+        Assert.AreEqual(
+            "'main' is the main branch, which is always shown",
+            ScreenText.LastLine(gmd.WaitFor("always shown"))
+        );
+    }
+
     // The uncommitted row is no commit to start a branch at, which the commit menu and the hints say,
     // and 'b' there opened Create Branch at 000000, which git then failed on
     [TestMethod]
