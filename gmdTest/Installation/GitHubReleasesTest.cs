@@ -89,6 +89,35 @@ public class GitHubReleasesTest
         Assert.AreEqual("1.6.1444.518", config.Releases.StableRelease.Version);
     }
 
+    // They were dropped, and the ones read before taken for the latest, with no error
+    [TestMethod]
+    public async Task TestReleasesWithNoETagAreKeptToo()
+    {
+        var config = new FakeConfigService(c => c.Releases = GitHubReleases.Parse("[]", "\"old\"")).Config;
+        var http = new FakeHttp(_ => FakeHttp.Text(ReleasesJson));
+
+        AssertOk(await new GitHubReleases(config, http).FetchAsync());
+
+        Assert.AreEqual("", config.Releases.Etag);
+        Assert.AreEqual("1.6.1444.518", config.Releases.StableRelease.Version);
+    }
+
+    // GitHub's rate limit is 60 requests an hour for one address, which a team behind one address can
+    // reach, and the body is then no release list
+    [TestMethod]
+    public async Task TestAnErrorStatusIsAnError()
+    {
+        var config = new FakeConfigService(c => c.Releases = GitHubReleases.Parse(ReleasesJson, "\"abc\"")).Config;
+        var http = new FakeHttp(_ =>
+            FakeHttp.Status(HttpStatusCode.Forbidden, """{"message": "API rate limit exceeded"}""")
+        );
+
+        var e = AssertError(await new GitHubReleases(config, http).FetchAsync());
+
+        StringAssert.Contains(e.AllMessages(), "403");
+        Assert.AreEqual("1.6.1444.518", config.Releases.StableRelease.Version);
+    }
+
     [TestMethod]
     public async Task TestNoConnectionIsAnError()
     {

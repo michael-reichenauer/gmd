@@ -67,32 +67,23 @@ class GitHubReleases : IGitHubReleases
                 return Result.Ok;
             }
 
+            // E.g. 403 when the rate limit is reached, whose body is no release list
+            response.EnsureSuccessStatusCode();
+
             string latestInfoText = await response.Content.ReadAsStringAsync();
             Log.Debug("New version info");
 
-            if (response.Headers.ETag != null)
-            {
-                eTag = response.Headers.ETag.Tag;
-                CacheLatestVersionInfo(eTag, latestInfoText);
-            }
-
+            // Kept with no ETag too, when the response has none, rather than dropped for the releases
+            // read before; GitHub's always has one, but a proxy in between can drop it
+            var latestReleases = Parse(latestInfoText, response.Headers.ETag?.Tag ?? "");
+            config.Set(s => s.Releases = latestReleases);
             return Result.Ok;
         }
         catch (Exception e) when (e.IsNotFatal())
         {
-            Log.Exception(e, "Failed to download latest setup");
-            return new Error("Failed to download latest setup", e);
+            Log.Exception(e, "Failed to get the releases from GitHub");
+            return new Error("Failed to get the releases from GitHub", e);
         }
-    }
-
-    void CacheLatestVersionInfo(string eTag, string latestInfoText)
-    {
-        if (eTag == "")
-            return;
-
-        // Cache the latest version info
-        var latestReleases = Parse(latestInfoText, eTag);
-        config.Set(s => s.Releases = latestReleases);
     }
 
     // The latest stable release and the latest preview of the list GitHub gives, latest by version,
