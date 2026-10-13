@@ -1,7 +1,11 @@
 # Change Log for Gmd
 --------------------
 
-143 releases:
+144 releases:
+
+## [v1.5.1444.482] - 2026-10-13
+- Replace the start menu with a start page
+- Document the start page
 
 ## [v1.4.1442.1069] - 2026-10-11
 - Fixed error when closing/hiding a branch
