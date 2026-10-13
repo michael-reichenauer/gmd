@@ -38,11 +38,8 @@ class Program
 
         // Handle commands like show version, upgrade, ...
         var programCommands = dependencyInjection.Resolve<IProgramCommands>();
-        var commandResult = await programCommands.HandleCommands(args);
-        if (commandResult.IsCommand)
-        {
-            return commandResult.ExitCode;
-        }
+        if (await programCommands.HandleCommandsAsync(args) is int exitCode)
+            return exitCode;
 
         Log.Info($"Starting gmd ...");
         Program program = dependencyInjection.Resolve<Program>();
