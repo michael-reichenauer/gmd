@@ -10,24 +10,53 @@ class Server : IServer
     readonly IAugmentedService augmentedService;
     readonly IViewRepoConverter converter;
     readonly IViewRepoCreater viewRepoCreater;
+    readonly IFileMonitor fileMonitor;
 
     public Server(
         IGit git,
         IAugmentedService augmentedService,
         IViewRepoConverter converter,
-        IViewRepoCreater viewRepoCreater
+        IViewRepoCreater viewRepoCreater,
+        IFileMonitor fileMonitor
     )
     {
         this.git = git;
         this.augmentedService = augmentedService;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
+        this.fileMonitor = fileMonitor;
         augmentedService.RepoChange += e => RepoChange?.Invoke(e);
         augmentedService.StatusChange += e => StatusChange?.Invoke(e);
     }
 
     public event Action<ChangeEvent>? RepoChange;
     public event Action<ChangeEvent>? StatusChange;
+
+    // Every write the user asks for runs with the file monitor paused, here and nowhere else, so that
+    // what it writes is not told of as a change while it runs: the command refreshes when it is done,
+    // and that read takes the changes told of meanwhile as seen (FileMonitor.ReadingRepo), while one
+    // made by something else during the pause is told of after it. Some writes were paused and some
+    // not, by whether they happened to pass through the augmented service, and a pull, a rebase or a
+    // cherry-pick refreshed the log while it ran.
+    //
+    // The fetch is not paused: it runs in the background, so a pause would hold back the user's own
+    // changes while it runs, and what it fetched is told of like any other change.
+    async Task<Result> Paused(Func<Task<Result>> write)
+    {
+        using (fileMonitor.Pause())
+        {
+            return await write();
+        }
+    }
+
+    async Task<Result<T>> Paused<T>(Func<Task<Result<T>>> write)
+        where T : notnull
+    {
+        using (fileMonitor.Pause())
+        {
+            return await write();
+        }
+    }
 
     public async Task<Result<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
@@ -223,15 +252,16 @@ class Server : IServer
     public Repo SetShownBranches(Repo repo, IReadOnlyList<string> branchNames) =>
         viewRepoCreater.GetViewRepoAsync(repo, branchNames);
 
+    // Not paused, see Paused
     public Task<Result> FetchAsync(string wd) => augmentedService.FetchAsync(wd);
 
     public Task<Result<string>> GetRemoteUrlAsync(string wd) => git.GetRemoteUrlAsync(wd);
 
     public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
-        augmentedService.CommitAllChangesAsync(message, isAmend, wd);
+        Paused(() => augmentedService.CommitAllChangesAsync(message, isAmend, wd));
 
     public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
-        augmentedService.CommitFilesAsync(message, isAmend, paths, wd);
+        Paused(() => augmentedService.CommitFilesAsync(message, isAmend, paths, wd));
 
     public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
     {
@@ -279,7 +309,7 @@ class Server : IServer
 
     public Task<Result> RunDiffToolAsync(string path, string wd) => git.RunDiffToolAsync(path, wd);
 
-    public Task<Result> RunMergeToolAsync(string path, string wd) => git.RunMergeToolAsync(path, wd);
+    public Task<Result> RunMergeToolAsync(string path, string wd) => Paused(() => git.RunMergeToolAsync(path, wd));
 
     public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
@@ -312,23 +342,24 @@ class Server : IServer
     }
 
     public Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout) =>
-        augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout);
+        Paused(() => augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout));
 
     public Task<Result> CreateBranchFromBranchAsync(
         Repo repo,
         string newBranchName,
         string sourceBranch,
         bool isCheckout
-    ) => augmentedService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout);
+    ) => Paused(() => augmentedService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout));
 
     public Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout) =>
-        augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout);
+        Paused(() => augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout));
 
     public Task<Result> RenameBranchAsync(string oldName, string newName, string wd) =>
-        augmentedService.RenameBranchAsync(oldName, newName, wd);
+        Paused(() => augmentedService.RenameBranchAsync(oldName, newName, wd));
 
     public async Task<Result> PushBranchAsync(string name, string wd)
     {
+        using (fileMonitor.Pause())
         using (Timing.Start($"Pushed {name}"))
         {
             var metadataTask = augmentedService.PushMetaDataAsync(wd);
@@ -343,23 +374,25 @@ class Server : IServer
     {
         var branch = repo.BranchByName[name];
         var remoteTipId = repo.BranchByName.TryGetValue(branch.RemoteName, out var remote) ? remote.TipId : "";
-        return git.PushForceAsync(branch.Name, branch.RemoteName, remoteTipId, repo.Path);
+        return Paused(() => git.PushForceAsync(branch.Name, branch.RemoteName, remoteTipId, repo.Path));
     }
 
-    public Task<Result> PullCurrentBranchAsync(string wd) => git.PullCurrentBranchAsync(wd);
+    public Task<Result> PullCurrentBranchAsync(string wd) => Paused(() => git.PullCurrentBranchAsync(wd));
 
     public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
         git.IsPullWayConfiguredAsync(branchName, wd);
 
-    public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) => git.SetPullRebaseAsync(isRebase, wd);
+    public Task<Result> SetPullRebaseAsync(bool isRebase, string wd) =>
+        Paused(() => git.SetPullRebaseAsync(isRebase, wd));
 
-    public Task<Result> PullBranchAsync(string name, string wd) => git.PullBranchAsync(name, wd);
+    public Task<Result> PullBranchAsync(string name, string wd) => Paused(() => git.PullBranchAsync(name, wd));
 
-    public Task<Result> SwitchToAsync(Repo repo, string branchName) => augmentedService.SwitchToAsync(repo, branchName);
+    public Task<Result> SwitchToAsync(Repo repo, string branchName) =>
+        Paused(() => augmentedService.SwitchToAsync(repo, branchName));
 
     public async Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName)
     {
-        var merged = await augmentedService.MergeBranchAsync(repo, branchName);
+        var merged = await Paused(() => augmentedService.MergeBranchAsync(repo, branchName));
         if (merged is not IReadOnlyList<Commit> commits)
             return merged.Error;
         return converter.ToViewCommits(commits).ToList();
@@ -367,27 +400,27 @@ class Server : IServer
 
     public async Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName)
     {
-        var merged = await augmentedService.MergeToBranchAsync(repo, targetName);
+        var merged = await Paused(() => augmentedService.MergeToBranchAsync(repo, targetName));
         if (merged is not IReadOnlyList<Commit> commits)
             return merged.Error;
         return converter.ToViewCommits(commits).ToList();
     }
 
     public Task<Result> RebaseBranchAsync(Repo repo, string branchName) =>
-        augmentedService.RebaseBranchAsync(repo, branchName);
+        Paused(() => augmentedService.RebaseBranchAsync(repo, branchName));
 
     public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
-        git.RebaseOntoAsync(newBase, oldBase, wd);
+        Paused(() => git.RebaseOntoAsync(newBase, oldBase, wd));
 
-    public Task<Result> CherryPickAsync(string sha, string wd) => git.CherryPickAsync(sha, wd);
+    public Task<Result> CherryPickAsync(string sha, string wd) => Paused(() => git.CherryPickAsync(sha, wd));
 
     // These take no operation: the Git layer probes which one is in progress itself, so the UI
     // cannot act on a stale one and no enum has to be converted back down through the layers
-    public Task<Result> AbortOperationAsync(string wd) => git.AbortOperationAsync(wd);
+    public Task<Result> AbortOperationAsync(string wd) => Paused(() => git.AbortOperationAsync(wd));
 
-    public Task<Result> ContinueOperationAsync(string wd) => git.ContinueOperationAsync(wd);
+    public Task<Result> ContinueOperationAsync(string wd) => Paused(() => git.ContinueOperationAsync(wd));
 
-    public Task<Result> SkipOperationAsync(string wd) => git.SkipOperationAsync(wd);
+    public Task<Result> SkipOperationAsync(string wd) => Paused(() => git.SkipOperationAsync(wd));
 
     public Task<Result<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd) =>
         git.GetLeftoverMarkerPathsAsync(wd);
@@ -438,32 +471,37 @@ class Server : IServer
         IReadOnlyList<HunkResolution> choices,
         string wd
     ) =>
-        git.ResolveConflictFileAsync(
-            path,
-            GitConverter.ToGitConflictKind(kind),
-            choices
-                .Select(c => new Git.HunkResolution(c.Index, GitConverter.ToGitChoice(c.Choice), c.ManualText))
-                .ToList(),
-            wd
+        Paused(() =>
+            git.ResolveConflictFileAsync(
+                path,
+                GitConverter.ToGitConflictKind(kind),
+                choices
+                    .Select(c => new Git.HunkResolution(c.Index, GitConverter.ToGitChoice(c.Choice), c.ManualText))
+                    .ToList(),
+                wd
+            )
         );
 
-    public Task<Result> UnresolveAsync(string path, string wd) => git.UnresolveAsync(path, wd);
+    public Task<Result> UnresolveAsync(string path, string wd) => Paused(() => git.UnresolveAsync(path, wd));
 
     public Task<Result> UseWholeFileAsync(string path, bool isOurs, string wd) =>
-        git.UseWholeFileAsync(path, isOurs, wd);
+        Paused(() => git.UseWholeFileAsync(path, isOurs, wd));
 
     // Keeping a file one side deleted is the same act as marking any other conflict resolved
-    public Task<Result> KeepConflictedFileAsync(string path, string wd) => git.MarkResolvedAsync(path, wd);
+    public Task<Result> KeepConflictedFileAsync(string path, string wd) =>
+        Paused(() => git.MarkResolvedAsync(path, wd));
 
-    public Task<Result> DeleteConflictedAsync(string path, string wd) => git.DeleteConflictedAsync(path, wd);
+    public Task<Result> DeleteConflictedAsync(string path, string wd) =>
+        Paused(() => git.DeleteConflictedAsync(path, wd));
 
     public Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce) =>
-        augmentedService.DeleteBranchAsync(repo, localName, remoteName, isForce);
+        Paused(() => augmentedService.DeleteBranchAsync(repo, localName, remoteName, isForce));
 
-    public Task<Result> DeleteRemoteBranchAsync(string name, string wd) => git.DeleteRemoteBranchAsync(name, wd);
+    public Task<Result> DeleteRemoteBranchAsync(string name, string wd) =>
+        Paused(() => git.DeleteRemoteBranchAsync(name, wd));
 
-    // The worktrees need nothing of the inferred model, so they go straight through, except that
-    // the writes pause the file monitor in the augmented service like the other writes do
+    // The worktrees need nothing of the inferred model; the list is read with the repo, and the
+    // changes in each after it is shown
     public Task<Result<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo) =>
         augmentedService.GetUpdatedWorktreesRepoAsync(repo);
 
@@ -473,32 +511,36 @@ class Server : IServer
         bool isNewBranch,
         string startPoint,
         string wd
-    ) => augmentedService.AddWorktreeAsync(path, branchName, isNewBranch, startPoint, wd);
+    ) => Paused(() => augmentedService.AddWorktreeAsync(path, branchName, isNewBranch, startPoint, wd));
 
     public Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd) =>
-        augmentedService.RemoveWorktreeAsync(path, isForce, wd);
+        Paused(() => augmentedService.RemoveWorktreeAsync(path, isForce, wd));
 
-    public Task<Result> PruneWorktreesAsync(string wd) => augmentedService.PruneWorktreesAsync(wd);
+    public Task<Result> PruneWorktreesAsync(string wd) => Paused(() => augmentedService.PruneWorktreesAsync(wd));
 
     public Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
         git.GetIgnoredPathsAsync(paths, wd);
 
-    public Task<Result> UndoAllUncommittedChangesAsync(string wd) => git.UndoAllUncommittedChangesAsync(wd);
+    public Task<Result> UndoAllUncommittedChangesAsync(string wd) =>
+        Paused(() => git.UndoAllUncommittedChangesAsync(wd));
 
-    public Task<Result> UndoUncommittedFileAsync(string path, string wd) => git.UndoUncommittedFileAsync(path, wd);
+    public Task<Result> UndoUncommittedFileAsync(string path, string wd) =>
+        Paused(() => git.UndoUncommittedFileAsync(path, wd));
 
-    public Task<Result> CleanWorkingFolderAsync(string wd) => git.CleanWorkingFolderAsync(wd);
+    public Task<Result> CleanWorkingFolderAsync(string wd) => Paused(() => git.CleanWorkingFolderAsync(wd));
 
     public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => git.GetFilesToCleanAsync(wd);
 
     public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) =>
-        git.UndoCommitAsync(id, parentIndex, wd);
+        Paused(() => git.UndoCommitAsync(id, parentIndex, wd));
 
-    public Task<Result> UncommitLastCommitAsync(string wd) => git.UncommitLastCommitAsync(wd);
+    public Task<Result> UncommitLastCommitAsync(string wd) => Paused(() => git.UncommitLastCommitAsync(wd));
 
-    public Task<Result> UncommitUntilCommitAsync(string id, string wd) => git.UncommitUntilCommitAsync(id, wd);
+    public Task<Result> UncommitUntilCommitAsync(string id, string wd) =>
+        Paused(() => git.UncommitUntilCommitAsync(id, wd));
 
-    public Task<Result> UndoStepAsync(Repo repo, UndoStep step) => augmentedService.UndoStepAsync(repo, step);
+    public Task<Result> UndoStepAsync(Repo repo, UndoStep step) =>
+        Paused(() => augmentedService.UndoStepAsync(repo, step));
 
     public Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo) => augmentedService.GetLostWorkAsync(repo);
 
@@ -506,39 +548,40 @@ class Server : IServer
         augmentedService.GetDeletedBranchesAsync(repo);
 
     public Task<Result> RestoreBranchAsync(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote) =>
-        augmentedService.RestoreBranchAsync(repo, deleted, isLocal, isRemote);
+        Paused(() => augmentedService.RestoreBranchAsync(repo, deleted, isLocal, isRemote));
 
     public Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite) =>
-        augmentedService.PullRewrittenAsync(repo, rewrite);
+        Paused(() => augmentedService.PullRewrittenAsync(repo, rewrite));
 
     public Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd) =>
-        git.PushRestoreAsync(rewrite.RemoteName, rewrite.OldTipId, rewrite.NewTipId, wd);
+        Paused(() => git.PushRestoreAsync(rewrite.RemoteName, rewrite.OldTipId, rewrite.NewTipId, wd));
 
     public Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
-        augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName);
+        Paused(() => augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName));
 
     public Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName) =>
-        augmentedService.SetBranchManuallyAsync(repo, commitId, setHumanName);
+        Paused(() => augmentedService.SetBranchManuallyAsync(repo, commitId, setHumanName));
 
     public Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
-        augmentedService.UnresolveAmbiguityAsync(repo, commitId);
+        Paused(() => augmentedService.UnresolveAmbiguityAsync(repo, commitId));
 
     public Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd) =>
         git.GetFilePathsAsync(reference, wd);
 
     public async Task<Result> CloneAsync(string uri, string path, string wd)
     {
+        using (fileMonitor.Pause())
         using (Timing.Start())
             return await git.CloneAsync(uri, path, wd);
     }
 
-    public Task<Result> InitRepoAsync(string path, string wd) => git.InitRepoAsync(path, wd);
+    public Task<Result> InitRepoAsync(string path, string wd) => Paused(() => git.InitRepoAsync(path, wd));
 
-    public Task<Result> StashAsync(string message, string wd) => git.StashAsync(message, wd);
+    public Task<Result> StashAsync(string message, string wd) => Paused(() => git.StashAsync(message, wd));
 
-    public Task<Result> StashPopAsync(string name, string wd) => git.StashPopAsync(name, wd);
+    public Task<Result> StashPopAsync(string name, string wd) => Paused(() => git.StashPopAsync(name, wd));
 
-    public Task<Result> StashApplyAsync(string name, string wd) => git.StashApplyAsync(name, wd);
+    public Task<Result> StashApplyAsync(string name, string wd) => Paused(() => git.StashApplyAsync(name, wd));
 
     public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
@@ -548,7 +591,7 @@ class Server : IServer
         return GitConverter.ToCommitDiff(diff);
     }
 
-    public Task<Result> StashDropAsync(string name, string wd) => git.StashDropAsync(name, wd);
+    public Task<Result> StashDropAsync(string name, string wd) => Paused(() => git.StashDropAsync(name, wd));
 
     public async Task<Result<string>> GetChangeLogAsync(string? newRelease = null)
     {
@@ -560,13 +603,13 @@ class Server : IServer
     }
 
     public Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd) =>
-        augmentedService.AddTagAsync(name, commitId, isPush, wd);
+        Paused(() => augmentedService.AddTagAsync(name, commitId, isPush, wd));
 
     public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd) =>
-        augmentedService.AddAnnotatedTagAsync(name, message, commitId, isPush, wd);
+        Paused(() => augmentedService.AddAnnotatedTagAsync(name, message, commitId, isPush, wd));
 
     public Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd) =>
-        augmentedService.RemoveTagAsync(name, isOnOrigin, wd);
+        Paused(() => augmentedService.RemoveTagAsync(name, isOnOrigin, wd));
 
     // Every tag, and whether origin has it. A record of origin's tags that cannot be read is taken as
     // none on origin, which a Push then corrects, rather than as no tags at all.
@@ -582,15 +625,17 @@ class Server : IServer
         return new Result<IReadOnlyList<RepoTag>>(RepoTag.Of(tags, origin));
     }
 
-    public Task<Result> PushTagAsync(string name, string wd) => git.PushTagAsync(name, wd);
+    public Task<Result> PushTagAsync(string name, string wd) => Paused(() => git.PushTagAsync(name, wd));
 
-    public Task<Result> SwitchToCommitAsync(string commitId, string wd) => git.CheckoutAsync(commitId, wd);
+    public Task<Result> SwitchToCommitAsync(string commitId, string wd) =>
+        Paused(() => git.CheckoutAsync(commitId, wd));
 
     public Task<Result> SquashCommitsAsync(Repo repo, string id1, string id2, string msg) =>
-        augmentedService.SquashCommitsAsync(repo, id1, id2, msg);
+        Paused(() => augmentedService.SquashCommitsAsync(repo, id1, id2, msg));
 
     public Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths) =>
-        augmentedService.AmendOlderCommitAsync(repo, id, message, paths);
+        Paused(() => augmentedService.AmendOlderCommitAsync(repo, id, message, paths));
 
-    public Task<Result> DropCommitAsync(Repo repo, string id) => augmentedService.DropCommitAsync(repo, id);
+    public Task<Result> DropCommitAsync(Repo repo, string id) =>
+        Paused(() => augmentedService.DropCommitAsync(repo, id));
 }

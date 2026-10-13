@@ -1,8 +1,8 @@
 using gmd.Server;
-using gmd.Server.Private.Augmented.Private;
+using gmd.Server.Private;
 using gmdTest.Fixtures;
 
-namespace gmdTest.Server.Private.Augmented.Private;
+namespace gmdTest.Server.Private;
 
 // FileMonitor watches the working folder and turns a burst of file system events into at most one
 // change event per second. Characterization tests: they pin what the debounce does today.

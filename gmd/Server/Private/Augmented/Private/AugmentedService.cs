@@ -77,18 +77,12 @@ class AugmentedService : IAugmentedService
 
     public async Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd)
     {
-        using (fileMonitor.Pause())
-        {
-            return await git.CommitAllChangesAsync(message, isAmend, wd);
-        }
+        return await git.CommitAllChangesAsync(message, isAmend, wd);
     }
 
     public async Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd)
     {
-        using (fileMonitor.Pause())
-        {
-            return await git.CommitFilesAsync(message, isAmend, paths, wd);
-        }
+        return await git.CommitFilesAsync(message, isAmend, paths, wd);
     }
 
     // The worktrees read on their own: the list, and the status of each of the others, which a
@@ -123,8 +117,6 @@ class AugmentedService : IAugmentedService
         };
     }
 
-    // The worktree writes pause the file monitor like the other writes do: adding one writes into
-    // the common dir's 'worktrees/', which is watched, and that reload is made by the caller
     public async Task<Result> AddWorktreeAsync(
         string path,
         string branchName,
@@ -133,26 +125,17 @@ class AugmentedService : IAugmentedService
         string wd
     )
     {
-        using (fileMonitor.Pause())
-        {
-            return await git.AddWorktreeAsync(path, branchName, isNewBranch, startPoint, wd);
-        }
+        return await git.AddWorktreeAsync(path, branchName, isNewBranch, startPoint, wd);
     }
 
     public async Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd)
     {
-        using (fileMonitor.Pause())
-        {
-            return await git.RemoveWorktreeAsync(path, isForce, wd);
-        }
+        return await git.RemoveWorktreeAsync(path, isForce, wd);
     }
 
     public async Task<Result> PruneWorktreesAsync(string wd)
     {
-        using (fileMonitor.Pause())
-        {
-            return await git.PruneWorktreesAsync(wd);
-        }
+        return await git.PruneWorktreesAsync(wd);
     }
 
     // Fetches the branches and, beside them, the metadata, whose failure is not the fetch's: there is
@@ -354,95 +337,92 @@ class AugmentedService : IAugmentedService
 
     public async Task<Result> SquashCommitsAsync(Repo repo, string id1, string id2, string message)
     {
-        using (fileMonitor.Pause())
+        var c1 = repo.CommitById[id1];
+        var c2 = repo.CommitById[id2];
+        if (!c2.ParentIds.Any())
+            return new Error("Last commit does not have a parent");
+        if (c1.BranchName != c2.BranchName)
+            return new Error("Commits are not on the same branch");
+        var branch = repo.BranchByName[c1.BranchName];
+
+        // Both flags: IsLocalCurrent is only ever set on a *remote* branch whose local branch
+        // is current, so asking for it alone refused every commit that had not been pushed yet.
+        // The same check is made before the dialog is shown, in CommitCommands.SquashCommits.
+        if (!branch.IsCurrent && !branch.IsLocalCurrent)
+            return new Error("Commits not on current branch");
+
+        // The local branch, which the squash moves, and where it was before, for Undo, which the
+        // squash is recorded for below. A squash waits for a clean tree, so the local branch's tip
+        // is git's own, not the uncommitted row.
+        var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote);
+
+        // The commits on top of the squashed ones, to be picked back onto the squash, walked from
+        // the local branch's tip. Not from the tip of the branch the commits are on: commits
+        // already pushed are on the remote branch, whose tip is below the local one's when there
+        // are commits on top not pushed yet, and those were squashed in with the others. A commit
+        // that is not on the local branch's line, e.g. one only origin has when the two have
+        // diverged, is refused before anything is changed, rather than the branch reset onto it.
+        var preCommits = new List<Commit>();
+        var c = repo.CommitById[local?.TipId ?? branch.TipId];
+        while (c.Id != c1.Id)
         {
-            var c1 = repo.CommitById[id1];
-            var c2 = repo.CommitById[id2];
-            if (!c2.ParentIds.Any())
-                return new Error("Last commit does not have a parent");
-            if (c1.BranchName != c2.BranchName)
-                return new Error("Commits are not on the same branch");
-            var branch = repo.BranchByName[c1.BranchName];
-
-            // Both flags: IsLocalCurrent is only ever set on a *remote* branch whose local branch
-            // is current, so asking for it alone refused every commit that had not been pushed yet.
-            // The same check is made before the dialog is shown, in CommitCommands.SquashCommits.
-            if (!branch.IsCurrent && !branch.IsLocalCurrent)
-                return new Error("Commits not on current branch");
-
-            // The local branch, which the squash moves, and where it was before, for Undo, which the
-            // squash is recorded for below. A squash waits for a clean tree, so the local branch's tip
-            // is git's own, not the uncommitted row.
-            var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote);
-
-            // The commits on top of the squashed ones, to be picked back onto the squash, walked from
-            // the local branch's tip. Not from the tip of the branch the commits are on: commits
-            // already pushed are on the remote branch, whose tip is below the local one's when there
-            // are commits on top not pushed yet, and those were squashed in with the others. A commit
-            // that is not on the local branch's line, e.g. one only origin has when the two have
-            // diverged, is refused before anything is changed, rather than the branch reset onto it.
-            var preCommits = new List<Commit>();
-            var c = repo.CommitById[local?.TipId ?? branch.TipId];
-            while (c.Id != c1.Id)
-            {
-                preCommits.Add(c);
-                if (c.ParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.ParentIds[0], out var parent))
-                    return new Error(
-                        $"Only commits on the current branch can be squashed, and {c1.Sid} is not on "
-                            + $"'{local?.NiceNameUnique ?? branch.NiceNameUnique}'"
-                    );
-                c = parent;
-            }
-
-            // Create a backup branch (in case of errors)
-            var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
-            if (await git.CreateBranchAsync(tmpName, false, repo.Path) is Error backupError)
-                return new Error("Failed to create backup branch", backupError);
-
-            // Remove all prefix commits on current branch until the first commit to squash
-            if (preCommits.Any())
-            {
-                if (await git.ResetHardUntilCommitAsync(id1, repo.Path) is Error resetError)
-                    return new Error("Failed to prepare for squash", resetError);
-            }
-
-            // Squash commits and commit
-            if (await git.UncommitUntilCommitAsync(c2.ParentIds[0], repo.Path) is Error uncommitError)
-                return new Error("Failed to squash commits", uncommitError);
-            if (await git.CommitAllChangesAsync(message, false, repo.Path) is Error commitError)
-                return new Error("Failed to commit squashed commits", commitError);
-
-            // Cherry pick prefix commits back to current branch
-            foreach (var commit in preCommits.AsEnumerable().Reverse())
-            {
-                if (await git.CherryPickAsync(commit.Id, repo.Path) is Error pickError)
-                    return new Error($"Failed to cherry pick {commit.Sid}", pickError);
-                if (await git.CommitAllChangesAsync(commit.Message, false, repo.Path) is Error pickCommitError)
-                    return new Error($"Failed to commit cherry pick {commit.Sid}", pickCommitError);
-            }
-
-            // The squash is several moves of the branch, one entry each in its reflog: the reset of
-            // the newer commits, if any, the reset of the squashed ones, their commit and the commit of
-            // each newer one picked back. Recorded as one change, so that Undo takes it back whole.
-            if (local != null)
-            {
-                RecordStep(
-                    repo,
-                    local.Name,
-                    new RecordedStep
-                    {
-                        Kind = nameof(StepKind.Squash),
-                        Name = message.Split('\n')[0].Trim(),
-                        BeforeId = local.TipId,
-                        Moves = (preCommits.Any() ? 1 : 0) + 2 + preCommits.Count,
-                    }
+            preCommits.Add(c);
+            if (c.ParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.ParentIds[0], out var parent))
+                return new Error(
+                    $"Only commits on the current branch can be squashed, and {c1.Sid} is not on "
+                        + $"'{local?.NiceNameUnique ?? branch.NiceNameUnique}'"
                 );
-            }
-
-            // Remove temp backup branch
-            if (await git.DeleteLocalBranchAsync(tmpName, true, repo.Path) is Error deleteError)
-                return new Error("Failed to delete backup branch", deleteError);
+            c = parent;
         }
+
+        // Create a backup branch (in case of errors)
+        var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
+        if (await git.CreateBranchAsync(tmpName, false, repo.Path) is Error backupError)
+            return new Error("Failed to create backup branch", backupError);
+
+        // Remove all prefix commits on current branch until the first commit to squash
+        if (preCommits.Any())
+        {
+            if (await git.ResetHardUntilCommitAsync(id1, repo.Path) is Error resetError)
+                return new Error("Failed to prepare for squash", resetError);
+        }
+
+        // Squash commits and commit
+        if (await git.UncommitUntilCommitAsync(c2.ParentIds[0], repo.Path) is Error uncommitError)
+            return new Error("Failed to squash commits", uncommitError);
+        if (await git.CommitAllChangesAsync(message, false, repo.Path) is Error commitError)
+            return new Error("Failed to commit squashed commits", commitError);
+
+        // Cherry pick prefix commits back to current branch
+        foreach (var commit in preCommits.AsEnumerable().Reverse())
+        {
+            if (await git.CherryPickAsync(commit.Id, repo.Path) is Error pickError)
+                return new Error($"Failed to cherry pick {commit.Sid}", pickError);
+            if (await git.CommitAllChangesAsync(commit.Message, false, repo.Path) is Error pickCommitError)
+                return new Error($"Failed to commit cherry pick {commit.Sid}", pickCommitError);
+        }
+
+        // The squash is several moves of the branch, one entry each in its reflog: the reset of
+        // the newer commits, if any, the reset of the squashed ones, their commit and the commit of
+        // each newer one picked back. Recorded as one change, so that Undo takes it back whole.
+        if (local != null)
+        {
+            RecordStep(
+                repo,
+                local.Name,
+                new RecordedStep
+                {
+                    Kind = nameof(StepKind.Squash),
+                    Name = message.Split('\n')[0].Trim(),
+                    BeforeId = local.TipId,
+                    Moves = (preCommits.Any() ? 1 : 0) + 2 + preCommits.Count,
+                }
+            );
+        }
+
+        // Remove temp backup branch
+        if (await git.DeleteLocalBranchAsync(tmpName, true, repo.Path) is Error deleteError)
+            return new Error("Failed to delete backup branch", deleteError);
 
         return Result.Ok;
     }
@@ -464,31 +444,28 @@ class AugmentedService : IAugmentedService
         if (checkResult is not Branch local)
             return new Error($"Cannot amend {commit.Sid}", checkResult.Error);
 
-        using (fileMonitor.Pause())
-        {
-            // git matches the 'amend!' subject with the first commit of the rebase of that subject,
-            // which is this one, since the rebase starts at it
-            var amendMessage = $"amend! {commit.Subject}\n\n{message}";
-            if (await git.CommitFilesAsync(amendMessage, false, paths, repo.Path) is Error commitError)
-                return new Error($"Failed to commit the changes to amend {commit.Sid} with", commitError);
+        // git matches the 'amend!' subject with the first commit of the rebase of that subject,
+        // which is this one, since the rebase starts at it
+        var amendMessage = $"amend! {commit.Subject}\n\n{message}";
+        if (await git.CommitFilesAsync(amendMessage, false, paths, repo.Path) is Error commitError)
+            return new Error($"Failed to commit the changes to amend {commit.Sid} with", commitError);
 
-            var baseId = commit.ParentIds.Count == 0 ? "" : $"{id}^";
-            if (await git.AutosquashAsync(baseId, repo.Path) is Error rebaseError)
-                return new Error($"Failed to amend {commit.Sid}", rebaseError);
+        var baseId = commit.ParentIds.Count == 0 ? "" : $"{id}^";
+        if (await git.AutosquashAsync(baseId, repo.Path) is Error rebaseError)
+            return new Error($"Failed to amend {commit.Sid}", rebaseError);
 
-            // Two moves of the branch, the 'amend!' commit and the rebase, recorded as one change
-            RecordStep(
-                repo,
-                local.Name,
-                new RecordedStep
-                {
-                    Kind = nameof(StepKind.Amend),
-                    Name = message.Split('\n')[0].Trim(),
-                    BeforeId = repo.CurrentCommit().Id,
-                    Moves = 2,
-                }
-            );
-        }
+        // Two moves of the branch, the 'amend!' commit and the rebase, recorded as one change
+        RecordStep(
+            repo,
+            local.Name,
+            new RecordedStep
+            {
+                Kind = nameof(StepKind.Amend),
+                Name = message.Split('\n')[0].Trim(),
+                BeforeId = repo.CurrentCommit().Id,
+                Moves = 2,
+            }
+        );
         return Result.Ok;
     }
 
@@ -503,23 +480,20 @@ class AugmentedService : IAugmentedService
         if (commit.ParentIds.Count == 0)
             return new Error("The first commit cannot be dropped");
 
-        using (fileMonitor.Pause())
-        {
-            if (await git.DropCommitAsync(id, repo.Path) is Error dropError)
-                return new Error($"Failed to drop {commit.Sid}", dropError);
+        if (await git.DropCommitAsync(id, repo.Path) is Error dropError)
+            return new Error($"Failed to drop {commit.Sid}", dropError);
 
-            RecordStep(
-                repo,
-                local.Name,
-                new RecordedStep
-                {
-                    Kind = nameof(StepKind.Drop),
-                    Name = commit.Subject.Trim(),
-                    BeforeId = repo.CurrentCommit().Id,
-                    Moves = 1,
-                }
-            );
-        }
+        RecordStep(
+            repo,
+            local.Name,
+            new RecordedStep
+            {
+                Kind = nameof(StepKind.Drop),
+                Name = commit.Subject.Trim(),
+                BeforeId = repo.CurrentCommit().Id,
+                Moves = 1,
+            }
+        );
         return Result.Ok;
     }
 
@@ -559,36 +533,31 @@ class AugmentedService : IAugmentedService
         if (branch.WorktreePath != "")
             return new Error($"'{step.BranchName}' is checked out in another worktree, so it is undone there");
 
-        using (fileMonitor.Pause())
+        if (branch.IsCurrent)
         {
-            if (branch.IsCurrent)
-            {
-                var isKeep = step.Mode == UndoMode.Keep || (step.Mode == UndoMode.KeepWhenClean && repo.Status.IsOk);
-                if (
-                    await git.ResetBranchAsync(step.BranchName, step.TargetId, step.TipId, isKeep, repo.Path) is Error e
-                )
-                    return e;
-            }
-            else if (await MoveBranchAsync(step, repo.Path) is Error moveError)
-            {
-                return moveError;
-            }
-
-            RecordStep(
-                repo,
-                step.BranchName,
-                new RecordedStep
-                {
-                    Kind = step.Kind.ToString(),
-                    Name = step.Name,
-                    BeforeId = step.TipId,
-                    AfterId = step.TargetId,
-                    Moves = 1,
-                    IsRedo = !step.IsRedo,
-                }
-            );
-            return Result.Ok;
+            var isKeep = step.Mode == UndoMode.Keep || (step.Mode == UndoMode.KeepWhenClean && repo.Status.IsOk);
+            if (await git.ResetBranchAsync(step.BranchName, step.TargetId, step.TipId, isKeep, repo.Path) is Error e)
+                return e;
         }
+        else if (await MoveBranchAsync(step, repo.Path) is Error moveError)
+        {
+            return moveError;
+        }
+
+        RecordStep(
+            repo,
+            step.BranchName,
+            new RecordedStep
+            {
+                Kind = step.Kind.ToString(),
+                Name = step.Name,
+                BeforeId = step.TipId,
+                AfterId = step.TargetId,
+                Moves = 1,
+                IsRedo = !step.IsRedo,
+            }
+        );
+        return Result.Ok;
     }
 
     // The lines of work no branch, tag or stash has any more, which the reflogs still mention. Read
@@ -640,44 +609,41 @@ class AugmentedService : IAugmentedService
         if (missingName != "")
             return new Error($"There is no branch '{missingName}' any more, so nothing was deleted");
 
-        using (fileMonitor.Pause())
+        if (remote != null)
         {
-            if (remote != null)
-            {
-                if (await git.DeleteRemoteBranchAsync(remote.Name, repo.Path) is Error e)
-                    return new Error($"Failed to delete remote branch {remote.Name}", e);
-                RecordDelete(
-                    repo,
-                    new RecordedDelete
-                    {
-                        Name = remote.LocalName,
-                        RemoteName = remote.Name,
-                        RemoteTipId = remote.TipId,
-                        RemoteSubject = SubjectOf(remote.TipId),
-                        Time = DateTime.Now,
-                    }
-                );
-            }
+            if (await git.DeleteRemoteBranchAsync(remote.Name, repo.Path) is Error e)
+                return new Error($"Failed to delete remote branch {remote.Name}", e);
+            RecordDelete(
+                repo,
+                new RecordedDelete
+                {
+                    Name = remote.LocalName,
+                    RemoteName = remote.Name,
+                    RemoteTipId = remote.TipId,
+                    RemoteSubject = SubjectOf(remote.TipId),
+                    Time = DateTime.Now,
+                }
+            );
+        }
 
-            // Both sides deleted are one record, which takes the place of origin's recorded above
-            if (local != null)
-            {
-                if (await git.DeleteLocalBranchAsync(local.Name, isForce, repo.Path) is Error e)
-                    return new Error($"Failed to delete local branch {local.Name}", e);
-                RecordDelete(
-                    repo,
-                    new RecordedDelete
-                    {
-                        Name = local.Name,
-                        TipId = local.TipId,
-                        Subject = SubjectOf(local.TipId),
-                        RemoteName = remote?.Name ?? local.RemoteName,
-                        RemoteTipId = remote?.TipId ?? "",
-                        RemoteSubject = remote != null ? SubjectOf(remote.TipId) : "",
-                        Time = DateTime.Now,
-                    }
-                );
-            }
+        // Both sides deleted are one record, which takes the place of origin's recorded above
+        if (local != null)
+        {
+            if (await git.DeleteLocalBranchAsync(local.Name, isForce, repo.Path) is Error e)
+                return new Error($"Failed to delete local branch {local.Name}", e);
+            RecordDelete(
+                repo,
+                new RecordedDelete
+                {
+                    Name = local.Name,
+                    TipId = local.TipId,
+                    Subject = SubjectOf(local.TipId),
+                    RemoteName = remote?.Name ?? local.RemoteName,
+                    RemoteTipId = remote?.TipId ?? "",
+                    RemoteSubject = remote != null ? SubjectOf(remote.TipId) : "",
+                    Time = DateTime.Now,
+                }
+            );
         }
 
         return Result.Ok;
@@ -724,54 +690,48 @@ class AugmentedService : IAugmentedService
         isLocal = isLocal && deleted.IsLocal;
         isRemote = isRemote && deleted.IsRemote;
 
-        using (fileMonitor.Pause())
+        if (isRemote)
         {
-            if (isRemote)
+            if (await git.PushRestoreAsync(deleted.RemoteName, deleted.RemoteTipId, "", repo.Path) is Error pushError)
             {
-                if (
-                    await git.PushRestoreAsync(deleted.RemoteName, deleted.RemoteTipId, "", repo.Path)
-                    is Error pushError
-                )
-                {
-                    return pushError is CmdError cmdError && cmdError.Output.Contains("stale info")
-                        ? new Error(
-                            $"Origin has a branch '{deleted.RemoteName}' again, which was left as it is, so nothing was restored",
-                            pushError
-                        )
-                        : new Error($"Failed to push '{deleted.RemoteName}' back, so nothing was restored", pushError);
-                }
-                ForgetRestored(repo, deleted, false, true);
+                return pushError is CmdError cmdError && cmdError.Output.Contains("stale info")
+                    ? new Error(
+                        $"Origin has a branch '{deleted.RemoteName}' again, which was left as it is, so nothing was restored",
+                        pushError
+                    )
+                    : new Error($"Failed to push '{deleted.RemoteName}' back, so nothing was restored", pushError);
             }
+            ForgetRestored(repo, deleted, false, true);
+        }
 
-            if (isLocal)
+        if (isLocal)
+        {
+            if (
+                await git.CreateBranchFromCommitAsync(deleted.Name, deleted.TipId, false, repo.Path)
+                is Error createError
+            )
             {
-                if (
-                    await git.CreateBranchFromCommitAsync(deleted.Name, deleted.TipId, false, repo.Path)
-                    is Error createError
-                )
-                {
-                    return new Error(
-                        isRemote
-                            ? $"Restored '{deleted.RemoteName}', but failed to create '{deleted.Name}' again"
-                            : $"Failed to create '{deleted.Name}' again",
-                        createError
-                    );
-                }
-                ForgetRestored(repo, deleted, true, false);
+                return new Error(
+                    isRemote
+                        ? $"Restored '{deleted.RemoteName}', but failed to create '{deleted.Name}' again"
+                        : $"Failed to create '{deleted.Name}' again",
+                    createError
+                );
+            }
+            ForgetRestored(repo, deleted, true, false);
 
-                // Git deleted what the branch tracked with it, which is written back whether the remote
-                // branch is there or not: deleted too and not restored yet, the branch tracks it once it is
-                if (
-                    deleted.RemoteName != ""
-                    && await git.SetUpstreamAsync(deleted.Name, deleted.RemoteName, repo.Path) is Error upstreamError
-                )
-                {
-                    var where = isRemote ? " here and on origin" : "";
-                    return new Error(
-                        $"Restored '{deleted.Name}'{where}, but failed to make it track '{deleted.RemoteName}'",
-                        upstreamError
-                    );
-                }
+            // Git deleted what the branch tracked with it, which is written back whether the remote
+            // branch is there or not: deleted too and not restored yet, the branch tracks it once it is
+            if (
+                deleted.RemoteName != ""
+                && await git.SetUpstreamAsync(deleted.Name, deleted.RemoteName, repo.Path) is Error upstreamError
+            )
+            {
+                var where = isRemote ? " here and on origin" : "";
+                return new Error(
+                    $"Restored '{deleted.Name}'{where}, but failed to make it track '{deleted.RemoteName}'",
+                    upstreamError
+                );
             }
         }
 
@@ -805,44 +765,38 @@ class AugmentedService : IAugmentedService
         if (branch.WorktreePath != "")
             return new Error($"'{rewrite.BranchName}' is checked out in another worktree, so it is pulled there");
 
-        using (fileMonitor.Pause())
+        if (branch.IsCurrent)
         {
-            if (branch.IsCurrent)
-            {
-                if (await git.RebaseOntoRemoteAsync(rewrite.RemoteName, rewrite.ForkPointId, repo.Path) is Error e)
-                    return e;
+            if (await git.RebaseOntoRemoteAsync(rewrite.RemoteName, rewrite.ForkPointId, repo.Path) is Error e)
+                return e;
 
-                RecordStep(
-                    repo,
-                    rewrite.BranchName,
-                    new RecordedStep
-                    {
-                        Kind = nameof(StepKind.Pull),
-                        BeforeId = rewrite.LocalTipId,
-                        Moves = 1,
-                    }
-                );
-                return Result.Ok;
-            }
-
-            if (rewrite.OwnCount > 0)
-                return new Error($"'{rewrite.BranchName}' has commits of its own, so it is pulled when checked out");
-
-            var message = $"pull: rewritten {rewrite.RemoteName}";
-            var moved = await git.MoveBranchAsync(
+            RecordStep(
+                repo,
                 rewrite.BranchName,
-                rewrite.NewTipId,
-                rewrite.LocalTipId,
-                message,
-                repo.Path
+                new RecordedStep
+                {
+                    Kind = nameof(StepKind.Pull),
+                    BeforeId = rewrite.LocalTipId,
+                    Moves = 1,
+                }
             );
-            return moved is CmdError moveError && moveError.ErrorOutput.Contains("but expected")
-                ? new Error(
-                    $"'{rewrite.BranchName}' has moved since it was read, so it was left where it is",
-                    moveError
-                )
-                : moved;
+            return Result.Ok;
         }
+
+        if (rewrite.OwnCount > 0)
+            return new Error($"'{rewrite.BranchName}' has commits of its own, so it is pulled when checked out");
+
+        var message = $"pull: rewritten {rewrite.RemoteName}";
+        var moved = await git.MoveBranchAsync(
+            rewrite.BranchName,
+            rewrite.NewTipId,
+            rewrite.LocalTipId,
+            message,
+            repo.Path
+        );
+        return moved is CmdError moveError && moveError.ErrorOutput.Contains("but expected")
+            ? new Error($"'{rewrite.BranchName}' has moved since it was read, so it was left where it is", moveError)
+            : moved;
     }
 
     // A branch that is not checked out has no files to take back, so it is just moved, and only if
@@ -875,13 +829,10 @@ class AugmentedService : IAugmentedService
     {
         Log.Info($"Set {commitId.Sid()} to {setNiceName} ...");
 
-        using (fileMonitor.Pause())
-        {
-            return await metaDataService.UpdateMetaDataAsync(
-                repo.Path,
-                m => m.SetCommitBranch(commitId.Sid(), setNiceName)
-            );
-        }
+        return await metaDataService.UpdateMetaDataAsync(
+            repo.Path,
+            m => m.SetCommitBranch(commitId.Sid(), setNiceName)
+        );
     }
 
     public async Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName)
@@ -890,59 +841,44 @@ class AugmentedService : IAugmentedService
         var ambiguousTip = branch.AmbiguousTipId;
         Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setHumanName} ...");
 
-        using (fileMonitor.Pause())
-        {
-            return await metaDataService.UpdateMetaDataAsync(
-                repo.Path,
-                m => m.SetCommitBranch(ambiguousTip.Sid(), setHumanName)
-            );
-        }
+        return await metaDataService.UpdateMetaDataAsync(
+            repo.Path,
+            m => m.SetCommitBranch(ambiguousTip.Sid(), setHumanName)
+        );
     }
 
     public async Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId)
     {
-        using (fileMonitor.Pause())
-        {
-            return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.RemoveCommitBranch(commitId.Sid()));
-        }
+        return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.RemoveCommitBranch(commitId.Sid()));
     }
 
     public Task<Result> PushMetaDataAsync(string wd) => metaDataService.PushMetaDataAsync(wd);
 
     public async Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd)
     {
-        using (fileMonitor.Pause())
-        {
-            if (await git.AddTagAsync(name, commitId, wd) is Error e)
-                return e;
-            if (!isPush)
-                return Result.Ok;
-            return await git.PushTagAsync(name, wd);
-        }
+        if (await git.AddTagAsync(name, commitId, wd) is Error e)
+            return e;
+        if (!isPush)
+            return Result.Ok;
+        return await git.PushTagAsync(name, wd);
     }
 
     public async Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd)
     {
-        using (fileMonitor.Pause())
-        {
-            if (await git.AddAnnotatedTagAsync(name, message, commitId, wd) is Error e)
-                return e;
-            if (!isPush)
-                return Result.Ok;
-            return await git.PushTagAsync(name, wd);
-        }
+        if (await git.AddAnnotatedTagAsync(name, message, commitId, wd) is Error e)
+            return e;
+        if (!isPush)
+            return Result.Ok;
+        return await git.PushTagAsync(name, wd);
     }
 
     public async Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd)
     {
-        using (fileMonitor.Pause())
-        {
-            if (await git.RemoveTagAsync(name, wd) is Error e)
-                return e;
-            if (!isOnOrigin)
-                return Result.Ok;
-            return await git.DeleteRemoteTagAsync(name, wd);
-        }
+        if (await git.RemoveTagAsync(name, wd) is Error e)
+            return e;
+        if (!isOnOrigin)
+            return Result.Ok;
+        return await git.DeleteRemoteTagAsync(name, wd);
     }
 
     async Task<Result<GitStatus>> GetGitStatusAsync(string path)
@@ -969,8 +905,9 @@ class AugmentedService : IAugmentedService
         return repo;
     }
 
-    // What the reflog witnessed and decided is kept in the metadata, since the reflog expires. The
-    // file monitor is not paused for it, since it takes no metadata write for a change of the repo.
+    // What the reflog witnessed and decided is kept in the metadata, since the reflog expires. No
+    // write the user asked for, so the file monitor is not paused, nor need it be: it takes no
+    // metadata write for a change of the repo.
     Task<Result> KeepWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed) =>
         metaDataService.AddWitnessedAsync(path, witnessed);
 

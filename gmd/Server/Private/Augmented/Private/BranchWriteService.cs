@@ -22,13 +22,11 @@ interface IBranchWriteService
 class BranchWriteService : IBranchWriteService
 {
     readonly IGit git;
-    readonly IFileMonitor fileMonitor;
     readonly IMetaDataService metaDataService;
 
-    internal BranchWriteService(IGit git, IFileMonitor fileMonitor, IMetaDataService metaDataService)
+    internal BranchWriteService(IGit git, IMetaDataService metaDataService)
     {
         this.git = git;
-        this.fileMonitor = fileMonitor;
         this.metaDataService = metaDataService;
     }
 
@@ -43,19 +41,16 @@ class BranchWriteService : IBranchWriteService
             currentCommit = repo.CommitById[currentBranch.TipId];
         }
 
-        using (fileMonitor.Pause())
-        {
-            if (await git.CreateBranchAsync(newBranchName, isCheckout, wd) is Error e)
-                return e;
+        if (await git.CreateBranchAsync(newBranchName, isCheckout, wd) is Error e)
+            return e;
 
-            if (currentCommit == null || currentBranch == null)
-                return Result.Ok;
+        if (currentCommit == null || currentBranch == null)
+            return Result.Ok;
 
-            return await metaDataService.UpdateMetaDataAsync(
-                wd,
-                m => m.SetBranched(currentCommit.Sid, currentBranch.NiceName)
-            );
-        }
+        return await metaDataService.UpdateMetaDataAsync(
+            wd,
+            m => m.SetBranched(currentCommit.Sid, currentBranch.NiceName)
+        );
     }
 
     public async Task<Result> CreateBranchFromBranchAsync(
@@ -70,35 +65,26 @@ class BranchWriteService : IBranchWriteService
 
         var source = repo.BranchByName[sourceBranch];
 
-        using (fileMonitor.Pause())
-        {
-            if (await git.CreateBranchFromCommitAsync(newBranchName, source.TipId, isCheckout, wd) is Error e)
-                return e;
+        if (await git.CreateBranchFromCommitAsync(newBranchName, source.TipId, isCheckout, wd) is Error e)
+            return e;
 
-            return await metaDataService.UpdateMetaDataAsync(
-                wd,
-                m => m.SetBranched(source.TipId.Sid(), source.NiceName)
-            );
-        }
+        return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(source.TipId.Sid(), source.NiceName));
     }
 
     public async Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout)
     {
         var wd = repo.Path;
         Log.Info($"Create branch {newBranchName} from {sha} ...");
-        using (fileMonitor.Pause())
-        {
-            if (await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd) is Error e)
-                return e;
+        if (await git.CreateBranchFromCommitAsync(newBranchName, sha, isCheckout, wd) is Error e)
+            return e;
 
-            // A commit the repo does not have, i.e. one no branch reached until now (a lost commit
-            // brought back), has no branch to record the new one as branching out of
-            if (!repo.CommitById.TryGetValue(sha, out var commit))
-                return Result.Ok;
-            var branch = repo.BranchByName[commit.BranchName];
+        // A commit the repo does not have, i.e. one no branch reached until now (a lost commit
+        // brought back), has no branch to record the new one as branching out of
+        if (!repo.CommitById.TryGetValue(sha, out var commit))
+            return Result.Ok;
+        var branch = repo.BranchByName[commit.BranchName];
 
-            return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(commit.Sid, branch.NiceName));
-        }
+        return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(commit.Sid, branch.NiceName));
     }
 
     // Renames the local branch. The meta data remembers which branch a commit belongs to by name,
@@ -109,16 +95,10 @@ class BranchWriteService : IBranchWriteService
     {
         Log.Info($"Rename branch {oldName} to {newName} ...");
 
-        using (fileMonitor.Pause())
-        {
-            if (await git.RenameBranchAsync(oldName, newName, wd) is Error e)
-                return e;
+        if (await git.RenameBranchAsync(oldName, newName, wd) is Error e)
+            return e;
 
-            return await metaDataService.UpdateMetaDataAsync(
-                wd,
-                m => m.RenameBranch(NiceName(oldName), NiceName(newName))
-            );
-        }
+        return await metaDataService.UpdateMetaDataAsync(wd, m => m.RenameBranch(NiceName(oldName), NiceName(newName)));
     }
 
     // The meta data stores nice names, i.e. names without the remote prefix
@@ -169,54 +149,48 @@ class BranchWriteService : IBranchWriteService
     // target branch, since that is where the conflict has to be resolved.
     public async Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName)
     {
-        using (fileMonitor.Pause())
-        {
-            var mergeName = MergeTipName(repo, repo.BranchByName[repo.CurrentBranch().Name]);
+        var mergeName = MergeTipName(repo, repo.BranchByName[repo.CurrentBranch().Name]);
 
-            // The two failures are told apart, since they leave the user in very different places:
-            // a failed checkout has not moved HEAD at all, while a conflicting merge has, and the
-            // conflict then has to be resolved on the target branch.
-            if (await SwitchToAsync(repo, targetName) is Error switchError)
-                return new Error($"Failed to switch to '{targetName}'", switchError);
-            if (await git.MergeBranchAsync(mergeName, repo.Path) is Error mergeError)
-                return new Error($"Failed to merge '{mergeName}' while on '{targetName}'", mergeError);
+        // The two failures are told apart, since they leave the user in very different places:
+        // a failed checkout has not moved HEAD at all, while a conflicting merge has, and the
+        // conflict then has to be resolved on the target branch.
+        if (await SwitchToAsync(repo, targetName) is Error switchError)
+            return new Error($"Failed to switch to '{targetName}'", switchError);
+        if (await git.MergeBranchAsync(mergeName, repo.Path) is Error mergeError)
+            return new Error($"Failed to merge '{mergeName}' while on '{targetName}'", mergeError);
 
-            // Now on the target branch, so this is the commits the merge brings in. An empty list
-            // means the target was already up to date, i.e. the merge did nothing.
-            var mergeLog = await git.GetMergeLogAsync(mergeName, repo.Path);
-            if (mergeLog is not IReadOnlyList<Git.Commit> commits)
-                return mergeLog.Error;
+        // Now on the target branch, so this is the commits the merge brings in. An empty list
+        // means the target was already up to date, i.e. the merge did nothing.
+        var mergeLog = await git.GetMergeLogAsync(mergeName, repo.Path);
+        if (mergeLog is not IReadOnlyList<Git.Commit> commits)
+            return mergeLog.Error;
 
-            return ToMergeCommits(repo, commits).ToList();
-        }
+        return ToMergeCommits(repo, commits).ToList();
     }
 
     public async Task<Result> RebaseBranchAsync(Repo repo, string name)
     {
-        using (fileMonitor.Pause())
-        {
-            var cb = repo.CurrentBranch();
-            var primaryCurrent = repo.BranchByName[cb.PrimaryName];
-            var oldBase = primaryCurrent.BottomId;
+        var cb = repo.CurrentBranch();
+        var primaryCurrent = repo.BranchByName[cb.PrimaryName];
+        var oldBase = primaryCurrent.BottomId;
 
-            var newBase = MergeTipName(repo, repo.BranchByName[name]);
+        var newBase = MergeTipName(repo, repo.BranchByName[name]);
 
-            if (await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path) is Error e)
-                return e;
+        if (await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path) is Error e)
+            return e;
 
-            if (cb.RemoteName != "")
-            { // Current Branch is local branch with a remote branch, push it with force, over the
-                // remote branch as it was before the rebase, i.e. as the user saw it
-                var remoteTipId = repo.BranchByName.TryGetValue(cb.RemoteName, out var remote) ? remote.TipId : "";
-                if (await git.PushForceAsync(cb.Name, cb.RemoteName, remoteTipId, repo.Path) is Error pushError)
-                    return new Error(
-                        $"Rebased '{cb.NiceName}' onto '{repo.BranchByName[name].NiceName}', but did not push it",
-                        pushError
-                    );
-            }
-
-            return Result.Ok;
+        if (cb.RemoteName != "")
+        { // Current Branch is local branch with a remote branch, push it with force, over the
+            // remote branch as it was before the rebase, i.e. as the user saw it
+            var remoteTipId = repo.BranchByName.TryGetValue(cb.RemoteName, out var remote) ? remote.TipId : "";
+            if (await git.PushForceAsync(cb.Name, cb.RemoteName, remoteTipId, repo.Path) is Error pushError)
+                return new Error(
+                    $"Rebased '{cb.NiceName}' onto '{repo.BranchByName[name].NiceName}', but did not push it",
+                    pushError
+                );
         }
+
+        return Result.Ok;
     }
 
     // A local branch and its remote branch are one branch to the user, but they can point at

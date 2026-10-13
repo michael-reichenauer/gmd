@@ -479,9 +479,14 @@ class RepoBuilder
     // branch show/hide commands, which work on an already created view repo.
     public IServer NewServer() => NewServer(NewGit());
 
-    // The same with a git the test holds, for what the server asks of git itself, e.g. a search's files
-    public IServer NewServer(FakeGit git) =>
-        new ServerImpl(git, NewAugmentedService(), new ViewRepoConverter(), NewViewRepoCreater());
+    // The same with a git the test holds, for what the server asks of git itself, e.g. a search's
+    // files, and the file monitor, for whether a write pauses it
+    public IServer NewServer(FakeGit git, FakeFileMonitor? fileMonitor = null)
+    {
+        var monitor = fileMonitor ?? new FakeFileMonitor();
+        var augmentedService = NewAugmentedService(git, new FakeMetaDataService(metaData), monitor, Config);
+        return new ServerImpl(git, augmentedService, new ViewRepoConverter(), NewViewRepoCreater(), monitor);
+    }
 
     // The augmenter with its real collaborators, none of which touch git, disk or the terminal.
     // The wiring mirrors the branch structure pipeline: the commit graph, the branch of every
@@ -525,7 +530,7 @@ class RepoBuilder
             new WorkRepoConverter(),
             fileMonitor,
             metaDataService,
-            new BranchWriteService(git, fileMonitor, metaDataService),
+            new BranchWriteService(git, metaDataService),
             repoConfig ?? new FakeRepoConfig()
         );
     }

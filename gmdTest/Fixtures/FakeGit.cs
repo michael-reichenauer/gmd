@@ -66,6 +66,19 @@ class FakeGit : IGit
         return Task.FromResult(Result.Ok);
     }
 
+    // The file monitor of the server under test, and the writes made, each with whether the monitor
+    // was paused while it was made, for the tests of the rule that every write the user asks for
+    // pauses it and the fetch does not
+    public FakeFileMonitor? Monitor { get; set; }
+
+    public List<string> WriteCalls { get; } = [];
+
+    Task<Result> Write(string call)
+    {
+        WriteCalls.Add($"{call}{(Monitor?.IsPaused == true ? " (paused)" : "")}");
+        return Task.FromResult(Result.Ok);
+    }
+
     // The git key/value storage, i.e. the 'refs/gmd-metadata-key-value/<key>' refs MetaDataService
     // stores the user's branch choices in. Values is what this repo has, RemoteValues what the
     // remote server has, and OriginValues this repo's record of the remote's as last fetched or
@@ -212,7 +225,7 @@ class FakeGit : IGit
 
     public Task<Result> RunMergeToolAsync(string path, string wd) => throw new NotSupportedException();
 
-    public Task<Result> FetchAsync(string wd) => throw new NotSupportedException();
+    public Task<Result> FetchAsync(string wd) => Write("fetch");
 
     // The commits each path of a search changed, as 'git log -- <path>' would list them, and every
     // path asked about, in order
@@ -269,7 +282,7 @@ class FakeGit : IGit
     public Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result> CherryPickAsync(string sha, string wd) => throw new NotSupportedException();
+    public Task<Result> CherryPickAsync(string sha, string wd) => Write($"cherry-pick {sha}");
 
     public Task<Result> AbortOperationAsync(string wd) => throw new NotSupportedException();
 
@@ -356,7 +369,7 @@ class FakeGit : IGit
 
     public Task<Result> UncommitUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
 
-    public Task<Result> StashAsync(string message, string wd) => throw new NotSupportedException();
+    public Task<Result> StashAsync(string message, string wd) => Write($"stash {message}");
 
     public Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => throw new NotSupportedException();
 

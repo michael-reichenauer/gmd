@@ -1,7 +1,7 @@
 using gmd.Git;
 using gmd.Utils.GlobPatterns;
 
-namespace gmd.Server.Private.Augmented.Private;
+namespace gmd.Server.Private;
 
 interface IFileMonitor
 {
@@ -17,8 +17,6 @@ interface IFileMonitor
     void ReadingRepo();
     void ReadingStatus();
 }
-
-public delegate bool Ignorer(string path);
 
 // Turns file system events into two debounced events: FileChanged, i.e. the status may have
 // changed, and RepoChanged, i.e. the commits or branches may have. Three watchers feed them, since
