@@ -10,18 +10,24 @@ interface IBinaryInstaller
     void CleanUp(string targetPath);
 }
 
-// cSpell:ignore RTXZERT
+// Replaces the binary of the running gmd with that of a release. The download goes to a file of its
+// own beside the binary, '<binary>.update_<random>', which is in place of the binary once it is
+// complete; the file of a download that did not complete is deleted.
 class BinaryInstaller : IBinaryInstaller
 {
-    const string tmpRandomSuffix = "RTXZERT";
+    // How long a download may go on with nothing coming before it is given up on. A release is some
+    // 100 MB, so the download as a whole has no time limit: over a slow link it takes many minutes.
+    static readonly TimeSpan StallTimeout = TimeSpan.FromMinutes(1);
+
+    // How old a download has to be before CleanUp takes it to be left by a gmd that ended during it,
+    // rather than one that another gmd is still writing. Far longer than any download takes.
+    static readonly TimeSpan StaleDownloadAge = TimeSpan.FromDays(1);
+
+    const string StagedInfix = ".update_";
 
     readonly ICmd cmd;
     readonly IHttp http;
     readonly Random random = new();
-
-    // Data for download binary tasks to avoid multiple parallel tasks
-    static string requestingUri = "";
-    static Task<byte[]>? getBytesTask = null;
 
     internal BinaryInstaller(ICmd cmd, IHttp http)
     {
@@ -31,31 +37,45 @@ class BinaryInstaller : IBinaryInstaller
 
     public async Task<Result> InstallAsync(string url, string version, string targetPath)
     {
-        var downloadedPathResult = await DownloadBinaryAsync(url, version);
-        if (downloadedPathResult is not string downloadedPath)
+        var stagedPath = $"{targetPath}{StagedInfix}{RandomString(5)}";
+        try
         {
-            Log.Warn($"Failed to download new version, {downloadedPathResult.Error}");
-            return downloadedPathResult.Error;
-        }
+            if (await DownloadAsync(url, stagedPath, StallTimeout) is Error downloadError)
+            {
+                Log.Warn($"Failed to download new version {version}, {downloadError}");
+                return downloadError;
+            }
 
-        if (Install(downloadedPath, targetPath) is Error installError)
+            if (Install(stagedPath, targetPath) is Error installError)
+            {
+                Log.Warn($"Failed to install new version {version}, {installError}");
+                return installError;
+            }
+
+            return Result.Ok;
+        }
+        finally
         {
-            Log.Warn($"Failed to install new version, {installError}");
-            return installError;
+            // What is left of a download that failed, or that was not installed
+            if (File.Exists(stagedPath) && Result.Catch(() => File.Delete(stagedPath)) is Error e)
+                Log.Warn($"Failed to delete {stagedPath}, {e}");
         }
-
-        return Result.Ok;
     }
 
-    public void CleanUp(string targetPath)
+    public void CleanUp(string targetPath) => CleanUp(targetPath, DateTime.UtcNow);
+
+    internal void CleanUp(string targetPath, DateTime now)
     {
         try
         {
             var tmpPathPrefix = targetPath + ".tmp";
+            var stagedPathPrefix = targetPath + StagedInfix;
 
             foreach (var path in Directory.GetFiles(Path.GetDirectoryName(targetPath) ?? ""))
             {
-                if (path.StartsWith(tmpPathPrefix))
+                var isStale =
+                    path.StartsWith(stagedPathPrefix) && now - File.GetLastWriteTimeUtc(path) > StaleDownloadAge;
+                if (path.StartsWith(tmpPathPrefix) || isStale)
                 {
                     Log.Info($"Deleting {path}");
                     if (Result.Catch(() => File.Delete(path)) is Error e)
@@ -69,55 +89,42 @@ class BinaryInstaller : IBinaryInstaller
         }
     }
 
-    Result Install(string downloadedPath, string targetPath)
+    // Streams the file at the url to a new file at the path, for as long as it keeps coming
+    internal async Task<Result> DownloadAsync(string url, string path, TimeSpan stallTimeout)
     {
+        using var stalled = new CancellationTokenSource();
         try
         {
-            // Move downloaded file next to this process file (replace must be on same volume)
-            var newPath = GetTempPath(targetPath);
-            if (!File.Exists(downloadedPath))
+            Log.Info($"Downloading {url} ...");
+            var t = Timing.Start();
+
+            // The client's timeout, 100 seconds, is how long it may take to get the headers. It is not
+            // a limit on reading what follows them, which reading the whole of it at once had been,
+            // so a download slower than 100 MB in 100 seconds, about 8 Mbit/s, always failed.
+            using var response = await http.Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            await using var source = await response.Content.ReadAsStreamAsync();
+            await using var target = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            var buffer = new byte[81920];
+            long size = 0;
+            while (true)
             {
-                Log.Info($"No new file to install {downloadedPath}");
-                return Result.Ok; // No new file to install, some other thread already installed it
+                stalled.CancelAfter(stallTimeout); // Moved on by every read, i.e. the time since the last
+                var count = await source.ReadAsync(buffer, stalled.Token);
+                if (count == 0)
+                    break;
+                await target.WriteAsync(buffer.AsMemory(0, count));
+                size += count;
             }
 
-            File.Move(downloadedPath, newPath);
-            Log.Info($"Move {downloadedPath} => {newPath} ...");
-            if (MakeBinaryExecutable(newPath) is Error e)
-                return e;
-
-            var newThisPath = GetTempPath(targetPath);
-
-            File.Move(targetPath, newThisPath);
-            Log.Info($"Moved {targetPath} => {newThisPath}");
-            File.Move(newPath, targetPath);
-            Log.Info($"Installed {newPath}");
+            Log.Info($"Downloaded {size} bytes to {path} {t}");
             return Result.Ok;
         }
-        catch (Exception e) when (e.IsNotFatal())
+        catch (OperationCanceledException e) when (stalled.IsCancellationRequested)
         {
-            Log.Exception(e, "Failed install new file");
-            return new Error("Failed to install new file", e);
-        }
-    }
-
-    async Task<Result<string>> DownloadBinaryAsync(string downloadUrl, string version)
-    {
-        try
-        {
-            var targetPath = GetDownloadFilePath(version);
-            if (File.Exists(targetPath))
-            {
-                Log.Info($"Already downloaded {targetPath}");
-                return targetPath;
-            }
-
-            byte[] remoteFileData = await GetByteArrayAsync(http.Client, downloadUrl);
-
-            File.WriteAllBytes(targetPath, remoteFileData);
-
-            Log.Info($"Downloaded to    {targetPath}");
-            return targetPath;
+            Log.Warn($"Download of {url} stalled, nothing came for {stallTimeout}");
+            return new Error($"The download stopped, nothing came for {stallTimeout.TotalSeconds:0} seconds", e);
         }
         catch (Exception e) when (e.IsNotFatal())
         {
@@ -126,26 +133,26 @@ class BinaryInstaller : IBinaryInstaller
         }
     }
 
-    static Task<byte[]> GetByteArrayAsync(HttpClient httpClient, string requestUri)
+    Result Install(string stagedPath, string targetPath)
     {
-        if (requestingUri == requestUri && getBytesTask != null)
-        { // A request for this uri has already been started, lets reuse task
-            Log.Info($"Download already started for {requestUri}");
-            return getBytesTask;
+        try
+        {
+            if (MakeBinaryExecutable(stagedPath) is Error e)
+                return e;
+
+            var newThisPath = GetTempPath(targetPath);
+
+            File.Move(targetPath, newThisPath);
+            Log.Info($"Moved {targetPath} => {newThisPath}");
+            File.Move(stagedPath, targetPath);
+            Log.Info($"Installed {stagedPath}");
+            return Result.Ok;
         }
-
-        // Start download task and remember task in case multiple requests for same request
-        Log.Info($"Downloading from {requestUri} ...");
-        requestingUri = requestUri;
-        getBytesTask = httpClient.GetByteArrayAsync(requestUri);
-        return getBytesTask;
-    }
-
-    static string GetDownloadFilePath(string version)
-    {
-        var name = $"gmd.{version}.{tmpRandomSuffix}";
-        var tmpFolderPath = Path.GetTempPath();
-        return Path.Combine(tmpFolderPath, name);
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            Log.Exception(e, "Failed install new file");
+            return new Error("Failed to install new file", e);
+        }
     }
 
     string GetTempPath(string targetPath) => $"{targetPath}.tmp_{RandomString(5)}";
