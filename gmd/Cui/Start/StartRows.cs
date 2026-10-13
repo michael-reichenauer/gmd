@@ -2,9 +2,6 @@ using gmd.Cui.Common;
 
 namespace gmd.Cui.Start;
 
-// The version shown in the title, and the newer one there is to update to, "" when there is none
-record StartInfo(string Version, string NewVersion = "");
-
 enum StartAction
 {
     OpenRepo,
@@ -118,7 +115,7 @@ class StartPage
 // why this page is shown, the repositories to open, each with the number key that opens it, and
 // the actions, each with its letter key.
 //
-//      Gmd 1.4 · a Git client where you choose which branches are shown
+//      Gmd · a Git client where you choose which branches are shown
 //      ~/Downloads is not a git repository
 //
 //      Recent repositories
@@ -143,17 +140,20 @@ static class StartRows
     const int minPathWidth = 12; // Less room than this and the path is left out
     const int minExplainWidth = 12;
     const int shortListCount = 3;
+
+    // No version in the title, which About has: its length would move the centered page, and so every
+    // picture of it, whenever the version gained a digit
     const string tagline = "a Git client where you choose which branches are shown";
 
     // How much of the page is kept
     record Fit(bool IsSpaced, bool IsTitle, bool IsWhy, int MaxRecent, int MaxInFolder);
 
-    public static StartPage Of(StartRepos repos, StartInfo info, int width, int height)
+    public static StartPage Of(StartRepos repos, string newVersion, int width, int height)
     {
         StartPage? page = null;
         foreach (var fit in Fits())
         {
-            page = Layout(repos, info, width, fit);
+            page = Layout(repos, newVersion, width, fit);
             if (page.Count <= height)
                 break;
         }
@@ -187,7 +187,7 @@ static class StartRows
         };
     }
 
-    static StartPage Layout(StartRepos repos, StartInfo info, int width, Fit fit)
+    static StartPage Layout(StartRepos repos, string newVersion, int width, Fit fit)
     {
         List<Text> rows = [];
         List<int> rowItems = [];
@@ -212,13 +212,13 @@ static class StartRows
 
         Blank();
         if (fit.IsTitle)
-            Line(Indented(Text.BrightMagenta("Gmd").Dark($" {info.Version} · {tagline}"), width));
+            Line(Indented(Text.BrightMagenta("Gmd").Dark($" · {tagline}"), width));
         if (fit.IsWhy && !repos.IsFolderInRepo)
             Line(Indented(Text.White(CutStart(repos.ShownFolder, width / 2)).Dark(" is not a git repository"), width));
-        if (info.NewVersion != "")
+        if (newVersion != "")
         { // Never left out, since a new version is said nowhere else on the page but the bar's ⇓
             Blank();
-            var update = Text.BrightGreen($"Update to Gmd {info.NewVersion} ...");
+            var update = Text.BrightGreen($"Update to Gmd {newVersion} ...");
             Item(new StartItem(StartAction.Update), ItemRow("u", update, width));
         }
 

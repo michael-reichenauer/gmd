@@ -2,51 +2,205 @@ using gmdE2eTest.Fixtures;
 
 namespace gmdE2eTest.Cui;
 
-// The start menu, which gmd shows when it is started outside a repository, or with -m: the recent
-// repositories, and browsing to, cloning or creating one. It is all there is on screen until a
-// repository is open, so it must never leave the user with nothing on screen.
+// The start page, which gmd shows when it is started outside a repository, or with -m: the
+// repositories to open, opened before or in the folder gmd was started in, and browsing to, cloning
+// or creating one. It is all there is on screen until a repository is open, so it must never leave
+// the user with nothing on screen.
+//
+// The repositories it lists are '.git' folders in a throwaway home, which is all the page looks at,
+// so they read '~/...' on every machine. They fail to open, being no real repositories, which is
+// what a test of a failed open wants; the tests that open one use an E2eRepo.
 //
 // What every end-to-end test must keep doing is at the top of gmdE2eTest/TestSetup.cs.
 [TestClass]
 public class MainViewTest
 {
-    // Titled with what it is for, and saying there are no recent repositories rather than opening on
-    // a bare separator, as it did for someone who had not opened one yet
+    // Someone who has not opened a repository yet is told why the page is shown and what each
+    // action does, and the first action is selected, so Enter does something
     [TestMethod]
-    public async Task TestTheStartMenuSaysWhatItIsFor()
+    public void TestTheStartPageForSomeoneNew()
     {
-        using var repo = await E2eRepo.CreateAsync();
-        using var gmd = StartOnTheStartMenu(repo);
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, In(home, "Downloads"));
 
         ScreenText.AssertEqual(
             """
              Gmd                                                                                                     [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-                ╭ Open a Repository ────────╮
-                │No recent repositories     │
-                │───────────────────────────│
-                │Browse ...                 │
-                │Clone ...                  │
-                │Init ...                   │
-                │Help                       │
-                │About                      │
-                │Quit                   Esc │
-                ╰───────────────────────────╯
+
+                                  Gmd · a Git client where you choose which branches are shown
+                                  ~/Downloads is not a git repository
+
+                                ▸ o  Open a folder ...            browse to a repository on this computer
+                                  c  Clone a repository ...       copy one from GitHub or another server
+                                  i  Init a repository here ...   start a new one in ~/Downloads
+                                  ?  Help                         how to read the log, in the browser
+                                  a  About                        the version, and where to report a problem
+                                  q  Quit
             """,
-            gmd.WaitForStable(),
-            repo.Path
+            gmd.WaitFor("Quit")
         );
     }
 
-    // A clone or init that fails says so and then shows the start menu again. It used to return
-    // after the error, leaving a blank screen where no key but Escape did anything, and nothing
-    // on it said so.
+    // The recent repositories that are still repositories, most recent first, then the ones in the
+    // folder gmd was started in that are not recent ones, numbered on from them, and no dot folder
     [TestMethod]
-    public async Task TestAFailedInitGoesBackToTheStartMenu()
+    public void TestTheStartPageListsTheRepositories()
+    {
+        var home = Home("code/gmd", "code/web-shop", "code/api", "code/.hidden", "dotfiles");
+        Directory.CreateDirectory(In(home, "code/notes"));
+        home.SetRecentFolders([
+            In(home, "code/web-shop"),
+            In(home, "gone"),
+            In(home, "code/notes"),
+            In(home, "dotfiles"),
+        ]);
+        using var gmd = TmuxSession.StartGmd(home, In(home, "code"));
+
+        ScreenText.AssertEqual(
+            """
+             Gmd                                                                                                     [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+                                         Gmd · a Git client where you choose which branches are shown
+                                         ~/code is not a git repository
+
+                                         Recent repositories
+                                       ▸ 1  web-shop  ~/code/web-shop
+                                         2  dotfiles  ~/dotfiles
+
+                                         Repositories in ~/code
+                                         3  api       ~/code/api
+                                         4  gmd       ~/code/gmd
+
+                                         o  Open a folder ...
+                                         c  Clone a repository ...
+                                         i  Init a repository in ~/code ...
+                                         ?  Help
+                                         a  About
+                                         q  Quit
+            """,
+            gmd.WaitFor("Quit")
+        );
+    }
+
+    // One key from the page to the log
+    [TestMethod]
+    public async Task TestANumberOpensThatRepository()
     {
         using var repo = await E2eRepo.CreateAsync();
-        using var gmd = StartOnTheStartMenu(repo);
-        SelectItem(gmd, "Init ...");
+        var home = Home("code/gmd");
+        home.SetRecentFolders([In(home, "code/gmd"), repo.Path]);
+        using var gmd = TmuxSession.StartGmd(home, home.Path);
+        gmd.WaitFor("Quit");
+
+        gmd.Send("2");
+
+        gmd.WaitFor("Add delta");
+        gmd.WaitUntilGone("Recent repositories");
+    }
+
+    [TestMethod]
+    public async Task TestAClickOnARepositoryOpensIt()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var home = Home("code/gmd");
+        home.SetRecentFolders([In(home, "code/gmd"), repo.Path]);
+        using var gmd = TmuxSession.StartGmd(home, home.Path);
+        var (x, y) = TmuxSession.PositionOf(gmd.WaitFor("Quit"), "2  ");
+
+        gmd.Click(x + 4, y);
+
+        gmd.WaitFor("Add delta");
+    }
+
+    // A repository that fails to open says so, and the page is back with it still selected, and its
+    // keys work, as they did not when the start menu was a dialog that had closed
+    [TestMethod]
+    public async Task TestAFailedOpenStaysOnTheStartPage()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var home = Home("code/gmd");
+        home.SetRecentFolders([In(home, "code/gmd"), repo.Path]);
+        using var gmd = TmuxSession.StartGmd(home, home.Path);
+        gmd.WaitFor("Quit");
+
+        gmd.Send("Enter");
+        gmd.WaitFor("Failed to load repo");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Failed to load repo"), "▸ 1  gmd");
+        gmd.Send("2");
+        gmd.WaitFor("Add delta");
+    }
+
+    // Delete takes a repository off the list, and says that is all it did; Backspace too, which is
+    // the delete key of a Mac. A repository in the start folder is no recent one to take off.
+    [TestMethod]
+    public void TestDeleteRemovesARecentRepository()
+    {
+        var home = Home("code/gmd", "code/web-shop", "dotfiles");
+        home.SetRecentFolders([In(home, "code/gmd"), In(home, "code/web-shop")]);
+        using var gmd = TmuxSession.StartGmd(home, home.Path);
+        gmd.WaitFor("Quit");
+
+        gmd.Send("DC");
+
+        var screen = gmd.WaitUntilGone("1  gmd");
+        StringAssert.Contains(screen, "▸ 1  web-shop");
+        Assert.AreEqual(
+            "Removed ~/code/gmd from the recent list, the folder is untouched",
+            ScreenText.LastLine(screen)
+        );
+        var config = File.ReadAllText(Path.Join(home.Path, ".gmdconfig"));
+        Assert.IsFalse(config.Contains("code/gmd"), config);
+
+        gmd.Send("BSpace");
+        StringAssert.Contains(gmd.WaitUntilGone("1  web-shop"), "▸ 1  dotfiles");
+        gmd.Send("DC");
+        StringAssert.Contains(gmd.WaitFor("Only a recent repository"), "▸ 1  dotfiles");
+    }
+
+    [TestMethod]
+    public void TestEscapeQuitsAtOnce()
+    {
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, In(home, "Downloads"));
+        gmd.WaitFor("Quit");
+
+        gmd.Send("Escape");
+
+        gmd.WaitForExit();
+    }
+
+    // Help copies the link, as ? does in the log (the session has no browser), and the page is still
+    // there once the box with the link is closed
+    [TestMethod]
+    public void TestHelpStaysOnTheStartPage()
+    {
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, In(home, "Downloads"));
+        gmd.WaitFor("Quit");
+
+        gmd.Send("?");
+
+        gmd.WaitFor("copied to the clipboard");
+        StringAssert.EndsWith(gmd.Clipboard(), "/gmd/doc/help.md");
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitUntilGone("copied to the clipboard"), "▸ o  Open a folder");
+    }
+
+    // A clone or init that fails says so, and the page is there to go on from. Once, the start menu
+    // was not shown again after the error, leaving a blank screen where no key but Escape did
+    // anything.
+    [TestMethod]
+    public async Task TestAFailedInitStaysOnTheStartPage()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, In(home, "Downloads"));
+        gmd.WaitFor("Quit");
+        gmd.Send("i");
         gmd.WaitFor("Init Repo");
 
         // A folder cannot be made inside a file
@@ -55,15 +209,17 @@ public class MainViewTest
         gmd.WaitFor("Failed to init");
         gmd.Send("Enter");
 
-        gmd.WaitFor("Open a Repository");
+        StringAssert.Contains(gmd.WaitUntilGone("Failed to init"), "▸ o  Open a folder");
     }
 
     [TestMethod]
-    public async Task TestAFailedCloneGoesBackToTheStartMenu()
+    public async Task TestAFailedCloneStaysOnTheStartPage()
     {
         using var repo = await E2eRepo.CreateAsync();
-        using var gmd = StartOnTheStartMenu(repo);
-        SelectItem(gmd, "Clone ...");
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, In(home, "Downloads"));
+        gmd.WaitFor("Quit");
+        gmd.Send("c");
         gmd.WaitFor("Clone Repo");
 
         gmd.SendText(Path.Join(repo.Path, "no-such-repo.git"));
@@ -74,14 +230,33 @@ public class MainViewTest
         gmd.WaitFor("Failed to clone");
         gmd.Send("Enter");
 
-        gmd.WaitFor("Open a Repository");
+        StringAssert.Contains(gmd.WaitUntilGone("Failed to clone"), "▸ o  Open a folder");
     }
 
-    // A repository that fails to open leaves the start menu with no key hints below it, since none
-    // of the keys would work there. The line used to be put up before the repository was read, and
-    // was left up when reading it failed.
+    // The keys of a dialog closed with Escape are back on the page, as they were not on the start
+    // menu it replaced, which had closed for the dialog
     [TestMethod]
-    public async Task TestARepoThatFailsToOpenLeavesNoKeyHints()
+    public async Task TestTheKeysWorkAfterADialogIsCancelled()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var home = Home();
+        home.SetRecentFolders([repo.Path]);
+        using var gmd = TmuxSession.StartGmd(home, home.Path);
+        gmd.WaitFor("Quit");
+        gmd.Send("c");
+        gmd.WaitFor("Clone Repo");
+
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Clone Repo");
+        gmd.Send("1");
+
+        gmd.WaitFor("Add delta");
+    }
+
+    // A repository that fails to open leaves the page with its own key hints, not the log's, which
+    // would not work there. The repository is not listed, since only one that opened is.
+    [TestMethod]
+    public async Task TestARepoThatFailsToOpenShowsTheStartPageAndItsHints()
     {
         using var repo = await E2eRepo.CreateAsync();
         // A branch on a commit that is not there: git still finds the repository, but not its log
@@ -90,60 +265,66 @@ public class MainViewTest
         gmd.WaitFor("Failed to load repo");
         gmd.Send("Enter");
 
-        var screen = gmd.WaitFor("Open a Repository");
-        Assert.IsFalse(screen.Contains("? help"), "No key hints on the start menu");
+        var screen = gmd.WaitUntilGone("Failed to load repo");
+        StringAssert.Contains(screen, "▸ o  Open a folder");
+        StringAssert.StartsWith(ScreenText.LastLine(screen), "Enter open  o open folder  c clone  i init  Esc quit");
     }
 
-    // A click beside the start menu leaves it open. It used to quit gmd, the way Escape does, which
-    // the menu says as 'Quit Esc'; a click is not asking for that.
+    // A click beside the items does nothing, and certainly does not quit
     [TestMethod]
-    public async Task TestAClickOutsideTheStartMenuDoesNotQuit()
+    public void TestAClickBesideTheItemsDoesNothing()
+    {
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, In(home, "Downloads"));
+        gmd.WaitFor("Quit");
+
+        gmd.Click(110, 30);
+
+        StringAssert.Contains(gmd.WaitForStable(), "▸ o  Open a folder");
+        Assert.IsTrue(gmd.IsRunning, "A click beside the items should not quit gmd");
+    }
+
+    // -m shows the page inside a repository too, which is then not said to be no repository
+    [TestMethod]
+    public async Task TestTheStartPageInsideARepository()
     {
         using var repo = await E2eRepo.CreateAsync();
-        using var gmd = StartOnTheStartMenu(repo);
+        using var gmd = TmuxSession.StartGmd(repo.Path, extraArgs: "-m");
 
-        gmd.Click(80, 30);
+        var screen = gmd.WaitFor("Quit");
 
-        StringAssert.Contains(gmd.WaitForStable(), "Open a Repository", "The menu is still open");
-        Assert.IsTrue(gmd.IsRunning, "A click outside the menu should not quit gmd");
+        Assert.IsFalse(screen.Contains("is not a git repository"), screen);
+        StringAssert.Contains(screen, "i  Init a repository ...");
     }
 
-    // Help in the start menu copies the link, as ? does in the log (the session has no browser), and
-    // the start menu is back once the box with the link is closed, rather than under it
+    // On a small terminal the page leaves out the title and the line saying why it is shown, and
+    // lists fewer repositories, rather than putting the actions out of sight
     [TestMethod]
-    public async Task TestHelpGoesBackToTheStartMenu()
+    public void TestASmallTerminalKeepsTheActionsInSight()
     {
-        using var repo = await E2eRepo.CreateAsync();
-        using var gmd = StartOnTheStartMenu(repo);
-        SelectItem(gmd, "Help");
+        var recent = Enumerable.Range(1, 12).Select(i => $"code/recent{i:00}").ToArray();
+        var inFolder = Enumerable.Range(1, 5).Select(i => $"code/other{i}").ToArray();
+        var home = Home([.. recent, .. inFolder]);
+        home.SetRecentFolders(recent.Select(r => In(home, r)).ToList());
+        using var gmd = TmuxSession.StartGmd(home, In(home, "code"), width: 80, height: 24);
 
-        Assert.IsFalse(gmd.WaitFor("copied to the clipboard").Contains("Open a Repository"), "The menu is closed");
-        StringAssert.EndsWith(gmd.Clipboard(), "/gmd/doc/help.md");
-        gmd.Send("Enter");
+        var screen = gmd.WaitFor("Quit");
 
-        StringAssert.Contains(gmd.WaitUntilGone("copied to the clipboard"), "Open a Repository");
+        StringAssert.Contains(screen, "▸ 1  recent01");
+        StringAssert.Contains(screen, "… and 9 more");
+        StringAssert.Contains(screen, "q  Quit");
+        Assert.IsFalse(screen.Contains("a Git client"), screen);
     }
 
-    // -m shows the start menu even inside a repository. The home is new, so there are no recent
-    // repositories, and the menu is the same few items every time.
-    static TmuxSession StartOnTheStartMenu(TempRepo repo)
+    // A home with the repositories given, as '.git' folders, and a 'Downloads' folder with none
+    static TempHome Home(params string[] repos)
     {
-        var gmd = TmuxSession.StartGmd(repo.Path, extraArgs: "-m");
-        gmd.WaitFor("Open a Repository");
-        return gmd;
+        var home = TempHome.Create();
+        Directory.CreateDirectory(In(home, "Downloads"));
+        foreach (var repo in repos)
+            Directory.CreateDirectory(Path.Join(In(home, repo), ".git"));
+        return home;
     }
 
-    // Counted up from the last item, 'Quit', which does not move whatever comes above it
-    static void SelectItem(TmuxSession gmd, string item)
-    {
-        string[] fromTheEnd = ["Quit", "About", "Help", "Init ...", "Clone ...", "Browse ..."];
-        gmd.Send("End");
-        gmd.WaitForStable();
-        for (int i = 0; i < Array.IndexOf(fromTheEnd, item); i++)
-        {
-            gmd.Send("Up");
-            gmd.WaitForStable();
-        }
-        gmd.Send("Enter");
-    }
+    static string In(TempHome home, string path) => Path.Join(home.Path, path);
 }

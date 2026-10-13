@@ -25,7 +25,7 @@ public class StartRowsTest
 
     static readonly StartRepos Newcomer = new("/home/me/Downloads", "~/Downloads", false, [], [], 0);
 
-    static readonly StartInfo Info = new("1.4");
+    const string NoUpdate = "";
 
     static string Picture(StartPage page, int selected = -2)
     {
@@ -43,25 +43,25 @@ public class StartRowsTest
         Assert.AreEqual(
             """
             |
-            |                           Gmd 1.4 · a Git client where you choose which branches are shown
-            |                           ~/Downloads is not a git repository
+            |                             Gmd · a Git client where you choose which branches are shown
+            |                             ~/Downloads is not a git repository
             |
-            |                           Recent repositories
-            |                         ▸ 1  gmd       ~/code/gmd
-            |                           2  web-shop  ~/code/web-shop
-            |                           3  dotfiles  ~/dotfiles
+            |                             Recent repositories
+            |                           ▸ 1  gmd       ~/code/gmd
+            |                             2  web-shop  ~/code/web-shop
+            |                             3  dotfiles  ~/dotfiles
             |
-            |                           Repositories in ~/Downloads
-            |                           4  scratch   ~/Downloads/scratch
+            |                             Repositories in ~/Downloads
+            |                             4  scratch   ~/Downloads/scratch
             |
-            |                           o  Open a folder ...
-            |                           c  Clone a repository ...
-            |                           i  Init a repository in ~/Downloads ...
-            |                           ?  Help
-            |                           a  About
-            |                           q  Quit
+            |                             o  Open a folder ...
+            |                             c  Clone a repository ...
+            |                             i  Init a repository in ~/Downloads ...
+            |                             ?  Help
+            |                             a  About
+            |                             q  Quit
             """,
-            Picture(StartRows.Of(Returning, Info, 119, 37))
+            Picture(StartRows.Of(Returning, NoUpdate, 119, 37))
         );
     }
 
@@ -72,7 +72,7 @@ public class StartRowsTest
         Assert.AreEqual(
             """
             |
-            |    Gmd 1.4 · a Git client where you choose which branches are shown
+            |    Gmd · a Git client where you choose which branches are shown
             |    ~/Downloads is not a git repository
             |
             |  ▸ o  Open a folder ...            browse to a repository on this computer
@@ -82,7 +82,7 @@ public class StartRowsTest
             |    a  About                        the version, and where to report a problem
             |    q  Quit
             """,
-            Picture(StartRows.Of(Newcomer, Info, 79, 21))
+            Picture(StartRows.Of(Newcomer, NoUpdate, 79, 21))
         );
     }
 
@@ -92,25 +92,25 @@ public class StartRowsTest
     {
         Assert.AreEqual(
             "|    o  Open a folder ...            browse to a reposi…",
-            Picture(StartRows.Of(Newcomer, Info, 56, 21)).Split('\n')[4].Replace("▸", " ")
+            Picture(StartRows.Of(Newcomer, NoUpdate, 56, 21)).Split('\n')[4].Replace("▸", " ")
         );
-        Assert.AreEqual("|  ▸ o  Open a folder ...", Picture(StartRows.Of(Newcomer, Info, 40, 21)).Split('\n')[4]);
+        Assert.AreEqual("|  ▸ o  Open a folder ...", Picture(StartRows.Of(Newcomer, NoUpdate, 40, 21)).Split('\n')[4]);
     }
 
     [TestMethod]
     public void TestANewVersionIsOfferedUnderTheTitle()
     {
-        var page = StartRows.Of(Returning, new StartInfo("1.4", "1.5.1450.12"), 79, 21);
+        var page = StartRows.Of(Returning, "1.5.1450.12", 79, 21);
 
         Assert.AreEqual(
             """
             |
-            |       Gmd 1.4 · a Git client where you choose which branches are shown
-            |       ~/Downloads is not a git repository
+            |         Gmd · a Git client where you choose which branches are shown
+            |         ~/Downloads is not a git repository
             |
-            |       u  Update to Gmd 1.5.1450.12 ...
+            |         u  Update to Gmd 1.5.1450.12 ...
             |
-            |       Recent repositories
+            |         Recent repositories
             """,
             string.Join("\n", Picture(page).Split('\n').Take(7))
         );
@@ -124,7 +124,7 @@ public class StartRowsTest
     {
         var inRepo = Returning with { Folder = "/home/me/code/gmd", ShownFolder = "~/code/gmd", IsFolderInRepo = true };
 
-        var picture = Picture(StartRows.Of(inRepo, Info, 79, 21));
+        var picture = Picture(StartRows.Of(inRepo, NoUpdate, 79, 21));
 
         Assert.IsFalse(picture.Contains("is not a git repository"), picture);
         StringAssert.Contains(picture, "i  Init a repository ...");
@@ -140,11 +140,11 @@ public class StartRowsTest
             InFolder = Enumerable.Range(1, 3).Select(i => Repo($"f{i}", $"Downloads/f{i}", false)).ToList(),
         };
 
-        var page = StartRows.Of(many, Info, 79, 40);
+        var page = StartRows.Of(many, NoUpdate, 79, 40);
 
         var numbers = page.Items.Where(i => i.Action == StartAction.OpenRepo).Select(i => i.Key);
         CollectionAssert.AreEqual(new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "" }, numbers.ToArray());
-        StringAssert.Contains(Picture(page), "|          f3        ~/Downloads/f3");
+        StringAssert.Contains(Picture(page), "|            f3        ~/Downloads/f3");
     }
 
     // A long name is cut at its end and a long path at its start, which is the part that tells it
@@ -160,9 +160,9 @@ public class StartRowsTest
 
         Assert.AreEqual(
             "|  ▸ 1  a-repository-wi…  …own/a-repository-with-a-long-name",
-            Picture(StartRows.Of(long_, Info, 60, 30)).Split('\n')[5]
+            Picture(StartRows.Of(long_, NoUpdate, 60, 30)).Split('\n')[5]
         );
-        Assert.AreEqual("|  ▸ 1  a-repository-wi…", Picture(StartRows.Of(long_, Info, 30, 30)).Split('\n')[5]);
+        Assert.AreEqual("|  ▸ 1  a-repository-wi…", Picture(StartRows.Of(long_, NoUpdate, 30, 30)).Split('\n')[5]);
     }
 
     // Least needed first: the spacing and the title, then the line saying why the page is shown,
@@ -179,22 +179,22 @@ public class StartRowsTest
         static string Text(StartPage page) =>
             string.Join("\n", Enumerable.Range(0, page.Count).Select(i => page.Row(i, false).ToString().Trim()));
 
-        var all = StartRows.Of(many, Info, 79, 40);
+        var all = StartRows.Of(many, NoUpdate, 79, 40);
         Assert.AreEqual(25, all.Count);
 
-        var dense = StartRows.Of(many, Info, 79, 24);
+        var dense = StartRows.Of(many, NoUpdate, 79, 24);
         Assert.AreEqual(20, dense.Count);
-        Assert.IsFalse(Text(dense).Contains("Gmd 1.4"));
+        Assert.IsFalse(Text(dense).Contains("Gmd ·"));
         StringAssert.StartsWith(Text(dense), "~/Downloads is not a git repository\nRecent repositories");
 
-        var noWhy = StartRows.Of(many, Info, 79, 19);
+        var noWhy = StartRows.Of(many, NoUpdate, 79, 19);
         StringAssert.StartsWith(Text(noWhy), "Recent repositories");
 
-        var fewer = StartRows.Of(many, Info, 79, 18);
+        var fewer = StartRows.Of(many, NoUpdate, 79, 18);
         StringAssert.Contains(Text(fewer), "f3        ~/Downloads/f3\n… and 2 more\no  Open a folder ...");
         Assert.AreEqual(6, fewer.Items.Count(i => i.Repo?.IsRecent == true));
 
-        var fewest = StartRows.Of(many, Info, 79, 10);
+        var fewest = StartRows.Of(many, NoUpdate, 79, 10);
         StringAssert.Contains(Text(fewest), "r3        ~/code/r3\n… and 3 more\nRepositories in ~/Downloads");
         StringAssert.EndsWith(Text(fewest), "q  Quit");
     }
@@ -202,15 +202,15 @@ public class StartRowsTest
     [TestMethod]
     public void TestColorsOfTheTitleARepositoryAndAnAction()
     {
-        var page = StartRows.Of(Returning, Info, 79, 21);
+        var page = StartRows.Of(Returning, NoUpdate, 79, 21);
 
         Assert.AreEqual(
-            "       mmm DDD D D DDD DDDDDD DDDDD DDD DDDDDD DDDDD DDDDDDDD DDD DDDDD",
+            "         mmm D D DDD DDDDDD DDDDD DDD DDDDDD DDDDD DDDDDDDD DDD DDDDD",
             TextColors.Of(page.Row(1, false))
         );
-        Assert.AreEqual("       mmmmmm mmmmmmmmmmmm", TextColors.Of(page.Row(4, false)));
-        Assert.AreEqual("       C  WWWWWWWW  DDDDDDDDDDDDDDD", TextColors.Of(page.Row(6, false)));
-        Assert.AreEqual("       C  WWWW", TextColors.Of(page.Row(15, false)));
+        Assert.AreEqual("         mmmmmm mmmmmmmmmmmm", TextColors.Of(page.Row(4, false)));
+        Assert.AreEqual("         C  WWWWWWWW  DDDDDDDDDDDDDDD", TextColors.Of(page.Row(6, false)));
+        Assert.AreEqual("         C  WWWW", TextColors.Of(page.Row(15, false)));
     }
 
     // The selected item is marked and has a bar behind it, as long for every item, from the marker to
@@ -218,11 +218,11 @@ public class StartRowsTest
     [TestMethod]
     public void TestTheSelectedItemIsMarkedAndHighlighted()
     {
-        var page = StartRows.Of(Returning, Info, 79, 21);
+        var page = StartRows.Of(Returning, NoUpdate, 79, 21);
         var help = page.IndexOf(i => i.Action == StartAction.Help);
         var row = page.Row(page.RowOf(help), true);
 
-        Assert.AreEqual("     ▸ ?  Help", row.ToString().TrimEnd());
+        Assert.AreEqual("       ▸ ?  Help", row.ToString().TrimEnd());
         var highlighted = row.Fragments.Where(f => f.Color.Background == Color.Dark.Foreground).Sum(f => f.Text.Length);
         Assert.AreEqual("▸ i  Init a repository in ~/Downloads ... ".Length, highlighted);
     }
@@ -231,7 +231,7 @@ public class StartRowsTest
     [TestMethod]
     public void TestStepAndHitTest()
     {
-        var page = StartRows.Of(Returning, Info, 79, 21);
+        var page = StartRows.Of(Returning, NoUpdate, 79, 21);
         var first = page.FirstItem;
 
         Assert.AreEqual(0, first);
@@ -242,7 +242,7 @@ public class StartRowsTest
         Assert.AreEqual(first, page.ItemAt(5));
         Assert.AreEqual(-1, page.ItemAt(4), "The header");
         Assert.AreEqual(-1, page.ItemAt(99));
-        var newcomer = StartRows.Of(Newcomer, Info, 79, 21);
+        var newcomer = StartRows.Of(Newcomer, NoUpdate, 79, 21);
         Assert.AreEqual(
             StartAction.OpenFolder,
             newcomer.Items[newcomer.FirstItem].Action,
@@ -254,10 +254,10 @@ public class StartRowsTest
     [TestMethod]
     public void TestAnItemIsTheSameAfterTheListChanged()
     {
-        var page = StartRows.Of(Returning, Info, 79, 21);
+        var page = StartRows.Of(Returning, NoUpdate, 79, 21);
         var dotfiles = page.Items[page.IndexOf(i => i.Repo?.Name == "dotfiles")];
 
-        var fewer = StartRows.Of(Returning with { Recent = Returning.Recent.Skip(1).ToList() }, Info, 79, 21);
+        var fewer = StartRows.Of(Returning with { Recent = Returning.Recent.Skip(1).ToList() }, NoUpdate, 79, 21);
         var found = fewer.Items[fewer.IndexOf(dotfiles.IsSame)];
 
         Assert.AreEqual("3", dotfiles.Key);

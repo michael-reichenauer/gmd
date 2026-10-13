@@ -2,11 +2,9 @@ using gmd.Common;
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmd.Cui.RepoView;
+using gmd.Cui.Start;
 using gmd.Git;
-using gmd.Installation;
-using gmd.Server;
 using Terminal.Gui;
-using MenuItem = gmd.Cui.Common.MenuItem;
 
 namespace gmd.Cui;
 
@@ -18,31 +16,22 @@ interface IMainView
 partial class MainView : IMainView
 {
     readonly IRepoView repoView;
+    readonly IStartView startView;
     readonly IGit git;
     readonly Config config;
-    readonly ICloneDlg cloneDlg;
-    readonly IInitRepoDlg initRepoDlg;
-    readonly IHelpPage helpPage;
-    readonly IServer server;
-    readonly IProgress progress;
-    readonly IAboutDlg aboutDlg;
-    readonly IUpdater updater;
     readonly ISpellChecker spellChecker;
     readonly IAskpassServer askpassServer;
     readonly ILoginDlg loginDlg;
     readonly Lazy<View> toplevel;
 
+    // The folder gmd was started in, which the start page names when it is not in a repository
+    string startFolder = "";
+
     public MainView(
         IRepoView repoView,
+        IStartView startView,
         IGit git,
         Config config,
-        ICloneDlg cloneDlg,
-        IInitRepoDlg initRepoDlg,
-        IHelpPage helpPage,
-        IServer server,
-        IProgress progress,
-        IAboutDlg aboutDlg,
-        IUpdater updater,
         ISpellChecker spellChecker,
         IStatusLine statusLine,
         IAskpassServer askpassServer,
@@ -52,15 +41,9 @@ partial class MainView : IMainView
     {
         Menu.StatusLine = statusLine;
         this.repoView = repoView;
+        this.startView = startView;
         this.git = git;
         this.config = config;
-        this.cloneDlg = cloneDlg;
-        this.initRepoDlg = initRepoDlg;
-        this.helpPage = helpPage;
-        this.server = server;
-        this.progress = progress;
-        this.aboutDlg = aboutDlg;
-        this.updater = updater;
         this.spellChecker = spellChecker;
         this.askpassServer = askpassServer;
         this.loginDlg = loginDlg;
@@ -85,15 +68,30 @@ partial class MainView : IMainView
             ColorScheme = ColorSchemes.Window,
         };
 
-        // The key hints after the log view, so they are drawn after it in the same pass, which is
-        // when the log view marks them for drawing
-        mainView.Add(repoView.ApplicationBarView, repoView.View, repoView.DetailsView, repoView.KeyHintView);
+        // The start page in the place of the log, shown instead of it until a repo is. The key hints
+        // after both, so they are drawn after them in the same pass, which is when either marks them
+        // for drawing.
+        mainView.Add(
+            repoView.ApplicationBarView,
+            repoView.View,
+            startView.View,
+            repoView.DetailsView,
+            repoView.KeyHintView
+        );
 
-        // Hidden until a repo is shown, which is when RepoView.UpdateLayout makes the layout from the
-        // config: before that the start menu is all there is, and no key hinted would work there.
-        // Here rather than in RepoView, whose constructor runs before there is a driver to hide it.
+        // Hidden until a repo or the start page is shown, which is when RepoView.UpdateLayout makes the
+        // layout from the config. Here rather than in the views, whose constructors run before there
+        // is a driver to hide them with.
         repoView.KeyHintView.Visible = false;
+        startView.View.Visible = false;
         repoView.View.SetFocus();
+
+        // Until a repo is shown, the start page has the bar's clicks, after that the log view has
+        repoView.ApplicationBar.ItemClicked += (_, _, item) =>
+        {
+            if (startView.View.Visible)
+                startView.OnBarClicked(item);
+        };
 
         return mainView;
     }
@@ -107,176 +105,48 @@ partial class MainView : IMainView
         // From now on what git asks is asked in a dialog, before the first fetch of a repo is started
         askpassServer.Start(loginDlg.AskAsync);
 
-        string path = GetWorkingFolder();
-        // Environment.CurrentDirectory = "/workspaces";
-        // path = "/NoExistFolder";
-        // path = "/workspaces/Terminal.Gui";
-        // path = "/workspaces/gt2";
-        // path = "/workspaces/Dependitor";
-        // path = "/workspaces/gmd/tmp/Dependitor";
-        // path = "/workspaces/GitMind";
-        // path = "/workspaces/kal kl/gmd-3";
-        // path = "/workspaces/gmd-1";
-        // path = "/workspaces/vscode";
-        // path = "/workspaces/Dependinator-1";
-        // path = "/workspaces/empty";
-        // path = "/workspaces/empty2";
+        startFolder = GetStartFolder();
+        repoView.SetStartPage(startView.View, startView.Hints);
 
-        var rootPathResult = git.RootPath(path);
-        if (rootPathResult is not string rootPath || IsShowMainMenu)
+        if (git.RootPath(startFolder) is string rootPath && !IsShowStartPage)
         {
-            if (path != "" && rootPathResult is Error e)
-            { // User specified an invalid folder on command line
-                UI.ErrorMessage($"Not a valid working folder:\n'{path}':\n{e.AllMessages()}");
-            }
-
-            ShowMainMenu();
+            ShowRepo(rootPath);
             return;
         }
 
-        ShowRepo(rootPath);
+        ShowStartPage();
     }
 
-    bool IsShowMainMenu => Environment.GetCommandLineArgs().Contains("-m");
+    bool IsShowStartPage => Environment.GetCommandLineArgs().Contains("-m");
 
-    static string GetWorkingFolder()
+    // The folder given with '-d', or the current one. A folder that is not there is said, and the
+    // current one is used instead, while one that is there but is no repository needs no box: the
+    // start page says so.
+    static string GetStartFolder()
     {
-        var path = "";
         var args = Environment.GetCommandLineArgs();
         int i = args.ToList().FindIndex(n => n == "-d");
-        if (i != -1 && args.Length >= i + 2)
+        if (i == -1 || args.Length < i + 2 || args[i + 1] == "")
+            return Environment.CurrentDirectory;
+
+        var path = Result.Catch(() => Path.GetFullPath(args[i + 1])) is string full ? full : args[i + 1];
+        if (!Directory.Exists(path))
         {
-            path = args[i + 1];
+            UI.ErrorMessage($"Not a valid working folder:\n'{args[i + 1]}'");
+            return Environment.CurrentDirectory;
         }
+
         return path;
     }
 
-    void ShowMainMenu()
+    // In the place of the log, which is hidden rather than covered: a hidden view is not drawn, while
+    // a covered one would clear what is drawn over it whenever it is drawn itself
+    void ShowStartPage()
     {
-        Log.Info("Show main menu");
-        // Closing it quits, since it is all there is on screen, so only Esc and 'Quit' close it and a
-        // click beside it is ignored
-        // Titled with what it is for, since it is what gmd shows when it was started outside a
-        // repository, which nothing else on the screen says
-        Menu menu = new Menu(4, 2, "Open a Repository", null, -1, () => OnCancelMenu())
-        {
-            IsClosedOnClickOutside = false,
-        };
-
-        if (!config.Releases.IsUpdateAvailable())
-        { // Check for update ...
-            updater
-                .CheckUpdateAvailableAsync()
-                .ContinueWith(t =>
-                {
-                    UI.Post(async () =>
-                    {
-                        if (!config.Releases.IsUpdateAvailable())
-                            return; // No update available
-
-                        // Update is available, show menu again, which now will show the update available menu item
-                        await menu.CloseAsync();
-                        UI.Post(() => ShowMainMenu());
-                    });
-                });
-        }
-
-        menu.Show(
-            Menu.Items.Items(GetNewReleaseItems())
-                .Items(GetRecentRepoItems())
-                .Separator()
-                .Item("Browse ...", "", () => ShowBrowseDialog())
-                .Item("Clone ...", "", () => ShowCloneDlg())
-                .Item("Init ...", "", () => ShowInitRepoDlg())
-                .Item("Help", "", () => ShowHelpAsync().RunInBackground())
-                .Item("About", "", () => ShowAbout())
-                .Item("Quit", "Esc ", () => Application.RequestStop())
-        );
-    }
-
-    IEnumerable<MenuItem> GetNewReleaseItems()
-    {
-        if (!config.Releases.IsUpdateAvailable())
-            return Menu.Items;
-
-        return Menu
-            .Items.Separator("New Release Available !!!")
-            .Item("Update to Latest Version", "", () => UpdateRelease().RunInBackground())
-            .Separator();
-    }
-
-    public async Task UpdateRelease()
-    {
-        var releases = config.Releases;
-        var latest = Version.Parse(releases.LatestVersion);
-        var typeText = releases.IsPreview ? "(preview)" : "";
-        string msg =
-            $"A new release is available.\n\n"
-            + $"Current Version: {Build.Version().Txt()}\n"
-            + $"Built:           {Build.Time().ToLocalTime().Iso()}\n\n"
-            + $"New Version:     {latest.Txt()} {typeText}\n"
-            + $"Built:           {Build.GetBuildTime(releases.LatestVersion).ToLocalTime().Iso()}\n\n"
-            + "Do you want to update?";
-
-        var button = UI.InfoMessage("New Release", msg, ["Yes", "No"]);
-        if (button != 0)
-        {
-            Log.Info($"Skip update");
-            ShowMainMenu();
-            return;
-        }
-
-        Log.Info($"Updating release ...");
-        using (progress.Show())
-        {
-            var updateTask = updater.UpdateAsync();
-            UI.ShowMessageWhile(
-                "Updating",
-                $"Updating to version {latest.Txt()},\nthis might take a while ...",
-                updateTask
-            );
-            if (await updateTask is Error e)
-            {
-                UI.ErrorMessage($"Failed to update:\n{e.AllMessages()}");
-                ShowMainMenu();
-                return;
-            }
-        }
-
-        UI.InfoMessage("Restart Required", "A program restart is required,\nplease start Gmd again.");
-        Application.RequestStop();
-    }
-
-    static void OnCancelMenu()
-    {
-        Log.Info("Cancel menu");
-        Application.RequestStop();
-    }
-
-    private void ShowAbout()
-    {
-        aboutDlg.Show();
-        ShowMainMenu();
-    }
-
-    // The menu again once the help is opened, or once the box with its link is closed
-    private async Task ShowHelpAsync()
-    {
-        await helpPage.ShowAsync();
-        ShowMainMenu();
-    }
-
-    // The repositories opened last, or a greyed out line saying there are none yet, rather than a
-    // menu that starts with a bare separator
-    IEnumerable<MenuItem> GetRecentRepoItems()
-    {
-        var items = config
-            .RecentFolders.Where(Directory.Exists)
-            .Select(path => new MenuItem(path, "", () => ShowRepo(path)))
-            .Take(Config.MaxRecentFolders)
-            .ToList();
-
-        return items.Any() ? items : [Menu.Item("No recent repositories", "", () => { }, () => false)];
+        Log.Info($"Show start page in '{startFolder}'");
+        repoView.View.Visible = false;
+        startView.Show(startFolder, ShowRepo, repoView.KeyHintView);
+        repoView.UpdateLayout();
     }
 
     void ShowRepo(string path)
@@ -286,75 +156,17 @@ partial class MainView : IMainView
             if (await repoView.ShowInitialRepoAsync(path) is Error e)
             {
                 UI.ErrorMessage($"Failed to load repo in:\n'{path}':\n{e.AllMessages()}");
-                ShowMainMenu();
+                ShowStartPage();
                 return;
             }
+
+            // The log visible before it is focused, which a hidden view cannot be, and the start
+            // page hidden after, so the focus is never on a hidden view
+            repoView.View.Visible = true;
             repoView.View.SetFocus();
+            startView.Hide();
+            repoView.UpdateLayout();
         });
-    }
-
-    async void ShowCloneDlg()
-    {
-        if (cloneDlg.Show(config.ResentParentFolders()) is not CloneInfo clone)
-        {
-            ShowMainMenu();
-            return;
-        }
-
-        Result cloned;
-        using (progress.Show())
-        {
-            cloned = await server.CloneAsync(clone.Uri, clone.Path, "");
-        }
-
-        // Back to the start menu on a failure, the one way on from here, as for a repo that fails to
-        // load. The progress is over by then, since the menu is modal and would keep it running.
-        if (cloned is Error e)
-        {
-            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{Git.LoginError.Text(e)}");
-            ShowMainMenu();
-            return;
-        }
-
-        ShowRepo(clone.Path);
-    }
-
-    async void ShowInitRepoDlg()
-    {
-        var pathResult = initRepoDlg.Show(config.ResentParentFolders());
-        if (pathResult is not string path)
-        {
-            ShowMainMenu();
-            return;
-        }
-
-        Result initiated;
-        using (progress.Show())
-        {
-            initiated = await server.InitRepoAsync(path, "");
-        }
-
-        // Back to the start menu on a failure, as for a failed clone above
-        if (initiated is Error e)
-        {
-            UI.ErrorMessage($"Failed to init:\n{path}:\n{e.AllMessages()}");
-            ShowMainMenu();
-            return;
-        }
-
-        ShowRepo(path);
-    }
-
-    void ShowBrowseDialog()
-    {
-        var browser = new FolderBrowseDlg();
-        if (browser.Show(config.ResentParentFolders()) is not string path)
-        {
-            ShowMainMenu();
-            return;
-        }
-
-        ShowRepo(path);
     }
 
     // A workaround to get notifications once view is ready

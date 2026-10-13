@@ -50,6 +50,13 @@ interface IRepoView
     // Sizes the log, the details pane and the key-hint line to what is shown, e.g. after the key
     // hints were turned on or off in the config
     void UpdateLayout();
+
+    // The bar at the top, whose clicks the start page handles until a repo is shown
+    IApplicationBar ApplicationBar { get; }
+
+    // The start page, shown in place of the log until a repo is: while it is shown, its keys are the
+    // ones on the key-hint line, and it is redrawn with the line, as the log is
+    void SetStartPage(View page, Func<IReadOnlyList<KeyHint>> hints);
 }
 
 // The main log view: the list of commits with the branch graph, the commit details below it, the
@@ -106,6 +113,8 @@ class RepoView : IRepoView, IRepoViewInputHost
     bool isShowDetails = false;
     bool isShowFilter;
     bool isFetchFailing = false;
+    View? startPage;
+    Func<IReadOnlyList<KeyHint>>? startHints;
 
     internal RepoView(
         IServer server,
@@ -176,6 +185,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     public View DetailsView => commitDetailsView.View;
     public View ApplicationBarView => applicationBarView.View;
     public View KeyHintView => keyHintBar;
+    public IApplicationBar ApplicationBar => applicationBarView;
 
     public int ContentWidth => commitsView.ContentWidth;
 
@@ -384,10 +394,19 @@ class RepoView : IRepoView, IRepoViewInputHost
     }
 
     // A status message is shown on the key-hint line, and over the last row of the log when the key
-    // hints are turned off, which is the one time the line is shown for it alone. The hints are only
-    // for a repo that is shown: until one is, e.g. after one failed to open, the start menu is all
-    // there is, and no key hinted would work there.
-    bool IsKeyHintBarShown => status.Current != null || (config.ShowKeyHints && repo.Repo.Path != "");
+    // hints are turned off, which is the one time the line is shown for it alone. The hints are for a
+    // repo that is shown, or for the start page while it is, and for nothing before either is.
+    bool IsKeyHintBarShown => status.Current != null || (config.ShowKeyHints && (IsRepoShown || IsStartPageShown));
+
+    bool IsRepoShown => repo.Repo.Path != "";
+    bool IsStartPageShown => !IsRepoShown && startPage?.Visible == true;
+
+    public void SetStartPage(View page, Func<IReadOnlyList<KeyHint>> hints)
+    {
+        startPage = page;
+        startHints = hints;
+        UpdateLayout();
+    }
 
     // The line is shown and drawn for a message, and put back when the message has been shown long
     // enough, which nothing else would redraw it for
@@ -412,12 +431,15 @@ class RepoView : IRepoView, IRepoViewInputHost
         keyHintBar.Visible = IsKeyHintBarShown;
         keyHintBar.SetNeedsDisplay();
         commitsView.SetNeedsDisplay(); // The row under the line, when it was shown over the log
+        startPage?.SetNeedsDisplay(); // ... or over the start page
     }
 
     IReadOnlyList<KeyHint> GetKeyHints()
     {
         if (isShowFilter)
             return KeyHints.ForFilter();
+        if (IsStartPageShown)
+            return startHints!();
         if (repo.CurrentIndex < 0 || repo.CurrentIndex >= repo.Repo.ViewCommits.Count)
             return []; // No repo shown yet
 
