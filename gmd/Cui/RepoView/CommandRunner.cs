@@ -37,7 +37,7 @@ static class CommandRunner
                 }
                 else if (result is Error error)
                 {
-                    UI.ErrorMessage(Git.LoginError.Text(error));
+                    UI.ErrorMessage(LoginAdvice.Text(error));
                 }
             }
         });

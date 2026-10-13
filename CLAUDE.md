@@ -725,7 +725,8 @@ message.
   it inside `using (Askpass.NeverAsk())` (an AsyncLocal, so it reaches `Cmd` through the awaits),
   as the background fetch and the metadata sync are. What failed is said on stderr, where
   `LoginError` finds it; wrap every remote command's result in `LoginError.ToLogin`, and show
-  remote errors with `LoginError.Text`. docs/CONTRIBUTING.md has how to try the dialog by hand.
+  remote errors with `LoginAdvice.Text`: `LoginError` says what failed, `LoginAdvice` what to do
+  about it, in gmd's words. docs/CONTRIBUTING.md has how to try the dialog by hand.
 - **Git's output is parsed as gmd asks for it, not as the user's config makes it.** Config changes
   porcelain output in a pipe too (`diff.noprefix`, `color.ui=always`, `log.showSignature`, …), so a
   command whose output is parsed pins its format, as `DiffService.DiffFormat` and

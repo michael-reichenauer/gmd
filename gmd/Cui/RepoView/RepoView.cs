@@ -792,7 +792,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // branches has nothing to fetch, and is not told so.
     //
     // Only a fetch that was asked for asks for a login, in a dialog. One in the background never
-    // raises a dialog by itself: it fails, and says that r asks (LoginError).
+    // raises a dialog by itself: it fails, and says that r asks (LoginAdvice).
     async Task FetchBestEffortAsync(bool isAsked = false)
     {
         Result fetched;
@@ -821,7 +821,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     static string Reason(Error e)
     {
         if (Git.LoginError.Find(e) is Git.LoginError login)
-            return login.Message;
+            return LoginAdvice.Of(login);
 
         var lines = e.AllMessages().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var line =
