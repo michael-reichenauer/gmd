@@ -726,6 +726,12 @@ message.
   as the background fetch and the metadata sync are. What failed is said on stderr, where
   `LoginError` finds it; wrap every remote command's result in `LoginError.ToLogin`, and show
   remote errors with `LoginError.Text`. docs/CONTRIBUTING.md has how to try the dialog by hand.
+- **Git's output is parsed as gmd asks for it, not as the user's config makes it.** Config changes
+  porcelain output in a pipe too (`diff.noprefix`, `color.ui=always`, `log.showSignature`, …), so a
+  command whose output is parsed pins its format, as `DiffService.DiffFormat` and
+  `LogService.CommitFormat` do. A path in the output is read with `-z` where git offers it, and
+  unquoted (`QuotedPath`) where not, since git writes `ä` as `"\303\244"`. A message or a path given
+  to git goes through `Cmd.Quote`, never into plain quotes, which a `\"` in it breaks out of.
 - **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
   resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the
   `GitDirPath` (HEAD, the index, a stopped merge) and the `CommonDirPath` (refs, config,
