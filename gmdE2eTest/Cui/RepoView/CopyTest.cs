@@ -39,6 +39,28 @@ public class CopyTest
         );
     }
 
+    // A drag selects from the row pressed to the row released: it started a row on, at the first
+    // move, so a drag over two rows selected one
+    [TestMethod]
+    public async Task TestCopyTheRowsDraggedOver()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Drag(20, 2, 20, 3);
+        gmd.WaitForStable();
+        gmd.Send("C-c");
+
+        Assert.AreEqual(
+            """
+            17d85b Add delta
+            4e73d2 Merge branch 'dev' into main
+            """,
+            gmd.WaitForClipboard()
+        );
+    }
+
     // A selection within a single row copies that row as it is drawn, rather than the sid and
     // subject the multi row copy builds — so the graph column comes with it, and so does the '|'
     // that marks the row as selected, which stands where the '●' current commit marker is drawn
