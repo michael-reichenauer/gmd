@@ -6,8 +6,9 @@ namespace gmdTest.Git;
 [TestClass]
 public class StashServiceTest
 {
-    // Output of: git stash list -z --pretty="%H|%ai|%ci|%an|%P|%gd:%B", records NUL separated.
-    // A stash commit has two parents, or three when untracked files were stashed too (-u). The
+    // Output of: git stash list -z --pretty=%H%x1f%ai%x1f%ci%x1f%an%x1f%P%x1f%gd:%B, records NUL
+    // separated, and the fields by the ASCII unit separator, written '|' here and swapped in by
+    // ListAsync, since a control character in the source is invisible. A stash commit has two parents, or three when untracked files were stashed too (-u). The
     // subject is '<stash ref>:<git's own message>', where git's message is either
     // 'WIP on <branch>: <sha> <subject>' or 'On <branch>: <the message the user gave>'.
     const string StashListOutput =
@@ -22,7 +23,7 @@ public class StashServiceTest
 
     static async Task<IReadOnlyList<gmd.Git.Stash>> ListAsync(string output)
     {
-        var result = await NewService(new FakeCmd(output)).ListAsync("/wd");
+        var result = await NewService(new FakeCmd(output.Replace('|', LogService.FieldSeparator))).ListAsync("/wd");
         var stashes = AssertOk(result);
         return stashes;
     }

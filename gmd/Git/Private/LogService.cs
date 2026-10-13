@@ -25,10 +25,13 @@ internal class LogService : ILogService
     internal const int IdsPerCall = 400;
     const int MaxUnreachableCount = 2000;
 
-    // The fields of each commit, the rows NUL separated (-z), and no check of a signed commit's
-    // signature, which config can ask for (log.showSignature) and git writes in front of the commit's
-    // fields, so that the commit's id was the text of the check
-    const string CommitFormat = "--no-show-signature -z --pretty=\"%H|%ai|%ci|%an|%P|%B\"";
+    // The fields of each commit, separated by the ASCII unit separator (FieldSeparator), and the
+    // rows NUL separated (-z). The fields were separated by '|', which an author's name can have,
+    // and the fields after it then moved one along. And no check of a signed commit's signature,
+    // which config can ask for (log.showSignature) and git writes in front of the commit's fields,
+    // so that the commit's id was the text of the check.
+    internal const string CommitFormat = "--no-show-signature -z --pretty=%H%x1f%ai%x1f%ci%x1f%an%x1f%P%x1f%B";
+    internal const char FieldSeparator = '\u001f';
 
     readonly ICmd cmd;
 
@@ -132,7 +135,7 @@ internal class LogService : ILogService
 
     public async Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd)
     {
-        var args = "stash list --no-show-signature -z --pretty=\"%H|%ai|%ci|%an|%P|%gd:%B\"";
+        var args = "stash list --no-show-signature -z --pretty=%H%x1f%ai%x1f%ci%x1f%an%x1f%P%x1f%gd:%B";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -195,10 +198,10 @@ internal class LogService : ILogService
 
     Result<Commit> ParseRow(ReadOnlySpan<char> row)
     {
-        // The fields are '|' separated. The message is the last, and the last range is the rest of
-        // the row, so a message containing '|' is kept whole.
+        // The message is the last field, and the last range is the rest of the row, so a message
+        // with the separator in it is kept whole
         Span<Range> fields = stackalloc Range[6];
-        if (row.Split(fields, '|') < 6)
+        if (row.Split(fields, FieldSeparator) < 6)
         {
             return new Error($"failed to parse git commit {row}");
         }

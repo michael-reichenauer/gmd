@@ -305,6 +305,25 @@ public class GitIntegrationTest
         Assert.AreEqual(log[0].AuthorTime, log[0].CommitTime);
     }
 
+    // An author's name can have a '|' in it, which the log's fields were separated by, so the
+    // fields after it moved one along: the rest of the name taken for the parents, and the parents
+    // put in front of the message
+    [TestMethod]
+    public async Task TestLogOfAnAuthorWithABarInTheName()
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "First");
+        repo.WriteFile("file.txt", "two\n");
+        await repo.GitAsync("-c \"user.name=Jane Doe | Acme\" commit -am Second");
+        var c2 = await repo.HeadIdAsync();
+
+        var log = Value(await repo.Git.GetLogAsync(100, repo.Path));
+
+        Assert.AreEqual(c2, log[0].Id);
+        Assert.AreEqual("Jane Doe | Acme", log[0].Author);
+        CollectionAssert.AreEqual(new[] { c1 }, log[0].ParentIds);
+        Assert.AreEqual("Second", log[0].Message);
+    }
+
     [TestMethod]
     public async Task TestLogMaxCount()
     {
