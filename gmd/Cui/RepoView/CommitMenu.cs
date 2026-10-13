@@ -81,7 +81,7 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Create Branch from Commit ...",
                 "b",
-                () => commands.BranchCmds.CreateBranchFromCommit(),
+                () => commands.CreateCmds.CreateBranchFromCommit(),
                 () => !c.IsUncommitted,
                 () => BranchCreateCommands.NoCommitToStartAt
             )
@@ -161,14 +161,14 @@ class CommitMenu : ICommitMenu
             .Items.Item(
                 BranchUndo.Label(step),
                 "",
-                () => commands.BranchCmds.UndoLastChange(current.Name),
+                () => commands.UndoCmds.UndoLastChange(current.Name),
                 () => BranchUndo.WhyNot(repo.Repo, current, step) == "",
                 () => BranchUndo.WhyNot(repo.Repo, current, step)
             )
             // The work no branch has any more, which the reflogs still know of
-            .Item("Recover Lost Commits ...", "", () => commands.BranchCmds.RecoverLostCommits())
+            .Item("Recover Lost Commits ...", "", () => commands.UndoCmds.RecoverLostCommits())
             // The branches gmd deleted, whose reflogs git deleted with them
-            .Item("Restore Deleted Branch ...", "", () => commands.BranchCmds.RestoreDeletedBranch())
+            .Item("Restore Deleted Branch ...", "", () => commands.UndoCmds.RestoreDeletedBranch())
             .Separator()
             .SubMenu(
                 "Discard Changes in a File",

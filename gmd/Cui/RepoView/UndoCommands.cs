@@ -99,7 +99,7 @@ class UndoCommands : IUndoCommands
                             return diffError;
                         break;
                     case LostWorkAction.CreateBranch:
-                        context.BranchCmds.CreateBranchFromLostCommit(choice.Work.TipId, choice.Work.BranchName);
+                        context.CreateCmds.CreateBranchFromLostCommit(choice.Work.TipId, choice.Work.BranchName);
                         return Result.Ok;
                 }
             }

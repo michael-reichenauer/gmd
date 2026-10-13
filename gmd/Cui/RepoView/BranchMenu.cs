@@ -128,14 +128,14 @@ class BranchMenu : IBranchMenu
             .Items.Item(
                 "Push Current Branch",
                 "p",
-                () => cmds.PushCurrentBranch(),
+                () => commands.PushPullCmds.PushCurrentBranch(),
                 () => BranchPushPullCommands.CanPushCurrentBranch(repo.Repo),
                 WhyNoPush
             )
             .Item(
                 "Push All Branches",
                 "⇧p",
-                () => cmds.PushAllBranches(),
+                () => commands.PushPullCmds.PushAllBranches(),
                 () => BranchPushPullCommands.CanPush(repo.Repo),
                 () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push"
             );
@@ -155,7 +155,7 @@ class BranchMenu : IBranchMenu
             .Items.Item(
                 "Pull Current Branch",
                 "u",
-                () => cmds.PullCurrentBranch(),
+                () => commands.PushPullCmds.PullCurrentBranch(),
                 () => BranchPushPullCommands.CanPullCurrentBranch(repo.Repo),
                 () =>
                     !repo.Repo.Status.IsOk
@@ -165,7 +165,7 @@ class BranchMenu : IBranchMenu
             .Item(
                 "Pull All Branches",
                 "⇧u",
-                () => cmds.PullAllBranches(),
+                () => commands.PushPullCmds.PullAllBranches(),
                 () => BranchPushPullCommands.CanPull(repo.Repo),
                 () => BranchPushPullCommands.WhyNoPull(repo.Repo)
             );
@@ -230,9 +230,9 @@ class BranchMenu : IBranchMenu
                 () =>
                 {
                     if (isCurrent)
-                        cmds.PullCurrentBranch();
+                        commands.PushPullCmds.PullCurrentBranch();
                     else
-                        cmds.PullBranch(branchName);
+                        commands.PushPullCmds.PullBranch(branchName);
                 },
                 () => BranchPushPullCommands.CanPullBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPullBranch(repo.Repo, b)
@@ -245,9 +245,9 @@ class BranchMenu : IBranchMenu
                 () =>
                 {
                     if (isCurrent && cb.RemoteName != "")
-                        cmds.PushCurrentBranch();
+                        commands.PushPullCmds.PushCurrentBranch();
                     else
-                        cmds.PushBranch(branchName);
+                        commands.PushPullCmds.PushBranch(branchName);
                 },
                 () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
@@ -257,24 +257,24 @@ class BranchMenu : IBranchMenu
                 rewrite != null,
                 rewrite != null ? ForcePushes.RestoreLabel(rewrite) : "",
                 "",
-                () => cmds.RestoreOrigin(branchName),
+                () => commands.PushPullCmds.RestoreOrigin(branchName),
                 () => rewrite?.IsRestorable == true,
                 () => rewrite != null ? ForcePushes.WhyNoRestore(rewrite) : ""
             )
-            .Item("Create Branch ...", "b", () => cmds.CreateBranchFromBranch(b.Name))
+            .Item("Create Branch ...", "b", () => commands.CreateCmds.CreateBranchFromBranch(b.Name))
             // A folder with this branch checked out, or with a new branch started from it when it
             // is checked out already (here or in another worktree)
             .Item(
                 "Create Worktree ...",
                 "",
-                () => cmds.CreateWorktree(b.Name),
+                () => commands.WorktreeCmds.CreateWorktree(b.Name),
                 () => b.IsGitBranch,
                 () => Why.Deleted(b)
             )
             .Item(
                 "Rename Branch ...",
                 "",
-                () => cmds.RenameBranch(b.Name),
+                () => commands.CreateCmds.RenameBranch(b.Name),
                 // The current branch can be renamed, git moves HEAD with it, but a branch git no
                 // longer has cannot, the main branch is what the branch structure is based on, and
                 // a remote branch without a local branch has no local branch to rename
@@ -288,7 +288,7 @@ class BranchMenu : IBranchMenu
             .Item(
                 "Delete Branch ...",
                 "",
-                () => cmds.DeleteBranch(b.Name),
+                () => commands.CreateCmds.DeleteBranch(b.Name),
                 // Nor a branch checked out in another worktree, which git refuses to delete
                 () => b.IsGitBranch && !b.IsMainBranch && !b.IsCurrent && !b.IsLocalCurrent && !IsInWorktree(b),
                 () =>
@@ -304,7 +304,7 @@ class BranchMenu : IBranchMenu
             .Item(
                 BranchUndo.Label(step),
                 "",
-                () => cmds.UndoLastChange(b.Name),
+                () => commands.UndoCmds.UndoLastChange(b.Name),
                 () => BranchUndo.WhyNot(repo.Repo, b, step) == "",
                 () => BranchUndo.WhyNot(repo.Repo, b, step)
             )

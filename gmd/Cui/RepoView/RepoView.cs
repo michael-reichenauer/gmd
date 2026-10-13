@@ -127,6 +127,10 @@ class RepoView : IRepoView, IRepoViewInputHost
         Func<CommandContext, IRepoCommands> newRepoCommands,
         Func<CommandContext, ICommitCommands> newCommitCommands,
         Func<CommandContext, IBranchCommands> newBranchCommands,
+        Func<CommandContext, IBranchCreateCommands> newCreateCommands,
+        Func<CommandContext, IBranchPushPullCommands> newPushPullCommands,
+        Func<CommandContext, IWorktreeCommands> newWorktreeCommands,
+        Func<CommandContext, IUndoCommands> newUndoCommands,
         Func<IViewRepo, CommandContext, IRepoViewMenus> newMenuService,
         Config config,
         IUpdater updater,
@@ -176,6 +180,10 @@ class RepoView : IRepoView, IRepoViewInputHost
         commands.RepoCmds = newRepoCommands(commands);
         commands.CommitCmds = newCommitCommands(commands);
         commands.BranchCmds = newBranchCommands(commands);
+        commands.CreateCmds = newCreateCommands(commands);
+        commands.PushPullCmds = newPushPullCommands(commands);
+        commands.WorktreeCmds = newWorktreeCommands(commands);
+        commands.UndoCmds = newUndoCommands(commands);
         input = new RepoViewInput(
             this,
             commitsView,

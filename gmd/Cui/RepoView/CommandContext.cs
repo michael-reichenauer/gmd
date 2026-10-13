@@ -33,6 +33,10 @@ class CommandContext
     public IRepoCommands RepoCmds { get; set; } = null!;
     public ICommitCommands CommitCmds { get; set; } = null!;
     public IBranchCommands BranchCmds { get; set; } = null!;
+    public IBranchCreateCommands CreateCmds { get; set; } = null!;
+    public IBranchPushPullCommands PushPullCmds { get; set; } = null!;
+    public IWorktreeCommands WorktreeCmds { get; set; } = null!;
+    public IUndoCommands UndoCmds { get; set; } = null!;
 
     // Runs a command in the background with the repo shown as it starts, see CommandRunner
     public void Do(Func<IViewRepo, Task<Result>> action) => CommandRunner.Do(this, action);

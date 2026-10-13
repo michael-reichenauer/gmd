@@ -61,14 +61,14 @@ class RepoMenu : IRepoMenu
             .Item(
                 "Pull All Branches",
                 "⇧u",
-                () => commands.BranchCmds.PullAllBranches(),
+                () => commands.PushPullCmds.PullAllBranches(),
                 () => BranchPushPullCommands.CanPull(repo.Repo),
                 () => BranchPushPullCommands.WhyNoPull(repo.Repo)
             )
             .Item(
                 "Push All Branches",
                 "⇧p",
-                () => commands.BranchCmds.PushAllBranches(),
+                () => commands.PushPullCmds.PushAllBranches(),
                 () => BranchPushPullCommands.CanPush(repo.Repo),
                 () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push"
             )
@@ -88,7 +88,7 @@ class RepoMenu : IRepoMenu
                 () => NoSearch
             )
             .Item("Refresh", "r", () => cmds.RefreshAndFetch())
-            .Item("Worktrees ...", "w", () => commands.BranchCmds.ShowWorktrees())
+            .Item("Worktrees ...", "w", () => commands.WorktreeCmds.ShowWorktrees())
             .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
             .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
             .Item("Config ...", "", () => ShowConfig())

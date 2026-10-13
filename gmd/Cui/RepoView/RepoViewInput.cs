@@ -68,6 +68,9 @@ class RepoViewInput
     IRepoCommands Cmd => host.Commands.RepoCmds;
     ICommitCommands CommitCmds => host.Commands.CommitCmds;
     IBranchCommands BranchCmds => host.Commands.BranchCmds;
+    IBranchCreateCommands CreateCmds => host.Commands.CreateCmds;
+    IBranchPushPullCommands PushPullCmds => host.Commands.PushPullCmds;
+    IWorktreeCommands WorktreeCmds => host.Commands.WorktreeCmds;
 
     public void Register()
     {
@@ -110,9 +113,9 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.i, () => Cmd.CopyCommitId());
         commitsView.RegisterKeyHandler(Key.I, () => Cmd.CopyCommitMessage());
         commitsView.RegisterKeyHandler(Key.p, OnKeyP);
-        commitsView.RegisterKeyHandler(Key.P, () => BranchCmds.PushAllBranches());
+        commitsView.RegisterKeyHandler(Key.P, () => PushPullCmds.PushAllBranches());
         commitsView.RegisterKeyHandler(Key.u, OnKeyU);
-        commitsView.RegisterKeyHandler(Key.U, () => BranchCmds.PullAllBranches());
+        commitsView.RegisterKeyHandler(Key.U, () => PushPullCmds.PullAllBranches());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
         commitsView.RegisterKeyHandler(Key.f, () => OnKeyF());
@@ -132,7 +135,7 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.h, () => BranchCmds.HideBranch(GetBranchName()));
         // Back to the branches shown before the last show or hide, as a browser goes back a page
         commitsView.RegisterKeyHandler(Key.Backspace, () => BranchCmds.UndoShowOrHide());
-        commitsView.RegisterKeyHandler(Key.w, () => BranchCmds.ShowWorktrees());
+        commitsView.RegisterKeyHandler(Key.w, () => WorktreeCmds.ShowWorktrees());
 
         commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);
         commitsView.RegisterKeyHandler(Key.Tab, host.ToggleDetailsFocus);
@@ -160,11 +163,11 @@ class RepoViewInput
             return;
         if (hoover.IsBranch)
         {
-            BranchCmds.CreateBranchFromBranch(hoover.BranchPrimaryName);
+            CreateCmds.CreateBranchFromBranch(hoover.BranchPrimaryName);
             return;
         }
 
-        BranchCmds.CreateBranchFromCommit();
+        CreateCmds.CreateBranchFromCommit();
     }
 
     void OnKeyShiftCursorRight()
@@ -234,7 +237,7 @@ class RepoViewInput
                 Menus.ShowStashMenu(x - 5, y);
                 break;
             case ApplicationBarItem.Worktrees:
-                BranchCmds.ShowWorktrees();
+                WorktreeCmds.ShowWorktrees();
                 break;
             case ApplicationBarItem.Search:
                 Cmd.SearchFilterRepo();
@@ -304,9 +307,9 @@ class RepoViewInput
             return;
 
         if (LogKeys.Hoovered(Repo, hoover) is Branch branch && !branch.IsCurrent && !branch.IsLocalCurrent)
-            BranchCmds.PushBranch(hoover.BranchPrimaryName);
+            PushPullCmds.PushBranch(hoover.BranchPrimaryName);
         else
-            BranchCmds.PushCurrentBranch();
+            PushPullCmds.PushCurrentBranch();
     }
 
     void OnKeyU()
@@ -315,9 +318,9 @@ class RepoViewInput
             return;
 
         if (LogKeys.Hoovered(Repo, hoover) is Branch branch && !branch.IsCurrent && !branch.IsLocalCurrent)
-            BranchCmds.PullBranch(hoover.BranchPrimaryName);
+            PushPullCmds.PullBranch(hoover.BranchPrimaryName);
         else
-            BranchCmds.PullCurrentBranch();
+            PushPullCmds.PullCurrentBranch();
     }
 
     void OnKeyS()

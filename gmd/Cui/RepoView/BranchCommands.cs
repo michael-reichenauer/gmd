@@ -19,39 +19,21 @@ interface IBranchCommands
     void SwitchTo(string branchName);
     void SwitchToCommit();
 
-    void ShowWorktrees();
-    void CreateWorktree(string branchName);
-
     void DiffBranchesBranch(string branchName1, string branchName2);
 
-    void CreateBranchFromBranch(string name);
-    void CreateBranchFromCommit();
-    void CreateBranchFromLostCommit(string commitId, string madeOnName);
-    void RenameBranch(string name);
-    void DeleteBranch(string name);
     void MergeBranch(string name);
     void MergeToBranch(string targetName);
     void RebaseBranchOnto(string onto);
-    void UndoLastChange(string branchName);
-    void RecoverLostCommits();
-    void RestoreDeletedBranch();
-
-    void PushCurrentBranch();
-    void PushBranch(string name);
-    void PushAllBranches();
-    void PullCurrentBranch();
-    void PullBranch(string name);
-    void PullAllBranches();
-    void RestoreOrigin(string name);
 
     void SetBranchManuallyAsync();
     void MoveBranch(string commonName, string otherCommonName, int delta);
     void ChangeBranchColor(string brandName);
 }
 
-// The branch commands the menus and keys call. Creating/deleting and pushing/pulling are their
-// own classes below this one, since they are the two large groups; this class holds the rest,
-// i.e. showing, switching, diffing, merging and how a branch is shown.
+// The branch commands that show, switch to, diff and merge branches, and set how a branch is shown.
+// Creating, renaming and deleting branches, pushing and pulling, the worktrees and undoing are
+// command classes of their own beside this one (BranchCreateCommands, BranchPushPullCommands,
+// WorktreeCommands, UndoCommands), all in the CommandContext.
 class BranchCommands : IBranchCommands
 {
     readonly CommandContext context;
@@ -63,10 +45,6 @@ class BranchCommands : IBranchCommands
     readonly IBranchColorService branchColorService;
     readonly ISetBranchDlg setBranchDlg;
     readonly IRepoConfigService repoConfig;
-    readonly IBranchCreateCommands createCmds;
-    readonly IBranchPushPullCommands pushPullCmds;
-    readonly IWorktreeCommands worktreeCmds;
-    readonly IUndoCommands undoCmds;
     readonly IFindBranchDlg findBranchDlg;
 
     public BranchCommands(
@@ -75,15 +53,10 @@ class BranchCommands : IBranchCommands
         IBranchColorService branchColorService,
         ISetBranchDlg setBranchDlg,
         IFindBranchDlg findBranchDlg,
-        IRepoConfigService repoConfig,
-        Func<CommandContext, IBranchCreateCommands> newCreateCommands,
-        Func<CommandContext, IBranchPushPullCommands> newPushPullCommands,
-        Func<CommandContext, IWorktreeCommands> newWorktreeCommands,
-        Func<CommandContext, IUndoCommands> newUndoCommands
+        IRepoConfigService repoConfig
     )
     {
         this.context = context;
-        this.worktreeCmds = newWorktreeCommands(context);
         this.progress = context.Progress;
         this.status = context.Status;
         this.repoView = context.View;
@@ -93,9 +66,6 @@ class BranchCommands : IBranchCommands
         this.setBranchDlg = setBranchDlg;
         this.findBranchDlg = findBranchDlg;
         this.repoConfig = repoConfig;
-        this.createCmds = newCreateCommands(context);
-        this.pushPullCmds = newPushPullCommands(context);
-        this.undoCmds = newUndoCommands(context);
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -105,40 +75,6 @@ class BranchCommands : IBranchCommands
         string commitId = "",
         IReadOnlyList<Server.Commit>? commits = null
     ) => repoView.RefreshAndCommit(addName, commitId, commits);
-
-    // Undoing the last change of a branch
-    public void UndoLastChange(string branchName) => undoCmds.UndoLastChange(branchName);
-
-    public void RecoverLostCommits() => undoCmds.RecoverLostCommits();
-
-    public void RestoreDeletedBranch() => undoCmds.RestoreDeletedBranch();
-
-    // Creating and deleting branches
-    public void CreateBranchFromBranch(string name) => createCmds.CreateBranchFromBranch(name);
-
-    public void CreateBranchFromCommit() => createCmds.CreateBranchFromCommit();
-
-    public void CreateBranchFromLostCommit(string commitId, string madeOnName) =>
-        createCmds.CreateBranchFromLostCommit(commitId, madeOnName);
-
-    public void RenameBranch(string name) => createCmds.RenameBranch(name);
-
-    public void DeleteBranch(string name) => createCmds.DeleteBranch(name);
-
-    // Pushing and pulling branches
-    public void PushCurrentBranch() => pushPullCmds.PushCurrentBranch();
-
-    public void PushBranch(string name) => pushPullCmds.PushBranch(name);
-
-    public void PushAllBranches() => pushPullCmds.PushAllBranches();
-
-    public void PullCurrentBranch() => pushPullCmds.PullCurrentBranch();
-
-    public void PullBranch(string name) => pushPullCmds.PullBranch(name);
-
-    public void PullAllBranches() => pushPullCmds.PullAllBranches();
-
-    public void RestoreOrigin(string name) => pushPullCmds.RestoreOrigin(name);
 
     public void ShowBranch(
         string name,
@@ -336,12 +272,8 @@ class BranchCommands : IBranchCommands
         return Result.Ok;
     }
 
-    // The worktrees: the dialog, and opening another worktree, i.e. showing that folder
-    public void ShowWorktrees() => worktreeCmds.ShowWorktrees();
-
-    public void CreateWorktree(string branchName) => worktreeCmds.CreateWorktree(branchName);
-
-    Task<Result> OpenWorktreeAsync(string path) => worktreeCmds.OpenWorktreeAsync(path);
+    // A branch checked out in another worktree is switched to by showing that folder
+    Task<Result> OpenWorktreeAsync(string path) => context.WorktreeCmds.OpenWorktreeAsync(path);
 
     public void MergeBranch(string branchName) =>
         Do(async repo =>
