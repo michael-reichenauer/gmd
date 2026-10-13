@@ -1766,6 +1766,25 @@ public class GitIntegrationTest
         Assert.AreEqual("Ärende.md", blame.CommitById[blame.Lines[1].CommitId].Path);
     }
 
+    // A message is one argument to git whatever it holds. In quotes with only its '"' escaped, a
+    // message with '\"' in it, or that ended with a '\', was split into more arguments: cut short,
+    // and the rest taken as paths to commit.
+    [TestMethod]
+    public async Task TestMessagesWithQuotesAndBackslashes()
+    {
+        const string message = """Escape \"quotes\" in C:\temp\""";
+        await repo.CommitFileAsync("file.txt", "one\n", message);
+        repo.WriteFile("file.txt", "two\n");
+        Ok(await repo.Git.CommitFilesAsync($"{message} again", false, ["file.txt"], repo.Path));
+        Ok(await repo.Git.AddAnnotatedTagAsync("v1", message, await repo.HeadIdAsync(), repo.Path));
+        repo.WriteFile("file.txt", "three\n");
+        Ok(await repo.Git.StashAsync(message, repo.Path));
+
+        Assert.AreEqual($"{message} again\n{message}", await repo.GitAsync("log --format=%s"));
+        Assert.AreEqual(message, await repo.GitAsync("tag -l --format=%(contents:subject) v1"));
+        Assert.AreEqual($"On main: {message}", await repo.GitAsync("stash list --format=%s"));
+    }
+
     // With log.showSignature git checks the signature of each signed commit and writes what it
     // found before the commit, on stdout, in the log's own output, so a signed commit's id was the
     // text of that check

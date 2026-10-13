@@ -30,9 +30,6 @@ class CommitService : ICommitService
 
     public async Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd)
     {
-        // Encode '"' chars
-        message = message.Replace("\"", "\\\"");
-
         // While an operation is in progress its result is already staged, and both of the ways of
         // staging here would stage an unmerged path with the conflict markers as its content —
         // 'git commit -am' on a conflicted merge succeeds and commits '<<<<<<<' into history. So
@@ -49,7 +46,7 @@ class CommitService : ICommitService
 
         var amendText = isAmend ? " --amend" : "";
         var allText = isOperationInProgress ? "" : "a";
-        var result = await cmd.RunAsync("git", $"commit{amendText} -{allText}m \"{message}\"", wd);
+        var result = await cmd.RunAsync("git", $"commit{amendText} -{allText}m {Cmd.Quote(message)}", wd);
 
         // Staging nothing means git now refuses a commit that it used to make, so say what to do
         // about it in gmd's own words rather than passing on 'error: Committing is not possible
@@ -77,11 +74,10 @@ class CommitService : ICommitService
     // empty pathspec file is no pathspec at all to git, which would stage and commit everything.
     public async Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd)
     {
-        message = message.Replace("\"", "\\\"");
         if (paths.Count == 0)
         {
             var amend = isAmend ? " --amend" : "";
-            return await cmd.RunAsync("git", $"commit{amend} --only --allow-empty -m \"{message}\"", wd);
+            return await cmd.RunAsync("git", $"commit{amend} --only --allow-empty -m {Cmd.Quote(message)}", wd);
         }
 
         var pathsFile = Path.GetTempFileName();
@@ -90,7 +86,7 @@ class CommitService : ICommitService
             if (Result.Catch(() => File.WriteAllText(pathsFile, string.Join('\0', paths))) is Error writeError)
                 return writeError;
 
-            var pathspec = $"--pathspec-from-file=\"{pathsFile}\" --pathspec-file-nul";
+            var pathspec = $"--pathspec-from-file={Cmd.Quote(pathsFile)} --pathspec-file-nul";
             var literal = new Dictionary<string, string> { ["GIT_LITERAL_PATHSPECS"] = "1" };
             if (await cmd.RunAsync("git", $"add -A {pathspec}", wd, environment: literal) is Error addError)
                 return addError;
@@ -98,7 +94,7 @@ class CommitService : ICommitService
             var amendText = isAmend ? " --amend" : "";
             return await cmd.RunAsync(
                 "git",
-                $"commit{amendText} -m \"{message}\" {pathspec}",
+                $"commit{amendText} -m {Cmd.Quote(message)} {pathspec}",
                 wd,
                 environment: literal
             );
@@ -126,14 +122,14 @@ class CommitService : ICommitService
     // before this was picked, but no longer touches the index (DiffService.GetUncommittedDiff).
     public async Task<Result> UndoUncommittedFileAsync(string path, string wd)
     {
-        if (await cmd.RunAsync("git", $"checkout --force HEAD -- \"{path}\"", wd) is not Error e)
+        if (await cmd.RunAsync("git", $"checkout --force HEAD -- {Cmd.Quote(path)}", wd) is not Error e)
             return Result.Ok;
         if (!IsFileUnknown(e, path) && !e.Message.Contains("invalid reference: HEAD"))
             return new Error("Failed to reset", e);
 
         // Not in the last commit, or there is no commit yet, so a new file: out of the index, if it
         // was staged, and deleted
-        if (await cmd.RunAsync("git", $"rm --cached --ignore-unmatch -q -- \"{path}\"", wd) is Error rmError)
+        if (await cmd.RunAsync("git", $"rm --cached --ignore-unmatch -q -- {Cmd.Quote(path)}", wd) is Error rmError)
             return new Error("Failed to reset", rmError);
         var fullPath = Path.Combine(wd, path);
         if (Result.Catch(() => File.Delete(fullPath)) is Error deleteError)

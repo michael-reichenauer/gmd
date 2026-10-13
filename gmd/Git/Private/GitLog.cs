@@ -54,13 +54,12 @@ internal class LogService : ILogService
     // on a side branch whose change the merge left out, and --no-merges, since with the full history
     // every merge bringing in such a change is listed as well, which would bury the commits made.
     //
-    // The text is what the user typed: a '"' would end the argument, and git writes paths with '/'
-    // on every platform.
+    // The text is what the user typed, and git writes paths with '/' on every platform.
     public async Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd)
     {
-        var text = pathText.Replace("\"", "").Replace('\\', '/');
+        var pathspec = Cmd.Quote($":(icase)*{pathText.Replace('\\', '/')}*");
         var args =
-            $"log --all --full-history --no-merges --no-show-signature --format=%H --max-count={maxCount} -- \":(icase)*{text}*\"";
+            $"log --all --full-history --no-merges --no-show-signature --format=%H --max-count={maxCount} -- {pathspec}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -70,12 +69,10 @@ internal class LogService : ILogService
 
     // The ids of the commits whose changes added or removed the text, in any case, newest first, for
     // a search of the changes: 'git log -S', the pickaxe, which counts the text in each file before
-    // and after a commit, so a line that only moved is not a change of it. The text is what the user
-    // typed, so a '"' would end the argument.
+    // and after a commit, so a line that only moved is not a change of it.
     public async Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd)
     {
-        var args =
-            $"log --all -i -S\"{text.Replace("\"", "")}\" --no-show-signature --format=%H --max-count={maxCount}";
+        var args = $"log --all -i -S{Cmd.Quote(text)} --no-show-signature --format=%H --max-count={maxCount}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;

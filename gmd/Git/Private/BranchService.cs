@@ -123,7 +123,7 @@ class BranchService : IBranchService
     // meantime is left where it is rather than losing what moved it
     public async Task<Result> MoveBranchAsync(string name, string toId, string fromId, string message, string wd)
     {
-        return await cmd.RunAsync("git", $"update-ref -m \"{message}\" refs/heads/{name} {toId} {fromId}", wd);
+        return await cmd.RunAsync("git", $"update-ref -m {Cmd.Quote(message)} refs/heads/{name} {toId} {fromId}", wd);
     }
 
     public async Task<Result> MergeBranchAsync(string name, string wd)

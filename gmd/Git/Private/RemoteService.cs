@@ -186,7 +186,7 @@ class RemoteService : IRemoteService
 
     public async Task<Result> CloneAsync(string uri, string path, string wd)
     {
-        var args = $"clone {uri} \"{path}\"";
+        var args = $"clone {Cmd.Quote(uri)} {Cmd.Quote(path)}";
         return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 

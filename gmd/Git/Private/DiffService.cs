@@ -147,7 +147,7 @@ class DiffService : IDiffService
     )
     {
         var args =
-            $"log {CommitHeaderFormat} {DiffFormat} --date=iso \"-L{firstLine},{lastLine}:{path}\" {reference}".TrimEnd();
+            $"log {CommitHeaderFormat} {DiffFormat} --date=iso {Cmd.Quote($"-L{firstLine},{lastLine}:{path}")} {reference}".TrimEnd();
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -161,7 +161,7 @@ class DiffService : IDiffService
     public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
         var args =
-            $"log {CommitHeaderFormat} {DiffFormat} --date=iso --patch --follow --unified={contextLines} -- \"{path}\"";
+            $"log {CommitHeaderFormat} {DiffFormat} --date=iso --patch --follow --unified={contextLines} -- {Cmd.Quote(path)}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -229,13 +229,13 @@ class DiffService : IDiffService
 
     public async Task<Result> RunDiffToolAsync(string path, string wd)
     {
-        var args = $"difftool --no-prompt {path}";
+        var args = $"difftool --no-prompt -- {Cmd.Quote(path)}";
         return await cmd.RunAsync("git", args, wd);
     }
 
     public async Task<Result> RunMergeToolAsync(string path, string wd)
     {
-        var args = $"mergetool --no-prompt {path}";
+        var args = $"mergetool --no-prompt -- {Cmd.Quote(path)}";
         return await cmd.RunAsync("git", args, wd);
     }
 

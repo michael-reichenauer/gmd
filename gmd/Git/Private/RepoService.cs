@@ -18,6 +18,6 @@ class RepoService : IRepoService
     {
         string bareText = isBare ? " --bare " : "";
 
-        return await cmd.RunAsync("git", $"init {bareText} \"{path}\"", "");
+        return await cmd.RunAsync("git", $"init {bareText} {Cmd.Quote(path)}", "");
     }
 }

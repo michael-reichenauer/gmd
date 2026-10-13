@@ -90,7 +90,7 @@ class ConflictService : IConflictService
     // A pathspec, not a bare path: '--' stops options being parsed but does *not* stop globbing, so
     // a file really named 'a[1].txt' would otherwise match 'a1.txt' instead of itself. Note that
     // 'git checkout-index' is the one command that will not take this — it wants a plain path.
-    static string Spec(string path) => $"-- \":(literal){path}\"";
+    static string Spec(string path) => $"-- {Cmd.Quote($":(literal){path}")}";
 
     // Reads the working tree file and parses it. The working tree file rather than the index
     // stages, because it is the only artifact that holds the text *between* the conflicts, and it
@@ -246,7 +246,8 @@ class ConflictService : IConflictService
         // merge-file writes its result into the *first* file, which is why 'ours' is unpacked to a
         // temp of its own. A non-zero exit is the conflict count, i.e. the normal case, so the
         // result is judged by what it produced rather than by the exit code.
-        var args = $"merge-file --diff3 -L ours -L base -L theirs \"{oursFile}\" \"{baseFile}\" \"{theirsFile}\"";
+        var args =
+            $"merge-file --diff3 -L ours -L base -L theirs {Cmd.Quote(oursFile)} {Cmd.Quote(baseFile)} {Cmd.Quote(theirsFile)}";
         await cmd.RunAsync("git", args, tempDir, skipLogError: true);
 
         var mergedPath = System.IO.Path.Join(tempDir, oursFile);

@@ -22,7 +22,7 @@ class BlameService : IBlameService
     {
         // An empty reference blames the working tree, i.e. including uncommitted lines
         var rev = reference == "" ? "" : $"{reference} ";
-        var args = $"blame --porcelain {rev}-- \"{path}\"";
+        var args = $"blame --porcelain {rev}-- {Cmd.Quote(path)}";
 
         var result = await cmd.RunAsync("git", args, wd, true);
         if (result is CmdError cmdError && cmdError.ErrorOutput.Contains(MissingIgnoreRevsError))

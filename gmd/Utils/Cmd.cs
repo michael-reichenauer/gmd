@@ -122,6 +122,31 @@ class Cmd : ICmd
 
     static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
 
+    // A text as one argument of a command line, whatever it holds: in double quotes, with a '"' in
+    // it escaped and the backslashes before a '"', or before the closing quote, doubled. That is how
+    // the line is split into arguments again, by .NET on Linux and macOS and by the program itself on
+    // Windows. In quotes with only its '"' escaped, as messages and paths were, a text with '\"' in
+    // it, or that ended with a '\', was split into more arguments: a commit message cut short, and the
+    // rest taken as paths.
+    public static string Quote(string text)
+    {
+        var quoted = new StringBuilder("\"");
+        var backslashes = 0;
+        foreach (var c in text)
+        {
+            if (c == '\\')
+            {
+                backslashes++;
+                continue;
+            }
+
+            quoted.Append('\\', c == '"' ? backslashes * 2 + 1 : backslashes).Append(c);
+            backslashes = 0;
+        }
+
+        return quoted.Append('\\', backslashes * 2).Append('"').ToString();
+    }
+
     public Task<Result<string>> RunAsync(
         string path,
         string args,

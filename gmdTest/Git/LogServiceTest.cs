@@ -241,8 +241,8 @@ public class LogServiceTest
         StringAssert.Contains(cmd.Calls[0].Args, "--max-count=42");
     }
 
-    // The path of a search is what the user typed: a '"' would end the argument, and a Windows
-    // user's '\' is a '/' to git. The ids come back one per line.
+    // The path of a search is what the user typed, a '"' included, and a Windows user's '\' is a '/'
+    // to git. The ids come back one per line.
     [TestMethod]
     public async Task TestTheFileSearchKeepsTheTypedPathInItsArgument()
     {
@@ -252,10 +252,10 @@ public class LogServiceTest
         var ids = AssertOk(await log.GetIdsChangingFilesAsync("gmd\\Cui \"x", 50, "/wd"));
 
         CollectionAssert.AreEqual(new[] { Id1, Id2 }, ids.ToArray());
-        StringAssert.EndsWith(cmd.Calls[0].Args, "--max-count=50 -- \":(icase)*gmd/Cui x*\"");
+        StringAssert.EndsWith(cmd.Calls[0].Args, "--max-count=50 -- \":(icase)*gmd/Cui \\\"x*\"");
     }
 
-    // The pickaxe, in any case, with the text as typed but for a '"', which would end the argument
+    // The pickaxe, in any case, with the text as typed, a '"' included
     [TestMethod]
     public async Task TestTheChangeSearchIsThePickaxe()
     {
@@ -266,7 +266,7 @@ public class LogServiceTest
 
         CollectionAssert.AreEqual(new[] { Id1, Id2 }, ids.ToArray());
         Assert.AreEqual(
-            "log --all -i -S\"retry count\" --no-show-signature --format=%H --max-count=50",
+            "log --all -i -S\"retry \\\"count\" --no-show-signature --format=%H --max-count=50",
             cmd.Calls[0].Args
         );
     }

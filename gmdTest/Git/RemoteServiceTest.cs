@@ -226,12 +226,13 @@ public class RemoteServiceTest
         Assert.AreEqual("fetch origin dev:dev", await ArgsOf(s => s.PullRefAsync("origin/dev", "/wd")));
     }
 
-    // The target path is quoted, since it comes from the user and may contain spaces
+    // The address and the target path are quoted, since they come from the user and may contain
+    // spaces
     [TestMethod]
     public async Task TestCloneQuotesThePath()
     {
         Assert.AreEqual(
-            "clone https://x/y.git \"/my path/y\"",
+            "clone \"https://x/y.git\" \"/my path/y\"",
             await ArgsOf(s => s.CloneAsync("https://x/y.git", "/my path/y", "/wd"))
         );
     }

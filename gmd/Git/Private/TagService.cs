@@ -62,7 +62,7 @@ class TagService : ITagService
 
     public async Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd)
     {
-        return await cmd.RunAsync("git", $"tag -a {name} {commitID} -m \"{message}\"", wd, true);
+        return await cmd.RunAsync("git", $"tag -a {name} {commitID} -m {Cmd.Quote(message)}", wd, true);
     }
 
     public async Task<Result> RemoveTagAsync(string name, string wd)

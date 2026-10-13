@@ -25,7 +25,7 @@ class StashService : IStashService
 
     public async Task<Result> StashAsync(string message, string wd)
     {
-        var msg = message != "" ? $"save \"{message}\" " : "";
+        var msg = message != "" ? $"save {Cmd.Quote(message)} " : "";
         return await cmd.RunAsync("git", $"stash {msg}-u", wd);
     }
 
