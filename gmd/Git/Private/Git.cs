@@ -266,9 +266,12 @@ internal class Git : IGit
     public Task<Result> SetValueAsync(string key, string value, string wd) =>
         keyValueService.SetValueAsync(key, value, wd);
 
+    public Task<Result<string>> GetOriginValueAsync(string key, string wd) =>
+        keyValueService.GetOriginValueAsync(key, wd);
+
     public Task<Result> PushValueAsync(string key, string wd) => keyValueService.PushValueAsync(key, wd);
 
-    public Task<Result> PullValueAsync(string key, string wd) => keyValueService.PullValueAsync(key, wd);
+    public Task<Result> FetchValueAsync(string key, string wd) => keyValueService.FetchValueAsync(key, wd);
 
     public Task<Result> StashAsync(string message, string wd) => stashService.StashAsync(message, wd);
 

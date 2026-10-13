@@ -10,6 +10,7 @@ namespace gmdTest.Git;
 public class KeyValueServiceTest
 {
     const string KeyRef = "refs/gmd-metadata-key-value/data";
+    const string OriginRef = "refs/gmd-metadata-key-value-origin/data";
 
     // SetValueAsync writes the value to a temp file under .git before handing it to git
     string wd = "";
@@ -124,24 +125,57 @@ public class KeyValueServiceTest
     }
 
     // Push is forced, since the value is a merge of the local and remote data rather than a
-    // fast forward of it
+    // fast forward of it. It pushes the object the value is when the push starts, and records that
+    // one as origin's, so that a value set meanwhile is not taken for origin's.
     [TestMethod]
     public async Task TestPushValue()
     {
-        var cmd = new FakeCmd("");
+        var cmd = new FakeCmd("objectid123\n");
 
-        await new KeyValueService(cmd).PushValueAsync("data", wd);
+        AssertOk(await new KeyValueService(cmd).PushValueAsync("data", wd));
 
-        Assert.AreEqual($"push --porcelain origin --set-upstream --force {KeyRef}:{KeyRef}", cmd.Calls[0].Args);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                $"rev-parse --verify {KeyRef}",
+                $"push --porcelain origin --force objectid123:{KeyRef}",
+                $"update-ref {OriginRef} objectid123",
+            },
+            cmd.Calls.Select(c => c.Args).ToArray()
+        );
     }
 
+    // A push that fails is not recorded as origin's value
     [TestMethod]
-    public async Task TestPullValue()
+    public async Task TestAFailedPushRecordsNothing()
+    {
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.StartsWith("push") ? FakeCmd.Fail("fatal: unable to access") : FakeCmd.Ok("objectid123\n")
+        );
+
+        AssertError(await new KeyValueService(cmd).PushValueAsync("data", wd));
+
+        Assert.IsFalse(cmd.Calls.Any(c => c.Args.StartsWith("update-ref")));
+    }
+
+    // Into the record of origin's value, never over the repository's own
+    [TestMethod]
+    public async Task TestFetchValue()
     {
         var cmd = new FakeCmd("");
 
-        await new KeyValueService(cmd).PullValueAsync("data", wd);
+        await new KeyValueService(cmd).FetchValueAsync("data", wd);
 
-        Assert.AreEqual($"fetch origin {KeyRef}:{KeyRef}", cmd.Calls[0].Args);
+        Assert.AreEqual($"fetch origin +{KeyRef}:{OriginRef}", cmd.Calls[0].Args);
+    }
+
+    [TestMethod]
+    public async Task TestGetOriginValue()
+    {
+        var cmd = new FakeCmd("{}");
+
+        Assert.AreEqual("{}", AssertOk(await new KeyValueService(cmd).GetOriginValueAsync("data", wd)));
+        Assert.AreEqual($"cat-file -p {OriginRef}", cmd.Calls[0].Args);
     }
 }

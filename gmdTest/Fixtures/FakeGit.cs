@@ -68,11 +68,14 @@ class FakeGit : IGit
 
     // The git key/value storage, i.e. the 'refs/gmd-metadata-key-value/<key>' refs MetaDataService
     // stores the user's branch choices in. Values is what this repo has, RemoteValues what the
-    // remote server has: a pull copies remote to local and a push copies local to remote, which is
-    // all MetaDataService needs from git.
+    // remote server has, and OriginValues this repo's record of the remote's as last fetched or
+    // pushed: a fetch copies remote to the record, and a push copies local to remote and the record,
+    // which is all MetaDataService needs from git.
     public Dictionary<string, string> Values { get; } = [];
 
     public Dictionary<string, string> RemoteValues { get; } = [];
+
+    public Dictionary<string, string> OriginValues { get; } = [];
 
     // Every key/value call made, in order, so tests can assert what was read, written and synced
     public List<string> ValueCalls { get; } = [];
@@ -104,23 +107,34 @@ class FakeGit : IGit
         return Result.Ok;
     }
 
+    public Task<Result<string>> GetOriginValueAsync(string key, string wd)
+    {
+        ValueCalls.Add($"get origin {key}");
+        return Task.FromResult<Result<string>>(
+            OriginValues.TryGetValue(key, out var value)
+                ? value
+                : new Error($"fatal: Not a valid object name refs/gmd-metadata-key-value-origin/{key}")
+        );
+    }
+
     public Task<Result> PushValueAsync(string key, string wd)
     {
         ValueCalls.Add($"push {key}");
         if (!Values.TryGetValue(key, out var value))
-            return Task.FromResult<Result>(new Error("error: src refspec does not match any"));
+            return Task.FromResult<Result>(new Error("fatal: Needed a single revision"));
 
         RemoteValues[key] = value;
+        OriginValues[key] = value;
         return Task.FromResult(Result.Ok);
     }
 
-    public Task<Result> PullValueAsync(string key, string wd)
+    public Task<Result> FetchValueAsync(string key, string wd)
     {
-        ValueCalls.Add($"pull {key}");
+        ValueCalls.Add($"fetch {key}");
         if (!RemoteValues.TryGetValue(key, out var value))
             return Task.FromResult<Result>(new Error($"fatal: couldn't find remote ref {key}"));
 
-        Values[key] = value;
+        OriginValues[key] = value;
         return Task.FromResult(Result.Ok);
     }
 
