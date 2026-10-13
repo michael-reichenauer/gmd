@@ -678,11 +678,7 @@ public class MenuItemsTest
         new RepoMenu(
             view,
             new RepoCommands(
-                view,
-                null!,
-                null!,
-                null!,
-                null!,
+                FakeRepoView.Context(view),
                 null!,
                 null!,
                 null!,

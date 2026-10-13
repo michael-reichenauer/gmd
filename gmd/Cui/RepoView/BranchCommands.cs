@@ -54,7 +54,7 @@ interface IBranchCommands
 // i.e. showing, switching, diffing, merging and how a branch is shown.
 class BranchCommands : IBranchCommands
 {
-    readonly IViewRepo repo;
+    readonly CommandContext context;
     readonly IProgress progress;
     readonly IStatusLine status;
     readonly IRepoView repoView;
@@ -70,36 +70,32 @@ class BranchCommands : IBranchCommands
     readonly IFindBranchDlg findBranchDlg;
 
     public BranchCommands(
-        IViewRepo repo,
-        IProgress progress,
-        IStatusLine status,
-        IRepoView repoView,
-        IServer server,
+        CommandContext context,
         IDiffView diffView,
         IBranchColorService branchColorService,
         ISetBranchDlg setBranchDlg,
         IFindBranchDlg findBranchDlg,
         IRepoConfigService repoConfig,
-        Func<IViewRepo, IRepoView, IBranchCreateCommands> newCreateCommands,
-        Func<IViewRepo, IRepoView, IBranchPushPullCommands> newPushPullCommands,
-        Func<IViewRepo, IRepoView, IWorktreeCommands> newWorktreeCommands,
-        Func<IViewRepo, IRepoView, IUndoCommands> newUndoCommands
+        Func<CommandContext, IBranchCreateCommands> newCreateCommands,
+        Func<CommandContext, IBranchPushPullCommands> newPushPullCommands,
+        Func<CommandContext, IWorktreeCommands> newWorktreeCommands,
+        Func<CommandContext, IUndoCommands> newUndoCommands
     )
     {
-        this.worktreeCmds = newWorktreeCommands(repo, repoView);
-        this.repo = repo;
-        this.progress = progress;
-        this.status = status;
-        this.repoView = repoView;
-        this.server = server;
+        this.context = context;
+        this.worktreeCmds = newWorktreeCommands(context);
+        this.progress = context.Progress;
+        this.status = context.Status;
+        this.repoView = context.View;
+        this.server = context.Server;
         this.diffView = diffView;
         this.branchColorService = branchColorService;
         this.setBranchDlg = setBranchDlg;
         this.findBranchDlg = findBranchDlg;
         this.repoConfig = repoConfig;
-        this.createCmds = newCreateCommands(repo, repoView);
-        this.pushPullCmds = newPushPullCommands(repo, repoView);
-        this.undoCmds = newUndoCommands(repo, repoView);
+        this.createCmds = newCreateCommands(context);
+        this.pushPullCmds = newPushPullCommands(context);
+        this.undoCmds = newUndoCommands(context);
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -151,6 +147,7 @@ class BranchCommands : IBranchCommands
         int count = 1
     )
     {
+        var repo = context.ViewRepo;
         var totalCount = 0;
         if (show == ShowBranches.AllActive)
             totalCount = repo.Repo.AllBranches.Count(b => b.IsGitBranch);
@@ -179,6 +176,7 @@ class BranchCommands : IBranchCommands
 
     public void ShowBranch(string name, string showCommitId)
     {
+        var repo = context.ViewRepo;
         Repo newRepo = server.ShowBranch(repo.Repo, name, false);
         RecordShown(newRepo, "Show", Quoted(name), name);
         SetRepoAttCommit(newRepo, showCommitId);
@@ -188,16 +186,19 @@ class BranchCommands : IBranchCommands
     // picking it in that menu does. A branch already shown is scrolled to.
     public void FindBranch(string text)
     {
+        var repo = context.ViewRepo;
         if (findBranchDlg.Show(repo.Repo, text) is not Server.Branch branch)
             return;
 
-        // Shown in the repo as it is now: the log goes on refreshing under the dialog, e.g. after a
-        // fetch, and showing the branch in the repo from before it would put that back
-        repoView.ViewRepo.BranchCmds.ShowBranch(branch.Name, false);
+        // Shown in the repo as it is now, which ShowBranch reads: the log goes on refreshing under the
+        // dialog, e.g. after a fetch, and showing the branch in the repo from before it would put that
+        // back
+        ShowBranch(branch.Name, false);
     }
 
     public void HideBranch(string name, bool hideAllBranches = false)
     {
+        var repo = context.ViewRepo;
         Repo newRepo = server.HideBranch(repo.Repo, name, hideAllBranches);
         RecordShown(newRepo, "Hide", hideAllBranches ? "All Branches" : Quoted(name), hideAllBranches ? "" : name);
         SetRepo(newRepo);
@@ -207,6 +208,7 @@ class BranchCommands : IBranchCommands
     // scrolls to it, as showing it does, since it is what the user wanted back.
     public void UndoShowOrHide()
     {
+        var repo = context.ViewRepo;
         if (repo.ShownHistory.Undo() is not ShownChange change)
         {
             status.Notice("No branch has been shown or hidden to undo");
@@ -221,6 +223,7 @@ class BranchCommands : IBranchCommands
     // picking it in the search does, so its branch is shown too, and Backspace hides it again
     public void ShowSearchMatch(int direction)
     {
+        var repo = context.ViewRepo;
         var search = repo.SearchMatches;
         if (!search.IsActive)
         {
@@ -250,18 +253,20 @@ class BranchCommands : IBranchCommands
 
     // A show or hide the user asked for, so that Backspace can undo it
     void RecordShown(Repo newRepo, string verb, string what, string name) =>
-        repo.ShownHistory.Add(BranchNames(repo.Repo), BranchNames(newRepo), verb, what, name);
+        context.ViewRepo.ShownHistory.Add(BranchNames(context.ViewRepo.Repo), BranchNames(newRepo), verb, what, name);
 
     static IReadOnlyList<string> BranchNames(Repo repo) => repo.ViewBranches.Select(b => b.Name).ToList();
 
     string Quoted(string name) =>
-        repo.Repo.BranchByName.TryGetValue(name, out var branch) ? $"'{branch.NiceNameUnique}'" : $"'{name}'";
+        context.ViewRepo.Repo.BranchByName.TryGetValue(name, out var branch)
+            ? $"'{branch.NiceNameUnique}'"
+            : $"'{name}'";
 
     // A branch checked out in another worktree cannot be checked out here, git refuses, so the
     // folder it is checked out in is opened instead. Done here rather than in the menu, since the
     // S key and a double click switch without going through the menu.
     public void SwitchTo(string branchName) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (repo.Repo.BranchByName.TryGetValue(branchName, out var branch))
             {
@@ -290,6 +295,7 @@ class BranchCommands : IBranchCommands
 
     async Task<Result> SwitchWithStashAsync(string branchName)
     {
+        var repo = context.ViewRepo;
         var name = repo.Repo.BranchByName.TryGetValue(branchName, out var b) ? b.NiceNameUnique : branchName;
         var question =
             $"Your uncommitted changes would be overwritten by switching to '{name}'.\n\n"
@@ -338,7 +344,7 @@ class BranchCommands : IBranchCommands
     Task<Result> OpenWorktreeAsync(string path) => worktreeCmds.OpenWorktreeAsync(path);
 
     public void MergeBranch(string branchName) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commitsResult = await server.MergeBranchAsync(repo.Repo, branchName);
             if (commitsResult is not IReadOnlyList<Commit> commits)
@@ -354,7 +360,7 @@ class BranchCommands : IBranchCommands
     // or a cancelled commit) stops halfway and leaves the user on the target branch, which is
     // where the merge has to be finished, and is also the only place git would let them.
     public void MergeToBranch(string targetName) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var serverRepo = repo.Repo;
             var sourceName = serverRepo.CurrentBranch().Name;
@@ -371,9 +377,9 @@ class BranchCommands : IBranchCommands
             // necessarily one the user had shown, and the commit dialog is drawn from the view
             await repoView.RefreshAsync(targetName);
 
-            // The commit commands of the refreshed view, since the merge replaced the repo
-            // snapshot, and the dialog is seeded from the merge message git just wrote
-            var commitResult = await repoView.ViewRepo.CommitCmds.CommitAsync(false, commits);
+            // On the refreshed repo, which CommitAsync reads, with the dialog seeded from the merge
+            // message git just wrote
+            var commitResult = await context.CommitCmds.CommitAsync(false, commits);
             if (commitResult is not CommitResult result)
                 return new Error($"Failed to commit the merge on '{targetName}'", commitResult.Error);
 
@@ -397,7 +403,7 @@ class BranchCommands : IBranchCommands
         });
 
     public void RebaseBranchOnto(string onto) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var cb = repo.Repo.CurrentBranch();
             if (WhyNotRebaseAndPush(repo.Repo, cb) is var whyNot && whyNot != "")
@@ -422,7 +428,7 @@ class BranchCommands : IBranchCommands
             : "";
 
     public void DiffBranchesBranch(string branchName1, string branchName2) =>
-        Do(async () =>
+        Do(async repo =>
         {
             string message = "";
             var branch1 = repo.Repo.BranchByName[branchName1];
@@ -446,6 +452,7 @@ class BranchCommands : IBranchCommands
 
     public void ChangeBranchColor(string brandName)
     {
+        var repo = context.ViewRepo;
         var b = repo.Repo.BranchByName[brandName];
         if (b.IsMainBranch)
             return;
@@ -455,7 +462,7 @@ class BranchCommands : IBranchCommands
     }
 
     public void SetBranchManuallyAsync() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commit = repo.RowCommit;
             if (commit.IsUncommitted)
@@ -489,7 +496,7 @@ class BranchCommands : IBranchCommands
         });
 
     public void MoveBranch(string commonName, string otherCommonName, int delta) =>
-        Do(async () =>
+        Do(async repo =>
         {
             await Task.Yield();
 
@@ -522,7 +529,7 @@ class BranchCommands : IBranchCommands
         });
 
     public void SwitchToCommit() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commit = repo.RowCommit;
             if (await server.SwitchToCommitAsync(commit.Id, repo.Path) is Error e)
@@ -538,5 +545,5 @@ class BranchCommands : IBranchCommands
 
     void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
+    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 }

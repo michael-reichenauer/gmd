@@ -78,7 +78,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     static readonly TimeSpan worktreeStatusInterval = TimeSpan.FromSeconds(30);
 
     readonly IServer server;
-    readonly Func<IRepoView, Repo, IViewRepo> newViewRepo;
+    readonly Func<IRepoView, Repo, CommandContext, IViewRepo> newViewRepo;
     readonly Func<IViewRepo, IRepoViewMenus> newMenuService;
     readonly Config config;
     readonly IUpdater updater;
@@ -100,6 +100,9 @@ class RepoView : IRepoView, IRepoViewInputHost
     IReadOnlyList<HiddenBranchNews> hiddenNews = [];
     readonly RepoViewInput input;
 
+    // What the command classes work with, and the command classes, made once with the view
+    readonly CommandContext commands;
+
     // State data
     IViewRepo repo; // Is set once the repo has been retrieved the first time in ShowRepo().
     ICommitCommands CommitCmds => repo.CommitCmds;
@@ -120,7 +123,10 @@ class RepoView : IRepoView, IRepoViewInputHost
     internal RepoView(
         IServer server,
         IRepoWriter repoWriter,
-        Func<IRepoView, Repo, IViewRepo> newViewRepo,
+        Func<IRepoView, Repo, CommandContext, IViewRepo> newViewRepo,
+        Func<CommandContext, IRepoCommands> newRepoCommands,
+        Func<CommandContext, ICommitCommands> newCommitCommands,
+        Func<CommandContext, IBranchCommands> newBranchCommands,
         Func<IViewRepo, IRepoViewMenus> newMenuService,
         Config config,
         IUpdater updater,
@@ -165,7 +171,11 @@ class RepoView : IRepoView, IRepoViewInputHost
         status.Changed += OnStatusChanged;
 
         this.repoWriter = repoWriter;
-        repo = newViewRepo(this, Server.Repo.Empty);
+        commands = new CommandContext(this, server, progress, status);
+        repo = newViewRepo(this, Server.Repo.Empty, commands);
+        commands.RepoCmds = newRepoCommands(commands);
+        commands.CommitCmds = newCommitCommands(commands);
+        commands.BranchCmds = newBranchCommands(commands);
         input = new RepoViewInput(
             this,
             commitsView,
@@ -665,7 +675,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     void ShowRepo(Server.Repo serverRepo)
     {
-        repo = newViewRepo(this, serverRepo);
+        repo = newViewRepo(this, serverRepo, commands);
         currentBranchShown.Shown(serverRepo);
         menuService = newMenuService(repo);
         hoover.FollowRepo(repo.Graph); // Redrawn below

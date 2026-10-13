@@ -18,29 +18,23 @@ interface IBranchPushPullCommands
 
 class BranchPushPullCommands : IBranchPushPullCommands
 {
-    readonly IViewRepo repo;
+    readonly CommandContext context;
     readonly IProgress progress;
     readonly IStatusLine status;
     readonly IRepoView repoView;
     readonly IServer server;
 
-    public BranchPushPullCommands(
-        IViewRepo repo,
-        IProgress progress,
-        IStatusLine status,
-        IRepoView repoView,
-        IServer server
-    )
+    public BranchPushPullCommands(CommandContext context)
     {
-        this.repo = repo;
-        this.progress = progress;
-        this.status = status;
-        this.repoView = repoView;
-        this.server = server;
+        this.context = context;
+        this.progress = context.Progress;
+        this.status = context.Status;
+        this.repoView = context.View;
+        this.server = context.Server;
     }
 
     public void PushCurrentBranch() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
 
@@ -111,7 +105,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         });
 
     public void PushBranch(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (repo.Repo.BranchByName.TryGetValue(name, out var branch) && !IsPushConfirmed(branch))
                 return Result.Ok;
@@ -128,7 +122,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         });
 
     public void PushAllBranches() =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (repo.Repo.Status.IsMerging)
                 return new Notice(Why.InProgress);
@@ -163,7 +157,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         });
 
     public void PullCurrentBranch() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var branch = repo.Repo.ViewBranches.FirstOrDefault(b => b.IsCurrent);
             if (!repo.Repo.Status.IsOk)
@@ -200,7 +194,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         });
 
     public void PullBranch(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (
                 repo.Repo.BranchByName.TryGetValue(name, out var branch)
@@ -223,6 +217,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // its own commits are moved onto the new version, rather than the two versions merged
     async Task<Result> PullRewrittenAsync(RemoteRewrite rewrite)
     {
+        var repo = context.ViewRepo;
         if (
             UI.InfoMessage("Pull Rewritten Branch", ForcePushes.PullQuestion(repo.Repo, rewrite), 1, ["Pull", "Cancel"])
             != 0
@@ -244,7 +239,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // push too: a mistaken one taken back, or gmd's Rebase undone on origin as well as here. Only if
     // nothing was pushed on top of the rewrite, and only while origin is where it was last fetched.
     public void RestoreOrigin(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (
                 !repo.Repo.BranchByName.TryGetValue(name, out var branch)
@@ -268,7 +263,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         });
 
     public void PullAllBranches() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var currentRemoteName = "";
             List<string> updated = [];
@@ -375,6 +370,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // needs neither. False when the user cancelled.
     async Task<Result<bool>> EnsurePullWayAsync(Branch remoteBranch)
     {
+        var repo = context.ViewRepo;
         if (!(remoteBranch.HasRemoteOnly && remoteBranch.HasLocalOnly))
             return true;
 
@@ -423,12 +419,13 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     bool IsPushedBack(Branch branch) => RewriteOf(branch) is RemoteRewrite r && ForcePushes.IsPushedBack(r);
 
-    RemoteRewrite? RewriteOf(Branch branch) => ForcePushes.RewriteOf(repo.Repo, branch);
+    RemoteRewrite? RewriteOf(Branch branch) => ForcePushes.RewriteOf(context.ViewRepo.Repo, branch);
 
     // The name a branch is shown with, its local one for a local and remote pair: a branch menu and
     // a highlighted branch give the pair by its primary name, which is the remote's, 'origin/main'
     string NiceName(string name)
     {
+        var repo = context.ViewRepo;
         if (!repo.Repo.BranchByName.TryGetValue(name, out var branch))
             return name;
         if (branch.LocalName != "" && repo.Repo.BranchByName.TryGetValue(branch.LocalName, out var local))
@@ -438,7 +435,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     // What was pushed, and that the changes were not, since that is easy to assume
     string Pushed(string what) =>
-        repo.Repo.Status.IsOk ? $"Pushed {what}" : $"Pushed {what}; the uncommitted changes stay local";
+        context.ViewRepo.Repo.Status.IsOk ? $"Pushed {what}" : $"Pushed {what}; the uncommitted changes stay local";
 
     // Up to three names, which is what fits a status line, and otherwise how many
     internal static string Names(IEnumerable<string> names)
@@ -617,5 +614,5 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
+    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 }

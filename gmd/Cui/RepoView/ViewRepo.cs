@@ -36,26 +36,20 @@ class ViewRepo : IViewRepo
 {
     readonly IRepoView repoView;
     readonly IServer server;
-    readonly IRepoCommands repoCommands;
-    readonly ICommitCommands commitCommands;
-    readonly IBranchCommands branchCommands;
+    readonly CommandContext commands;
     readonly Repo serverRepo;
 
     internal ViewRepo(
         IRepoView repoView,
         Repo serverRepo,
-        Func<IViewRepo, IRepoView, IRepoCommands> newRepoCommands,
-        Func<IViewRepo, IRepoView, ICommitCommands> newCommitCommands,
-        Func<IViewRepo, IRepoView, IBranchCommands> newBranchCommands,
+        CommandContext commands,
         IGraphCreater graphService,
         IServer server
     )
     {
         this.repoView = repoView;
         this.serverRepo = serverRepo;
-        this.repoCommands = newRepoCommands(this, repoView);
-        this.commitCommands = newCommitCommands(this, repoView);
-        this.branchCommands = newBranchCommands(this, repoView);
+        this.commands = commands;
         this.server = server;
 
         this.Graph = graphService.Create(serverRepo);
@@ -65,9 +59,9 @@ class ViewRepo : IViewRepo
     public Status Status => serverRepo.Status;
 
     public IRepoView RepoView => repoView;
-    public IRepoCommands Cmds => repoCommands;
-    public ICommitCommands CommitCmds => commitCommands;
-    public IBranchCommands BranchCmds => branchCommands;
+    public IRepoCommands Cmds => commands.RepoCmds;
+    public ICommitCommands CommitCmds => commands.CommitCmds;
+    public IBranchCommands BranchCmds => commands.BranchCmds;
 
     public Repo Repo => serverRepo;
     public Graph Graph { get; init; }

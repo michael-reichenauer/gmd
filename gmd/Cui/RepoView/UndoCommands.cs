@@ -17,7 +17,7 @@ interface IUndoCommands
 
 class UndoCommands : IUndoCommands
 {
-    readonly IViewRepo repo;
+    readonly CommandContext context;
     readonly IProgress progress;
     readonly IStatusLine status;
     readonly IRepoView repoView;
@@ -28,22 +28,18 @@ class UndoCommands : IUndoCommands
     readonly IRestoreBranchDlg restoreBranchDlg;
 
     public UndoCommands(
-        IViewRepo repo,
-        IProgress progress,
-        IStatusLine status,
-        IRepoView repoView,
-        IServer server,
+        CommandContext context,
         ILostWorkDlg lostWorkDlg,
         IDiffView diffView,
         IDeletedBranchesDlg deletedBranchesDlg,
         IRestoreBranchDlg restoreBranchDlg
     )
     {
-        this.repo = repo;
-        this.progress = progress;
-        this.status = status;
-        this.repoView = repoView;
-        this.server = server;
+        this.context = context;
+        this.progress = context.Progress;
+        this.status = context.Status;
+        this.repoView = context.View;
+        this.server = context.Server;
         this.lostWorkDlg = lostWorkDlg;
         this.diffView = diffView;
         this.deletedBranchesDlg = deletedBranchesDlg;
@@ -52,7 +48,7 @@ class UndoCommands : IUndoCommands
 
     // Asks nothing first, since undoing again redoes it, and says on the status line what it did
     public void UndoLastChange(string branchName) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (!repo.Repo.BranchByName.TryGetValue(branchName, out var branch))
                 return new Notice($"There is no branch '{branchName}'");
@@ -76,7 +72,7 @@ class UndoCommands : IUndoCommands
     // bring one back with a branch at it. The list is read once, since nothing in it changes
     // while it is looked at, and shown again after each diff.
     public void RecoverLostCommits() =>
-        Do(async () =>
+        Do(async repo =>
         {
             IReadOnlyList<LostWork> works;
             using (status.Progress("Looking for lost commits"))
@@ -103,7 +99,7 @@ class UndoCommands : IUndoCommands
                             return diffError;
                         break;
                     case LostWorkAction.CreateBranch:
-                        repo.BranchCmds.CreateBranchFromLostCommit(choice.Work.TipId, choice.Work.BranchName);
+                        context.BranchCmds.CreateBranchFromLostCommit(choice.Work.TipId, choice.Work.BranchName);
                         return Result.Ok;
                 }
             }
@@ -113,7 +109,7 @@ class UndoCommands : IUndoCommands
     // is restored when picked, since that only makes a branch, which deleting again takes back; one
     // deleted on origin asks which sides to restore first, since restoring origin's is a push.
     public void RestoreDeletedBranch() =>
-        Do(async () =>
+        Do(async repo =>
         {
             IReadOnlyList<DeletedBranch> branches;
             using (status.Progress("Looking for deleted branches"))
@@ -159,6 +155,7 @@ class UndoCommands : IUndoCommands
     // its one commit. Shown modally, so the list comes back when it is closed.
     async Task<Result> ShowDiffAsync(LostWork work)
     {
+        var repo = context.ViewRepo;
         var count = work.CommitIds.Count;
         var reload =
             count == 1
@@ -181,5 +178,5 @@ class UndoCommands : IUndoCommands
         return Result.Ok;
     }
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
+    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 }
