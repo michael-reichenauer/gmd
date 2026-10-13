@@ -166,7 +166,7 @@ public class ContentSelectionTest
     {
         var selection = new ContentSelection();
 
-        Assert.AreEqual(0, selection.Drag(3, 10)); // No direction yet, the drag just started
+        Assert.AreEqual(0, selection.Drag(3, 10, 100)); // No direction yet, the drag just started
 
         Assert.IsTrue(selection.IsSelected);
         Assert.AreEqual(new Selection(3, 10, 3, 10, 10), selection.Selection);
@@ -177,9 +177,9 @@ public class ContentSelectionTest
     public void TestDragRightExpandsTheSelectedColumns()
     {
         var selection = new ContentSelection();
-        selection.Drag(3, 10);
+        selection.Drag(3, 10, 100);
 
-        Assert.AreEqual(0, selection.Drag(6, 10));
+        Assert.AreEqual(0, selection.Drag(6, 10, 100));
 
         Assert.AreEqual(new Selection(3, 10, 6, 10, 10), selection.Selection);
         Assert.IsFalse(selection.Selection.IsEmpty);
@@ -189,13 +189,13 @@ public class ContentSelectionTest
     public void TestDragLeftBackOverTheStartShrinksAndThenExpandsTheOtherWay()
     {
         var selection = new ContentSelection();
-        selection.Drag(3, 10);
-        selection.Drag(6, 10);
+        selection.Drag(3, 10, 100);
+        selection.Drag(6, 10, 100);
 
-        selection.Drag(4, 10); // Still right of where the drag started, so the right end moves
+        selection.Drag(4, 10, 100); // Still right of where the drag started, so the right end moves
         Assert.AreEqual(new Selection(3, 10, 4, 10, 10), selection.Selection);
 
-        selection.Drag(1, 10); // Left of it, so the left end moves
+        selection.Drag(1, 10, 100); // Left of it, so the left end moves
         Assert.AreEqual(new Selection(1, 10, 4, 10, 10), selection.Selection);
     }
 
@@ -203,9 +203,9 @@ public class ContentSelectionTest
     public void TestDragDownSelectsWholeRows()
     {
         var selection = new ContentSelection();
-        selection.Drag(3, 10);
+        selection.Drag(3, 10, 100);
 
-        Assert.AreEqual(1, selection.Drag(3, 12)); // Dragged down, so the view may need to scroll
+        Assert.AreEqual(1, selection.Drag(3, 12, 100)); // Dragged down, so the view may need to scroll
 
         Assert.AreEqual(10, selection.StartIndex);
         Assert.AreEqual(3, selection.Count); // Rows 10-12
@@ -216,9 +216,9 @@ public class ContentSelectionTest
     public void TestDragUpSelectsTheRowsAbove()
     {
         var selection = new ContentSelection();
-        selection.Drag(3, 10);
+        selection.Drag(3, 10, 100);
 
-        Assert.AreEqual(-1, selection.Drag(3, 8));
+        Assert.AreEqual(-1, selection.Drag(3, 8, 100));
 
         Assert.AreEqual(8, selection.StartIndex);
         Assert.AreEqual(3, selection.Count); // Rows 8-10
@@ -228,10 +228,10 @@ public class ContentSelectionTest
     public void TestDragBackUpShrinksTheSelectedRows()
     {
         var selection = new ContentSelection();
-        selection.Drag(3, 10);
-        selection.Drag(3, 14);
+        selection.Drag(3, 10, 100);
+        selection.Drag(3, 14, 100);
 
-        Assert.AreEqual(-1, selection.Drag(3, 12));
+        Assert.AreEqual(-1, selection.Drag(3, 12, 100));
 
         Assert.AreEqual(10, selection.StartIndex);
         Assert.AreEqual(3, selection.Count); // Rows 10-12
@@ -243,11 +243,33 @@ public class ContentSelectionTest
     public void TestInitialIndexStaysTheRowTheDragStartedOn()
     {
         var selection = new ContentSelection();
-        selection.Drag(3, 10);
-        selection.Drag(5, 14);
-        selection.Drag(2, 7);
+        selection.Drag(3, 10, 100);
+        selection.Drag(5, 14, 100);
+        selection.Drag(2, 7, 100);
 
         Assert.AreEqual(10, selection.Selection.InitialIndex);
+    }
+
+    // A small repo leaves empty rows under the log, and a drag between two of them selected rows
+    // that are not there, which Ctrl+C then copied and threw on
+    [TestMethod]
+    public void TestDragBelowTheLastRowSelectsUpToIt()
+    {
+        var selection = new ContentSelection();
+        selection.Drag(3, 6, 5);
+        selection.Drag(3, 9, 5);
+
+        Assert.AreEqual(new Selection(3, 4, 3, 4, 4), selection.Selection);
+        Assert.AreEqual(4, selection.StartIndex + selection.Count - 1, "Ends at the last row");
+    }
+
+    [TestMethod]
+    public void TestDragInAnEmptyViewSelectsNothing()
+    {
+        var selection = new ContentSelection();
+
+        Assert.AreEqual(0, selection.Drag(3, 2, 0));
+        Assert.IsFalse(selection.IsSelected);
     }
 
     // What ContentView does on shift+up: OnSelectUp() moves the cursor when the selection was

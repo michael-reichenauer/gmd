@@ -382,7 +382,7 @@ class ContentView : View
     {
         var i = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
 
-        var direction = selection.Drag(ev.X, i);
+        var direction = selection.Drag(ev.X, i, TotalCount);
         if (direction < 0 && ev.Y <= 2)
         { // Dragging up at the top of the view, scroll to show the rows above
             Scroll(-1);

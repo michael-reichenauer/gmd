@@ -98,9 +98,14 @@ class ContentSelection
 
     // Extends the selection to the column x of the row index i the mouse was dragged to, starting
     // a selection if there is none. Returns which way the drag moved vertically (-1, 0 or 1), so
-    // the view can scroll when the drag reaches its top or bottom edge.
-    public int Drag(int x, int i)
+    // the view can scroll when the drag reaches its top or bottom edge. A drag in the empty rows
+    // below the content selects up to its last row: past it, a copy of the selected rows threw.
+    public int Drag(int x, int i, int totalCount)
     {
+        if (totalCount == 0)
+            return 0;
+        i = Math.Clamp(i, 0, totalCount - 1);
+
         if (!isSelected)
         { // Start mouse dragging
             isSelected = true;
