@@ -142,8 +142,8 @@ interface IServer
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result> StashDropAsync(string name, string wd);
     Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
-    Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd);
-    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd);
+    Task<Result> AddTagAsync(string name, string commitId, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);
     Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd);
     Task<Result<IReadOnlyList<RepoTag>>> GetTagsAsync(string wd);
     Task<Result> PushTagAsync(string name, string wd);

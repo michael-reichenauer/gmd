@@ -419,6 +419,26 @@ public class BranchTest
         StringAssert.Contains(await repo.GitAsync("tag"), "v3.0");
     }
 
+    // A tag whose push fails is still added, and says so: it said the tag had failed, which was there
+    // and which Push in the list of tags then pushes
+    [TestMethod]
+    public async Task TestAddATagWhosePushFailsSaysItWasAdded()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync($"remote set-url origin \"{repo.Path}-gone\"");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+
+        gmd.Send("t");
+        gmd.WaitFor("Push to origin");
+        gmd.SendText("v2.0");
+        gmd.WaitFor("v2.0");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Added the tag v2.0, but failed to push it");
+        Assert.AreEqual("v2.0", await repo.GitAsync("tag --points-at HEAD"), "Added here");
+    }
+
     // 's' switches to the hoovered branch, with no confirmation of any kind — one keystroke from
     // changing the working tree, which is why it is worth an end-to-end test.
     [TestMethod]

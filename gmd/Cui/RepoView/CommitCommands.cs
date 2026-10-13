@@ -695,17 +695,28 @@ class CommitCommands : ICommitCommands
 
             if (tag.message == "")
             {
-                if (await server.AddTagAsync(tag.name, commit.Id, tag.isPush, repo.Path) is Error e)
+                if (await server.AddTagAsync(tag.name, commit.Id, repo.Path) is Error e)
                     return new Error($"Failed to add tag {tag.name}", e);
             }
             else
             {
-                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, tag.isPush, repo.Path);
+                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, repo.Path);
                 if (added is Error e)
                     return new Error($"Failed to add tag {tag.name} '{tag.message}'", e);
             }
 
             Refresh();
+            if (!tag.isPush)
+                return Result.Ok;
+
+            // Pushed apart from adding it, so a push that fails says the tag was added: it said the
+            // tag had failed, which was there, and which Push in the list of tags then pushes
+            using (status.Progress($"Pushing the tag '{tag.name}'"))
+            {
+                if (await server.PushTagAsync(tag.name, repo.Path) is Error pushError)
+                    return new Error($"Added the tag {tag.name}, but failed to push it", pushError);
+            }
+            status.Info(TagRows.Pushed(tag.name));
             return Result.Ok;
         });
 
