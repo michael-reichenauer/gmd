@@ -71,7 +71,7 @@ class BranchCreateCommands : IBranchCreateCommands
             }
             finally
             {
-                Refresh(branchName);
+                RefreshIfMade(branchName);
             }
         });
 
@@ -81,7 +81,6 @@ class BranchCreateCommands : IBranchCreateCommands
             var branchName = "";
             try
             {
-                //var currentBranchName = repo.GetCurrentBranch().Name;
                 var branch = repo.Repo.BranchByName[name];
                 if (branch.LocalName != "")
                     name = branch.LocalName;
@@ -100,7 +99,7 @@ class BranchCreateCommands : IBranchCreateCommands
             }
             finally
             {
-                Refresh(branchName);
+                RefreshIfMade(branchName);
             }
         });
 
@@ -150,8 +149,16 @@ class BranchCreateCommands : IBranchCreateCommands
         }
         finally
         {
-            Refresh(branchName);
+            RefreshIfMade(branchName);
         }
+    }
+
+    // Once the branch is made, whatever happened after, e.g. a push that failed: a dialog cancelled
+    // or a git refusal changed nothing, and refreshed, which also fetched, for nothing
+    void RefreshIfMade(string branchName)
+    {
+        if (branchName != "")
+            Refresh(branchName);
     }
 
     // Renames both the local and the remote branch, since renaming only the local branch would
@@ -204,7 +211,7 @@ class BranchCreateCommands : IBranchCreateCommands
             }
             finally
             {
-                Refresh(newName);
+                RefreshIfMade(newName);
             }
         });
 

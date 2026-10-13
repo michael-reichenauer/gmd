@@ -377,7 +377,10 @@ class RepoCommands : IRepoCommands
 
             if (await server.ContinueOperationAsync(repo.Path) is Error e)
             {
-                Refresh(); // It may have got further before stopping again, so show where it is now
+                // It may have got further before stopping again, so show where it is now. Stopped on
+                // conflicts, CommandRunner refreshes, and a second refresh here ran beside it.
+                if (!Git.ConflictError.IsIn(e))
+                    Refresh();
                 return new Error($"Failed to continue {OperationName().ToLower()}", e);
             }
 
@@ -402,7 +405,8 @@ class RepoCommands : IRepoCommands
 
             if (await server.SkipOperationAsync(repo.Path) is Error e)
             {
-                Refresh();
+                if (!Git.ConflictError.IsIn(e)) // Then CommandRunner refreshes, see ContinueOperation
+                    Refresh();
                 return new Error($"Failed to skip commit", e);
             }
 
