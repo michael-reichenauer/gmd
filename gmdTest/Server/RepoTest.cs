@@ -46,4 +46,31 @@ public class RepoTest
         Assert.AreEqual(1, merge.MainlineParentNumber);
         Assert.AreEqual(0, repo.CommitById[RepoBuilder.Sha("c2")].MainlineParentNumber, "Not a merge");
     }
+
+    // The lookups follow the lists, also in a copy made with 'with', where they were set in the
+    // constructor only, so a copy given other commits looked them up among the old ones, unless each
+    // 'with' remembered to rebuild them, as Uncommitted did three times
+    [TestMethod]
+    public async Task TestTheLookupsFollowTheListsInACopy()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .LocalBranch("dev", "c1")
+            .AugmentedRepoAsync();
+        var second = repo.CommitById[RepoBuilder.Sha("c2")];
+        var renamed = second with { Subject = "Renamed" };
+
+        var copy = repo with
+        {
+            AllCommits = repo.AllCommits.Select(c => c.Id == second.Id ? renamed : c).ToList(),
+            AllBranches = repo.AllBranches.Where(b => b.Name != "dev").ToList(),
+        };
+
+        Assert.AreEqual("Renamed", copy.CommitById[second.Id].Subject);
+        Assert.IsFalse(copy.BranchByName.ContainsKey("dev"));
+        Assert.AreEqual("Second", repo.CommitById[second.Id].Subject, "The original is as it was");
+        Assert.IsTrue(repo.BranchByName.ContainsKey("dev"));
+    }
 }

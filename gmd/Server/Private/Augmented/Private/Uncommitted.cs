@@ -30,7 +30,6 @@ static class Uncommitted
                 .AllCommits.Where(c => c.Id != Repo.UncommittedId)
                 .Select(c => c.Id == parent?.Id ? parent : c)
                 .ToList();
-            var commitsById = commits.ToDictionary(c => c.Id);
 
             var branches = repo
                 .AllBranches.Select(b =>
@@ -42,14 +41,11 @@ static class Uncommitted
                     return b with { TipId = parent?.Id ?? "" };
                 })
                 .ToList();
-            var branchByName = branches.ToDictionary(b => b.Name);
 
             return repo with
             {
                 AllCommits = commits,
-                CommitById = commitsById,
                 AllBranches = branches,
-                BranchByName = branchByName,
             };
         }
 
@@ -59,18 +55,11 @@ static class Uncommitted
         if (repo.CommitById.TryGetValue(Repo.UncommittedId, out var uncommitted2))
         { // Uncommitted commit exists, need to update it
             var commits = repo.AllCommits.Select(c => c.Id == Repo.UncommittedId ? newUncommitted : c).ToList();
-            var commitsById = commits.ToDictionary(c => c.Id);
-
-            return repo with
-            {
-                AllCommits = commits,
-                CommitById = commitsById,
-            };
+            return repo with { AllCommits = commits };
         }
 
         // Uncommitted commit does not exist, need to add it
         var commits2 = repo.AllCommits.Prepend(newUncommitted).ToList();
-        var commitsById2 = commits2.ToDictionary(c => c.Id);
         var branch = repo.BranchByName[newUncommitted.BranchName];
         var parentBranch = string.IsNullOrEmpty(branch.ParentBranchName)
             ? null
@@ -86,14 +75,11 @@ static class Uncommitted
                 return b with { TipId = Repo.UncommittedId };
             })
             .ToList();
-        var branchByName2 = branches2.ToDictionary(b => b.Name);
 
         return repo with
         {
             AllCommits = commits2,
-            CommitById = commitsById2,
             AllBranches = branches2,
-            BranchByName = branchByName2,
         };
     }
 
