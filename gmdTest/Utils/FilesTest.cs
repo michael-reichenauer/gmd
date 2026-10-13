@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace gmdTest.Utils;
 
 [TestClass]
@@ -62,5 +64,43 @@ public class FilesTest
         Assert.AreEqual(Path.Join(root, "meow"), Files.ShortHomePath(Path.Join(root, "meow"), home));
         Assert.AreEqual(root, Files.ShortHomePath(root, home));
         Assert.AreEqual(home, Files.ShortHomePath(home, ""));
+    }
+
+    // Binary as git has it, a NUL byte among the first 8000, so that a file gmd shows or resolves
+    // as text is one git merges as text
+    [TestMethod]
+    public void TestIsText()
+    {
+        Assert.IsTrue(Files.IsText(Write("text.txt", Encoding.UTF8.GetBytes("line\nåäö\n"))));
+        Assert.IsTrue(Files.IsText(Write("bom.txt", [.. Encoding.UTF8.Preamble, .. Encoding.UTF8.GetBytes("åäö\n")])));
+        Assert.IsTrue(Files.IsText(Write("empty.txt", [])));
+        Assert.IsFalse(Files.IsText(Write("nul.bin", [65, 0, 66])));
+        Assert.IsFalse(Files.IsText(Path.Join(root, "missing.txt")), "Cannot be read, so not text");
+    }
+
+    // A reader decodes UTF-16 by its byte order mark and finds no NUL in it, while git, which reads
+    // bytes, takes it as binary
+    [TestMethod]
+    public void TestIsTextTakesUtf16AsBinary()
+    {
+        var utf16 = Write("utf16.txt", [.. Encoding.Unicode.Preamble, .. Encoding.Unicode.GetBytes("text\n")]);
+
+        Assert.IsFalse(Files.IsText(utf16));
+    }
+
+    [TestMethod]
+    public void TestIsTextLooksAtTheFirst8000BytesOnly()
+    {
+        var text = Enumerable.Repeat((byte)'a', 8000);
+
+        Assert.IsFalse(Files.IsText(Write("early.bin", [.. text.Take(7999), 0])));
+        Assert.IsTrue(Files.IsText(Write("late.bin", [.. text, 0])), "A NUL after them is not looked for");
+    }
+
+    string Write(string name, byte[] bytes)
+    {
+        var path = Path.Join(root, name);
+        File.WriteAllBytes(path, bytes);
+        return path;
     }
 }
