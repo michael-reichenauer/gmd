@@ -25,7 +25,10 @@ record MenuDimensions(int X, int Y, int Width, int Height, int TitleWidth, int S
         var subMenuMarkerWidth = items.Any(i => i is SubMenu) ? 2 : 0; // Include space before
         var scrollbarWidth = items.Count + 2 > viewHeight ? 1 : 0;
 
-        var itemTextWidth = items.Any() ? items.Max(i => i.Text.Length) : 5;
+        var detailColumn = DetailColumn(items);
+        var itemTextWidth = items.Any()
+            ? items.Max(i => i.Detail == "" ? i.Text.Length : detailColumn + i.Detail.Length)
+            : 5;
 
         // Calculate view width based on title, shortcut, sub menu marker and scrollbar
         var totalItemsWidth = itemTextWidth + shortcutWidth + subMenuMarkerWidth + scrollbarWidth + 2; // (2 for borders)
@@ -75,4 +78,8 @@ record MenuDimensions(int X, int Y, int Width, int Height, int TitleWidth, int S
             subMenuMarkerWidth
         );
     }
+
+    // Where the details start: after the longest text of the items that have one, and a gap
+    public static int DetailColumn(IReadOnlyList<MenuItem> items) =>
+        items.Where(i => i.Detail != "").Select(i => i.Text.Length + 2).DefaultIfEmpty(0).Max();
 }

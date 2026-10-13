@@ -9,6 +9,10 @@ record MenuItem(string Text, string Shortcut, Action Action, Func<bool>? CanExec
     // its key: a greyed item that says nothing leaves the user to guess. Asked only then, and only
     // while it is greyed out, so it can name whichever of its conditions failed.
     public Func<string>? WhyNot { get; init; }
+
+    // A second text after the item's own, drawn dark and lined up across the items that have one,
+    // such as a repository's path after its name. Cut first when the menu is too narrow for both.
+    public string Detail { get; init; } = "";
 }
 
 // To create a sub menu

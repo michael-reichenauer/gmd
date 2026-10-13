@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Cui.Start;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -164,9 +165,24 @@ class RepoMenu : IRepoMenu
             .Item("Clone ...", "", () => cmds.Clone())
             .Item("Init ...", "", () => cmds.InitRepo());
 
-    IEnumerable<MenuItem> GetRecentRepoItems() =>
-        config
-            .RecentFolders.Where(Directory.Exists)
-            .Take(Config.MaxRecentFolders)
-            .Select(path => Menu.Item(path, "", () => cmds.ShowRepo(path), () => path != repo.Repo.Path));
+    // The recent repositories as the start page lists them, by name and '~/...' path, and numbered,
+    // so 'o' and a number opens one. The open one is greyed out and has no number, which makes 'o 1'
+    // the repository that was open before it.
+    IEnumerable<MenuItem> GetRecentRepoItems()
+    {
+        var number = 0;
+        return StartRepos
+            .RecentOf(config.RecentFolders, Files.HomePath)
+            .Select(recent =>
+            {
+                var isOpen = Files.IsSamePath(recent.Path, repo.Repo.Path);
+                var shortcut = !isOpen && ++number <= 9 ? $"{number}" : "";
+                return new MenuItem(recent.Name, shortcut, () => cmds.ShowRepo(recent.Path), () => !isOpen)
+                {
+                    Detail = recent.ShownPath,
+                    WhyNot = () => "This repository is already open",
+                };
+            })
+            .ToList();
+    }
 }

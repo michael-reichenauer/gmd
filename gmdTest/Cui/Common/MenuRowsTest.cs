@@ -98,6 +98,40 @@ public class MenuRowsTest
         Assert.AreEqual(18, rows[2].ToString().Length); // the sub menu item
     }
 
+    // A detail, such as a repository's path after its name, is dark and starts in one column for
+    // all items, and is what is cut when the menu is too narrow, at its start, which keeps the end of
+    // a path. With too little room, it is left out.
+    [TestMethod]
+    public void TestDetailsAreLinedUpDarkAndCutFirst()
+    {
+        List<MenuItem> items =
+        [
+            Item("gmd", "1") with
+            {
+                Detail = "~/code/gmd",
+            },
+            Item("web-shop", "2") with
+            {
+                Detail = "~/code/web-shop",
+            },
+            new MenuSeparator(),
+            Item("Browse ..."),
+        ];
+
+        Assert.AreEqual(
+            """
+            |gmd       ~/code/gmd      1|
+            |web-shop  ~/code/web-shop 2|
+            |────────────────────────────|
+            |Browse ...                 |
+            """,
+            Picture(items, "Open")
+        );
+        Assert.AreEqual(Color.Dark, Rows(items, "Open")[0].Fragments[1].Color);
+        Assert.AreEqual("|web-shop  …e/web-shop 2|", Picture(items, "Open", screenWidth: 24).Split('\n')[1]);
+        Assert.AreEqual("|web-shop    2|", Picture(items, "Open", screenWidth: 14).Split('\n')[1]);
+    }
+
     static List<MenuItem> Mixed =>
         [
             Item("One", "a"),
