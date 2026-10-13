@@ -1843,7 +1843,7 @@ public class GitIntegrationTest
         Ok(await sha256.Git.FetchAsync(sha256.Path));
         var onOrigin = Value(await sha256.Git.GetTrackedRemoteTagsAsync(sha256.Path));
 
-        var uncommittedId = new string('0', 40);
+        var uncommittedId = new string('0', 64);
         Assert.AreEqual($"{c1} {uncommittedId}", string.Join(" ", blame.Lines.Select(l => l.CommitId)));
         Assert.IsTrue(blame.CommitById[uncommittedId].IsUncommitted);
         Assert.AreEqual(c1, log.Single().Id);

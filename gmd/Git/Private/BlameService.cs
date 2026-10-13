@@ -84,8 +84,7 @@ class BlameService : IBlameService
     record BlameHeader(string Id, int OriginalLineNbr, int FinalLineNbr);
 
     // A header line is '<sha> <original line nbr> <final line nbr> [<lines in group>]'. The sha of
-    // the lines not committed yet is all zeros, of the length of the repository's ids, and is given
-    // as UncommittedId whatever that length is, which is the id the layers above know them by.
+    // the lines not committed yet is all zeros, as long as the repository's ids are.
     static Result<BlameHeader> ParseHeader(string line)
     {
         var parts = line.Split(' ');
@@ -94,8 +93,7 @@ class BlameService : IBlameService
         if (!int.TryParse(parts[1], out var originalLineNbr) || !int.TryParse(parts[2], out var finalLineNbr))
             return new Error($"Failed to parse blame header line numbers '{line}'");
 
-        var id = ObjectId.IsZero(parts[0]) ? UncommittedId : parts[0];
-        return new BlameHeader(id, originalLineNbr, finalLineNbr);
+        return new BlameHeader(parts[0], originalLineNbr, finalLineNbr);
     }
 
     // Parses the key/value block after a header line and adds the commit if not already known.
@@ -150,7 +148,7 @@ class BlameService : IBlameService
 
         if (!commits.ContainsKey(id))
         {
-            var isUncommitted = id == UncommittedId;
+            var isUncommitted = ObjectId.IsZero(id);
             commits[id] = new BlameCommit(
                 id,
                 id.Sid(),
@@ -191,11 +189,6 @@ class BlameService : IBlameService
     // Content lines are prefixed with a tab. Tabs within the line are kept verbatim, so a copy of
     // the blamed lines yields the file's own text; the view expands them for drawing.
     static string Text(string line) => line[1..];
-
-    // Same all '0' sha as Server.Repo.UncommittedId, which is what git blame uses for lines that
-    // are not committed yet, in a repository of SHA-1 ids; one of SHA-256 ids has 64 zeros, which
-    // ParseHeader gives as this. Repeated here since the git layer cannot reference the server layer.
-    const string UncommittedId = "0000000000000000000000000000000000000000";
 
     const string MissingIgnoreRevsError = "could not open object name list";
 }

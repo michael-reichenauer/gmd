@@ -188,7 +188,7 @@ public class BlameServiceTest
     }
 
     // A repository of SHA-256 ids has ids of 64 characters, which failed every blame, taken to be
-    // 40. Its lines not committed yet have 64 zeros, given as the 40 the layers above know them by.
+    // 40. Its lines not committed yet have 64 zeros.
     [TestMethod]
     public async Task TestParseSha256Ids()
     {
@@ -218,10 +218,11 @@ public class BlameServiceTest
 
         var blame = await GetBlameAsync(output, "");
 
-        CollectionAssert.AreEqual(new[] { id, Id0, id }, blame.Lines.Select(l => l.CommitId).ToArray());
+        var zeros = new string('0', 64);
+        CollectionAssert.AreEqual(new[] { id, zeros, id }, blame.Lines.Select(l => l.CommitId).ToArray());
         Assert.AreEqual("Alice", blame.CommitById[id].Author);
-        Assert.IsTrue(blame.CommitById[Id0].IsUncommitted);
-        Assert.AreEqual(id, blame.CommitById[Id0].PreviousId);
+        Assert.IsTrue(blame.CommitById[zeros].IsUncommitted);
+        Assert.AreEqual(id, blame.CommitById[zeros].PreviousId);
     }
 
     // A blank line in the file is a bare tab. Tabs within a line are kept verbatim, so a copy of
