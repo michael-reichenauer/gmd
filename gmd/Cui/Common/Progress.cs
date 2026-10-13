@@ -40,15 +40,17 @@ class Progress : IProgress
         progressTimer = new Timer(
             _ =>
             {
-                if (marquee == null)
+                // On a thread pool thread, while Stop clears the field on the main loop: read once,
+                // since a null read after the check threw there, and that ends the process
+                if (marquee is not Marquee pulsed)
                     return;
                 if (isFirst)
                 {
                     isFirst = false;
-                    marquee.IsVisible = true;
+                    pulsed.IsVisible = true;
                 }
-                marquee.Pulse();
-                Application.MainLoop.Driver.Wakeup();
+                pulsed.Pulse();
+                Application.MainLoop?.Driver.Wakeup();
             },
             null,
             initialDelay,
