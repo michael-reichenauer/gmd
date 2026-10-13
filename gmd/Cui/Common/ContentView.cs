@@ -458,6 +458,14 @@ class ContentView : View
         Move(viewY - currentViewY);
     }
 
+    // Puts the cursor on a row and scrolls it into view. The scroll comes first: scrolling moves the
+    // cursor with the rows, so a cursor set before it ended up as far off as the view scrolled.
+    internal void ShowCurrentIndex(int index)
+    {
+        ScrollToShowIndex(index);
+        SetCurrentIndex(index);
+    }
+
     internal void SetCurrentIndex(int index)
     {
         scroll.SetCurrentIndex(index);

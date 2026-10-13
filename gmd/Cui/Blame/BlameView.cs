@@ -189,7 +189,8 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.I, CopyLineMessage);
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
-        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
+        // At the screen row above the click, so the first item is beside it: the view is two rows down
+        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y + 1));
     }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
@@ -467,8 +468,9 @@ class BlameView : IBlameView
         blame = newBlame;
         blameRows = blameService.ToBlameRows(blame);
         rowStartX = startX;
+        // Scrolled to the line too: Back put the cursor on it with the view at the top of the file
         contentView.MoveToTop();
-        contentView.SetCurrentIndex(Math.Min(index, Math.Max(0, blameRows.Rows.Count - 1)));
+        contentView.ShowCurrentIndex(Math.Min(index, Math.Max(0, blameRows.Rows.Count - 1)));
         SetHeader();
         contentView.SetNeedsDisplay();
         return true;
@@ -575,8 +577,7 @@ class BlameView : IBlameView
         if (index == -1)
             return;
 
-        contentView.SetCurrentIndex(index);
-        contentView.ScrollToShowIndex(index);
+        contentView.ShowCurrentIndex(index);
     }
 
     void ResetScroll()

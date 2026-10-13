@@ -202,7 +202,8 @@ class ConflictView : IConflictView
         view.RegisterKeyHandler(Key.CursorRight, () => Scroll(1));
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
-        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
+        // At the screen row above the click, so the first item is beside it: the view is two rows down
+        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y + 1));
     }
 
     void SetRows()
@@ -304,10 +305,7 @@ class ConflictView : IConflictView
         if (index == -1)
             return;
 
-        // Scroll first and set the cursor after: scrolling moves the cursor by the same amount as
-        // the rows, so setting it first would leave it somewhere else entirely
-        contentView.ScrollToShowIndex(index);
-        contentView.SetCurrentIndex(index);
+        contentView.ShowCurrentIndex(index);
     }
 
     // Hand edits the result of one conflict, for the merge that is neither side but something of
@@ -447,9 +445,11 @@ class ConflictView : IConflictView
         contentView.SetNeedsDisplay();
     }
 
+    // The y is the row in the view, which is below the header, so it put the cursor two rows above
+    // the click when it took the header off again
     bool OnMouseClick(int y)
     {
-        contentView.SetIndexAtViewY(y - 2);
+        contentView.SetIndexAtViewY(y);
         contentView.SetNeedsDisplay();
         return false;
     }

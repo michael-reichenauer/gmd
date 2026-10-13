@@ -561,10 +561,7 @@ class DiffView : IDiffView
         if (index == -1)
             return;
 
-        // Scroll first and set the cursor after: scrolling moves the cursor by the same amount as
-        // the rows, so setting it first would leave it somewhere else entirely
-        contentView.ScrollToShowIndex(index);
-        contentView.SetCurrentIndex(index);
+        contentView.ShowCurrentIndex(index);
     }
 
     // Move both sides in view left, or select left side text if text is selected
