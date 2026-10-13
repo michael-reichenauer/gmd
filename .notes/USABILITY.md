@@ -498,7 +498,9 @@ all of it fixed since (Tier 1 below):
   - `0` opens a developer Unicode dialog, and is easy to hit.
   - `1` opens help, `5` sets a commit's branch by hand, and `y` goes to the current branch.
 - **Starting outside a repository is unexplained.** A "Recent Repos" menu opens with no word on why.
-  With no recent repositories it starts with a bare separator.
+  With no recent repositories it starts with a bare separator. *Superseded (2026-10-13):* a start
+  page replaced the menu; it numbers the repositories to open, and explains each action to someone
+  who has opened none.
 
 ### 3. Consistency: the same key or word should mean the same thing
 
@@ -621,7 +623,7 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
 6. **Housekeeping:** *done (2026-09-25).*
    - Take the `0` developer key out of release builds, and document `y`.
    - With no recent repositories, the start menu says so. It is titled "Open a Repository" too,
-     which says why it is there.
+     which says why it is there. (Since replaced by the start page, `Cui/Start/`.)
 
 ### Tier 3: consistency
 

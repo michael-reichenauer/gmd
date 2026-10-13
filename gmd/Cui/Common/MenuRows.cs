@@ -5,8 +5,14 @@ namespace gmd.Cui.Common;
 // without a Terminal.Gui driver.
 static class MenuRows
 {
+    // Less room than this for a detail, and it is left out, see Detail
+    const int minDetailWidth = 4;
+
     public static IReadOnlyList<Text> ToRows(IReadOnlyList<MenuItem> items, MenuDimensions dimensions)
     {
+        var detailColumn = MenuDimensions.DetailColumn(items);
+        var detailWidth = dimensions.TitleWidth - detailColumn;
+
         return items
             .Select(item =>
             {
@@ -16,9 +22,16 @@ static class MenuRows
                 // Color if disabled or not
                 var titleColor = item.IsDisabled ? Color.Dark : Color.White;
 
-                // Title text might need to be truncated
+                // Title text might need to be truncated, and a detail is cut first, at its start,
+                // since the end of a path is what tells it apart
                 var text = new TextBuilder();
-                if (item.Text.Length > dimensions.TitleWidth)
+                if (item.Detail != "" && detailWidth >= minDetailWidth)
+                {
+                    var detail =
+                        item.Detail.Length > detailWidth ? "…" + item.Detail[^(detailWidth - 1)..] : item.Detail;
+                    text.Color(titleColor, item.Text.Max(detailColumn, true)).Dark(detail.Max(detailWidth, true));
+                }
+                else if (item.Text.Length > dimensions.TitleWidth)
                 {
                     text.Color(titleColor, item.Text.Max(dimensions.TitleWidth - 1, true)).Dark("…");
                 }

@@ -31,7 +31,7 @@ sealed class TempHome : IDisposable
     // drive is a dev instance: Build.IsDevInstance() finds 'gmd.dll' on the command line, since
     // .NET puts the entry assembly there even when the apphost starts it. So RepoView's regular
     // update check never runs, and no update is ever reported (no '⇓' in the application bar, no
-    // release items in the menus), but the start menu and saving the Config dialog check all the
+    // release items in the menus), but the start page and saving the Config dialog check all the
     // same (Updater.CheckUpdateAvailableAsync skips only the 'dotnet' host), and without this they
     // would call the GitHub releases API: a network dependency in CI.
     //
@@ -42,15 +42,21 @@ sealed class TempHome : IDisposable
     // The tip about hidden branches, which the first repository with some shows on the status line
     // for fifteen seconds, is taken as told unless asked for, for the same reason: it is drawn over
     // the bottom row, and every test opens a repository for the first time.
-    static string ConfigJson(bool isKeyHints, bool isHiddenBranchesTip) =>
+    //
+    // The recent repositories are what the start page lists, and none unless a test sets them.
+    static string ConfigJson(bool isKeyHints, bool isHiddenBranchesTip, IReadOnlyList<string> recentFolders) =>
         $$"""
             {
               "CheckUpdates": false,
               "AutoUpdate": false,
               "ShowKeyHints": {{(isKeyHints ? "true" : "false")}},
-              "IsHiddenBranchesTold": {{(isHiddenBranchesTip ? "false" : "true")}}
+              "IsHiddenBranchesTold": {{(isHiddenBranchesTip ? "false" : "true")}},
+              "RecentFolders": {{System.Text.Json.JsonSerializer.Serialize(recentFolders)}}
             }
             """;
+
+    bool isKeyHints;
+    bool isHiddenBranchesTip;
 
     TempHome(string path) => Path = path;
 
@@ -91,14 +97,21 @@ sealed class TempHome : IDisposable
             Log.Warn($"Failed to delete temp home '{Path}', {e}");
     }
 
+    // The repositories opened before, as gmd will read them when it starts, for the start page
+    public void SetRecentFolders(IReadOnlyList<string> folders) =>
+        File.WriteAllText(IOPath.Join(Path, ".gmdconfig"), ConfigJson(isKeyHints, isHiddenBranchesTip, folders));
+
     void Init(bool isKeyHints, bool isHiddenBranchesTip)
     {
+        this.isKeyHints = isKeyHints;
+        this.isHiddenBranchesTip = isHiddenBranchesTip;
+
         // All three have to exist before gmd starts: ConfigLogger's static constructor writes
         // the log file and fails fast if it cannot
         Directory.CreateDirectory(Path);
         Directory.CreateDirectory(IOPath.Join(Path, ".config"));
         Directory.CreateDirectory(IOPath.Join(Path, "tmp"));
 
-        File.WriteAllText(IOPath.Join(Path, ".gmdconfig"), ConfigJson(isKeyHints, isHiddenBranchesTip));
+        SetRecentFolders([]);
     }
 }

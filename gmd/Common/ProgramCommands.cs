@@ -63,7 +63,7 @@ class ProgramCommands : IProgramCommands
                                   Update change log file CHANGELOG.md, with the commits since the
                                   latest release headed <version> rather than Current
               -d <path>           Show repo for working folder specified by <path>
-              -m                  Show main menu even if in working folder
+              -m                  Show the start page, even in a repository
               --help|-h|-?        Show command line help.
 
             The help on using gmd, which ? opens in gmd:

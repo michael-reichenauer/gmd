@@ -144,4 +144,21 @@ public class GitDirTest
         AssertError(GitDir.Find(root), "No '.git' anywhere above the temp root");
         AssertError(GitDir.Find(Path.Join(root, "missing")), "Folder does not exist");
     }
+
+    // Only the folder holding '.git' is a root, a '.git' file as much as a folder, and a folder
+    // inside a repository is not, nor one that is not there
+    [TestMethod]
+    public void TestIsRootIsTheFolderHoldingGit()
+    {
+        var main = CreateMain();
+        var worktree = CreateLinkedWorktree(Path.Join(root, "main-dev"), "dev");
+        var sub = Path.Join(main, "src");
+        Directory.CreateDirectory(sub);
+
+        Assert.IsTrue(GitDir.IsRoot(main));
+        Assert.IsTrue(GitDir.IsRoot(worktree));
+        Assert.IsFalse(GitDir.IsRoot(sub));
+        Assert.IsFalse(GitDir.IsRoot(root));
+        Assert.IsFalse(GitDir.IsRoot(Path.Join(root, "missing")));
+    }
 }

@@ -14,7 +14,7 @@ interface IHelpPage
 // not: a page as wide as the window, searchable, with links between its sections. Over ssh, or in a
 // container with no $BROWSER, the link is copied for opening it on the machine the user is sitting
 // at, and shown in a box as well, since not every terminal takes a copy, and since the status line
-// is not seen from the diff, blame and conflict views or the start menu.
+// is not seen from the diff, blame and conflict views.
 class HelpPage : IHelpPage
 {
     // The sections the side views open the help at, so it starts at what is about them

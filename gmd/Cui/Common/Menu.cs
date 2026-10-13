@@ -32,10 +32,6 @@ class Menu
 
     public const int Center = -int.MaxValue;
 
-    // Whether a click outside the menu closes it, as a context menu is closed. A menu whose closing
-    // quits gmd, the start menu, turns it off, since a stray click is not asking to quit.
-    public bool IsClosedOnClickOutside { get; init; } = true;
-
     // Where a greyed out item says why it is, when it is picked anyway: the status line at the
     // bottom of the log view, which is left in view behind a menu. Set once, by MainView.
     internal static IStatusLine? StatusLine { get; set; }
@@ -183,9 +179,6 @@ class Menu
         (var x, var y) = ToViewCoordinates(screenX, screenY);
         if (!IsInside(x, y))
         { // Clicked outside this menu, close this menu and forward click to parent menu
-            if (parent == null && !IsClosedOnClickOutside)
-                return;
-
             await CloseAsync();
             parent?.OnMouseClicked(screenX, screenY);
             if (parent == null)

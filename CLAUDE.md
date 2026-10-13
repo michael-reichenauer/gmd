@@ -60,7 +60,7 @@ override — so `HOME` is the only lever, and on Unix it also isolates `~/.gitco
 commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well. The built binary *is* a
 dev instance — `Build.IsDevInstance()` looks for `gmd.dll` on the command line, and .NET puts the
 entry assembly there even when the apphost starts it — so it never starts the regular update check,
-but the start menu and saving the Config dialog still call the GitHub releases API
+but the start page and saving the Config dialog still call the GitHub releases API
 (`Updater.CheckUpdateAvailableAsync` skips only the `dotnet` host). Being a dev instance also means
 it never reports an update, so ⇓ in the application bar and the release menu items cannot be seen
 with it; a published single-file build (`dotnet publish -r <rid> -p:PublishSingleFile=true`) is
@@ -149,6 +149,13 @@ Key types and flow:
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
+- `Cui/Start/` — the start page, shown in place of the log until a repo is opened: when gmd is
+  started outside one, or with `-m`. `StartRepos` is what it lists, the recent repos and those in the
+  start folder, read off the disk with no git process (`GitDir.IsRoot`); `StartRows` lays it out and
+  is the index math of its items; `StartView` is the view, its keys and its actions. It is not a
+  modal dialog: `MainView` hides the log and shows the page, a dialog opens over it, and a repo that
+  fails to open leaves it there. Its keys go on the log view's key-hint line
+  (`IRepoView.SetStartPage`).
 - `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
   `RepoView.cs` is the main log view, i.e. reading and refreshing the shown repo and drawing it.
   What the user does to it is split off: `RepoViewInput.cs` holds every key and mouse button plus
@@ -540,6 +547,10 @@ gmd.Send("Enter");                                     // a key; SendText types 
 gmd.WaitUntilGone("Gmd Help Guide");                   // i.e. "the dialog closed"
 ```
 
+The start page's tests lay out the home first, `TempHome.SetRecentFolders` and
+`StartGmd(home, folder)`, with the repos it lists as `.git` folders in it, so they read `~/...` on
+every machine.
+
 Colors are assertable too: `gmd.CaptureColors()` keeps them as ANSI, and `ScreenText.ColorsOf` /
 `ColorRows` / `BackgroundRows` turn that into one letter per cell lined up under the text, exactly
 as `GraphText.ColorsOf` does for the graph column — uppercase for a normal color, lowercase for its
@@ -656,7 +667,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

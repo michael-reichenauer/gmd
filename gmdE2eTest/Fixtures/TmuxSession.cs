@@ -77,18 +77,22 @@ sealed class TmuxSession : IDisposable
         bool isKeyHints = false,
         bool isHiddenBranchesTip = false,
         params string[] extraArgs
+    ) => StartGmd(TempHome.Create(isKeyHints, isHiddenBranchesTip), repoPath, width, height, commitTime, extraArgs);
+
+    // In a home laid out beforehand, for the start page, which lists what is in it as '~/...', the
+    // same on every machine. The session owns the home from here on, and deletes it with itself.
+    public static TmuxSession StartGmd(
+        TempHome home,
+        string folder,
+        int width = DefaultWidth,
+        int height = DefaultHeight,
+        DateTimeOffset? commitTime = null,
+        params string[] extraArgs
     )
     {
         EnsureTmux();
 
-        var session = new TmuxSession(
-            $"gmd-e2e-{Guid.NewGuid():N}",
-            TempHome.Create(isKeyHints, isHiddenBranchesTip),
-            repoPath,
-            width,
-            height,
-            commitTime
-        );
+        var session = new TmuxSession($"gmd-e2e-{Guid.NewGuid():N}", home, folder, width, height, commitTime);
         try
         {
             session.Start(extraArgs);

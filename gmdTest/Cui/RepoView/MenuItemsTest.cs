@@ -361,6 +361,50 @@ public class MenuItemsTest
         );
     }
 
+    // The recent repositories by name and path, as the start page lists them, and numbered, so 'o'
+    // and a number opens one. The open one is greyed out with no number, so 'o 1' is the one before.
+    // A recent folder that is no longer a repository is left out. The folders are '.git' folders in
+    // the temp folder, which is all the listing looks at.
+    [TestMethod]
+    public async Task TestTheOpenMenuListsTheRecentRepositoriesNumbered()
+    {
+        var root = Path.Join(Path.GetTempPath(), $"gmdTest-open-{Guid.NewGuid():N}");
+        try
+        {
+            string Repo(string name)
+            {
+                Directory.CreateDirectory(Path.Join(root, name, ".git"));
+                return Path.Join(root, name);
+            }
+            var gmd = Repo("gmd");
+            var web = Repo("web-shop");
+            var dotfiles = Repo("dotfiles");
+            var config = new Config { RecentFolders = [gmd, web, Path.Join(root, "gone"), dotfiles] };
+            var view = await ViewOf(Fixture().AtPath(gmd));
+
+            var open = (SubMenu)
+                RepoMenuOf(view, config).GetRepoMenuItems().First(i => i.Text == "Open, Clone or Init Repo");
+
+            Assert.AreEqual(
+                """
+                gmd  <root>/gmd  (disabled)
+                web-shop  <root>/web-shop  [1]
+                dotfiles  <root>/dotfiles  [2]
+                ---
+                Browse ...
+                Clone ...
+                Init ...
+                """,
+                Items(open.Children).Replace(root, "<root>")
+            );
+            Assert.AreEqual("This repository is already open", WhyNot(open.Children.ToList(), "gmd"));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     // Uncommitted changes block a pull, which would move the working tree from under them, but not
     // a push, which sends commits and leaves the changes where they are
     [TestMethod]
@@ -552,7 +596,8 @@ public class MenuItemsTest
                     return i.Text == "" ? "---" : $"--- {i.Text} ---";
 
                 var shortcut = i.Shortcut == "" ? "" : $"  [{i.Shortcut}]";
-                return $"{i.Text}{(i is SubMenu ? " >" : "")}{shortcut}{(IsDisabled(i) ? "  (disabled)" : "")}";
+                var detail = i.Detail == "" ? "" : $"  {i.Detail}";
+                return $"{i.Text}{detail}{(i is SubMenu ? " >" : "")}{shortcut}{(IsDisabled(i) ? "  (disabled)" : "")}";
             })
         );
 
@@ -583,7 +628,7 @@ public class MenuItemsTest
 
     // Only OperationName and OperationSummary are called while the items are built, and both read
     // nothing but repo.Repo.Status, so the rest of RepoCommands is never reached
-    static IRepoMenu RepoMenuOf(FakeViewRepo view) =>
+    static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) =>
         new RepoMenu(
             view,
             new RepoCommands(
@@ -601,7 +646,7 @@ public class MenuItemsTest
                 null!,
                 _ => null!
             ),
-            new Config(),
+            config ?? new Config(),
             null!
         );
 
