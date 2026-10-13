@@ -29,8 +29,6 @@ class Server : IServer
     public event Action<ChangeEvent>? RepoChange;
     public event Action<ChangeEvent>? StatusChange;
 
-    public string CurrentAuthor => git.CurrentAuthor;
-
     public async Task<Result<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         var repoResult = await augmentedService.GetRepoAsync(path);
@@ -238,7 +236,7 @@ class Server : IServer
     {
         var diffTask =
             commitId == Repo.UncommittedId
-                ? git.GetUncommittedDiff(contextLines, wd)
+                ? git.GetUncommittedDiffAsync(contextLines, wd)
                 : git.GetCommitDiffAsync(commitId, contextLines, wd);
 
         var diff = await diffTask;
@@ -536,8 +534,8 @@ class Server : IServer
     public Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
         augmentedService.UnresolveAmbiguityAsync(repo, commitId);
 
-    public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
-        git.GetFileAsync(reference, wd);
+    public Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd) =>
+        git.GetFilePathsAsync(reference, wd);
 
     public async Task<Result> CloneAsync(string uri, string path, string wd)
     {

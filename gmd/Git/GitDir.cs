@@ -21,7 +21,8 @@ internal static class GitDir
 
     // Walks up from a folder to the nearest one holding '.git', which is the root of the working
     // tree the folder is in. A '.git' file counts as well as a '.git' folder, so a linked worktree
-    // is found, and found rather than the main repository it may be nested inside.
+    // is found, and found rather than the main repository it may be nested inside. The '.git'
+    // folder itself is in its repository's root, so it is found as any folder inside that is.
     public static Result<GitDirInfo> Find(string path)
     {
         if (path == "")
@@ -34,12 +35,7 @@ internal static class GitDir
             return new Error($"Folder does not exist: '{path}'");
         }
 
-        var current = path.TrimSuffix("/").TrimSuffix("\\");
-        if (path.EndsWith(GitFolder))
-        {
-            current = Path.GetDirectoryName(path) ?? path;
-        }
-
+        var current = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         while (true)
         {
             if (IsRoot(current))
@@ -100,6 +96,11 @@ internal static class GitDir
         var commonDir = FullPath(ReadFirstLine(commonDirPath), gitDir);
         return new GitDirInfo(rootPath, gitDir, commonDir, true);
     }
+
+    // Where a working tree's own git state is, HEAD, the index and a stopped operation, or "" when
+    // the folder is no working tree root. Usually '<root>/.git', but in a linked worktree and a
+    // submodule '.git' is a file pointing elsewhere, so joining '.git' blindly finds none of it.
+    public static string GitDirPathOf(string rootPath) => Resolve(rootPath) is GitDirInfo info ? info.GitDirPath : "";
 
     static string FullPath(string path, string relativeTo) =>
         Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Join(relativeTo, path));

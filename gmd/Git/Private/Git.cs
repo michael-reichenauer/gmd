@@ -56,15 +56,16 @@ internal class Git : IGit
         this.cmd = cmd;
     }
 
-    public string CurrentAuthor { get; private set; } = "";
-
-    public Result<string> RootPath(string path) => RootPathDir(path);
-
-    public async Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
+    // The root of the working tree a folder is in. A linked worktree is a root of its own, even
+    // when nested inside the main repository's folder — see GitDir.
+    public Result<string> RootPath(string path)
     {
-        await SetCurrentAuthorAsync(wd);
-        return await logService.GetLogAsync(maxCount, wd);
+        var found = GitDir.Find(path);
+        return found is GitDirInfo gitDir ? gitDir.RootPath : found.Error;
     }
+
+    public Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
+        logService.GetLogAsync(maxCount, wd);
 
     public Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd) =>
         logService.GetMergeLogAsync(reference, wd);
@@ -84,8 +85,8 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd) =>
         logService.GetIdsChangingTextAsync(text, maxCount, wd);
 
-    public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
-        logService.GetFileAsync(reference, wd);
+    public Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd) =>
+        logService.GetFilePathsAsync(reference, wd);
 
     public Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => branchService.GetBranchesAsync(wd);
 
@@ -136,8 +137,8 @@ internal class Git : IGit
 
     public Task<Result> RunMergeToolAsync(string path, string wd) => diffService.RunMergeToolAsync(path, wd);
 
-    public Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
-        diffService.GetUncommittedDiff(contextLines, wd);
+    public Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd) =>
+        diffService.GetUncommittedDiffAsync(contextLines, wd);
 
     public Task<Result> FetchAsync(string wd) => remoteService.FetchAsync(wd);
 
@@ -151,8 +152,6 @@ internal class Git : IGit
     public Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd) =>
         remoteService.PushRestoreAsync(name, oldId, expectedId, wd);
 
-    public Task<Result> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
-
     public Task<Result> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);
 
     public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
@@ -164,7 +163,7 @@ internal class Git : IGit
 
     public Task<Result> CloneAsync(string uri, string path, string wd) => remoteService.CloneAsync(uri, path, wd);
 
-    public Task<Result> InitRepoAsync(string path, string wd) => repoService.InitAsync(path, false);
+    public Task<Result> InitRepoAsync(string path, string wd) => repoService.InitAsync(path);
 
     public Task<Result> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
 
@@ -287,8 +286,8 @@ internal class Git : IGit
     public Task<Result> AddTagAsync(string name, string commitId, string wd) =>
         tagService.AddTagAsync(name, commitId, wd);
 
-    public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd) =>
-        tagService.AddAnnotatedTagAsync(name, message, commitID, wd);
+    public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd) =>
+        tagService.AddAnnotatedTagAsync(name, message, commitId, wd);
 
     public Task<Result> RemoveTagAsync(string name, string wd) => tagService.RemoveTagAsync(name, wd);
 
@@ -331,7 +330,7 @@ internal class Git : IGit
     public Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
         worktreeService.GetIgnoredAsync(paths, wd);
 
-    public async Task<Result<string>> Version()
+    public async Task<Result<string>> GetVersionAsync()
     {
         var result = await cmd.RunAsync("git", "version", "", true, true);
         if (result is not string output)
@@ -340,21 +339,15 @@ internal class Git : IGit
         return output.TrimPrefix("git version ");
     }
 
-    private async Task SetCurrentAuthorAsync(string path)
+    // Git exits with 1 when user.name is not set, which is an answer
+    public async Task<Result<string>> GetCurrentAuthorAsync(string wd)
     {
-        if (await cmd.RunAsync("git", "config user.name", path, true, true) is not string output)
-            return;
-        Log.Info($"user {output}");
-        CurrentAuthor = output.Trim();
-    }
+        var result = await cmd.RunRawAsync("git", "config user.name", wd, true, true);
+        if (result.ExitCode == 1)
+            return "";
+        if (result.ToResult() is not string name)
+            return result.ToResult().Error;
 
-    // The root of the working tree a folder is in. A linked worktree is a root of its own, even
-    // when nested inside the main repository's folder — see GitDir.
-    public static Result<string> RootPathDir(string path)
-    {
-        var found = GitDir.Find(path);
-        if (found is not GitDirInfo gitDir)
-            return found.Error;
-        return gitDir.RootPath;
+        return name.Trim();
     }
 }

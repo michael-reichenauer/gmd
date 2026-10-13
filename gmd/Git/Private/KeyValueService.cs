@@ -28,7 +28,7 @@ class KeyValueService : IKeyValueService
             // Store the temp file with key value in the git database (returns an object id)
             if (Result.Catch(() => File.WriteAllText(path, value)) is Error writeError)
                 return writeError;
-            var hashed = await cmd.RunAsync("git", $"hash-object -w \"{path}\"", wd, true, true);
+            var hashed = await cmd.RunAsync("git", $"hash-object -w {Cmd.Quote(path)}", wd, true, true);
             if (hashed is not string objectId)
                 return hashed.Error;
             objectId = objectId.Trim();

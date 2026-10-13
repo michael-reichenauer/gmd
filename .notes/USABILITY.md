@@ -217,7 +217,7 @@ Both are reworked, see proposal D.1.
    *The first half is done (2026-10-07):* git gets `GIT_TERMINAL_PROMPT=0` and a closed stdin, and
    ssh `SSH_ASKPASS_REQUIRE=force` with gmd itself as `SSH_ASKPASS` (`Cmd.NeverAskOnTheTerminal`,
    `Askpass`), unless the user has an askpass of their own. gmd answers nothing yet, so the command
-   fails, and `LoginError` says what to do: the key to `ssh-add`, the host to trust, a credential
+   fails, and `LoginAdvice` says what to do: the key to `ssh-add`, the host to trust, a credential
    helper to set up. The fetch says it on the status line, a push or a pull in its error box.
    *The second half is done (2026-10-07):* the askpass asks the gmd that ran the git, over a named
    pipe opened for the user only and a token in git's environment (`AskpassServer`), which shows a

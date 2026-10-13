@@ -349,7 +349,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 using (status.Progress($"Updating '{b.NiceNameUnique}'"))
                 {
                     if (await server.PullBranchAsync(b.Name, repo.Path) is Error e)
-                        failed.Add($"{b.NiceNameUnique}: {Git.LoginError.Text(e)}");
+                        failed.Add($"{b.NiceNameUnique}: {LoginAdvice.Text(e)}");
                     else
                         updated.Add(b.NiceNameUnique);
                 }
@@ -359,7 +359,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 using (status.Progress($"Updating '{r.BranchName}'"))
                 {
                     if (await server.PullRewrittenAsync(repo.Repo, r) is Error e)
-                        failed.Add($"{r.BranchName}: {Git.LoginError.Text(e)}");
+                        failed.Add($"{r.BranchName}: {LoginAdvice.Text(e)}");
                     else
                         updated.Add(r.BranchName);
                 }

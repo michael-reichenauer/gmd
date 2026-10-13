@@ -78,7 +78,7 @@ class ViewRepo : IViewRepo
 
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) => server.GetCommitBranches(Repo, RowCommit.Id, isAll);
 
-    public string CurrentAuthor => server.CurrentAuthor;
+    public string CurrentAuthor => serverRepo.CurrentAuthor;
 
     public ShownHistory ShownHistory => repoView.ShownHistory;
     public SearchMatches SearchMatches => repoView.SearchMatches;

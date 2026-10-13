@@ -224,11 +224,13 @@ public class CommitServiceTest
     [TestMethod]
     public async Task TestTheFilesToCleanAreTheDryRunOfTheClean()
     {
-        var cmd = new FakeCmd("Would remove .env\nWould remove bin/\nWould remove notes.txt\n");
+        var cmd = new FakeCmd(
+            "Would remove .env\nWould remove bin/\nWould remove notes.txt\nWould remove \"n\\303\\266w.txt\"\n"
+        );
 
         var files = AssertOk(await new CommitService(cmd).GetFilesToCleanAsync(wd));
 
-        CollectionAssert.AreEqual(new[] { ".env", "bin/", "notes.txt" }, files.ToArray());
+        CollectionAssert.AreEqual(new[] { ".env", "bin/", "notes.txt", "nöw.txt" }, files.ToArray());
         CollectionAssert.AreEqual(new[] { "clean -n -x -d" }, ArgsOf(cmd));
     }
 

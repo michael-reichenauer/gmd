@@ -27,7 +27,7 @@ public class GitIntegrationTest
     [TestMethod]
     public async Task TestVersion()
     {
-        var version = Value(await repo.Git.Version());
+        var version = Value(await repo.Git.GetVersionAsync());
 
         // The 'git version ' prefix is trimmed off, leaving e.g. '2.55.0'
         StringAssert.Matches(version, new System.Text.RegularExpressions.Regex(@"^\d+\.\d+"));
@@ -305,6 +305,25 @@ public class GitIntegrationTest
         Assert.AreEqual(log[0].AuthorTime, log[0].CommitTime);
     }
 
+    // An author's name can have a '|' in it, which the log's fields were separated by, so the
+    // fields after it moved one along: the rest of the name taken for the parents, and the parents
+    // put in front of the message
+    [TestMethod]
+    public async Task TestLogOfAnAuthorWithABarInTheName()
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "First");
+        repo.WriteFile("file.txt", "two\n");
+        await repo.GitAsync("-c \"user.name=Jane Doe | Acme\" commit -am Second");
+        var c2 = await repo.HeadIdAsync();
+
+        var log = Value(await repo.Git.GetLogAsync(100, repo.Path));
+
+        Assert.AreEqual(c2, log[0].Id);
+        Assert.AreEqual("Jane Doe | Acme", log[0].Author);
+        CollectionAssert.AreEqual(new[] { c1 }, log[0].ParentIds);
+        Assert.AreEqual("Second", log[0].Message);
+    }
+
     [TestMethod]
     public async Task TestLogMaxCount()
     {
@@ -579,11 +598,29 @@ public class GitIntegrationTest
         Assert.AreEqual(c2, (await repo.GitAsync("rev-parse refs/tags/v1.0")).Trim());
     }
 
-    // The tags git reports, sorted and without the duplicate an annotated tag is listed as
+    // The tags git reports, sorted
     async Task<string> TagNames()
     {
         var tags = Value(await repo.Git.GetTagsAsync(repo.Path));
-        return string.Join(", ", tags.Select(t => t.Name).Distinct().Order());
+        return string.Join(", ", tags.Select(t => t.Name).Order());
+    }
+
+    // Each tag once, on its commit: git lists an annotated tag a second time, on its own object,
+    // which is no commit. No tags at all is no failure.
+    [TestMethod]
+    public async Task TestTagsAreOnTheirCommits()
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "First");
+        Assert.AreEqual(0, Value(await repo.Git.GetTagsAsync(repo.Path)).Count);
+
+        Ok(await repo.Git.AddTagAsync("light", c1, repo.Path));
+        Ok(await repo.Git.AddAnnotatedTagAsync("annotated", "A message", c1, repo.Path));
+
+        var tags = Value(await repo.Git.GetTagsAsync(repo.Path));
+        Assert.AreEqual(
+            $"annotated {c1}, light {c1}",
+            string.Join(", ", tags.Select(t => $"{t.Name} {t.CommitId}").Order())
+        );
     }
 
     [TestMethod]
@@ -678,7 +715,7 @@ public class GitIntegrationTest
         var result = await repo.Git.MergeBranchAsync("dev", repo.Path);
 
         var error = AssertError(result, "Both branches changed the same line");
-        StringAssert.Contains(error.Message, "Merge Conflicts!");
+        Assert.IsInstanceOfType<ConflictError>(error);
 
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual("M:0,A:0,D:0,C:1,R:0", status.ToString());
@@ -687,7 +724,7 @@ public class GitIntegrationTest
         Assert.AreEqual(d1, status.MergeHeadId);
 
         // The conflict markers git wrote into the file are what the diff view draws as conflicts
-        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
         var fileDiff = diff.FileDiffs.First(f => f.PathAfter == "file.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, fileDiff.DiffMode);
         Assert.AreEqual(
@@ -710,7 +747,7 @@ public class GitIntegrationTest
 
     // The regression test for silent, unrecoverable data loss. A rebase with the --apply backend
     // writes no .git/MERGE_MSG, which is what the merge-in-progress check used to look for, so
-    // GetUncommittedDiff ran its 'git add .' — staging the unmerged path with the conflict markers
+    // GetUncommittedDiffAsync ran its 'git add .' — staging the unmerged path with the conflict markers
     // as its content. That resolves the conflict, and the 'git reset' afterwards does not put the
     // stages back: 'git checkout --merge' can no longer recover it, only 'git rebase --abort'.
     //
@@ -726,7 +763,7 @@ public class GitIntegrationTest
         Assert.AreEqual(GitOperation.Rebase, before.Operation, "The --apply backend is still a rebase");
         Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".git", "MERGE_MSG")), "Which is why it was missed");
 
-        Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
 
         var unmerged = await repo.GitAsync("ls-files -u");
         Assert.AreNotEqual("", unmerged.Trim(), "The index stages must survive being looked at");
@@ -744,7 +781,7 @@ public class GitIntegrationTest
         await repo.Git.MergeBranchAsync("dev", repo.Path);
         repo.WriteFile("new.txt", "new\n");
 
-        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
 
         Assert.AreEqual(
             "file.txt DiffConflicts, new.txt DiffAdded",
@@ -1070,7 +1107,7 @@ public class GitIntegrationTest
         var result = await repo.Git.ContinueOperationAsync(repo.Path);
 
         var error = AssertError(result);
-        StringAssert.Contains(error.Message, "stopped on more conflicts");
+        Assert.IsInstanceOfType<ConflictError>(error);
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         Assert.AreEqual(GitOperation.Rebase, status.Operation, "Still rebasing, now on the second commit");
         Assert.AreEqual(2, status.OperationStep);
@@ -1664,6 +1701,193 @@ public class GitIntegrationTest
         );
     }
 
+    // Git's output is read as the parsers expect it whatever the user's config says, since a setting
+    // changes the output of every command, a pipe's included: color, a diff program of its own, other
+    // or no 'a/' and 'b/' before the paths, the refs after a commit id, a shortened id. Each of them
+    // broke every diff gmd showed, or the commit ids in it.
+    [TestMethod]
+    [DataRow("diff.noprefix true")]
+    [DataRow("diff.mnemonicPrefix true")]
+    [DataRow("diff.external false")]
+    [DataRow("color.ui always")]
+    [DataRow("log.decorate short")]
+    [DataRow("log.abbrevCommit true")]
+    public async Task TestDiffsAreReadWhateverTheConfigSays(string setting)
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "First");
+        var c2 = await repo.CommitFileAsync("file.txt", "one\ntwo\n", "Second");
+        repo.WriteFile("file.txt", "one\ntwo\nthree\n");
+        await repo.GitAsync($"config {setting}");
+
+        var commit = Value(await repo.Git.GetCommitDiffAsync(c2, 6, repo.Path));
+        var uncommitted = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
+        var range = Value(await repo.Git.GetDiffRangeAsync(c2, c2, "Range", 6, repo.Path));
+        var refs = Value(await repo.Git.GetPreviewMergeDiffAsync(c1, c2, "Refs", 6, repo.Path));
+        var history = Value(await repo.Git.GetFileDiffAsync("file.txt", 6, repo.Path));
+        var lines = Value(await repo.Git.GetLineHistoryAsync("file.txt", 2, 2, "", repo.Path));
+
+        Assert.AreEqual($"{c2} file.txt +two", Summary(commit));
+        Assert.AreEqual(" file.txt +three", Summary(uncommitted));
+        Assert.AreEqual(" file.txt +two", Summary(range));
+        Assert.AreEqual(" file.txt +two", Summary(refs));
+        Assert.AreEqual($"{c2} file.txt +two", Summary(history[0]));
+        Assert.AreEqual($"{c2} file.txt +two", Summary(lines[0]));
+
+        static string Summary(CommitDiff diff) =>
+            $"{diff.Id} "
+            + string.Join(
+                ", ",
+                diff.FileDiffs.Select(f =>
+                    f.PathAfter
+                    + string.Concat(
+                        f.SectionDiffs.SelectMany(s => s.LineDiffs)
+                            .Where(l => l.DiffMode == DiffMode.DiffAdded)
+                            .Select(l => $" +{l.Line}")
+                    )
+                )
+            );
+    }
+
+    // The paths of a diff as git writes them: quoted when they have a character that is not ASCII,
+    // which made the diff throw, and not when they have a space, which split a path with ' b/' in it
+    // in the wrong place. And the hunks of a file whose mode changed too, which were lost.
+    [TestMethod]
+    public async Task TestDiffOfFilesWithAnyName()
+    {
+        await repo.CommitFileAsync("base.txt", "one\n", "First");
+        Directory.CreateDirectory(Path.Join(repo.Path, "x b"));
+        repo.WriteFile("x b/y.txt", "y\n");
+        repo.WriteFile("Ärende.md", "x\n");
+        await repo.GitAsync("mv base.txt bäse.txt");
+        var c2 = await repo.CommitAsync("Second");
+        repo.WriteFile("x b/y.txt", "y\nz\n");
+        await repo.GitAsync("add .");
+        await repo.GitAsync("update-index --chmod=+x \"x b/y.txt\"");
+        await repo.GitAsync("commit -m Third");
+        var c3 = await repo.HeadIdAsync();
+
+        var second = Value(await repo.Git.GetCommitDiffAsync(c2, 6, repo.Path));
+        var third = Value(await repo.Git.GetCommitDiffAsync(c3, 6, repo.Path));
+
+        Assert.AreEqual(
+            "base.txt bäse.txt DiffModified, x b/y.txt x b/y.txt DiffAdded, Ärende.md Ärende.md DiffAdded",
+            string.Join(", ", second.FileDiffs.Select(f => $"{f.PathBefore} {f.PathAfter} {f.DiffMode}"))
+        );
+        var file = third.FileDiffs.Single();
+        Assert.AreEqual("x b/y.txt", file.PathAfter);
+        Assert.AreEqual("z", file.SectionDiffs.Single().LineDiffs.Single(l => l.DiffMode == DiffMode.DiffAdded).Line);
+    }
+
+    // A file with a name git quotes, here for the 'Ä', through what is done to a file by its name.
+    // The status gave the name with git's octal escapes, so it could not be committed by name,
+    // discarded or blamed, and the list of a commit's files to pick one from had it the same way.
+    [TestMethod]
+    public async Task TestAFileWithANameGitQuotes()
+    {
+        await repo.CommitFileAsync("Ärende.md", "one\n", "First");
+        repo.WriteFile("Ärende.md", "one\ntwo\n");
+        repo.WriteFile("nöw.txt", "new\n");
+
+        var status = Value(await repo.Git.GetStatusAsync(repo.Path));
+        CollectionAssert.AreEqual(new[] { "Ärende.md" }, status.ModifiedFiles);
+        CollectionAssert.AreEqual(new[] { "nöw.txt" }, status.AddedFiles);
+        CollectionAssert.AreEqual(new[] { "nöw.txt" }, Value(await repo.Git.GetFilesToCleanAsync(repo.Path)).ToArray());
+
+        Ok(await repo.Git.CommitFilesAsync("Second", false, status.ModifiedFiles, repo.Path));
+        Ok(await repo.Git.UndoUncommittedFileAsync(status.AddedFiles[0], repo.Path));
+
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "Committed, and the new file discarded");
+        var files = Value(await repo.Git.GetFilePathsAsync("HEAD", repo.Path));
+        CollectionAssert.AreEqual(new[] { "Ärende.md" }, files.ToArray());
+        var blame = Value(await repo.Git.GetBlameAsync(files[0], "HEAD", repo.Path));
+        Assert.AreEqual("Ärende.md", blame.CommitById[blame.Lines[1].CommitId].Path);
+    }
+
+    // A message is one argument to git whatever it holds. In quotes with only its '"' escaped, a
+    // message with '\"' in it, or that ended with a '\', was split into more arguments: cut short,
+    // and the rest taken as paths to commit.
+    [TestMethod]
+    public async Task TestMessagesWithQuotesAndBackslashes()
+    {
+        const string message = """Escape \"quotes\" in C:\temp\""";
+        await repo.CommitFileAsync("file.txt", "one\n", message);
+        repo.WriteFile("file.txt", "two\n");
+        Ok(await repo.Git.CommitFilesAsync($"{message} again", false, ["file.txt"], repo.Path));
+        Ok(await repo.Git.AddAnnotatedTagAsync("v1", message, await repo.HeadIdAsync(), repo.Path));
+        repo.WriteFile("file.txt", "three\n");
+        Ok(await repo.Git.StashAsync(message, repo.Path));
+
+        Assert.AreEqual($"{message} again\n{message}", await repo.GitAsync("log --format=%s"));
+        Assert.AreEqual(message, await repo.GitAsync("tag -l --format=%(contents:subject) v1"));
+        Assert.AreEqual($"On main: {message}", await repo.GitAsync("stash list --format=%s"));
+    }
+
+    // A repository of SHA-256 ids, 64 hex characters where SHA-1's are 40. The log, branches, tags
+    // and diffs read, but blame took an id to be 40 characters and failed on every file, and the
+    // record of origin's tags was read as empty, so no tag was on origin.
+    [TestMethod]
+    public async Task TestARepositoryOfSha256Ids()
+    {
+        using var sha256 = await TempRepo.CreateSha256Async();
+        var c1 = await sha256.CommitFileAsync("file.txt", "one\n", "First");
+        Assert.AreEqual(64, c1.Length, "A SHA-256 id");
+        await sha256.AddOriginAsync();
+        Ok(await sha256.Git.PushBranchAsync("main", sha256.Path));
+        Ok(await sha256.Git.AddTagAsync("v1", c1, sha256.Path));
+        Ok(await sha256.Git.PushTagAsync("v1", sha256.Path));
+        sha256.WriteFile("file.txt", "one\ntwo\n");
+
+        var blame = Value(await sha256.Git.GetBlameAsync("file.txt", "", sha256.Path));
+        var log = Value(await sha256.Git.GetLogAsync(10, sha256.Path));
+        var diff = Value(await sha256.Git.GetCommitDiffAsync(c1, 6, sha256.Path));
+        Ok(await sha256.Git.FetchAsync(sha256.Path));
+        var onOrigin = Value(await sha256.Git.GetTrackedRemoteTagsAsync(sha256.Path));
+
+        var uncommittedId = new string('0', 64);
+        Assert.AreEqual($"{c1} {uncommittedId}", string.Join(" ", blame.Lines.Select(l => l.CommitId)));
+        Assert.IsTrue(blame.CommitById[uncommittedId].IsUncommitted);
+        Assert.AreEqual(c1, log.Single().Id);
+        Assert.AreEqual("file.txt", diff.FileDiffs.Single().PathAfter);
+        Assert.AreEqual(c1, onOrigin["v1"], "Kept through the fetch, which prunes the record");
+        Assert.AreEqual("v1", await TagNamesOf(sha256), "The fetch deleted no tag");
+    }
+
+    static async Task<string> TagNamesOf(TempRepo repo) =>
+        string.Join(", ", AssertOk(await repo.Git.GetTagsAsync(repo.Path)).Select(t => t.Name).Order());
+
+    // With log.showSignature git checks the signature of each signed commit and writes what it
+    // found before the commit, on stdout, in the log's own output, so a signed commit's id was the
+    // text of that check
+    [TestMethod]
+    public async Task TestASignedCommitIsReadWhenTheConfigShowsSignatures()
+    {
+        var key = Path.Join(repo.Path, ".git", "test-signing-key");
+        try
+        {
+            if (!Proc.Run("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", key]).IsOk)
+                Assert.Inconclusive("ssh-keygen failed, so there is no key to sign with");
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Assert.Inconclusive("No ssh-keygen to make a key to sign with");
+        }
+        await repo.CommitFileAsync("file.txt", "one\n", "First");
+        await repo.GitAsync("config gpg.format ssh");
+        await repo.GitAsync($"config user.signingkey \"{key}.pub\"");
+        repo.WriteFile("file.txt", "two\n");
+        await repo.GitAsync("commit -S -am Signed");
+        var signed = await repo.HeadIdAsync();
+        await repo.GitAsync("config log.showSignature true");
+
+        var log = Value(await repo.Git.GetLogAsync(10, repo.Path));
+        var diff = Value(await repo.Git.GetCommitDiffAsync(signed, 6, repo.Path));
+        var reflog = Value(await repo.Git.GetReflogAsync(repo.Path));
+
+        Assert.AreEqual($"{signed} Signed", $"{log[0].Id} {log[0].Subject}");
+        Assert.AreEqual($"{signed} Signed", $"{diff.Id} {diff.Message}");
+        Assert.AreEqual($"{signed} commit: Signed", $"{reflog[0].Id} {reflog[0].Message}");
+    }
+
     // What the diff view's '+' and '-' keys actually buy: git shows more unchanged lines around
     // the change, and a context larger than the file stops at its ends rather than failing, which
     // is how 'whole file' is asked for. Canned output cannot catch this one — it is git's own
@@ -1696,7 +1920,7 @@ public class GitIntegrationTest
         }
     }
 
-    // GetUncommittedDiff stages the changes into a copy of the index and diffs that, since a diff
+    // GetUncommittedDiffAsync stages the changes into a copy of the index and diffs that, since a diff
     // of untracked files is not otherwise possible. This pins that the working folder is left as
     // it was, which the FakeCmd tests can only assert the git commands for.
     [TestMethod]
@@ -1709,7 +1933,7 @@ public class GitIntegrationTest
         repo.DeleteFile("del.txt");
         repo.WriteFile("new.txt", "new\n");
 
-        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
 
         Assert.AreEqual("Uncommitted changes", diff.Message);
         Assert.AreEqual(
@@ -1735,7 +1959,7 @@ public class GitIntegrationTest
         repo.WriteFile("new.txt", "new\n");
         var staged = await repo.GitAsync("diff --cached --name-status");
 
-        var diff = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
 
         Assert.AreEqual(
             "new.txt DiffAdded, moved.txt -> renamed.txt, staged.txt DiffModified",

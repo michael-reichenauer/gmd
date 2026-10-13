@@ -357,7 +357,7 @@ class StartView : IStartView
 
         if (cloned is Error e)
         {
-            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{Git.LoginError.Text(e)}");
+            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{LoginAdvice.Text(e)}");
             view.SetFocus();
             return;
         }

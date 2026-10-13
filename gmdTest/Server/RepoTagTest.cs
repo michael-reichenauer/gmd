@@ -3,16 +3,15 @@ using GitTag = gmd.Git.Tag;
 
 namespace gmdTest.Server;
 
-// The tags the tag list shows: each once, on its commit, and whether origin has it
+// The tags the tag list shows, and whether origin has each
 [TestClass]
 public class RepoTagTest
 {
-    // 'show-ref --dereference' lists an annotated tag twice, the tag object and then its commit
     [TestMethod]
-    public void TestATagIsListedOnceOnItsCommit()
+    public void TestATagIsOnOriginWhenOriginHasItsName()
     {
         var tags = RepoTag.Of(
-            [new GitTag("v1.0", "tagobject"), new GitTag("v1.0", "commit1"), new GitTag("v0.9", "commit0")],
+            [new GitTag("v1.0", "commit1"), new GitTag("v0.9", "commit0")],
             new Dictionary<string, string> { ["v0.9"] = "commit0" }
         );
 

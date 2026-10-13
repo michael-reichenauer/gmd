@@ -3,8 +3,10 @@ namespace gmd.Git;
 interface IGit
 {
     Result<string> RootPath(string path);
-    Task<Result<string>> Version();
-    string CurrentAuthor { get; }
+    Task<Result<string>> GetVersionAsync();
+
+    // The name commits are made with in the repository, its user.name, or "" when none is set
+    Task<Result<string>> GetCurrentAuthorAsync(string wd);
 
     Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
 
@@ -24,7 +26,7 @@ interface IGit
 
     // The ones of the ids that are commits git still has
     Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
-    Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<Result<Status>> GetStatusAsync(string wd);
 
@@ -33,7 +35,7 @@ interface IGit
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
-    Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
+    Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
 
     // The commits that changed the lines of the file at the reference, or HEAD for "", newest first
@@ -75,7 +77,6 @@ interface IGit
     // Force pushes a remote branch back to a commit, if it is still at the expected one, or creates it
     // there, if it does not exist, when the expected one is ""
     Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
-    Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
     Task<Result> CheckoutAsync(string name, string wd);
@@ -143,7 +144,7 @@ interface IGit
     Task<Result> StashDropAsync(string name, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result> AddTagAsync(string name, string commitId, string wd);
-    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);
     Task<Result> RemoveTagAsync(string name, string wd);
     Task<Result> PushTagAsync(string name, string wd);
 

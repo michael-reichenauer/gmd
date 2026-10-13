@@ -379,9 +379,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   activating OK but is bound nowhere; dialogs are accepted with Tab then Enter. The merge-from menu
   lists only shown branches, so with only `main` shown it is an empty box.
 - Cosmetic and pinned by tests: a cut sid, author or time column carries no `┅` marker (the
-  subject column does); a binary file is headed `Modified:`; `FileSize` never shows a fraction; a
-  stash message is cut at its first `:`. (A staged added file used to be counted as modified, which
-  stopped being cosmetic once discarding a file asked whether it was new; it is added now.)
+  subject column does); a binary file is headed `Modified:`; `FileSize` never shows a fraction. (A
+  staged added file used to be counted as modified, which stopped being cosmetic once discarding a
+  file asked whether it was new; it is added now. A stash message was cut at its first `:`.)
 - Worktrees, deliberately left out of v1: no unlock of a locked worktree (a second `--force`),
   no bulk clean-up, no auto-prune; the stash list is the repository's and so shows stashes made
   in other worktrees; other worktrees' folders are not watched, so their change counts are up to
@@ -403,6 +403,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `--autosquash`, with the message given to the first. The rewrites that are rebases recorded for
   Undo only when they finish in one go: one stopped on a conflict and continued is named by the
   reflog, i.e. Undo Rebase, which leaves an Amend's `amend!` commit, a second Undo.
+
+- Left by the review of `gmd/Git` (2026-10-13):
+  - A hunk is read by the prefix of its lines rather than by the counts in its header, so with
+    `diff.suppressBlankEmpty` set an empty context line, written as an empty line, ends the hunk.
+    Reading by the counts would also be what a combined diff (`diff --cc`) needs.
+  - Branch and tag names go to git unquoted. Git refuses a space and a backslash in a ref name,
+    but not a `"`, which would split the argument.
+  - `GetLogAsync` reads `user.name` before every log, one after the other, to set `IGit.CurrentAuthor`
+    as a side effect, for the branch menu's own branches. 4 ms; worth moving when that is touched.
+  - `KeyValueService.PushValueAsync` passes `--set-upstream`, which means nothing for a ref outside
+    `refs/heads`.
 
 **Inference pipeline**
 
@@ -499,16 +510,19 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
   first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
   layout state inside the server model; static leftovers (`Build.IsWindows` assignable,
-  `BranchService.remotePrefix`, `MessageDlg.Clicked`, `Updater`'s static task cache, the single
+  `MessageDlg.Clicked`, `Updater`'s static task cache, the single
   `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
   `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
-  synchronous, `TipID` vs `TipId`); dead code (`exampleRunes.cs`, the commented
-  blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`, `TagService`,
-  `BranchService`, `FileMonitor`, `WindowsClipboard`); 23 type names declared in both `gmd/Git` and
-  `gmd/Server/Repo.cs`, some identical — share the leaf records only; no tests for
-  `Updater`, and `FakeGit` implements 12 of 76 members.
+  synchronous, `TipID` vs `TipId`, in `Git.Branch` and the augmented `WorkBranch` alike, and
+  `Status.IsMerging`, which is any operation in progress); dead code (`exampleRunes.cs`, the
+  commented blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`,
+  `FileMonitor`, `WindowsClipboard`); no tests for `Updater`, and `FakeGit` implements 12 of 76
+  members.
 - Not recommended: removing the one-implementation interfaces (they are the DI and test-double
-  seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
+  seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
+  records `gmd/Git` and `gmd/Server/Repo.cs` both declare, 14 of them copies (decided 2026-10-13:
+  `gmd.Git` is to stay a general git library, and the server's converters are its boundary, see
+  CLAUDE.md under Layering).
 
 **Deferred, with the reasoning so it is not redone**
 
@@ -629,6 +643,30 @@ Add new open issues and findings here as work lands; keep them short and drop th
 ## Findings worth remembering
 
 **Git**
+
+- The user's config changes the output of porcelain commands in a pipe too, so every command gmd
+  parses pins its format (2026-10-13): `diff.noprefix` and `diff.mnemonicPrefix` drop or change the
+  `a/` and `b/` (`--src-prefix=a/ --dst-prefix=b/`), `diff.external` runs another program for `git
+  diff` (`--no-ext-diff`), `color.ui=always` colors a pipe (`--no-color`), `log.decorate` and
+  `log.abbrevCommit` change the `commit <id>` line, and `log.showSignature` writes the check of a
+  signed commit's signature on stdout before it, even in front of a `--pretty=format:` record and a
+  reflog entry (`--no-show-signature`). `git status --porcelain` is the one meant to be immune.
+- Git quotes a path that has a `"`, a `\`, a control character or, by default (`core.quotePath`),
+  any character that is not ASCII, as a C string with the bytes of that character as octal
+  escapes (`"\303\244"` for `ä`). `status` and `clean -n` quote a path with a space as well, a diff's
+  `diff --git` line does not, which leaves it ambiguous when the two paths differ (a rename's
+  `rename from` / `rename to` lines say them again), and `---` / `+++` end such a path with a tab.
+  `diff --check` does not quote. `status`, `ls-tree` and `worktree list` take `-z`, which gives the
+  paths as they are; `QuotedPath` unquotes the rest.
+- A command line is split into arguments again by .NET on Linux and macOS and by the program itself
+  on Windows, both by the same rule: backslashes count only before a `"`, where they are halved.
+  `Cmd.Quote` writes a text as one argument; `git rev-parse --sq-quote <args>` shows what git got.
+- A repository of SHA-256 ids (`git init --object-format=sha256`) has ids of 64 hex characters, and
+  marks the lines blame finds uncommitted with 64 zeros; it cannot push to or fetch from one of SHA-1
+  ids (`rev-parse --show-object-format` tells which). gmd reads one since 2026-10-13: an id is 40 or
+  64 characters (`ObjectId`), and blame gives the uncommitted lines the 40 zeros gmd's own
+  `UncommittedId` has. `TempRepo.CreateSha256Async` makes one.
+- In C#, `\x` takes up to four hex digits, so `"\x1fb"` is U+01FB, not U+001F and `b`; write `\u001f`.
 
 - The reflog, as Undo, Recover and the force push detection read it (2026-10-06):
   - git writes no entry to a branch's reflog for an update that leaves it where it was, so the

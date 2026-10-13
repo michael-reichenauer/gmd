@@ -24,6 +24,37 @@ public class CmdTest
         StringAssert.Matches(asyncError.Origin, origin, "Across the thread RunAsync runs it on");
     }
 
+    // A text as one argument whatever it holds: its quotes escaped, and backslashes doubled only
+    // where they come before a quote, the closing one included
+    [TestMethod]
+    [DataRow("plain", "\"plain\"")]
+    [DataRow("two words", "\"two words\"")]
+    [DataRow("say \"hi\"", "\"say \\\"hi\\\"\"")]
+    [DataRow(@"C:\temp\", "\"C:\\temp\\\\\"")]
+    [DataRow(@"a\""b", "\"a\\\\\\\"b\"")]
+    [DataRow(@"\\server\share", "\"\\\\server\\share\"")]
+    [DataRow("", "\"\"")]
+    public void TestQuote(string text, string expected)
+    {
+        Assert.AreEqual(expected, Cmd.Quote(text));
+    }
+
+    // What git is given is the text, whatever it holds: 'git rev-parse --sq-quote' writes back the
+    // arguments it got, each in single quotes. A message with '\"' in it, or ending with a '\', was
+    // split into more arguments.
+    [TestMethod]
+    [TestCategory("Integration")]
+    public void TestAQuotedTextIsOneArgumentToGit()
+    {
+        string[] texts = ["plain", "two words", "say \"hi\"", @"C:\temp\", @"a\""b", @"\\server\share", "tab\tin", ""];
+
+        var output = AssertOk(
+            new Cmd().Command("git", $"rev-parse --sq-quote {string.Join(' ', texts.Select(Cmd.Quote))}", "")
+        );
+
+        Assert.AreEqual(string.Concat(texts.Select(t => $" '{t}'")), output);
+    }
+
     // Git is run in English whatever the user's language, since gmd recognizes what happened by
     // git's messages. LANGUAGE is what gettext reads first, so it wins over the user's own.
     [TestMethod]

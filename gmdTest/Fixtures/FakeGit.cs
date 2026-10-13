@@ -15,7 +15,7 @@ class FakeGit : IGit
     public FakeGit()
         : this(new Status(0, 0, 0, 0, 0, GitOperation.None, "", "", "", 0, 0, true, [], [], [], [], [], [])) { }
 
-    public string CurrentAuthor => "Test Author";
+    public Task<Result<string>> GetCurrentAuthorAsync(string wd) => Task.FromResult<Result<string>>("Test Author");
 
     // The status of the repo, or of another worktree's folder when one is set for that path
     public Task<Result<Status>> GetStatusAsync(string wd) =>
@@ -130,7 +130,7 @@ class FakeGit : IGit
     public Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result<string>> Version() => throw new NotSupportedException();
+    public Task<Result<string>> GetVersionAsync() => throw new NotSupportedException();
 
     public Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd) =>
         throw new NotSupportedException();
@@ -147,7 +147,7 @@ class FakeGit : IGit
     public Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd) =>
+    public Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => throw new NotSupportedException();
@@ -161,7 +161,7 @@ class FakeGit : IGit
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd) =>
+    public Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result<CommitDiff[]>> GetLineHistoryAsync(
@@ -239,8 +239,6 @@ class FakeGit : IGit
 
     public Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd) =>
         throw new NotSupportedException();
-
-    public Task<Result> PullRefAsync(string name, string wd) => throw new NotSupportedException();
 
     public Task<Result> CloneAsync(string uri, string path, string wd) => throw new NotSupportedException();
 

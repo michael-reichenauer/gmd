@@ -59,6 +59,9 @@ record Repo
     public IReadOnlyDictionary<string, RemoteRewrite> RemoteRewrites { get; init; } =
         new Dictionary<string, RemoteRewrite>();
 
+    // The name commits are made with in the repository, its user.name, or "" when none is set
+    public string CurrentAuthor { get; init; } = "";
+
     public static Repo Empty { get; } =
         new Repo(
             "",
@@ -183,16 +186,11 @@ public record Tag(string Name, string CommitId);
 // last fetch, and the pushes gmd made since (TagService.TrackedRemoteTagsRef)
 public record RepoTag(string Name, string CommitId, bool IsOnOrigin)
 {
-    // The tags git listed, each once, and whether origin has each. An annotated tag is listed twice,
-    // its own object and then the commit it is on, which is the one wanted.
+    // The tags git listed, and whether origin has each
     internal static IReadOnlyList<RepoTag> Of(
         IReadOnlyList<Git.Tag> tags,
         IReadOnlyDictionary<string, string> origin
-    ) =>
-        tags.GroupBy(t => t.Name)
-            .Select(g => g.Last())
-            .Select(t => new RepoTag(t.Name, t.CommitId, origin.ContainsKey(t.Name)))
-            .ToList();
+    ) => tags.Select(t => new RepoTag(t.Name, t.CommitId, origin.ContainsKey(t.Name))).ToList();
 }
 
 public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);

@@ -35,6 +35,7 @@ class WorkRepoConverter : IWorkRepoConverter
             Worktrees = workRepo.Worktrees.ToList(),
             UndoSteps = workRepo.UndoSteps,
             RemoteRewrites = workRepo.RemoteRewrites,
+            CurrentAuthor = workRepo.CurrentAuthor,
         };
     }
 

@@ -13,8 +13,6 @@ interface IServer
     event Action<ChangeEvent> RepoChange;
     event Action<ChangeEvent> StatusChange;
 
-    string CurrentAuthor { get; }
-
     Task<Result<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
     Task<Result<Repo>> GetUpdateStatusRepoAsync(Repo repo);
     Task<Result<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount);
@@ -52,7 +50,7 @@ interface IServer
     Task<Result> StashApplyAsync(string name, string wd);
 
     // Git commands
-    Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result> FetchAsync(string wd);
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);

@@ -138,6 +138,18 @@ public class GitDirTest
         Assert.AreEqual(main, Value(GitDir.Find(MainGitDir)).RootPath);
     }
 
+    // A working tree in a folder named as a bare repository often is, 'project.git', is found as
+    // itself: a name ending in '.git' was taken for a '.git' folder, and the search started above it
+    [TestMethod]
+    public void TestFindOfAFolderNamedLikeABareRepository()
+    {
+        var project = Path.Join(root, "project.git");
+        Directory.CreateDirectory(Path.Join(project, ".git", "refs"));
+
+        Assert.AreEqual(project, Value(GitDir.Find(project)).RootPath);
+        Assert.AreEqual(project, Value(GitDir.Find(project + Path.DirectorySeparatorChar)).RootPath);
+    }
+
     [TestMethod]
     public void TestFindFailsOutsideAnyRepository()
     {

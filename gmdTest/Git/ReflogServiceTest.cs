@@ -34,7 +34,7 @@ public class ReflogServiceTest
         var entries = AssertOk(await new ReflogService(cmd).GetReflogAsync("/wd"));
 
         Assert.AreEqual(
-            "reflog show --exclude=refs/* --all --glob=refs/heads/* --format=%H%x00%gD%x00%gs",
+            "reflog show --exclude=refs/* --all --glob=refs/heads/* --no-show-signature --format=%H%x00%gD%x00%gs",
             cmd.Calls[0].Args
         );
         CollectionAssert.AreEqual(
@@ -83,7 +83,7 @@ public class ReflogServiceTest
         );
 
         Assert.AreEqual(
-            "reflog show --format=%H%x00%gD%x00%gs refs/remotes/origin/dev refs/remotes/origin/x",
+            "reflog show --no-show-signature --format=%H%x00%gD%x00%gs refs/remotes/origin/dev refs/remotes/origin/x",
             cmd.Calls[0].Args
         );
         Assert.AreEqual(new ReflogEntry(A, "refs/remotes/origin/dev", 0, "fetch: forced-update"), entries[0]);

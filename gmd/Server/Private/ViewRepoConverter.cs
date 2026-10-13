@@ -101,22 +101,28 @@ class ViewRepoConverter : IViewRepoConverter
             _ => throw Asserter.FailFast($"Unknown choice {choice}"),
         };
 
+    // Git's id of the lines not committed yet is all zeros, 40 or 64 of them as the repository's
+    // ids are long, and gmd's is Repo.UncommittedId whatever the repository, which is what routes
+    // their diff to the uncommitted changes and finds them in the log
     public Blame ToBlame(Git.Blame gitBlame)
     {
         var b = gitBlame;
-        return new Blame(b.Path, b.Reference, ToBlameLines(b.Lines), ToBlameCommits(b.CommitById));
+        string IdOf(string id) => b.CommitById.TryGetValue(id, out var c) && c.IsUncommitted ? Repo.UncommittedId : id;
+
+        return new Blame(b.Path, b.Reference, ToBlameLines(b.Lines, IdOf), ToBlameCommits(b.CommitById, IdOf));
     }
 
-    static IReadOnlyList<BlameLine> ToBlameLines(IReadOnlyList<Git.BlameLine> lines) =>
-        lines.Select(l => new BlameLine(l.CommitId, l.LineNbr, l.OriginalLineNbr, l.Text)).ToList();
+    static IReadOnlyList<BlameLine> ToBlameLines(IReadOnlyList<Git.BlameLine> lines, Func<string, string> idOf) =>
+        lines.Select(l => new BlameLine(idOf(l.CommitId), l.LineNbr, l.OriginalLineNbr, l.Text)).ToList();
 
     static IReadOnlyDictionary<string, BlameCommit> ToBlameCommits(
-        IReadOnlyDictionary<string, Git.BlameCommit> commits
+        IReadOnlyDictionary<string, Git.BlameCommit> commits,
+        Func<string, string> idOf
     ) =>
         commits.ToDictionary(
-            p => p.Key,
+            p => idOf(p.Key),
             p => new BlameCommit(
-                p.Value.Id,
+                idOf(p.Value.Id),
                 p.Value.Sid,
                 p.Value.Author,
                 p.Value.AuthorMail,
@@ -229,6 +235,7 @@ class ViewRepoConverter : IViewRepoConverter
             Worktrees = repo.Worktrees,
             UndoSteps = repo.UndoSteps,
             RemoteRewrites = repo.RemoteRewrites,
+            CurrentAuthor = repo.CurrentAuthor,
         };
     }
 }

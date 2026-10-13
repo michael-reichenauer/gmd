@@ -5,7 +5,7 @@ namespace gmd.Git.Private;
 internal interface ILogService
 {
     Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
-    Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd);
     Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd);
     Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd);
@@ -25,7 +25,15 @@ internal class LogService : ILogService
     internal const int IdsPerCall = 400;
     const int MaxUnreachableCount = 2000;
 
-    private readonly ICmd cmd;
+    // The fields of each commit, separated by the ASCII unit separator (FieldSeparator), and the
+    // rows NUL separated (-z). The fields were separated by '|', which an author's name can have,
+    // and the fields after it then moved one along. And no check of a signed commit's signature,
+    // which config can ask for (log.showSignature) and git writes in front of the commit's fields,
+    // so that the commit's id was the text of the check.
+    internal const string CommitFormat = "--no-show-signature -z --pretty=%H%x1f%ai%x1f%ci%x1f%an%x1f%P%x1f%B";
+    internal const char FieldSeparator = '\u001f';
+
+    readonly ICmd cmd;
 
     internal LogService(ICmd cmd)
     {
@@ -34,7 +42,7 @@ internal class LogService : ILogService
 
     public async Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
     {
-        var args = $"log --all --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={maxCount}";
+        var args = $"log --all --date-order {CommitFormat} --max-count={maxCount}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -49,12 +57,12 @@ internal class LogService : ILogService
     // on a side branch whose change the merge left out, and --no-merges, since with the full history
     // every merge bringing in such a change is listed as well, which would bury the commits made.
     //
-    // The text is what the user typed: a '"' would end the argument, and git writes paths with '/'
-    // on every platform.
+    // The text is what the user typed, and git writes paths with '/' on every platform.
     public async Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd)
     {
-        var text = pathText.Replace("\"", "").Replace('\\', '/');
-        var args = $"log --all --full-history --no-merges --format=%H --max-count={maxCount} -- \":(icase)*{text}*\"";
+        var pathspec = Cmd.Quote($":(icase)*{pathText.Replace('\\', '/')}*");
+        var args =
+            $"log --all --full-history --no-merges --no-show-signature --format=%H --max-count={maxCount} -- {pathspec}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -64,11 +72,10 @@ internal class LogService : ILogService
 
     // The ids of the commits whose changes added or removed the text, in any case, newest first, for
     // a search of the changes: 'git log -S', the pickaxe, which counts the text in each file before
-    // and after a commit, so a line that only moved is not a change of it. The text is what the user
-    // typed, so a '"' would end the argument.
+    // and after a commit, so a line that only moved is not a change of it.
     public async Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd)
     {
-        var args = $"log --all -i -S\"{text.Replace("\"", "")}\" --format=%H --max-count={maxCount}";
+        var args = $"log --all -i -S{Cmd.Quote(text)} --no-show-signature --format=%H --max-count={maxCount}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -93,7 +100,7 @@ internal class LogService : ILogService
         foreach (var chunk in ids.Chunk(IdsPerCall))
         {
             var args =
-                $"log --ignore-missing -z --date-order --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={MaxUnreachableCount} "
+                $"log --ignore-missing --date-order {CommitFormat} --max-count={MaxUnreachableCount} "
                 + $"{string.Join(' ', chunk)} --not --all {string.Join(' ', alsoReached)}";
             var result = await cmd.RunAsync("git", args.TrimEnd(), wd);
             if (result is not string output)
@@ -128,7 +135,7 @@ internal class LogService : ILogService
 
     public async Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd)
     {
-        var args = $"stash list -z --pretty=\"%H|%ai|%ci|%an|%P|%gd:%B\"";
+        var args = "stash list --no-show-signature -z --pretty=%H%x1f%ai%x1f%ci%x1f%an%x1f%P%x1f%gd:%B";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -137,20 +144,21 @@ internal class LogService : ILogService
         return await Task.Run(() => ParseLines(output));
     }
 
-    public async Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd)
+    // The paths of the files at the reference, NUL separated (-z), since git otherwise quotes a
+    // path that has a character that is not ASCII
+    public async Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd)
     {
-        var args = $"ls-tree -r {reference} --name-only";
+        var args = $"ls-tree -r -z --name-only {reference}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
 
-        // Wrap parsing in separate task thread, since it might be a lot of commits to parse
-        return output.Split('\n').ToList();
+        return output.Split('\0', StringSplitOptions.RemoveEmptyEntries).ToList();
     }
 
     public async Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd)
     {
-        var args = $"log --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count=100 HEAD..{reference}";
+        var args = $"log --date-order {CommitFormat} --max-count=100 HEAD..{reference}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -190,10 +198,10 @@ internal class LogService : ILogService
 
     Result<Commit> ParseRow(ReadOnlySpan<char> row)
     {
-        // The fields are '|' separated. The message is the last, and the last range is the rest of
-        // the row, so a message containing '|' is kept whole.
+        // The message is the last field, and the last range is the rest of the row, so a message
+        // with the separator in it is kept whole
         Span<Range> fields = stackalloc Range[6];
-        if (row.Split(fields, '|') < 6)
+        if (row.Split(fields, FieldSeparator) < 6)
         {
             return new Error($"failed to parse git commit {row}");
         }
@@ -206,11 +214,11 @@ internal class LogService : ILogService
         var authorTime = DateTime.Parse(row[fields[1]], CultureInfo.InvariantCulture);
         var commitTime = DateTime.Parse(row[fields[2]], CultureInfo.InvariantCulture);
         var author = row[fields[3]].ToString();
-        var parentIDs = ParseParentIds(row[fields[4]]);
+        var parentIds = ParseParentIds(row[fields[4]]);
         var message = ParseMessage(row[fields[5]]);
         var subject = ParseSubject(message);
 
-        return new Commit(id, sid, parentIDs, subject, message, author, authorTime, commitTime);
+        return new Commit(id, sid, parentIds, subject, message, author, authorTime, commitTime);
     }
 
     string[] ParseParentIds(ReadOnlySpan<char> field)
