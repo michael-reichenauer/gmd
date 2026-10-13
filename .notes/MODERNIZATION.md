@@ -579,11 +579,16 @@ Add new open issues and findings here as work lands; keep them short and drop th
     Splitting it is for the Terminal.Gui 2.x port, which it would make smaller: 19 of its 36 files
     touch Terminal.Gui, 18 more outside it, nearly all of those through `Key`, `Dim` / `Pos` and
     `Application.RequestStop`.
-  - `RepoView.cs` (870 lines) schedules refreshes (six entry points, two flags, two pending
-    changes), and a read that finishes after a newer one can show the older repo: a status read
-    started before a refresh and done after it, or a show by mouse during a refresh. A plain
-    `RepoRefresher` with a generation counter, testable with a fake server, would fix both. Not
-    reproduced.
+  - *Done 2026-10-14:* `RepoView.cs` schedules refreshes, and a read that finished after a newer one
+    showed the older repo again: a status read started before a refresh and done after it, two
+    refreshes at once (a command's is not held back by the flag a change's is), or a show or hide by
+    the user during a refresh, which the refresh, read with the branches from before, undid; and the
+    first of two reads to finish cleared the flags the other still needed. `RepoReads` counts the
+    reads running and every repo shown, and a read that something was shown since it started is
+    overtaken: a refresh reads again (three reads at most, then the last is shown), a status read
+    looks at its change again against the repo now shown. Not reproduced end to end: the reads of a
+    small repo are too quick for a show to land in one; a stress run (commits from outside while
+    showing and hiding) ended right, with no read overtaken.
   - *Done 2026-10-14:* keys and hints each decided what is possible, and drifted: most of what was
     fixed above. The keys whose meaning depends on the cursor (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`)
     are decided in `LogKeys`, which `RepoViewInput` and `KeyHints` both ask. Left: the menus decide
