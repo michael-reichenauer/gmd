@@ -15,13 +15,16 @@ public class LostWorkIntegrationTest
 {
     TempRepo repo = null!;
     AugmentedService service = null!;
+    BranchWriteService branches = null!;
     int minute = 0;
 
     [TestInitialize]
     public async Task Init()
     {
         repo = await TempRepo.CreateAsync();
-        service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        var metaDataService = new FakeMetaDataService(new MetaData());
+        service = RepoBuilder.NewAugmentedService(repo.Git, metaDataService);
+        branches = new BranchWriteService(repo.Git, metaDataService);
     }
 
     [TestCleanup]
@@ -132,7 +135,7 @@ public class LostWorkIntegrationTest
         await repo.GitAsync("reset --hard HEAD~1");
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        AssertOk(await service.CreateBranchFromCommitAsync(augmented, "restored", lost, false));
+        AssertOk(await branches.CreateBranchFromCommitAsync(augmented, "restored", lost, false));
 
         Assert.AreEqual(lost, (await repo.GitAsync("rev-parse restored")).Trim());
         Assert.AreEqual(0, (await LostWorkAsync()).Count);

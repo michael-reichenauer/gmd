@@ -9,7 +9,7 @@ namespace gmd.Cui.RepoView;
 // which would be left on the old commits.
 //
 // Plain functions of the repo, so they are testable without a view. The augmented service checks the
-// same against git before it rewrites anything (AugmentedService.CheckRewritableAsync).
+// same against git before it rewrites anything (CommitRewriteService.CheckRewritableAsync).
 static class CommitRewrite
 {
     // Not pushed yet: ahead of its remote branch, or a commit of a local branch never pushed. The one

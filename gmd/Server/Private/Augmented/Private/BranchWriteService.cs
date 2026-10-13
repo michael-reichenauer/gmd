@@ -2,23 +2,7 @@ using gmd.Git;
 
 namespace gmd.Server.Private.Augmented.Private;
 
-// BranchWriteService runs the git commands that change which branches exist and where they point.
-// They are the write operations that need the augmented repo to work out what to actually run,
-// i.e. which commit a created branch should remember it was branched from, whether a branch that
-// git no longer has needs to be recreated first, and whether the local or the remote branch of a
-// pair holds the tip to merge or rebase onto.
-interface IBranchWriteService
-{
-    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout);
-    Task<Result> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout);
-    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout);
-    Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
-    Task<Result> SwitchToAsync(Repo repo, string branchName);
-    Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name);
-    Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
-    Task<Result> RebaseBranchAsync(Repo repo, string name);
-}
-
+// See IBranchWriteService
 class BranchWriteService : IBranchWriteService
 {
     readonly IGit git;
@@ -235,5 +219,34 @@ class BranchWriteService : IBranchWriteService
 
         var branchName = mergeCommits[0].BranchPrimaryName;
         return mergeCommits.Where(c => c.BranchPrimaryName == branchName);
+    }
+
+    // Which branch a commit is on, as the user chose it, kept in the metadata, which the inference
+    // takes before anything else (CommitBranchRules.TryIsBranchSetByUser)
+    public async Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setNiceName)
+    {
+        Log.Info($"Set {commitId.Sid()} to {setNiceName} ...");
+
+        return await metaDataService.UpdateMetaDataAsync(
+            repo.Path,
+            m => m.SetCommitBranch(commitId.Sid(), setNiceName)
+        );
+    }
+
+    public async Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName)
+    {
+        var branch = repo.BranchByName[branchName];
+        var ambiguousTip = branch.AmbiguousTipId;
+        Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setHumanName} ...");
+
+        return await metaDataService.UpdateMetaDataAsync(
+            repo.Path,
+            m => m.SetCommitBranch(ambiguousTip.Sid(), setHumanName)
+        );
+    }
+
+    public async Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId)
+    {
+        return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.RemoveCommitBranch(commitId.Sid()));
     }
 }

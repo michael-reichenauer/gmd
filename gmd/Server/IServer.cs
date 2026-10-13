@@ -121,7 +121,7 @@ interface IServer
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
 
-    // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see AugmentedService
+    // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see UndoService
     Task<Result> UndoStepAsync(Repo repo, UndoStep step);
 
     // The lines of work no branch, tag or stash has any more, which the reflogs still mention

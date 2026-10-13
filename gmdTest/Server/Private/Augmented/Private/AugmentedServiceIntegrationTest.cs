@@ -240,7 +240,7 @@ public class AugmentedServiceIntegrationTest
         var service = await BuildBranchAsync();
 
         var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
-        var commits = AssertOk(await service.MergeToBranchAsync(augRepo, "main"));
+        var commits = AssertOk(await BranchWrites().MergeToBranchAsync(augRepo, "main"));
 
         // Now on the target, with the merge staged for the caller to commit
         Assert.AreEqual("main", await CurrentBranchAsync());
@@ -259,14 +259,14 @@ public class AugmentedServiceIntegrationTest
         var service = await BuildBranchAsync();
 
         var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
-        AssertOk(await service.MergeToBranchAsync(augRepo, "main"));
+        AssertOk(await BranchWrites().MergeToBranchAsync(augRepo, "main"));
         var status = AssertOk(await repo.Git.GetStatusAsync(repo.Path));
         await repo.CommitAsync(status.MergeMessage);
         AssertOk(await repo.Git.CheckoutAsync("dev", repo.Path));
 
         // 'dev' is now in 'main', so merging it again brings in nothing
         augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
-        var commits = AssertOk(await service.MergeToBranchAsync(augRepo, "main"));
+        var commits = AssertOk(await BranchWrites().MergeToBranchAsync(augRepo, "main"));
 
         Assert.AreEqual(0, commits.Count);
         Assert.AreEqual("main", await CurrentBranchAsync());
@@ -292,13 +292,15 @@ public class AugmentedServiceIntegrationTest
         await repo.GitAsync("push -q origin dev"); // As pushed elsewhere and fetched here
         await repo.GitAsync("reset -q --hard HEAD~1");
 
-        var error = AssertError(await service.RebaseBranchAsync(shown, "main"));
+        var error = AssertError(await BranchWrites().RebaseBranchAsync(shown, "main"));
 
         StringAssert.Contains(error.AllMessages(), "Rebased 'dev' onto 'main', but did not push it");
         StringAssert.Contains(error.AllMessages(), "origin/dev has changed since gmd showed it");
         Assert.AreEqual(others, (await repo.GitAsync("ls-remote origin refs/heads/dev")).Split('\t')[0]);
         Assert.AreEqual("Main work", (await repo.GitAsync("log -1 --format=%s dev~1")).Trim(), "Rebased");
     }
+
+    IBranchWriteService BranchWrites() => new BranchWriteService(repo.Git, new FakeMetaDataService(new MetaData()));
 
     // Initial on main and one commit on a 'dev' branched out from it, with 'dev' current, i.e.
     // the smallest repo that has something to merge back to main

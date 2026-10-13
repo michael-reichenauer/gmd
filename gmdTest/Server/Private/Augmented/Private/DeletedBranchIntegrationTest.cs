@@ -18,6 +18,7 @@ public class DeletedBranchIntegrationTest
     TempRepo repo = null!;
     readonly FakeRepoConfig config = new();
     AugmentedService service = null!;
+    DeletedBranchService deletes = null!;
 
     [TestInitialize]
     public async Task Init()
@@ -29,6 +30,7 @@ public class DeletedBranchIntegrationTest
             new FakeFileMonitor(),
             config
         );
+        deletes = new DeletedBranchService(repo.Git, config);
     }
 
     [TestCleanup]
@@ -37,13 +39,13 @@ public class DeletedBranchIntegrationTest
     async Task<Repo> ReadAsync() => AssertOk(await service.GetRepoAsync(repo.Path));
 
     async Task<IReadOnlyList<DeletedBranch>> DeletedAsync() =>
-        AssertOk(await service.GetDeletedBranchesAsync(await ReadAsync()));
+        AssertOk(await deletes.GetDeletedBranchesAsync(await ReadAsync()));
 
     async Task DeleteAsync(string localName, string remoteName) =>
-        AssertOk(await service.DeleteBranchAsync(await ReadAsync(), localName, remoteName, true));
+        AssertOk(await deletes.DeleteBranchAsync(await ReadAsync(), localName, remoteName, true));
 
     async Task RestoreAsync(DeletedBranch deleted, bool isLocal, bool isRemote) =>
-        AssertOk(await service.RestoreBranchAsync(await ReadAsync(), deleted, isLocal, isRemote));
+        AssertOk(await deletes.RestoreBranchAsync(await ReadAsync(), deleted, isLocal, isRemote));
 
     async Task<string> TipAsync(string reference) => (await repo.GitAsync($"rev-parse {reference}")).Trim();
 
@@ -169,7 +171,7 @@ public class DeletedBranchIntegrationTest
         var main = await TipAsync("main");
         await repo.GitAsync("push -q origin main:refs/heads/dev");
 
-        var error = AssertError(await service.RestoreBranchAsync(await ReadAsync(), deleted, false, true));
+        var error = AssertError(await deletes.RestoreBranchAsync(await ReadAsync(), deleted, false, true));
 
         Assert.AreEqual(
             "Origin has a branch 'origin/dev' again, which was left as it is, so nothing was restored",
@@ -258,7 +260,7 @@ public class DeletedBranchIntegrationTest
     {
         await DevOnOriginAsync();
 
-        var error = AssertError(await service.DeleteBranchAsync(await ReadAsync(), "dev", "origin/gone", true));
+        var error = AssertError(await deletes.DeleteBranchAsync(await ReadAsync(), "dev", "origin/gone", true));
 
         Assert.AreEqual("There is no branch 'origin/gone' any more, so nothing was deleted", error.Message);
         StringAssert.Contains(await repo.GitAsync("branch --list dev"), "dev", "Not deleted");

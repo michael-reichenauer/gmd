@@ -8,6 +8,10 @@ class Server : IServer
 {
     readonly IGit git;
     readonly IAugmentedService augmentedService;
+    readonly IBranchWriteService branchWriteService;
+    readonly ICommitRewriteService commitRewriteService;
+    readonly IUndoService undoService;
+    readonly IDeletedBranchService deletedBranchService;
     readonly IViewRepoConverter converter;
     readonly IViewRepoCreater viewRepoCreater;
     readonly IFileMonitor fileMonitor;
@@ -15,6 +19,10 @@ class Server : IServer
     public Server(
         IGit git,
         IAugmentedService augmentedService,
+        IBranchWriteService branchWriteService,
+        ICommitRewriteService commitRewriteService,
+        IUndoService undoService,
+        IDeletedBranchService deletedBranchService,
         IViewRepoConverter converter,
         IViewRepoCreater viewRepoCreater,
         IFileMonitor fileMonitor
@@ -22,6 +30,10 @@ class Server : IServer
     {
         this.git = git;
         this.augmentedService = augmentedService;
+        this.branchWriteService = branchWriteService;
+        this.commitRewriteService = commitRewriteService;
+        this.undoService = undoService;
+        this.deletedBranchService = deletedBranchService;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
         this.fileMonitor = fileMonitor;
@@ -258,10 +270,10 @@ class Server : IServer
     public Task<Result<string>> GetRemoteUrlAsync(string wd) => git.GetRemoteUrlAsync(wd);
 
     public Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd) =>
-        Paused(() => augmentedService.CommitAllChangesAsync(message, isAmend, wd));
+        Paused(() => git.CommitAllChangesAsync(message, isAmend, wd));
 
     public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
-        Paused(() => augmentedService.CommitFilesAsync(message, isAmend, paths, wd));
+        Paused(() => git.CommitFilesAsync(message, isAmend, paths, wd));
 
     public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
     {
@@ -342,20 +354,20 @@ class Server : IServer
     }
 
     public Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout) =>
-        Paused(() => augmentedService.CreateBranchAsync(repo, newBranchName, isCheckout));
+        Paused(() => branchWriteService.CreateBranchAsync(repo, newBranchName, isCheckout));
 
     public Task<Result> CreateBranchFromBranchAsync(
         Repo repo,
         string newBranchName,
         string sourceBranch,
         bool isCheckout
-    ) => Paused(() => augmentedService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout));
+    ) => Paused(() => branchWriteService.CreateBranchFromBranchAsync(repo, newBranchName, sourceBranch, isCheckout));
 
     public Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout) =>
-        Paused(() => augmentedService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout));
+        Paused(() => branchWriteService.CreateBranchFromCommitAsync(repo, newBranchName, sha, isCheckout));
 
     public Task<Result> RenameBranchAsync(string oldName, string newName, string wd) =>
-        Paused(() => augmentedService.RenameBranchAsync(oldName, newName, wd));
+        Paused(() => branchWriteService.RenameBranchAsync(oldName, newName, wd));
 
     public async Task<Result> PushBranchAsync(string name, string wd)
     {
@@ -388,11 +400,11 @@ class Server : IServer
     public Task<Result> PullBranchAsync(string name, string wd) => Paused(() => git.PullBranchAsync(name, wd));
 
     public Task<Result> SwitchToAsync(Repo repo, string branchName) =>
-        Paused(() => augmentedService.SwitchToAsync(repo, branchName));
+        Paused(() => branchWriteService.SwitchToAsync(repo, branchName));
 
     public async Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName)
     {
-        var merged = await Paused(() => augmentedService.MergeBranchAsync(repo, branchName));
+        var merged = await Paused(() => branchWriteService.MergeBranchAsync(repo, branchName));
         if (merged is not IReadOnlyList<Commit> commits)
             return merged.Error;
         return converter.ToViewCommits(commits).ToList();
@@ -400,14 +412,14 @@ class Server : IServer
 
     public async Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName)
     {
-        var merged = await Paused(() => augmentedService.MergeToBranchAsync(repo, targetName));
+        var merged = await Paused(() => branchWriteService.MergeToBranchAsync(repo, targetName));
         if (merged is not IReadOnlyList<Commit> commits)
             return merged.Error;
         return converter.ToViewCommits(commits).ToList();
     }
 
     public Task<Result> RebaseBranchAsync(Repo repo, string branchName) =>
-        Paused(() => augmentedService.RebaseBranchAsync(repo, branchName));
+        Paused(() => branchWriteService.RebaseBranchAsync(repo, branchName));
 
     public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
         Paused(() => git.RebaseOntoAsync(newBase, oldBase, wd));
@@ -495,7 +507,7 @@ class Server : IServer
         Paused(() => git.DeleteConflictedAsync(path, wd));
 
     public Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce) =>
-        Paused(() => augmentedService.DeleteBranchAsync(repo, localName, remoteName, isForce));
+        Paused(() => deletedBranchService.DeleteBranchAsync(repo, localName, remoteName, isForce));
 
     public Task<Result> DeleteRemoteBranchAsync(string name, string wd) =>
         Paused(() => git.DeleteRemoteBranchAsync(name, wd));
@@ -511,12 +523,12 @@ class Server : IServer
         bool isNewBranch,
         string startPoint,
         string wd
-    ) => Paused(() => augmentedService.AddWorktreeAsync(path, branchName, isNewBranch, startPoint, wd));
+    ) => Paused(() => git.AddWorktreeAsync(path, branchName, isNewBranch, startPoint, wd));
 
     public Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd) =>
-        Paused(() => augmentedService.RemoveWorktreeAsync(path, isForce, wd));
+        Paused(() => git.RemoveWorktreeAsync(path, isForce, wd));
 
-    public Task<Result> PruneWorktreesAsync(string wd) => Paused(() => augmentedService.PruneWorktreesAsync(wd));
+    public Task<Result> PruneWorktreesAsync(string wd) => Paused(() => git.PruneWorktreesAsync(wd));
 
     public Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
         git.GetIgnoredPathsAsync(paths, wd);
@@ -539,31 +551,30 @@ class Server : IServer
     public Task<Result> UncommitUntilCommitAsync(string id, string wd) =>
         Paused(() => git.UncommitUntilCommitAsync(id, wd));
 
-    public Task<Result> UndoStepAsync(Repo repo, UndoStep step) =>
-        Paused(() => augmentedService.UndoStepAsync(repo, step));
+    public Task<Result> UndoStepAsync(Repo repo, UndoStep step) => Paused(() => undoService.UndoStepAsync(repo, step));
 
     public Task<Result<IReadOnlyList<LostWork>>> GetLostWorkAsync(Repo repo) => augmentedService.GetLostWorkAsync(repo);
 
     public Task<Result<IReadOnlyList<DeletedBranch>>> GetDeletedBranchesAsync(Repo repo) =>
-        augmentedService.GetDeletedBranchesAsync(repo);
+        deletedBranchService.GetDeletedBranchesAsync(repo);
 
     public Task<Result> RestoreBranchAsync(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote) =>
-        Paused(() => augmentedService.RestoreBranchAsync(repo, deleted, isLocal, isRemote));
+        Paused(() => deletedBranchService.RestoreBranchAsync(repo, deleted, isLocal, isRemote));
 
     public Task<Result> PullRewrittenAsync(Repo repo, RemoteRewrite rewrite) =>
-        Paused(() => augmentedService.PullRewrittenAsync(repo, rewrite));
+        Paused(() => undoService.PullRewrittenAsync(repo, rewrite));
 
     public Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd) =>
         Paused(() => git.PushRestoreAsync(rewrite.RemoteName, rewrite.OldTipId, rewrite.NewTipId, wd));
 
     public Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName) =>
-        Paused(() => augmentedService.ResolveAmbiguityAsync(repo, branchName, setHumanName));
+        Paused(() => branchWriteService.ResolveAmbiguityAsync(repo, branchName, setHumanName));
 
     public Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName) =>
-        Paused(() => augmentedService.SetBranchManuallyAsync(repo, commitId, setHumanName));
+        Paused(() => branchWriteService.SetBranchManuallyAsync(repo, commitId, setHumanName));
 
     public Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId) =>
-        Paused(() => augmentedService.UnresolveAmbiguityAsync(repo, commitId));
+        Paused(() => branchWriteService.UnresolveAmbiguityAsync(repo, commitId));
 
     public Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd) =>
         git.GetFilePathsAsync(reference, wd);
@@ -603,13 +614,28 @@ class Server : IServer
     }
 
     public Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd) =>
-        Paused(() => augmentedService.AddTagAsync(name, commitId, isPush, wd));
+        Paused(() => ThenPushTagAsync(git.AddTagAsync(name, commitId, wd), isPush, name, wd));
 
     public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd) =>
-        Paused(() => augmentedService.AddAnnotatedTagAsync(name, message, commitId, isPush, wd));
+        Paused(() => ThenPushTagAsync(git.AddAnnotatedTagAsync(name, message, commitId, wd), isPush, name, wd));
 
     public Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd) =>
-        Paused(() => augmentedService.RemoveTagAsync(name, isOnOrigin, wd));
+        Paused(() => RemoveTagHereAndOnOriginAsync(name, isOnOrigin, wd));
+
+    // A tag made, and pushed when asked for, once it is made
+    async Task<Result> ThenPushTagAsync(Task<Result> adding, bool isPush, string name, string wd)
+    {
+        if (await adding is Error e)
+            return e;
+        return isPush ? await git.PushTagAsync(name, wd) : Result.Ok;
+    }
+
+    async Task<Result> RemoveTagHereAndOnOriginAsync(string name, bool isOnOrigin, string wd)
+    {
+        if (await git.RemoveTagAsync(name, wd) is Error e)
+            return e;
+        return isOnOrigin ? await git.DeleteRemoteTagAsync(name, wd) : Result.Ok;
+    }
 
     // Every tag, and whether origin has it. A record of origin's tags that cannot be read is taken as
     // none on origin, which a Push then corrects, rather than as no tags at all.
@@ -631,11 +657,11 @@ class Server : IServer
         Paused(() => git.CheckoutAsync(commitId, wd));
 
     public Task<Result> SquashCommitsAsync(Repo repo, string id1, string id2, string msg) =>
-        Paused(() => augmentedService.SquashCommitsAsync(repo, id1, id2, msg));
+        Paused(() => commitRewriteService.SquashCommitsAsync(repo, id1, id2, msg));
 
     public Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths) =>
-        Paused(() => augmentedService.AmendOlderCommitAsync(repo, id, message, paths));
+        Paused(() => commitRewriteService.AmendOlderCommitAsync(repo, id, message, paths));
 
     public Task<Result> DropCommitAsync(Repo repo, string id) =>
-        Paused(() => augmentedService.DropCommitAsync(repo, id));
+        Paused(() => commitRewriteService.DropCommitAsync(repo, id));
 }

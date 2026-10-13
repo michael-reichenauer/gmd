@@ -203,7 +203,7 @@ class BranchCreateCommands : IBranchCreateCommands
         });
 
     // Deletes the branch here, on origin or both, as the dialog says, and says how to bring it back,
-    // since gmd records what it deleted (see AugmentedService.DeleteBranchAsync). Both sides are
+    // since gmd records what it deleted (see DeletedBranchService.DeleteBranchAsync). Both sides are
     // checked for unmerged commits before either is deleted.
     public void DeleteBranch(string name) =>
         Do(async () =>

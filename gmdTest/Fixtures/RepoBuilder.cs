@@ -484,8 +484,18 @@ class RepoBuilder
     public IServer NewServer(FakeGit git, FakeFileMonitor? fileMonitor = null)
     {
         var monitor = fileMonitor ?? new FakeFileMonitor();
-        var augmentedService = NewAugmentedService(git, new FakeMetaDataService(metaData), monitor, Config);
-        return new ServerImpl(git, augmentedService, new ViewRepoConverter(), NewViewRepoCreater(), monitor);
+        var metaDataService = new FakeMetaDataService(metaData);
+        return new ServerImpl(
+            git,
+            NewAugmentedService(git, metaDataService, monitor, Config),
+            new BranchWriteService(git, metaDataService),
+            new CommitRewriteService(git, Config),
+            new UndoService(git, Config),
+            new DeletedBranchService(git, Config),
+            new ViewRepoConverter(),
+            NewViewRepoCreater(),
+            monitor
+        );
     }
 
     // The augmenter with its real collaborators, none of which touch git, disk or the terminal.
@@ -530,7 +540,6 @@ class RepoBuilder
             new WorkRepoConverter(),
             fileMonitor,
             metaDataService,
-            new BranchWriteService(git, metaDataService),
             repoConfig ?? new FakeRepoConfig()
         );
     }
