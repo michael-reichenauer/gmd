@@ -30,9 +30,6 @@ class Program
         var t = Timing.Start();
         ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
 
-        // Upgrade data if needed
-        Upgrader.UpgradeData();
-
         // Setup dependency injection by registering all types in this assembly
         dependencyInjection.RegisterAllAssemblyTypes();
 

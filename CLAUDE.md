@@ -53,18 +53,17 @@ wraps the app in a second process, so the pid you measure or kill is the wrong o
 at this working tree; use a throwaway repo, exactly as `TempRepo` does.
 
 **Redirect `HOME` whenever you start gmd yourself.** A gmd run does not merely read the developer's
-home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`),
-**truncates `~/gmd.log`**, and **deletes `~/.gmdstate*`**. None of those paths can be redirected —
-`ConfigService`, `ConfigLogger` and `Upgrader` all anchor on `SpecialFolder.UserProfile` with no
-override — so `HOME` is the only lever, and on Unix it also isolates `~/.gitconfig` from the git
-commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well. The built binary *is* a
-dev instance — `Build.IsDevInstance()` looks for `gmd.dll` on the command line, and .NET puts the
-entry assembly there even when the apphost starts it — so it never starts the regular update check,
-but the start page and saving the Config dialog still call the GitHub releases API
-(`Updater.CheckUpdateAvailableAsync` skips only the `dotnet` host). Being a dev instance also means
-it never reports an update, so ⇓ in the application bar and the release menu items cannot be seen
-with it; a published single-file build (`dotnet publish -r <rid> -p:PublishSingleFile=true`) is
-not one.
+home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`) and
+**truncates `~/gmd.log`**. Neither path can be redirected — `ConfigService` and `ConfigLogger` both
+anchor on `SpecialFolder.UserProfile` with no override — so `HOME` is the only lever, and on Unix
+it also isolates `~/.gitconfig` from the git commands gmd runs. Seed `{"CheckUpdates": false}` into
+that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` looks for
+`gmd.dll` on the command line, and .NET puts the entry assembly there even when the apphost starts
+it — so it never starts the regular update check, but the start page and saving the Config dialog
+still call the GitHub releases API (`Updater.CheckUpdateAvailableAsync` skips only the `dotnet`
+host). Being a dev instance also means it never reports an update, so ⇓ in the application bar and
+the release menu items cannot be seen with it; a published single-file build
+(`dotnet publish -r <rid> -p:PublishSingleFile=true`) is not one.
 
 `script -qfc "stty rows 45 cols 140; <cmd>" /dev/null` is the fallback when tmux is missing: a pty,
 but only the raw byte stream, which is redraw *traffic* rather than a screen and so is poor to
@@ -102,7 +101,7 @@ gmd/Utils/Cmd.cs   Process launcher for the `git` executable
 ```
 
 Beside the layers: `gmd/Common/` holds the config (`Config`, `ConfigService`, `RepoConfig`), the
-command line (`ProgramCommands`), `Upgrader` and `Spelling/`; `gmd/Installation/Updater.cs` is the
+command line (`ProgramCommands`) and `Spelling/`; `gmd/Installation/Updater.cs` is the
 self-updater.
 
 Key types and flow:
