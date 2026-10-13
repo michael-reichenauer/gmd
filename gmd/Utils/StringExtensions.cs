@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace gmd.Utils;
 
 // Some useful string extensions that are missing in .NET
@@ -24,9 +22,11 @@ public static class StringExtensions
         return text.Substring(0, maxLength);
     }
 
+    // Trims the prefix, compared character by character: a culture's comparison ignores characters
+    // that are not drawn, e.g. a soft hyphen, and the length cut off would then be wrong
     public static string TrimPrefix(this string source, string prefix)
     {
-        if (!source.StartsWith(prefix))
+        if (!source.StartsWith(prefix, StringComparison.Ordinal))
         {
             return source;
         }
@@ -36,7 +36,7 @@ public static class StringExtensions
 
     public static string TrimSuffix(this string source, string suffix)
     {
-        if (!source.EndsWith(suffix))
+        if (!source.EndsWith(suffix, StringComparison.Ordinal))
         {
             return source;
         }
@@ -54,21 +54,6 @@ public static class StringExtensions
         return source.Substring(0, SidLength);
     }
 
-    public static string ToJson(this object? source)
-    {
-        if (source == null)
-            return "";
-
-        var json = Result.Catch(() =>
-            JsonSerializer.Serialize(source, new JsonSerializerOptions { WriteIndented = true })
-        );
-        return json switch
-        {
-            string text => text,
-            Error e => $"<Error: {e}>",
-        };
-    }
-
     public static string Txt(this Version? source)
     {
         if (source == null)
@@ -76,14 +61,15 @@ public static class StringExtensions
         return $"{source.Major}.{source.Minor} ({source.Build}.{source.Revision})";
     }
 
+    // A size in whole units, rounded down: 1536 bytes is '1 KB'
     public static string FileSize(this long source)
     {
         if (source < 1024)
             return $"{source} B";
         if (source < 1024 * 1024)
-            return $"{source / 1024:0.##} KB";
+            return $"{source / 1024} KB";
         if (source < 1024 * 1024 * 1024)
-            return $"{source / 1024 / 1024:0.##} MB";
-        return $"{source / 1024 / 1024 / 1024:0.##} GB";
+            return $"{source / 1024 / 1024} MB";
+        return $"{source / 1024 / 1024 / 1024} GB";
     }
 }

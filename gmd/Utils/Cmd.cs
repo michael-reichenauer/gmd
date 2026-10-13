@@ -185,17 +185,6 @@ class Cmd : ICmd
         return Task.Run(() => CommandRaw(path, args, workingDirectory, skipLogError, skipLog));
     }
 
-    public static Result<string> Run(string cmd, string workingDirectory = "")
-    {
-        var index = cmd.IndexOf(' ');
-        if (index == -1)
-            return new Cmd().Command(cmd, "", workingDirectory);
-
-        var path = cmd[..index];
-        var args = cmd[(index + 1)..];
-        return new Cmd().Command(path, args, workingDirectory);
-    }
-
     public Result<string> Command(
         string path,
         string args,
@@ -210,7 +199,7 @@ class Cmd : ICmd
         CommandRaw(path, args, workingDirectory, skipLogError, skipLog, environment)
             .ToResult(memberName, sourceFilePath, sourceLineNumber);
 
-    public CmdResult CommandRaw(
+    CmdResult CommandRaw(
         string path,
         string args,
         string workingDirectory,
@@ -231,24 +220,7 @@ class Cmd : ICmd
             var outputLines = new List<string>();
             var errorLines = new List<string>();
 
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = path,
-                    Arguments = args,
-                    UseShellExecute = false,
-                    // A pipe closed at once rather than gmd's terminal, see NeverAskOnTheTerminal
-                    RedirectStandardInput = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8,
-                },
-            };
-
-            using (process)
+            using (var process = NewProcess(path, args))
             {
                 NeverOpenAnEditor(process.StartInfo);
                 NeverAskOnTheTerminal(process.StartInfo, $"{path} {args}");
@@ -265,29 +237,30 @@ class Cmd : ICmd
                 process.ErrorDataReceived += (sender, args) => errorLines.Add(args.Data ?? "");
 
                 process.Start();
-                process.StandardInput.Close();
+                process.StandardInput.Close(); // A pipe closed at once, see NeverAskOnTheTerminal
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
-                process.WaitForExit(); //you need this in order to flush the output buffer
+                process.WaitForExit(); // With no timeout, which also waits for the output to be read
 
                 var exitCode = process.ExitCode;
                 var output = string.Join('\n', outputLines).Replace("\r", "").TrimEnd();
                 var error = string.Join('\n', errorLines).Replace("\r", "").TrimEnd();
 
-                if (process.ExitCode != 0)
+                if (exitCode != 0)
                 {
-                    if (!skipLogError)
-                        Log.Warn($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    var failure = $"Error: {cmdText} {t}]\nExit Code: {exitCode}, Error:\n{error}";
                     if (skipLogError)
-                        Log.Debug($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
-                    return new CmdResult(cmdText, process.ExitCode, output, error);
+                        Log.Debug(failure);
+                    else
+                        Log.Warn(failure);
+                    return new CmdResult(cmdText, exitCode, output, error);
                 }
 
-                if (!skipLog)
-                    Log.Info($"{cmdText} {t}]");
                 if (skipLog)
                     Log.Debug($"OK: {cmdText} {t}]");
+                else
+                    Log.Info($"{cmdText} {t}]");
                 return new CmdResult(cmdText, output, error);
             }
         }
@@ -413,22 +386,8 @@ class Cmd : ICmd
         var t = Timing.Start();
         try
         {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = path,
-                    Arguments = args,
-                    UseShellExecute = false,
-                    RedirectStandardInput = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8,
-                },
-                EnableRaisingEvents = true,
-            };
+            var process = NewProcess(path, args);
+            process.EnableRaisingEvents = true;
             var errorLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
             var errorEnd = new TaskCompletionSource();
 
@@ -515,25 +474,9 @@ class Cmd : ICmd
         var t = Timing.Start();
         try
         {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = path,
-                    Arguments = args,
-                    UseShellExecute = false,
-                    RedirectStandardInput = true,
-                    // Redirected so that a tool writing to the terminal cannot corrupt the drawn
-                    // UI, but deliberately never read while it may still be running, see above.
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardInputEncoding = new UTF8Encoding(false),
-                    StandardErrorEncoding = Encoding.UTF8,
-                },
-            };
-
-            using (process)
+            // The output is redirected, as for every command, but deliberately never read while the
+            // tool may still be running, see above
+            using (var process = NewProcess(path, args))
             {
                 process.Start();
 
@@ -571,6 +514,26 @@ class Cmd : ICmd
             return new CmdResult(cmdText, -1, "", e.Message);
         }
     }
+
+    // A process for a program that gmd reaches through pipes only: nothing it writes is drawn over
+    // the UI, which owns the terminal, and what it reads is UTF-8 with no byte order mark
+    static Process NewProcess(string path, string args) =>
+        new()
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = path,
+                Arguments = args,
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                StandardInputEncoding = new UTF8Encoding(false),
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            },
+        };
 
     // The text, and then end of input, which is what tells the tool that there is no more
     static void WriteStdin(Process process, string text)

@@ -115,8 +115,8 @@ public class Error
 }
 
 // Thrown on a bug in the use of a result rather than on a failure: a null value, the error of a
-// result that holds a value, an unset result. Result.Catch lets it through, since it is a bug in
-// the caller and not a failure of the API it guards.
+// result that holds a value, an unset result. Result.Catch lets it through, as it does an
+// AssertException, since it is a bug in the caller and not a failure of the API it guards.
 public sealed class ResultException : InvalidOperationException
 {
     public ResultException(string message)
@@ -153,8 +153,9 @@ public readonly struct Result : IUnion
 
     // Runs an action that reports failure by throwing, e.g. a file API, and returns the exception
     // as an error. Every exception is caught, the fatal ones included, since bad input to such an
-    // API surfaces as an ArgumentException or an InvalidOperationException; all but a
-    // ResultException, which is a bug in the use of a result inside the action.
+    // API surfaces as an ArgumentException or an InvalidOperationException; all but the two that
+    // are bugs of gmd's own rather than failures of the API: a ResultException, a bug in the use of
+    // a result inside the action, and an AssertException, a broken invariant.
     //
     //   if (Result.Catch(() => File.Move(source, target)) is Error e) return e;
     public static Result Catch(
@@ -169,7 +170,7 @@ public readonly struct Result : IUnion
             action();
             return Ok;
         }
-        catch (Exception e) when (e is not ResultException)
+        catch (Exception e) when (e is not (ResultException or AssertException))
         {
             return new Error(e, memberName, sourceFilePath, sourceLineNumber);
         }
@@ -193,7 +194,7 @@ public readonly struct Result : IUnion
         {
             value = func();
         }
-        catch (Exception e) when (e is not ResultException)
+        catch (Exception e) when (e is not (ResultException or AssertException))
         {
             return new Error(e, memberName, sourceFilePath, sourceLineNumber);
         }

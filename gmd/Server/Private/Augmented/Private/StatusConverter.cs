@@ -48,7 +48,7 @@ static class StatusConverter
             GitOperationKind.Revert => GitOperation.Revert,
             GitOperationKind.Rebase => GitOperation.Rebase,
             GitOperationKind.Am => GitOperation.Am,
-            _ => throw Asserter.FailFast($"Unknown operation {operation}"),
+            _ => throw Asserter.Fail($"Unknown operation {operation}"),
         };
 
     static ConflictKind ToConflictKind(GitConflictKind kind) =>
@@ -61,6 +61,6 @@ static class StatusConverter
             GitConflictKind.AddedByThem => ConflictKind.AddedByThem,
             GitConflictKind.DeletedByThem => ConflictKind.DeletedByThem,
             GitConflictKind.DeletedByUs => ConflictKind.DeletedByUs,
-            _ => throw Asserter.FailFast($"Unknown conflict kind {kind}"),
+            _ => throw Asserter.Fail($"Unknown conflict kind {kind}"),
         };
 }

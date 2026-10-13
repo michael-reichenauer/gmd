@@ -68,7 +68,7 @@ static class Files
         }
         catch (Exception e)
         {
-            Log.Warn($"Failed to read {e}");
+            Log.Warn($"Failed to read the size of {path}: {e.Message}");
             return false;
         }
     }
@@ -82,38 +82,29 @@ static class Files
         }
         catch (Exception e)
         {
-            Log.Warn($"Failed to read {e}");
+            Log.Warn($"Failed to read the size of {path}: {e.Message}");
             return 0;
         }
     }
 
+    // Whether a file is text rather than binary, decided as git decides it: binary when there is a
+    // NUL byte among the first 8000. Bytes and not characters, since a reader decodes a file that
+    // starts with a byte order mark, and so read UTF-16, whose every other byte is a NUL in ASCII
+    // text, as text, while git takes it as binary and will not merge it as text. A file that cannot
+    // be read is not text.
     public static bool IsText(string path)
     {
-        var isBinaryResult = IsBinary(path);
-        if (isBinaryResult is not bool isBinary)
-            return false;
-        return !isBinary;
+        var start = new byte[BinaryCheckLength];
+        var read = Result.Catch(() =>
+        {
+            using var file = File.OpenRead(path);
+            return file.ReadAtLeast(start, start.Length, throwOnEndOfStream: false);
+        });
+
+        return read is int length && Array.IndexOf(start, (byte)0, 0, length) == -1;
     }
 
-    public static Result<string> GetEmbeddedFileContentText(string name)
-    {
-        var streamResult = GetEmbeddedFileStream(name);
-        if (streamResult is not Stream stream)
-            return streamResult.Error;
-
-        try
-        {
-            using (stream)
-            {
-                using StreamReader reader = new StreamReader(stream);
-                return reader.ReadToEnd();
-            }
-        }
-        catch (Exception ex)
-        {
-            return new Error(ex);
-        }
-    }
+    const int BinaryCheckLength = 8000;
 
     // Opens an embedded resource as a stream, for content that is not text or is too large to
     // want as one string (the spell check dictionary). The caller disposes the stream.
@@ -121,56 +112,11 @@ static class Files
     {
         try
         {
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            if (assembly == null)
-                return new Error("No GetExecutingAssembly");
-
-            // var names = asm.GetManifestResourceNames();
-            var stream = assembly.GetManifestResourceStream(name);
+            var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name);
             if (stream == null)
-                return new Error($"Embedded file '{name}'");
+                return new Error($"No embedded file '{name}'");
 
             return stream;
-        }
-        catch (Exception e)
-        {
-            return new Error(e);
-        }
-    }
-
-    // Returns true if the file seems to be a binary file.
-    // The file is considered binary if it contains at least one consecutive
-    // sequence of 1 or more NUL characters within the first 8000 characters.
-    static Result<bool> IsBinary(string path)
-    {
-        try
-        {
-            const int requiredConsecutiveNul = 1;
-            const int charsToCheck = 8000;
-            const char nulChar = '\0';
-
-            int nulCount = 0;
-
-            using var streamReader = new StreamReader(path);
-            for (var i = 0; i < charsToCheck; i++)
-            {
-                if (streamReader.EndOfStream)
-                    return false;
-
-                if ((char)streamReader.Read() == nulChar)
-                {
-                    nulCount++;
-
-                    if (nulCount >= requiredConsecutiveNul)
-                        return true;
-                }
-                else
-                {
-                    nulCount = 0;
-                }
-            }
-
-            return false;
         }
         catch (Exception e)
         {

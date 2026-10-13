@@ -786,8 +786,8 @@ class BranchMenu : IBranchMenu
                 isBranchIn = true;
             }
             else if (
-                cic.AllChildIds.ContainsBy(id => repo.Repo.CommitById[id].BranchName == branch.Name)
-                || repo.Repo.BranchesStartingAt(cic.Id).ContainsBy(b => b.PrimaryName == branch.PrimaryName)
+                cic.AllChildIds.Any(id => repo.Repo.CommitById[id].BranchName == branch.Name)
+                || repo.Repo.BranchesStartingAt(cic.Id).Any(b => b.PrimaryName == branch.PrimaryName)
             )
             { // Is branch out '╯' branch, one with commits or one with none of its own yet
                 isBranchOut = true;
@@ -813,11 +813,11 @@ class BranchMenu : IBranchMenu
         var branches = repo.GetCommitBranches(false).Concat(repo.Repo.ViewBranches);
 
         var currentBranch = repo.Repo.CurrentBranch();
-        if (currentBranch != null && !branches.ContainsBy(b => b.PrimaryName == currentBranch.PrimaryName))
+        if (currentBranch != null && !branches.Any(b => b.PrimaryName == currentBranch.PrimaryName))
         {
             branches = branches.Prepend(currentBranch);
         }
-        branches = branches.Where(b => !repo.Repo.ViewBranches.ContainsBy(bb => bb.PrimaryName == b.PrimaryName));
+        branches = branches.Where(b => !repo.Repo.ViewBranches.Any(bb => bb.PrimaryName == b.PrimaryName));
 
         return ToBranchesItems(branches, b => cmds.ShowBranch(b.Name, false), null, true);
     }

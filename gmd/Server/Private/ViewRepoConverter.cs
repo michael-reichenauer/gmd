@@ -72,7 +72,7 @@ class ViewRepoConverter : IViewRepoConverter
             Git.ConflictKind.AddedByThem => ConflictKind.AddedByThem,
             Git.ConflictKind.DeletedByThem => ConflictKind.DeletedByThem,
             Git.ConflictKind.DeletedByUs => ConflictKind.DeletedByUs,
-            _ => throw Asserter.FailFast($"Unknown conflict kind {kind}"),
+            _ => throw Asserter.Fail($"Unknown conflict kind {kind}"),
         };
 
     public static Git.ConflictKind ToGitConflictKind(ConflictKind kind) =>
@@ -85,7 +85,7 @@ class ViewRepoConverter : IViewRepoConverter
             ConflictKind.AddedByThem => Git.ConflictKind.AddedByThem,
             ConflictKind.DeletedByThem => Git.ConflictKind.DeletedByThem,
             ConflictKind.DeletedByUs => Git.ConflictKind.DeletedByUs,
-            _ => throw Asserter.FailFast($"Unknown conflict kind {kind}"),
+            _ => throw Asserter.Fail($"Unknown conflict kind {kind}"),
         };
 
     public static Git.HunkChoice ToGitChoice(HunkChoice choice) =>
@@ -98,7 +98,7 @@ class ViewRepoConverter : IViewRepoConverter
             HunkChoice.TheirsThenOurs => Git.HunkChoice.TheirsThenOurs,
             HunkChoice.Base => Git.HunkChoice.Base,
             HunkChoice.Manual => Git.HunkChoice.Manual,
-            _ => throw Asserter.FailFast($"Unknown choice {choice}"),
+            _ => throw Asserter.Fail($"Unknown choice {choice}"),
         };
 
     // Git's id of the lines not committed yet is all zeros, 40 or 64 of them as the repository's
@@ -187,8 +187,7 @@ class ViewRepoConverter : IViewRepoConverter
                 return DiffMode.DiffSame;
         }
 
-        Asserter.FailFast($"Unknown diff mode: {diffMode}");
-        return DiffMode.DiffModified;
+        throw Asserter.Fail($"Unknown diff mode: {diffMode}");
     }
 
     public Repo ToViewRepo(

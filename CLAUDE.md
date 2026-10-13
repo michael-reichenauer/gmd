@@ -54,7 +54,7 @@ at this working tree; use a throwaway repo, exactly as `TempRepo` does.
 
 **Redirect `HOME` whenever you start gmd yourself.** A gmd run does not merely read the developer's
 home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`) and
-**truncates `~/gmd.log`**. Neither path can be redirected — `ConfigService` and `ConfigLogger` both
+**truncates `~/gmd.log`**. Neither path can be redirected — `ConfigService` and `LogFile` both
 anchor on `SpecialFolder.UserProfile` with no override — so `HOME` is the only lever, and on Unix
 it also isolates `~/.gitconfig` from the git commands gmd runs. Seed `{"CheckUpdates": false}` into
 that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` looks for
@@ -418,7 +418,11 @@ not change the string's value.
 Terminal.Gui has a single main loop thread. Marshal back with `UI.Post(...)`
 (`Cui/Common/UI.cs`), assert with `UI.AssertOnUIThread()` / `Threading.AssertIsMainThread()`.
 Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMessage`.
-`Asserter.FailFast` deliberately kills the process on broken invariants.
+A broken invariant is `throw Asserter.Fail(...)` (or `Asserter.Requires(...)`), reported to
+`ExceptionHandling` before it is thrown, which logs it and stops the main loop, so a catch that takes
+it for a failure cannot hide it; `Result.Catch` and `IsNotFatal` let it through. So does every other
+bug, an exception no one caught on the main loop, in a `RunInBackground` task or on a thread of its
+own, and `Program` says what failed once the terminal is given back.
 
 ### Persistence
 
@@ -664,7 +668,7 @@ Other things to know:
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
   (`[AssemblyInitialize]`) before anything can log — otherwise `scripts/test` truncates the
   developer's `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
-  `ConfigLogger` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
+  `LogFile` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
   `gmdE2eTest/TestSetup.cs` does the same for its own process, since each test assembly runs its own
   `[AssemblyInitialize]`.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:

@@ -59,6 +59,5 @@ internal class DependencyInjection
     }
 
     // Returns true if type is marked with the "SingleInstance" attribute
-    private static bool IsSingleInstance(Type type) =>
-        type.GetCustomAttributes(false).FirstOrDefault(obj => obj.GetType().Name == "SingleInstanceAttribute") != null;
+    static bool IsSingleInstance(Type type) => type.IsDefined(typeof(SingleInstanceAttribute), false);
 }

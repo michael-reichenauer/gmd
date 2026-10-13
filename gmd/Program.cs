@@ -28,7 +28,7 @@ class Program
             return Askpass.Answer(args);
 
         var t = Timing.Start();
-        ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
+        ExceptionHandling.HandleUnhandledExceptions(UI.ShutdownFromAnyThread);
 
         // Setup dependency injection by registering all types in this assembly
         dependencyInjection.RegisterAllAssemblyTypes();
@@ -43,11 +43,11 @@ class Program
         program.Run();
 
         Log.Info($"Done, running for {t}");
-        ConfigLogger.CloseAsync().Wait();
+        LogFile.CloseAsync().Wait();
 
         if (ExceptionHandling.Failure is string failure)
         {
-            Console.Error.WriteLine(CrashMessage(failure, ConfigLogger.FilePath));
+            Console.Error.WriteLine(CrashMessage(failure, LogFile.FilePath));
             return 1;
         }
         return 0;
@@ -95,7 +95,6 @@ class Program
     bool HandleUIMainLoopError(Exception e)
     {
         ExceptionHandling.OnMainLoopException(e);
-        ConfigLogger.CloseAsync().Wait();
         return false; // End loop after error
     }
 
