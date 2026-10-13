@@ -10,8 +10,10 @@ interface IConflictView
 {
     // The file is loaded by the caller, which is what keeps this synchronous: a Terminal.Gui
     // SynchronizationContext posts an await's continuation to the main loop, so blocking the main
-    // loop on a Task here would deadlock rather than merely stall.
-    bool Show(ConflictFile file, GitOperation operation, string repoPath);
+    // loop on a Task here would deadlock rather than merely stall. onChanged is called once what was
+    // changed is on disk, which for a file resolved whole, with no view of the resolver, is after
+    // this has returned, so the caller reads the file again from there rather than on return.
+    void Show(ConflictFile file, GitOperation operation, string repoPath, Action onChanged);
 }
 
 // Resolves the conflicts of one file: the two sides (and the common ancestor, on request) side by
@@ -41,6 +43,7 @@ class ConflictView : IConflictView
     bool isShowBase;
     bool isResolved;
     bool isMovedToFirstHunk;
+    Action onChanged = () => { };
 
     readonly Config config;
 
@@ -75,8 +78,9 @@ class ConflictView : IConflictView
         }
     }
 
-    public bool Show(ConflictFile file, GitOperation operation, string repoPath)
+    public void Show(ConflictFile file, GitOperation operation, string repoPath, Action onChanged)
     {
+        this.onChanged = onChanged;
         this.file = file;
         this.operation = operation;
         this.repoPath = repoPath;
@@ -89,7 +93,10 @@ class ConflictView : IConflictView
         // A file with nothing to merge as text is a whole file choice, not a three pane view: a
         // three pane view with nothing in it reads as gmd being broken
         if (file.IsBinary || file.Hunks.Count == 0)
-            return ShowWholeFileChoice();
+        {
+            ShowWholeFileChoice();
+            return;
+        }
 
         Toplevel view = new Toplevel()
         {
@@ -153,7 +160,9 @@ class ConflictView : IConflictView
         SetRows();
         UI.RunDialog(view);
 
-        return isResolved;
+        // What closes the view waits for git first, so what it changed is on disk by now
+        if (isResolved)
+            onChanged();
     }
 
     void RegisterShortcuts(ContentView view)
@@ -588,19 +597,18 @@ class ConflictView : IConflictView
     // deleted answers "does not have their version", so offering both sides would be an error every
     // time. A rename against a rename leaves a path with neither side, where the only thing left to
     // say is that it is gone.
-    bool ShowWholeFileChoice()
+    void ShowWholeFileChoice()
     {
         if (!file.HasOurs && !file.HasTheirs)
-            return ShowGoneChoice();
-
-        if (file.HasOurs != file.HasTheirs)
-            return ShowKeepOrDeleteChoice();
-
-        return ShowSideChoice();
+            ShowGoneChoice();
+        else if (file.HasOurs != file.HasTheirs)
+            ShowKeepOrDeleteChoice();
+        else
+            ShowSideChoice();
     }
 
     // Both sides exist, so the question is which one to take. A binary file is the usual case.
-    bool ShowSideChoice()
+    void ShowSideChoice()
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -610,17 +618,13 @@ class ConflictView : IConflictView
         );
 
         if (choice == 0)
-            Run(() => server.UseWholeFileAsync(file.Path, true, repoPath));
+            RunWholeFileChoice(() => server.UseWholeFileAsync(file.Path, true, repoPath));
         else if (choice == 1)
-            Run(() => server.UseWholeFileAsync(file.Path, false, repoPath));
-        else
-            return false;
-
-        return true;
+            RunWholeFileChoice(() => server.UseWholeFileAsync(file.Path, false, repoPath));
     }
 
     // Only one side has the file, so it is kept as that side left it, or the deletion is accepted
-    bool ShowKeepOrDeleteChoice()
+    void ShowKeepOrDeleteChoice()
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -630,18 +634,14 @@ class ConflictView : IConflictView
         );
 
         if (choice == 0)
-            Run(() => server.KeepConflictedFileAsync(file.Path, repoPath));
+            RunWholeFileChoice(() => server.KeepConflictedFileAsync(file.Path, repoPath));
         else if (choice == 1)
-            Run(() => server.DeleteConflictedAsync(file.Path, repoPath));
-        else
-            return false;
-
-        return true;
+            RunWholeFileChoice(() => server.DeleteConflictedAsync(file.Path, repoPath));
     }
 
     // Neither side has it. There is no version to keep, so 'keep' is not offered — it would run the
     // command that records the deletion, i.e. do the opposite of what it says.
-    bool ShowGoneChoice()
+    void ShowGoneChoice()
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -652,12 +652,14 @@ class ConflictView : IConflictView
             ["Accept the Deletion", "Cancel"]
         );
 
-        if (choice != 0)
-            return false;
-
-        Run(() => server.DeleteConflictedAsync(file.Path, repoPath));
-        return true;
+        if (choice == 0)
+            RunWholeFileChoice(() => server.DeleteConflictedAsync(file.Path, repoPath));
     }
+
+    // With no view of the resolver open, nothing waits for git: Show has returned by the time it is
+    // done. The caller used to read the conflicts again on that return, while git was still checking
+    // the file out or removing it, and could list it as conflicted still.
+    void RunWholeFileChoice(Func<Task<Result>> action) => Run(action, onChanged);
 
     string WhyWholeFile() => file.IsBinary ? "is binary" : "has no text conflicts";
 

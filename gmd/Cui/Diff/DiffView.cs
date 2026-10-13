@@ -334,8 +334,7 @@ class DiffView : IDiffView
             file = conflictFile;
         }
 
-        if (conflictView.Show(file, conflictState.Operation, repoPath))
-            RefreshDiff();
+        conflictView.Show(file, conflictState.Operation, repoPath, RefreshDiff);
     }
 
     void ScrollToCommit(string commitId)

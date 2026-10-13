@@ -333,6 +333,46 @@ public class ConflictViewTest
         StringAssert.Contains(screen, "press 1 for HEAD", "The result pane is still there, above the hints");
     }
 
+    // A file one side deleted has no text to merge, so it is resolved whole, with no view of the
+    // resolver open. The choice returned before git had run, and the diff, read again at once, could
+    // still list the file as conflicted. It is read once git is done now.
+    [TestMethod]
+    public async Task TestKeepingAFileTheOtherSideDeletedResolvesIt()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAtAsync("file.txt", "one\n", "Initial", TempRepo.BaseTime);
+        await repo.GitAsync("checkout -q -b dev");
+        await repo.GitAsync("rm -q file.txt");
+        repo.GitAt(["commit", "-q", "-m", "Delete the file"], TempRepo.BaseTime.AddMinutes(1));
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("file.txt", "one\ntwo\n", "Change the file", TempRepo.BaseTime.AddMinutes(2));
+        await repo.GitAllowFailAsync("merge dev");
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        // Git's diff has nothing to show of a file one side deleted, so the diff lists no file, and
+        // Enter offers the conflicts to resolve
+        gmd.WaitFor("Enter resolve");
+        gmd.Send("Enter");
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Keep the File"), "file.txt was changed here but deleted on the other side.");
+        gmd.Send("Left"); // From Cancel, the default, past Delete It to Keep the File
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Enter resolve"); // The diff, read again, has no conflict left to resolve
+        Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has it resolved");
+        Assert.AreEqual(
+            "one\ntwo\n",
+            await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")),
+            "Kept as changed here"
+        );
+    }
+
     static void OpenTheResolver(TmuxSession gmd)
     {
         gmd.WaitFor("CONFLICTS");
