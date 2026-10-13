@@ -61,6 +61,27 @@ static class CommitRewrite
         return "";
     }
 
+    // Why the selected commits, the newest and the oldest of them, cannot be squashed into one, or ""
+    // when they can. The menu offered it for any rows, and the command refused rows of two branches
+    // or of another branch than the current in an error box.
+    public static string WhyNotSquash(Repo repo, Commit newest, Commit oldest)
+    {
+        if (newest.IsUncommitted || oldest.IsUncommitted)
+            return "The uncommitted changes are no commit to squash: select commits only";
+        if (!repo.Status.IsOk)
+            return Why.Changes;
+        if (newest.BranchName != oldest.BranchName)
+            return "The selected commits are on different branches: select commits of one branch";
+        if (
+            !repo.BranchByName.TryGetValue(newest.BranchName, out var branch)
+            || (!branch.IsCurrent && !branch.IsLocalCurrent)
+        )
+            return "Only commits on the current branch can be squashed";
+        if (oldest.ParentIds.Count == 0)
+            return "The first commit cannot be squashed";
+        return "";
+    }
+
     static string WhyNot(Repo repo, Commit commit, string done)
     {
         if (repo.Status.IsMerging)

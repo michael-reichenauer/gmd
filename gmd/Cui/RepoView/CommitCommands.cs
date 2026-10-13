@@ -533,19 +533,8 @@ class CommitCommands : ICommitCommands
         {
             var c1 = repo.Repo.CommitById[id1];
             var c2 = repo.Repo.CommitById[id2];
-            if (!c2.ParentIds.Any())
-                return new Error("Last commit does not have a parent");
-            if (c1.BranchName != c2.BranchName)
-                return new Error("Commits are not on the same branch");
-            var branch = repo.Repo.BranchByName[c1.BranchName];
-
-            // Both flags, as 'Uncommit X and Newer' asks it in CommitMenu. IsLocalCurrent is only ever
-            // set on a *remote* branch whose local branch is current (Augmenter.cs), so asking for
-            // it alone refused every commit that had not been pushed yet — the local branch never
-            // carries the flag. Which was the wrong way round: the commits it did allow were the
-            // ones already published.
-            if (!branch.IsCurrent && !branch.IsLocalCurrent)
-                return new Error("Commits not on current branch");
+            if (CommitRewrite.WhyNotSquash(repo.Repo, c1, c2) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
 
             var commits = new List<Commit>();
             var c = c1;

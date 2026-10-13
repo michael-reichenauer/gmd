@@ -217,6 +217,44 @@ public class CommitRewriteTest
         );
     }
 
+    // Squash takes selected commits of the current branch. The menu offered it for any rows, and the
+    // command refused the rest in an error box.
+    [TestMethod]
+    public async Task TestSquashTakesCommitsOfTheCurrentBranch()
+    {
+        var ahead = await Ahead().ViewRepoAsync();
+        Assert.AreEqual("", CommitRewrite.WhyNotSquash(ahead, C(ahead, "c4"), C(ahead, "c3")));
+        Assert.AreEqual(
+            "The first commit cannot be squashed",
+            CommitRewrite.WhyNotSquash(ahead, C(ahead, "c2"), C(ahead, "c1"))
+        );
+
+        var changed = await Ahead().WithStatus(modified: 1).ViewRepoAsync();
+        Assert.AreEqual(Why.Changes, CommitRewrite.WhyNotSquash(changed, C(changed, "c4"), C(changed, "c3")));
+    }
+
+    [TestMethod]
+    public async Task TestSquashRefusesRowsOfTwoBranchesOrAnother()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f2", "Feature two", "f1")
+            .Commit("c2", "Second", "c1")
+            .Commit("f1", "Feature one", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c1", ahead: 1)
+            .LocalBranch("feature", "f2")
+            .ViewRepoAsync("feature");
+
+        Assert.AreEqual(
+            "The selected commits are on different branches: select commits of one branch",
+            CommitRewrite.WhyNotSquash(repo, C(repo, "c2"), C(repo, "f1"))
+        );
+        Assert.AreEqual(
+            "Only commits on the current branch can be squashed",
+            CommitRewrite.WhyNotSquash(repo, C(repo, "f2"), C(repo, "f1"))
+        );
+    }
+
     [TestMethod]
     public async Task TestNotWhileAnOperationIsInProgress()
     {
