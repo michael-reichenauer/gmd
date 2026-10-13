@@ -72,8 +72,7 @@ public class StringExtensionsTest
         Assert.AreEqual("0.91 (-1.-1)", new Version(0, 91).Txt(), "Missing parts are -1");
     }
 
-    // Note the integer division: a size is rounded down to a whole unit, so the '0.##' in the
-    // format never has a fraction to show
+    // A size is rounded down to a whole unit
     [TestMethod]
     public void TestFileSize()
     {

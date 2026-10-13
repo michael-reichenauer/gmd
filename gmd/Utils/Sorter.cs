@@ -1,6 +1,8 @@
 namespace gmd.Utils;
 
-// For some reason, the standard Sort does not work as expected, So this is a custom implementation.
+// A sort for a comparer that orders only some pairs and calls the rest equal, e.g. a branch after its
+// parent, and two unrelated branches in any order. List.Sort takes a comparer for a total order,
+// and with one that is not can leave a pair that it does order in the wrong order, see SorterTest.
 static class Sorter
 {
     public static void Sort<T>(IList<T> list, Func<T, T, int> comparer)

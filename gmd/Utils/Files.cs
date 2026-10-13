@@ -68,7 +68,7 @@ static class Files
         }
         catch (Exception e)
         {
-            Log.Warn($"Failed to read {e}");
+            Log.Warn($"Failed to read the size of {path}: {e.Message}");
             return false;
         }
     }
@@ -82,7 +82,7 @@ static class Files
         }
         catch (Exception e)
         {
-            Log.Warn($"Failed to read {e}");
+            Log.Warn($"Failed to read the size of {path}: {e.Message}");
             return 0;
         }
     }
@@ -112,14 +112,9 @@ static class Files
     {
         try
         {
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            if (assembly == null)
-                return new Error("No GetExecutingAssembly");
-
-            // var names = asm.GetManifestResourceNames();
-            var stream = assembly.GetManifestResourceStream(name);
+            var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name);
             if (stream == null)
-                return new Error($"Embedded file '{name}'");
+                return new Error($"No embedded file '{name}'");
 
             return stream;
         }

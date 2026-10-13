@@ -3,7 +3,7 @@ namespace gmd.Utils;
 // Some useful IEnumerable extensions that are missing in .NET
 public static class EnumerableExtensions
 {
-    // Calls acton for each item in the enumeration
+    // Calls action for each item in the enumeration
     public static void ForEach<T>(this IEnumerable<T> enumeration, Action<T> action)
     {
         foreach (T item in enumeration)
@@ -12,7 +12,7 @@ public static class EnumerableExtensions
         }
     }
 
-    // Calls acton for each item in the enumeration (includes index)
+    // Calls action for each item in the enumeration (includes index)
     public static void ForEach<T>(this IEnumerable<T> enumeration, Action<T, int> action)
     {
         int i = 0;
@@ -52,12 +52,6 @@ public static class EnumerableExtensions
         }
     }
 
-    // Returns true if the enumeration contains the item
-    public static bool ContainsBy<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
-    {
-        return null != source.FirstOrDefault(predicate);
-    }
-
     // Returns the index of the first item that matches the predicate
     public static int FindIndexBy<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
     {
@@ -76,16 +70,16 @@ public static class EnumerableExtensions
     // Returns the index of the last item that matches the predicate
     public static int FindLastIndexBy<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
     {
+        var last = -1;
         var index = 0;
-        var reverseSource = source.Reverse();
-        foreach (var item in reverseSource)
+        foreach (var item in source)
         {
             if (predicate(item))
             {
-                return source.Count() - 1 - index;
+                last = index;
             }
             index++;
         }
-        return -1;
+        return last;
     }
 }

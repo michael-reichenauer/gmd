@@ -49,14 +49,6 @@ public class EnumerableExtensionsTest
     }
 
     [TestMethod]
-    public void TestContainsBy()
-    {
-        Assert.IsTrue(Names.ContainsBy(n => n.Length == 3));
-        Assert.IsFalse(Names.ContainsBy(n => n.Length == 9));
-        Assert.IsFalse(Array.Empty<string>().ContainsBy(n => true));
-    }
-
-    [TestMethod]
     public void TestFindIndexBy()
     {
         Assert.AreEqual(1, Names.FindIndexBy(n => n.Length == 2), "The first match");
@@ -70,5 +62,21 @@ public class EnumerableExtensionsTest
         Assert.AreEqual(3, Names.FindLastIndexBy(n => n.Length == 2), "The last match");
         Assert.AreEqual(0, Names.FindLastIndexBy(n => n == "a"));
         Assert.AreEqual(-1, Names.FindLastIndexBy(n => n == "zz"), "No match");
+    }
+
+    // In one pass, so a sequence made as it is read, e.g. a query, is not run three times over
+    [TestMethod]
+    public void TestFindLastIndexByReadsTheSequenceOnce()
+    {
+        var reads = 0;
+        IEnumerable<string> Query()
+        {
+            reads++;
+            foreach (var name in Names)
+                yield return name;
+        }
+
+        Assert.AreEqual(3, Query().FindLastIndexBy(n => n.Length == 2));
+        Assert.AreEqual(1, reads);
     }
 }

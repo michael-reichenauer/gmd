@@ -61,14 +61,15 @@ public static class StringExtensions
         return $"{source.Major}.{source.Minor} ({source.Build}.{source.Revision})";
     }
 
+    // A size in whole units, rounded down: 1536 bytes is '1 KB'
     public static string FileSize(this long source)
     {
         if (source < 1024)
             return $"{source} B";
         if (source < 1024 * 1024)
-            return $"{source / 1024:0.##} KB";
+            return $"{source / 1024} KB";
         if (source < 1024 * 1024 * 1024)
-            return $"{source / 1024 / 1024:0.##} MB";
-        return $"{source / 1024 / 1024 / 1024:0.##} GB";
+            return $"{source / 1024 / 1024} MB";
+        return $"{source / 1024 / 1024 / 1024} GB";
     }
 }
