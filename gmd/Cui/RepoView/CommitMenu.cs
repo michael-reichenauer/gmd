@@ -147,6 +147,7 @@ class CommitMenu : ICommitMenu
         var current = repo.Repo.CurrentBranch();
         var step = BranchUndo.StepOf(repo.Repo, current);
         var whyNotDrop = CommitRewrite.WhyNotDrop(repo.Repo, repo.RowCommit);
+        var whyNotUncommit = CommitRewrite.WhyNotUncommit(repo.Repo, repo.RowCommit);
 
         return Menu
             .Items.Item(
@@ -186,11 +187,11 @@ class CommitMenu : ICommitMenu
                 () => !repo.Repo.Status.IsOk ? Why.Changes : "Only a commit not yet pushed can be uncommitted"
             )
             .Item(
-                $"Uncommit {id.Sid()} and Newer",
+                repo.RowCommit.IsUncommitted ? "Uncommit Commits" : $"Uncommit {id.Sid()} and Newer",
                 "",
                 () => cmds.UncommitUntilCommit(id),
-                () => repo.Repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent),
-                () => !repo.Repo.Status.IsOk ? Why.Changes : "Only commits on the current branch can be uncommitted"
+                () => whyNotUncommit == "",
+                () => whyNotUncommit
             )
             .Separator()
             .Item(

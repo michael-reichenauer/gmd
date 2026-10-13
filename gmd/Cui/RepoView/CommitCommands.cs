@@ -343,17 +343,10 @@ class CommitCommands : ICommitCommands
             var (i1, i2) = (selection.I1, selection.I2);
             if (i2 - i1 > 0)
             { // User selected range of commits
-                var c1 = repo.Repo.ViewCommits[i1];
-                var c2 = repo.Repo.ViewCommits[i2];
-                var commits = new List<Commit>();
-                var current = c1;
-                while (current != c2)
-                {
-                    commits.Add(current);
-                    current = repo.Repo.CommitById[current.ParentIds[0]];
-                }
-                commits.Add(current);
-                commits.Reverse();
+                if (CommitsToPick(repo.Repo, i1, i2) is not { } commits)
+                    return new Notice(
+                        "The selected commits are not one line of commits: select the commits of a branch"
+                    );
 
                 foreach (var commit in commits)
                 {
@@ -493,12 +486,40 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
+    // The selected rows as commits to pick, oldest first: the newest and the commits down git's first
+    // parents to the oldest, or null when the oldest is not on that line, e.g. rows of two branches,
+    // or the uncommitted changes are among them. The walk used to go on past the first commit and
+    // threw there, ending gmd.
+    internal static IReadOnlyList<Commit>? CommitsToPick(Repo repo, int i1, int i2)
+    {
+        var (newest, oldest) = (repo.ViewCommits[i1], repo.ViewCommits[i2]);
+        if (newest.IsUncommitted || oldest.IsUncommitted)
+            return null;
+
+        List<Commit> commits = [newest];
+        var c = newest;
+        while (c.Id != oldest.Id)
+        {
+            if (c.GitParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.GitParentIds[0], out var parent))
+                return null;
+            c = parent;
+            commits.Add(c);
+        }
+
+        commits.Reverse();
+        return commits;
+    }
+
     public void UncommitUntilCommit(string id) =>
         Do(async () =>
         {
             var commit = repo.Repo.CommitById[id];
-            var parentId = repo.Repo.CommitById[commit.ParentIds[0]].Id;
-            if (await server.UncommitUntilCommitAsync(parentId, repo.Path) is Error e)
+            if (CommitRewrite.WhyNotUncommit(repo.Repo, commit) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+
+            // Down git's first parent, the line the branch was made along, which a pull merge whose
+            // parents gmd swaps to draw it does not show first
+            if (await server.UncommitUntilCommitAsync(commit.GitParentIds[0], repo.Path) is Error e)
             {
                 return new Error($"Failed to undo commit", e);
             }

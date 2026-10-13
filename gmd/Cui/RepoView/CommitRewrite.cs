@@ -42,6 +42,25 @@ static class CommitRewrite
         return "";
     }
 
+    // Why the commits from this one up to the last of the current branch cannot be uncommitted, i.e.
+    // the branch reset to the commit before it with their changes kept, or "" when they can. Only
+    // ones not pushed yet, as for Amend and Drop, and the first commit has nothing before it to reset
+    // to: the item was offered on it, and on pushed commits, and threw on the first one.
+    public static string WhyNotUncommit(Repo repo, Commit commit)
+    {
+        if (commit.IsUncommitted)
+            return "Commits are uncommitted: move to one first";
+        if (!repo.Status.IsOk)
+            return Why.Changes;
+        if (!IsNotPushed(repo, commit))
+            return "Only a commit not yet pushed can be uncommitted";
+        if (CommitsDownTo(repo, commit) is null)
+            return "Only commits on the current branch can be uncommitted";
+        if (commit.GitParentIds.Count == 0)
+            return "The first commit cannot be uncommitted";
+        return "";
+    }
+
     static string WhyNot(Repo repo, Commit commit, string done)
     {
         if (repo.Status.IsMerging)

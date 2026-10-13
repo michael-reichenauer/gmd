@@ -87,6 +87,52 @@ public class CommitCommandsTest
         Assert.IsTrue(Commands(await Synced().WithStatus(modified: 1).ViewRepoAsync()).CanUndoUncommitted());
     }
 
+    // A cherry pick of selected rows picks the newest and the commits down its line to the oldest,
+    // oldest first
+    [TestMethod]
+    public async Task TestTheCommitsToPickAreTheLineFromTheNewestToTheOldest()
+    {
+        var repo = await TwoLines().ViewRepoAsync("dev");
+
+        var picked = CommitCommands.CommitsToPick(repo, Row(repo, "d2"), Row(repo, "d1"));
+
+        CollectionAssert.AreEqual(
+            new[] { "d1", "d2" }.Select(RepoBuilder.Sha).ToList(),
+            picked!.Select(c => c.Id).ToList()
+        );
+    }
+
+    // Rows of two branches are no line: the walk down the newest one's parents never met the oldest,
+    // went on past the first commit and threw, which ended gmd
+    [TestMethod]
+    public async Task TestNoCommitsToPickFromRowsOfTwoBranches()
+    {
+        var repo = await TwoLines().ViewRepoAsync("dev");
+
+        Assert.IsNull(CommitCommands.CommitsToPick(repo, Row(repo, "c3"), Row(repo, "d1")));
+    }
+
+    [TestMethod]
+    public async Task TestNoCommitsToPickWithTheUncommittedChangesSelected()
+    {
+        var repo = await TwoLines().WithStatus(modified: 1).ViewRepoAsync("dev");
+
+        Assert.IsNull(CommitCommands.CommitsToPick(repo, 0, Row(repo, "c3")));
+    }
+
+    static int Row(Repo repo, string name) => repo.CommitById[RepoBuilder.Sha(name)].ViewIndex;
+
+    // main and dev, both from c1
+    static RepoBuilder TwoLines() =>
+        new RepoBuilder()
+            .Commit("c3", "Third", "c2")
+            .Commit("d2", "Dev two", "d1")
+            .Commit("d1", "Dev one", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .BranchWithRemote("dev", "d2");
+
     // The predicates read nothing but repo.Repo, so the progress, server, dialogs and views the
     // constructor takes are never reached
     static CommitCommands Commands(Repo repo) =>
