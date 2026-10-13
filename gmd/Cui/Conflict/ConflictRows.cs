@@ -7,7 +7,6 @@ enum ConflictRowMode
 {
     Panes, // One cell per pane, e.g. ours │ theirs
     SpanAll, // One text across the whole width, e.g. a file header
-    Divider, // A rule drawn to the full width
 }
 
 // A drawn row of the resolver.
@@ -21,8 +20,6 @@ record ConflictRow(IReadOnlyList<Text> Panes, ConflictRowMode Mode, int HunkInde
 
     public static ConflictRow Header(Text text, int hunkIndex) =>
         new ConflictRow([text], ConflictRowMode.SpanAll, hunkIndex, IsHunkHeader: true);
-
-    public static ConflictRow Divider(Text text) => new ConflictRow([text], ConflictRowMode.Divider, -1);
 
     public override string ToString() => string.Join(" │ ", Panes.Select(p => p.ToString()));
 }

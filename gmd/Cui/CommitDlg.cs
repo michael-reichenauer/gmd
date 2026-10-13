@@ -86,7 +86,7 @@ class CommitDlg : ICommitDlg
         out string commitMessage
     )
     {
-        (string subjectPart, string messagePart) = ParseMessage(original);
+        (string subjectPart, string messagePart) = CommitMessage.Split(original);
 
         int filesCount = repo.Repo.Status.ChangesCount;
         // The current branch, which the top row is only while there are changes: with none it is
@@ -161,7 +161,9 @@ class CommitDlg : ICommitDlg
         // file was asked for, so the message could not be fixed without taking work in progress in.
         if (older != null || (isAmend && files != null))
             dlg.Validate(
-                () => GetMessage(subject, message) != JoinMessage(subjectPart, messagePart) || files?.TickedCount > 0,
+                () =>
+                    GetMessage(subject, message) != CommitMessage.Join(subjectPart, messagePart)
+                    || files?.TickedCount > 0,
                 "Nothing to amend: edit the message or tick a file"
             );
 
@@ -260,32 +262,6 @@ class CommitDlg : ICommitDlg
         return commit.Subject.Trim() == "" ? [] : [$"- {commit.Subject}"];
     }
 
-    static (string, string) ParseMessage(string msg)
-    {
-        if (msg.Trim() == "")
-        {
-            return ("", "");
-        }
-        var lines = msg.Split('\n');
-        if (lines.Length == 1)
-        {
-            return (lines[0], "");
-        }
-
-        string subject = lines[0];
-        string message;
-        if (lines.Length > 2 && lines[1] == "")
-        {
-            message = string.Join('\n', lines.Skip(2));
-        }
-        else
-        {
-            message = string.Join('\n', lines.Skip(1));
-        }
-
-        return (subject, message);
-    }
-
     // "1 change", "2 changes", and for an amend with none, which rewords the last commit, what it
     // does amend
     static string Changes(int count, bool isAmend) =>
@@ -294,26 +270,5 @@ class CommitDlg : ICommitDlg
         : $"{count} changes";
 
     static string GetMessage(UITextField subject, TextView message) =>
-        JoinMessage(subject.Text, message.Text.ToString() ?? "");
-
-    // The subject and the body as one message, with an empty line between them when there are both
-    static string JoinMessage(string subjectText, string msgText)
-    {
-        msgText = msgText.TrimEnd();
-        if (msgText.Trim() == "")
-        {
-            msgText = "";
-        }
-
-        if (subjectText != "" && msgText.Length > 0)
-        {
-            return subjectText + "\n\n" + msgText;
-        }
-        if (subjectText != "")
-        {
-            return subjectText;
-        }
-
-        return msgText;
-    }
+        CommitMessage.Join(subject.Text, message.Text.ToString() ?? "");
 }

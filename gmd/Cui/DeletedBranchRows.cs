@@ -8,9 +8,9 @@ namespace gmd.Cui;
 // a driver, and what the status line says of a delete and a restore. One row per branch gmd deleted,
 // newest first, with the side or sides it was deleted on:
 //
-//     Time            Branch              Deleted        Subject
-//     24-10-15 12:03  feature             local, remote  Feature work
-//     24-10-15 12:01  fix                 local          Fix the login
+//     Time              Branch              Deleted        Subject
+//     2024-10-15 12:03  feature             local, remote  Feature work
+//     2024-10-15 12:01  fix                 local          Fix the login
 static class DeletedBranchRows
 {
     const int TimeWidth = 18; // 'yyyy-MM-dd HH:mm' and two spaces

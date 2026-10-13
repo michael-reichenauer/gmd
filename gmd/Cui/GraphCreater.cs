@@ -61,7 +61,7 @@ class GraphCreater : IGraphCreater
         return graph;
     }
 
-    public static bool IsOverlapping(GraphBranch b1, GraphBranch b2, int margin)
+    static bool IsOverlapping(GraphBranch b1, GraphBranch b2, int margin)
     {
         if (
             b2.B.Name == b1.B.Name
@@ -395,8 +395,6 @@ class GraphCreater : IGraphCreater
 
         foreach (var c in repo.ViewCommits)
         {
-            // var branchName = c.BranchName;
-            // var branch = branchMap[branchName];
             if (c.ParentIds.Count > 1)
             { // commit is a merge commit, lets check if its merge parent needs to adjust
                 var cp = repo.CommitById[c.ParentIds[1]];
@@ -537,8 +535,6 @@ class GraphCreater : IGraphCreater
                 b.X++;
             }
         }
-        // var mainBranches = branches.Where(b => b.B.IsPrimary || b.B.RemoteName != "").OrderBy(b => b.X).ToList();
-        // Log.Info($"Ordered {mainBranches.Count} main branches:\n  {mainBranches.Select(b => $"{b.X,2} {b.B.Name}").Join("\n  ")}");
     }
 
     class FirstLast

@@ -8,9 +8,9 @@ namespace gmd.Cui;
 // driver. One row per line of work, newest first, with the older versions of work that is still
 // there last and dark:
 //
-//     Time            Branch              Commits  Lost by   Subject
-//     24-10-15 12:03  feature                   2  deleted   Feature work
-//     24-10-15 12:01  main                      1  amend     Second
+//     Time              Branch              Commits  Lost by   Subject
+//     2024-10-15 12:03  feature                   2  deleted   Feature work
+//     2024-10-15 12:01  main                      1  amend     Second
 static class LostWorkRows
 {
     const int TimeWidth = 18; // 'yyyy-MM-dd HH:mm' and two spaces

@@ -21,7 +21,7 @@ class AddTagDlg : IAddTagDlg
 
     // A tag on a commit of a branch with a remote can be pushed with it, which the dialog says and
     // lets be left out: adding a tag pushed it unasked, where every other push is a choice made in
-    // view. Checked, as Create Branch's Publish is, since there is no other way to push it later.
+    // view. Checked, as Create Branch's Publish is; the Tags dialog pushes one left out later.
     public Result<TagInfo> Show(bool canPush)
     {
         var dlg = new UIDialog("Add Tag", 60, canPush ? 15 : 13);

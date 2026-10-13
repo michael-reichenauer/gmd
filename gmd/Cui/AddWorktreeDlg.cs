@@ -60,9 +60,9 @@ class AddWorktreeDlg : IAddWorktreeDlg
         dlg.AddButton(width - 9, 4, "Browse", () => Browse());
 
         dlg.AddLabel(1, 6, "Put in:");
-        var sibling = dlg.AddButton(9, 6, "Beside repo", () => Pick(WorktreeLocation.Sibling));
-        var claude = dlg.AddButton(25, 6, ".claude/worktrees", () => Pick(WorktreeLocation.Claude));
-        var local = dlg.AddButton(47, 6, ".worktrees", () => Pick(WorktreeLocation.Local));
+        dlg.AddButton(9, 6, "Beside repo", () => Pick(WorktreeLocation.Sibling));
+        dlg.AddButton(25, 6, ".claude/worktrees", () => Pick(WorktreeLocation.Claude));
+        dlg.AddButton(47, 6, ".worktrees", () => Pick(WorktreeLocation.Local));
 
         ignore = dlg.AddCheckBox(1, 8, "Add to .gitignore", true);
         var open = dlg.AddCheckBox(1, 9, "Open worktree after creating", true);

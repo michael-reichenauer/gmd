@@ -106,7 +106,7 @@ class ConfigDlg : IConfigDlg
     static bool IsGmdAddedToPathVariable()
     {
         string folderPath = Path.GetDirectoryName(Environment.ProcessPath)!.ToUpper();
-        string pathsVariables = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "".Trim();
+        string pathsVariables = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "";
         var parts = pathsVariables.Split(';');
 
         return parts.FirstOrDefault(p => p.ToUpper() == folderPath) != null;
@@ -153,18 +153,4 @@ class ConfigDlg : IConfigDlg
                 + "You need to restart running terminals for the change to take effect"
         );
     }
-
-    //       if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-    //         {
-    //             name = "gmd_osx";
-    //         }
-    //         else
-    //         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-    //         {
-    //             name = "gmd_linux";
-    //         }
-    //         else
-    //         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-    // {
-    //     name = "gmd_windows";
 }

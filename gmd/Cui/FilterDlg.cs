@@ -174,7 +174,6 @@ class FilterDlg : IFilterDlg
     // The close X, the mouse wheel, and a click on a result
     bool OnMouseEvent(MouseEvent ev)
     {
-        // Log.Info($"OnMouseEvent:  {ev}, {closeX}");
         if (ev.Flags.HasFlag(MouseFlags.Button1Clicked) && ev.X == closeX + 1 && ev.Y == 1)
         {
             dlg.Close();

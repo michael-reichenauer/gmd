@@ -13,7 +13,7 @@ interface IMainView
     View View { get; }
 }
 
-partial class MainView : IMainView
+class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IStartView startView;
@@ -35,7 +35,6 @@ partial class MainView : IMainView
         IAskpassServer askpassServer,
         ILoginDlg loginDlg
     )
-        : base()
     {
         Menu.StatusLine = statusLine;
         this.repoView = repoView;

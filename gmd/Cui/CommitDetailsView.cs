@@ -14,8 +14,7 @@ interface ICommitDetailsView
 
 class CommitDetailsView : ICommitDetailsView
 {
-    ContentView? contentView;
-    Server.Commit? commit;
+    readonly ContentView contentView;
     IReadOnlyList<Text> rows = new List<Text>();
 
     internal static readonly int ContentHeight = 11;
@@ -34,24 +33,18 @@ class CommitDetailsView : ICommitDetailsView
             IsScrollMode = true,
             IsFocus = false,
             IsKeysForwarded = true, // By the log, and by the blame
-            // Height = Dim.Fill(),
         };
 
         this.branchColorService = branchColorService;
     }
 
-    public ContentView View => contentView!;
-
-    public int TotalRows => rows.Count;
+    public ContentView View => contentView;
 
     public void Set(Repo repo, Server.Commit commit, Branch branch) =>
         UI.RunInBackground(async () =>
         {
             await Task.Yield();
 
-            var tags = commit.Tags;
-
-            this.commit = commit;
             var id = commit.Id;
             var color = branchColorService.GetColor(repo, branch);
 
@@ -114,16 +107,21 @@ class CommitDetailsView : ICommitDetailsView
 
             newRows.Add(
                 Text.Dark("Children:   ")
-                    .White(string.Join(", ", commit.AllChildIds.Select(id => id == Repo.UncommittedId ? "" : id.Sid())))
+                    .White(
+                        string.Join(
+                            ", ",
+                            commit.AllChildIds.Where(id => id != Repo.UncommittedId).Select(id => id.Sid())
+                        )
+                    )
             );
             newRows.Add(Text.Dark("Parents:    ").White(string.Join(", ", commit.GitParentIds.Select(id => id.Sid()))));
             if (commit.IsAhead)
             {
-                newRows.Add(Text.Dark("Remote:   ").Green("▲ pushable"));
+                newRows.Add(Text.Dark("Remote:     ").Green("▲ pushable"));
             }
             if (commit.IsBehind)
             {
-                newRows.Add(Text.Dark("Remote:   ").Blue("▼ pullable"));
+                newRows.Add(Text.Dark("Remote:     ").Blue("▼ pullable"));
             }
             if (commit.Tags.Any())
             {
@@ -147,8 +145,8 @@ class CommitDetailsView : ICommitDetailsView
     public void SetRows(IReadOnlyList<Text> rows)
     {
         this.rows = rows;
-        contentView!.SetNeedsDisplay();
-        contentView!.MoveToTop();
+        contentView.SetNeedsDisplay();
+        contentView.MoveToTop();
     }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width) =>

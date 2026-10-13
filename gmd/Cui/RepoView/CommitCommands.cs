@@ -543,7 +543,7 @@ class CommitCommands : ICommitCommands
                 c = repo.Repo.CommitById[c.ParentIds[0]];
             }
 
-            if (!squashDlg.Show(repo, commits, out var message))
+            if (!squashDlg.Show(commits, out var message))
                 return Result.Ok;
 
             if (await server.SquashCommitsAsync(repo.Repo, id1, id2, message) is Error e)
