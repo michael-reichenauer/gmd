@@ -338,7 +338,7 @@ class StartView : IStartView
     // inside a repository, which only '-m' shows the page for, since nesting one is seldom meant.
     IReadOnlyList<string> Folders()
     {
-        var parents = config.ResentParentFolders();
+        var parents = config.RecentParentFolders();
         return repos.IsFolderInRepo || folder == "" ? parents : [folder, .. parents];
     }
 

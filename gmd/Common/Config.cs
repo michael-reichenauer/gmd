@@ -34,6 +34,15 @@ class Config
     }
 
     public void Set(Action<Config> set) => configService?.Set(this, set);
+
+    // The folders the recent repos are in, those that still exist, most recent first
+    public IReadOnlyList<string> RecentParentFolders() =>
+        RecentFolders
+            .Select(f => Path.GetDirectoryName(f))
+            .OfType<string>()
+            .Distinct()
+            .Where(Directory.Exists)
+            .ToList();
 }
 
 public class Release
@@ -57,39 +66,11 @@ public class Releases
     public Release StableRelease { get; set; } = new Release();
     public string Etag { get; set; } = "";
 
-    public bool IsUpdateAvailable()
-    {
-        if (Build.IsDevInstance())
-            return false;
-
-        string v1Text = LatestVersion;
-        string v2Text = Build.Version().ToString();
-
-        if (!Version.TryParse(v1Text, out var v1))
-        {
-            return false;
-        }
-        if (!Version.TryParse(v2Text, out var v2))
-        {
-            return true;
-        }
-        return v1 > v2;
-    }
+    // A dev instance is never offered one, since its version is not a release's
+    public bool IsUpdateAvailable() =>
+        !Build.IsDevInstance() && Version.TryParse(LatestVersion, out var latest) && latest > Build.Version();
 
     // The version there is to update to, as gmd writes a version, or "" when there is none
     public string UpdateVersion() =>
         IsUpdateAvailable() && Version.TryParse(LatestVersion, out var latest) ? latest.Txt() : "";
-}
-
-// Some Config utility functions, these are not part of the Config class because Config
-// is dto serializable, and should be kept as simple as possible
-internal static class ConfigExtensions
-{
-    // ResentParentFolders returns the most recent working folders parents
-    internal static IReadOnlyList<string> ResentParentFolders(this Config config) =>
-        config
-            .RecentFolders.Select(f => Path.GetDirectoryName(f)!)
-            .Distinct()
-            .Where(f => f != null && Directory.Exists(f))
-            .ToList();
 }

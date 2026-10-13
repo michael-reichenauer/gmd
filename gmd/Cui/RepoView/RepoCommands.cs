@@ -120,7 +120,7 @@ class RepoCommands : IRepoCommands
         Do(async () =>
         {
             var browser = new FolderBrowseDlg();
-            if (browser.Show(config.ResentParentFolders()) is not string path)
+            if (browser.Show(config.RecentParentFolders()) is not string path)
                 return Result.Ok;
 
             if (await repoView.ShowRepoAsync(path) is Error e)
@@ -137,7 +137,7 @@ class RepoCommands : IRepoCommands
     public void Clone() =>
         Do(async () =>
         {
-            if (cloneDlg.Show(config.ResentParentFolders()) is not CloneInfo clone)
+            if (cloneDlg.Show(config.RecentParentFolders()) is not CloneInfo clone)
                 return Result.Ok;
 
             if (await server.CloneAsync(clone.Uri, clone.Path, repo.Path) is Error cloneError)
@@ -155,7 +155,7 @@ class RepoCommands : IRepoCommands
     public void InitRepo() =>
         Do(async () =>
         {
-            var parents = config.ResentParentFolders();
+            var parents = config.RecentParentFolders();
             var pathResult = initRepoDlg.Show(parents.Any() ? parents[0] + Path.DirectorySeparatorChar : "", parents);
             if (pathResult is not string path)
                 return Result.Ok;
