@@ -737,11 +737,44 @@ public class DiffRowServiceTest
         Assert.AreEqual(
             """
             === Start of conflict │ === Start of conflict
-               1┃ours             │ ░
+               2┃ours             │ ░
             === Common ancestor
             base line
-            ░                     │    3┃theirs
+            ░                     │    6┃theirs
             === End of conflict   │ === End of conflict
+            """,
+            DiffText.BodyOf(rows)
+        );
+    }
+
+    // The markers are lines of the working tree file, as git writes them there, so the right side is
+    // numbered past them: the lines after a conflict were numbered 3 low, 4 with a common ancestor
+    [TestMethod]
+    public void TestTheMarkersAreLinesOfTheWorkingTreeFile()
+    {
+        var rows = RowsOf(
+            FileOf(
+                "a.txt",
+                DiffMode.DiffConflicts,
+                [
+                    (DiffMode.DiffSame, "before"),
+                    (DiffMode.DiffConflictStart, "<<<<<<< HEAD"),
+                    (DiffMode.DiffSame, "ours"),
+                    (DiffMode.DiffConflictSplit, "======="),
+                    (DiffMode.DiffAdded, "theirs"),
+                    (DiffMode.DiffConflictEnd, ">>>>>>> other"),
+                    (DiffMode.DiffSame, "after"),
+                ]
+            )
+        );
+
+        Assert.AreEqual(
+            """
+               1 before           │    1 before
+            === Start of conflict │ === Start of conflict
+               3┃ours             │    5┃theirs
+            === End of conflict   │ === End of conflict
+               3 after            │    7 after
             """,
             DiffText.BodyOf(rows)
         );

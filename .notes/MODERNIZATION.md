@@ -604,7 +604,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every
     branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
     the colors already. Not measured.
-  - Smaller: the diff's right-side line numbers after conflict markers are 3 low; the resolver's
+  - Smaller: the resolver's
     result pane cannot be scrolled and its panes do not expand tabs; `b` there can move the cursor
     to another conflict; a drag starts a row and a column after the press;
     `g` on main says nothing; Merge says nothing when already merged; Add Tag says the tag

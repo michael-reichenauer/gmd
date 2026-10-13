@@ -267,6 +267,17 @@ class DiffRowService : IDiffRowService
 
         foreach (var dl in sectionDiff.LineDiffs)
         {
+            // A marker is a line git wrote into the working tree file, so it counts on the right,
+            // where the lines after a conflict were numbered 3 low, 4 with a common ancestor
+            if (
+                dl.DiffMode
+                is DiffMode.DiffConflictStart
+                    or DiffMode.DiffConflictBase
+                    or DiffMode.DiffConflictSplit
+                    or DiffMode.DiffConflictEnd
+            )
+                rightNr++;
+
             switch (dl.DiffMode)
             {
                 case DiffMode.DiffConflictStart:
