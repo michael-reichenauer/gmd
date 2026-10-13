@@ -869,7 +869,7 @@ class CommitCommands : ICommitCommands
         var largeFiles = addFiles
             .Where(f => !binaryFiles.Contains(f))
             .Where(f => Files.IsLarger(Path.Join(repo.Path, f), 100 * 1000))
-            .Select(f => $"{f} ({Files.FileSize(f).FileSize()})")
+            .Select(f => $"{f} ({Files.FileSize(Path.Join(repo.Path, f)).FileSize()})")
             .ToList();
 
         if (largeFiles.Any())
