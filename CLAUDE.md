@@ -101,8 +101,9 @@ gmd/Utils/Cmd.cs   Process launcher for the `git` executable
 ```
 
 Beside the layers: `gmd/Common/` holds the config (`Config`, `ConfigService`, `RepoConfig`), the
-command line (`ProgramCommands`) and `Spelling/`; `gmd/Installation/Updater.cs` is the
-self-updater.
+command line (`ProgramCommands`) and `Spelling/`; `gmd/Installation/` is the self-updater:
+`Updater` decides when, `GitHubReleases` reads the releases, `ReleaseChoice` picks the release and
+the binary for this platform, and `BinaryInstaller` downloads it, checks it and swaps it in.
 
 Key types and flow:
 
@@ -766,12 +767,21 @@ message.
   CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
 - **The `gmd_linux` and `gmd_windows` release assets are duplicates** of `gmd_linux_x64` and
   `gmd.exe`, kept under the original names because the built-in updater falls back to the first and
-  updates Windows from the second (`gmd/Installation/Updater.cs`), as the committed installer does
+  updates Windows from the second (`ReleaseChoice.BinaryNames`), as the committed installer does
   (`Setup/gmd.iss`). Do not drop them from the release workflow. `gmd.exe` is the one the README
   offers, since it runs as it is named. The release notes are written by the workflow
   (`Write release notes`): main's are its section of `CHANGELOG.md`, a preview's what is new on dev.
   Only the latest five previews are kept (`Prune old previews`), with their tags, except a tag on
   main's first-parent line, since the change log is made from the version tags there.
+- **The updater of one version installs the next**, so a bug in `gmd/Installation/` ships unseen
+  and shows one release later, at users who can then only reinstall by hand. Whatever the gmd
+  versions out there rely on stays: the asset names and `SHA256SUMS`, the `v<a.b.c.d>` tags, the
+  `<binary>.tmp_` files `CleanUp` deletes for them, and the askpass channel, since a gmd left
+  running after an update runs the new binary as its askpass. `BinaryInstaller` checks the new
+  binary before the swap (its checksum, and that it runs and says its version); keep both checks.
+  Its tests run the Windows swap too, but not on Windows, where only renaming the running exe is
+  allowed: try an updater change through two dev previews, with a real update on Linux, macOS and
+  Windows, before it goes to `main`.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
 - `Utils/GlobPatterns/` is vendored third-party-style code. CSharpier formats it like

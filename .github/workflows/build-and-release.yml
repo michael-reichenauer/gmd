@@ -192,9 +192,10 @@ jobs:
 
       # 'gmd_linux' and 'gmd_windows' are copies of 'gmd_linux_x64' and 'gmd.exe' kept under the
       # original asset names: the built-in updater falls back to the first and updates Windows from
-      # the second (see gmd/Installation/Updater.cs), and so does the installer (Setup/gmd.iss).
+      # the second (see gmd/Installation/ReleaseChoice.cs), and so does the installer (Setup/gmd.iss).
       # 'gmd.exe' is the one to download by hand, since it runs as it is named. SHA256SUMS is the
-      # checksums of all of them, which install.sh checks its download against. All of them are in
+      # checksums of all of them, which install.sh and the updater check their downloads against
+      # (gmd/Installation/BinaryInstaller.cs), so keep its name and its format. All of them are in
       # artifacts/, where scripts/build publishes, and SHA256SUMS is made there so that it names them
       # by the bare asset names install.sh looks for.
       - name: Prepare release assets
@@ -273,7 +274,7 @@ jobs:
             artifacts/SHA256SUMS
 
       # Every push to dev makes a preview, and the updater only ever uses the newest stable release
-      # and the newest preview (gmd/Installation/Updater.cs), so the Releases page keeps the stable
+      # and the newest preview (gmd/Installation/GitHubReleases.cs), so the Releases page keeps the stable
       # releases and the latest five previews. A preview's tag goes with it, unless it is on main's
       # own line, where the change log reads the version tags from (Server/Private/ChangeLog.cs), or
       # unknown here. Tidying only, so it never fails the run.
