@@ -15,7 +15,6 @@ interface IRepoWriter
         int width,
         Selection selection
     );
-    bool IShowSid { get; set; }
 }
 
 class RepoWriter : IRepoWriter
@@ -36,8 +35,6 @@ class RepoWriter : IRepoWriter
         this.branchColorService = branchColorService;
         this.graphWriter = graphWriter;
     }
-
-    public bool IShowSid { get; set; } = true;
 
     public IEnumerable<Text> ToPage(
         IViewRepo repo,
@@ -119,7 +116,7 @@ class RepoWriter : IRepoWriter
         int commitWidth = width - (graphWidth + markersWidth);
         int authorWidth = 15;
         int timeWidth = 17; // ' yyyy-MM-dd HH:mm', the year in full, since '26-03-10' reads as 26 March
-        int sidWidth = IShowSid ? 7 : 0;
+        int sidWidth = 7;
 
         if (commitWidth < 70)
         { // Disabled sid, author and time if very narrow view

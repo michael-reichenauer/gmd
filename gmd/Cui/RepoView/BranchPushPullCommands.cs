@@ -9,15 +9,10 @@ interface IBranchPushPullCommands
     void PushCurrentBranch();
     void PushBranch(string name);
     void PushAllBranches();
-    void PublishCurrentBranch();
     void PullCurrentBranch();
     void PullBranch(string name);
     void PullAllBranches();
     void RestoreOrigin(string name);
-    bool CanPushCurrentBranch();
-    bool CanPush();
-    bool CanPull();
-    bool CanPullCurrentBranch();
 }
 
 class BranchPushPullCommands : IBranchPushPullCommands
@@ -114,22 +109,6 @@ class BranchPushPullCommands : IBranchPushPullCommands
             return Result.Ok;
         });
 
-    public void PublishCurrentBranch() =>
-        Do(async () =>
-        {
-            var branch = repo.Repo.ViewBranches.First(b => b.IsCurrent);
-
-            using (status.Progress($"Publishing '{branch.NiceNameUnique}'"))
-            {
-                if (await server.PushBranchAsync(branch.Name, repo.Path) is Error e)
-                    return new Error($"Failed to publish branch:\n{branch.Name}", e);
-            }
-
-            Refresh();
-            status.Info($"Published '{branch.NiceNameUnique}'");
-            return Result.Ok;
-        });
-
     public void PushBranch(string name) =>
         Do(async () =>
         {
@@ -152,7 +131,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
         {
             if (repo.Repo.Status.IsMerging)
                 return new Notice(Why.InProgress);
-            if (!CanPush())
+            if (!CanPush(repo.Repo))
                 return new Notice("Nothing to push");
 
             // A branch whose push would put back what a force push dropped is left to be pushed on its
@@ -309,7 +288,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
             if (currentRewrite != null)
                 leftRewritten.Add(currentRewrite.RemoteName);
 
-            if (CanPullCurrentBranch() && currentRewrite == null)
+            if (CanPullCurrentBranch(repo.Repo) && currentRewrite == null)
             {
                 if (repo.Repo.BranchByName.TryGetValue(repo.Repo.CurrentBranch()?.RemoteName ?? "", out var current))
                 {
@@ -466,14 +445,6 @@ class BranchPushPullCommands : IBranchPushPullCommands
         var list = names.ToList();
         return list.Count <= 3 ? string.Join(", ", list.Select(n => $"'{n}'")) : $"{list.Count} branches";
     }
-
-    public bool CanPush() => CanPush(repo.Repo);
-
-    public bool CanPushCurrentBranch() => CanPushCurrentBranch(repo.Repo);
-
-    public bool CanPull() => CanPull(repo.Repo);
-
-    public bool CanPullCurrentBranch() => CanPullCurrentBranch(repo.Repo);
 
     // The rules for what can be pushed and pulled are plain functions of the shown repo, so they
     // are testable without a view. Note that a diverged branch (both local and remote only

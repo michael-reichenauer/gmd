@@ -106,9 +106,6 @@ class CommitCommands : ICommitCommands
         IReadOnlyList<Server.Commit>? commits = null
     ) => repoView.RefreshAndCommit(addName, commitId, commits);
 
-    public void RefreshAndFetch(string addName = "", string commitId = "") =>
-        repoView.RefreshAndFetch(addName, commitId);
-
     public bool CanUndoUncommitted() => !repo.Repo.Status.IsOk;
 
     public void ToggleDetails() => repoView.ToggleDetails();

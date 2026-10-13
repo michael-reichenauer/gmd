@@ -14,8 +14,6 @@ interface IRepoView
     View ApplicationBarView { get; }
     View KeyHintView { get; }
     int CurrentIndex { get; }
-    int ContentWidth { get; }
-    Point CurrentPoint { get; }
     Selection Selection { get; }
 
     // The shown repo, which is an immutable snapshot replaced on every refresh, so a command that
@@ -118,7 +116,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     internal RepoView(
         IServer server,
-        Func<View, int, IRepoWriter> newRepoWriter,
+        IRepoWriter repoWriter,
         Func<IRepoView, Repo, IViewRepo> newViewRepo,
         Func<IViewRepo, IRepoViewMenus> newMenuService,
         Config config,
@@ -164,7 +162,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         keyHintBar = new KeyHintBar(GetKeyHints, () => status.Current);
         status.Changed += OnStatusChanged;
 
-        repoWriter = newRepoWriter(commitsView, commitsView.ContentX);
+        this.repoWriter = repoWriter;
         repo = newViewRepo(this, Server.Repo.Empty);
         input = new RepoViewInput(
             this,
@@ -187,10 +185,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     public View KeyHintView => keyHintBar;
     public IApplicationBar ApplicationBar => applicationBarView;
 
-    public int ContentWidth => commitsView.ContentWidth;
-
     public int CurrentIndex => commitsView.CurrentIndex;
-    public Point CurrentPoint => commitsView.CurrentPoint;
 
     public Selection Selection => commitsView.Selection;
 

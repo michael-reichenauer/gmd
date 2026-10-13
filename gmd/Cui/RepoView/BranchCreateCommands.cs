@@ -8,7 +8,6 @@ namespace gmd.Cui.RepoView;
 // what to delete first, and then run the git command for them.
 interface IBranchCreateCommands
 {
-    void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
     void CreateBranchFromLostCommit(string commitId, string madeOnName);
@@ -50,30 +49,6 @@ class BranchCreateCommands : IBranchCreateCommands
         this.renameBranchDlg = renameBranchDlg;
         this.deleteBranchDlg = deleteBranchDlg;
     }
-
-    public void CreateBranch() =>
-        Do(async () =>
-        {
-            var branchName = "";
-            try
-            {
-                var currentBranchName = repo.Repo.CurrentBranch().Name;
-                if (createBranchDlg.Show(currentBranchName, "") is not CreateBranchResult rsp)
-                    return Result.Ok;
-
-                if (await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout) is Error e)
-                {
-                    return new Error($"Failed to create branch {rsp.Name}", e);
-                }
-                branchName = rsp.Name;
-
-                return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
-            }
-            finally
-            {
-                RefreshIfMade(branchName);
-            }
-        });
 
     public void CreateBranchFromBranch(string name) =>
         Do(async () =>

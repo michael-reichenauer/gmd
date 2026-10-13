@@ -20,12 +20,9 @@ interface IBranchCommands
 
     void ShowWorktrees();
     void CreateWorktree(string branchName);
-    void OpenWorktree(string path);
 
-    void DiffWithOtherBranch(string name, bool isFromCurrentCommit, bool isSwitchOrder);
     void DiffBranchesBranch(string branchName1, string branchName2);
 
-    void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
     void CreateBranchFromLostCommit(string commitId, string madeOnName);
@@ -41,15 +38,10 @@ interface IBranchCommands
     void PushCurrentBranch();
     void PushBranch(string name);
     void PushAllBranches();
-    void PublishCurrentBranch();
     void PullCurrentBranch();
     void PullBranch(string name);
     void PullAllBranches();
     void RestoreOrigin(string name);
-    bool CanPushCurrentBranch();
-    bool CanPush();
-    bool CanPull();
-    bool CanPullCurrentBranch();
 
     void SetBranchManuallyAsync();
     void MoveBranch(string commonName, string otherCommonName, int delta);
@@ -117,9 +109,6 @@ class BranchCommands : IBranchCommands
         IReadOnlyList<Server.Commit>? commits = null
     ) => repoView.RefreshAndCommit(addName, commitId, commits);
 
-    public void RefreshAndFetch(string addName = "", string commitId = "") =>
-        repoView.RefreshAndFetch(addName, commitId);
-
     // Undoing the last change of a branch
     public void UndoLastChange(string branchName) => undoCmds.UndoLastChange(branchName);
 
@@ -128,8 +117,6 @@ class BranchCommands : IBranchCommands
     public void RestoreDeletedBranch() => undoCmds.RestoreDeletedBranch();
 
     // Creating and deleting branches
-    public void CreateBranch() => createCmds.CreateBranch();
-
     public void CreateBranchFromBranch(string name) => createCmds.CreateBranchFromBranch(name);
 
     public void CreateBranchFromCommit() => createCmds.CreateBranchFromCommit();
@@ -148,8 +135,6 @@ class BranchCommands : IBranchCommands
 
     public void PushAllBranches() => pushPullCmds.PushAllBranches();
 
-    public void PublishCurrentBranch() => pushPullCmds.PublishCurrentBranch();
-
     public void PullCurrentBranch() => pushPullCmds.PullCurrentBranch();
 
     public void PullBranch(string name) => pushPullCmds.PullBranch(name);
@@ -157,14 +142,6 @@ class BranchCommands : IBranchCommands
     public void PullAllBranches() => pushPullCmds.PullAllBranches();
 
     public void RestoreOrigin(string name) => pushPullCmds.RestoreOrigin(name);
-
-    public bool CanPushCurrentBranch() => pushPullCmds.CanPushCurrentBranch();
-
-    public bool CanPush() => pushPullCmds.CanPush();
-
-    public bool CanPull() => pushPullCmds.CanPull();
-
-    public bool CanPullCurrentBranch() => pushPullCmds.CanPullCurrentBranch();
 
     public void ShowBranch(
         string name,
@@ -357,8 +334,6 @@ class BranchCommands : IBranchCommands
 
     public void CreateWorktree(string branchName) => worktreeCmds.CreateWorktree(branchName);
 
-    public void OpenWorktree(string path) => worktreeCmds.OpenWorktree(path);
-
     Task<Result> OpenWorktreeAsync(string path) => worktreeCmds.OpenWorktreeAsync(path);
 
     public void MergeBranch(string branchName) =>
@@ -460,35 +435,6 @@ class BranchCommands : IBranchCommands
             message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
             var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
-            var diffsResult = await reload(DiffContext.Default);
-            if (diffsResult is not CommitDiff[] diffs)
-                return new Error("Failed to get diff", diffsResult.Error);
-
-            diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
-            return Result.Ok;
-        });
-
-    public void DiffWithOtherBranch(string branchName, bool isFromCurrentCommit, bool isSwitchOrder) =>
-        Do(async () =>
-        {
-            string message = "";
-            var branch = repo.Repo.BranchByName[branchName];
-            var sha1 = branch.TipId;
-            var sha2 = isFromCurrentCommit ? repo.RowCommit.Sid : repo.Repo.CurrentBranch().TipId;
-            if (sha2 == Repo.UncommittedId)
-                return new Error("Cannot diff while uncommitted changes");
-
-            if (isSwitchOrder)
-            {
-                (sha2, sha1) = (sha1, sha2);
-                message = $"Diff '{branch.NiceName}' with '{repo.Repo.CurrentBranch().NiceName}'";
-            }
-            else
-            {
-                message = $"Diff '{repo.Repo.CurrentBranch().NiceName}' with '{branch.NiceName}'";
-            }
-
-            var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha1, sha2, message, n, repo.Path));
             var diffsResult = await reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);

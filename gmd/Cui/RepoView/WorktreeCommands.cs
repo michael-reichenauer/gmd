@@ -8,7 +8,6 @@ interface IWorktreeCommands
 {
     void ShowWorktrees();
     void CreateWorktree(string branchName);
-    void OpenWorktree(string path);
     Task<Result> OpenWorktreeAsync(string path);
 }
 
@@ -104,8 +103,6 @@ class WorktreeCommands : IWorktreeCommands
     // new branch started from it. Whether it was opened matters to nothing here, so only the
     // outcome is kept.
     public void CreateWorktree(string branchName) => Do(async () => await CreateWorktreeAsync(repo.Repo, branchName));
-
-    public void OpenWorktree(string path) => Do(() => OpenWorktreeAsync(path));
 
     public async Task<Result> OpenWorktreeAsync(string path)
     {
