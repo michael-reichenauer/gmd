@@ -1664,6 +1664,86 @@ public class GitIntegrationTest
         );
     }
 
+    // Git's output is read as the parsers expect it whatever the user's config says, since a setting
+    // changes the output of every command, a pipe's included: color, a diff program of its own, other
+    // or no 'a/' and 'b/' before the paths, the refs after a commit id, a shortened id. Each of them
+    // broke every diff gmd showed, or the commit ids in it.
+    [TestMethod]
+    [DataRow("diff.noprefix true")]
+    [DataRow("diff.mnemonicPrefix true")]
+    [DataRow("diff.external false")]
+    [DataRow("color.ui always")]
+    [DataRow("log.decorate short")]
+    [DataRow("log.abbrevCommit true")]
+    public async Task TestDiffsAreReadWhateverTheConfigSays(string setting)
+    {
+        var c1 = await repo.CommitFileAsync("file.txt", "one\n", "First");
+        var c2 = await repo.CommitFileAsync("file.txt", "one\ntwo\n", "Second");
+        repo.WriteFile("file.txt", "one\ntwo\nthree\n");
+        await repo.GitAsync($"config {setting}");
+
+        var commit = Value(await repo.Git.GetCommitDiffAsync(c2, 6, repo.Path));
+        var uncommitted = Value(await repo.Git.GetUncommittedDiff(6, repo.Path));
+        var range = Value(await repo.Git.GetDiffRangeAsync(c2, c2, "Range", 6, repo.Path));
+        var refs = Value(await repo.Git.GetPreviewMergeDiffAsync(c1, c2, "Refs", 6, repo.Path));
+        var history = Value(await repo.Git.GetFileDiffAsync("file.txt", 6, repo.Path));
+        var lines = Value(await repo.Git.GetLineHistoryAsync("file.txt", 2, 2, "", repo.Path));
+
+        Assert.AreEqual($"{c2} file.txt +two", Summary(commit));
+        Assert.AreEqual(" file.txt +three", Summary(uncommitted));
+        Assert.AreEqual(" file.txt +two", Summary(range));
+        Assert.AreEqual(" file.txt +two", Summary(refs));
+        Assert.AreEqual($"{c2} file.txt +two", Summary(history[0]));
+        Assert.AreEqual($"{c2} file.txt +two", Summary(lines[0]));
+
+        static string Summary(CommitDiff diff) =>
+            $"{diff.Id} "
+            + string.Join(
+                ", ",
+                diff.FileDiffs.Select(f =>
+                    f.PathAfter
+                    + string.Concat(
+                        f.SectionDiffs.SelectMany(s => s.LineDiffs)
+                            .Where(l => l.DiffMode == DiffMode.DiffAdded)
+                            .Select(l => $" +{l.Line}")
+                    )
+                )
+            );
+    }
+
+    // With log.showSignature git checks the signature of each signed commit and writes what it
+    // found before the commit, on stdout, in the log's own output, so a signed commit's id was the
+    // text of that check
+    [TestMethod]
+    public async Task TestASignedCommitIsReadWhenTheConfigShowsSignatures()
+    {
+        var key = Path.Join(repo.Path, ".git", "test-signing-key");
+        try
+        {
+            if (!Proc.Run("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", key]).IsOk)
+                Assert.Inconclusive("ssh-keygen failed, so there is no key to sign with");
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Assert.Inconclusive("No ssh-keygen to make a key to sign with");
+        }
+        await repo.CommitFileAsync("file.txt", "one\n", "First");
+        await repo.GitAsync("config gpg.format ssh");
+        await repo.GitAsync($"config user.signingkey \"{key}.pub\"");
+        repo.WriteFile("file.txt", "two\n");
+        await repo.GitAsync("commit -S -am Signed");
+        var signed = await repo.HeadIdAsync();
+        await repo.GitAsync("config log.showSignature true");
+
+        var log = Value(await repo.Git.GetLogAsync(10, repo.Path));
+        var diff = Value(await repo.Git.GetCommitDiffAsync(signed, 6, repo.Path));
+        var reflog = Value(await repo.Git.GetReflogAsync(repo.Path));
+
+        Assert.AreEqual($"{signed} Signed", $"{log[0].Id} {log[0].Subject}");
+        Assert.AreEqual($"{signed} Signed", $"{diff.Id} {diff.Message}");
+        Assert.AreEqual($"{signed} commit: Signed", $"{reflog[0].Id} {reflog[0].Message}");
+    }
+
     // What the diff view's '+' and '-' keys actually buy: git shows more unchanged lines around
     // the change, and a context larger than the file stops at its ends rather than failing, which
     // is how 'whole file' is asked for. Canned output cannot catch this one — it is git's own

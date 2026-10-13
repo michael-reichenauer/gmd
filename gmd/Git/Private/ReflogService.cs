@@ -21,7 +21,11 @@ class ReflogService : IReflogService
 
     // One line per entry: the commit, the entry's selector ('refs/heads/dev@{2}') and the message,
     // separated by NUL, since a message is a commit subject and can hold anything but a newline.
-    // Each ref's entries are listed latest first, but the refs are interleaved, by time.
+    // Each ref's entries are listed latest first, but the refs are interleaved, by time. A reflog is
+    // read as a log, so without the signature check config can ask for (log.showSignature), which
+    // git writes in front of the entry of a signed commit.
+    const string EntryFormat = "--no-show-signature --format=%H%x00%gD%x00%gs";
+
     // Only the reflogs used: '--all' for the HEAD of every worktree, less every ref under 'refs/',
     // and the local branches back. The remote branches' would be most of it, every fetch adds to
     // them, and each entry is a commit git reads, on every read of the repo.
@@ -29,7 +33,7 @@ class ReflogService : IReflogService
     {
         var result = await cmd.RunAsync(
             "git",
-            "reflog show --exclude=refs/* --all --glob=refs/heads/* --format=%H%x00%gD%x00%gs",
+            $"reflog show --exclude=refs/* --all --glob=refs/heads/* {EntryFormat}",
             wd,
             true
         );
@@ -46,12 +50,7 @@ class ReflogService : IReflogService
         if (refs.Count == 0)
             return new List<ReflogEntry>();
 
-        var result = await cmd.RunAsync(
-            "git",
-            $"reflog show --format=%H%x00%gD%x00%gs {string.Join(' ', refs)}",
-            wd,
-            true
-        );
+        var result = await cmd.RunAsync("git", $"reflog show {EntryFormat} {string.Join(' ', refs)}", wd, true);
         if (result is not string output)
             return result.Error;
 

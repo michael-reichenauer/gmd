@@ -24,6 +24,17 @@ interface IDiffService
 // cSpell:ignore uFEFF
 class DiffService : IDiffService
 {
+    // The diff format the parser reads, whatever the user's config says. Config can turn color on in
+    // a pipe as well (color.ui=always), hand the diff to a program of its own (diff.external), and
+    // change or drop the 'a/' and 'b/' that tell the two paths of a file apart (diff.noprefix,
+    // diff.mnemonicPrefix), and each of those broke every diff gmd showed.
+    const string DiffFormat = "--no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/";
+
+    // The same for the header a 'show' or a 'log' writes above the diff of each commit, which config
+    // can follow the id of with the refs on the commit (log.decorate), shorten the id of
+    // (log.abbrevCommit), or put a check of the commit's signature in front of (log.showSignature)
+    const string CommitHeaderFormat = "--no-decorate --no-abbrev-commit --no-show-signature";
+
     private readonly ICmd cmd;
 
     public DiffService(ICmd cmd)
@@ -34,7 +45,7 @@ class DiffService : IDiffService
     public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
     {
         var args =
-            "show --date=iso --first-parent --root --patch --no-color"
+            $"show {CommitHeaderFormat} {DiffFormat} --date=iso --first-parent --root --patch"
             + $" --find-renames --unified={contextLines} {commitId}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
@@ -48,9 +59,7 @@ class DiffService : IDiffService
 
     public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
-        var args =
-            "stash show -u --date=iso --first-parent --root --patch --no-color"
-            + $" --find-renames --unified={contextLines} {name}";
+        var args = $"stash show -u {DiffFormat} --patch --find-renames --unified={contextLines} {name}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -101,13 +110,12 @@ class DiffService : IDiffService
         if (await cmd.RunAsync("git", "add .", wd, environment: env) is Error addError)
             return addError;
 
-        var args =
-            "diff --date=iso --first-parent --root --patch --no-color"
-            + $" --find-renames --unified={contextLines} HEAD";
+        var args = $"diff {DiffFormat} --find-renames --unified={contextLines} HEAD";
         var diff = await cmd.RunAsync("git", args, wd, environment: env);
         if (diff is Error e && e.Message.Contains("ambiguous argument 'HEAD': unknown revision"))
         { // No commit yet, so there is no HEAD to diff against; what is staged is the whole diff
-            diff = await cmd.RunAsync("git", $"diff --staged --unified={contextLines}", wd, environment: env);
+            var stagedArgs = $"diff {DiffFormat} --staged --unified={contextLines}";
+            diff = await cmd.RunAsync("git", stagedArgs, wd, environment: env);
         }
         if (diff is not string output)
             return diff.Error;
@@ -138,7 +146,8 @@ class DiffService : IDiffService
         string wd
     )
     {
-        var args = $"log --date=iso \"-L{firstLine},{lastLine}:{path}\" {reference}".TrimEnd();
+        var args =
+            $"log {CommitHeaderFormat} {DiffFormat} --date=iso \"-L{firstLine},{lastLine}:{path}\" {reference}".TrimEnd();
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -151,7 +160,8 @@ class DiffService : IDiffService
 
     public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
-        var args = $"log --date=iso --patch --follow --unified={contextLines} -- \"{path}\"";
+        var args =
+            $"log {CommitHeaderFormat} {DiffFormat} --date=iso --patch --follow --unified={contextLines} -- \"{path}\"";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -173,7 +183,7 @@ class DiffService : IDiffService
         string wd
     )
     {
-        var options = $"--find-renames --unified={contextLines} --full-index";
+        var options = $"{DiffFormat} --find-renames --unified={contextLines} --full-index";
         var result = await cmd.RunAsync("git", $"diff {options} {sha1}~..{sha2}", wd);
         if (
             result is Error e
@@ -209,7 +219,7 @@ class DiffService : IDiffService
         string wd
     )
     {
-        var args = $"diff --find-renames --unified={contextLines} --full-index {sha1} {sha2}";
+        var args = $"diff {DiffFormat} --find-renames --unified={contextLines} --full-index {sha1} {sha2}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;

@@ -147,6 +147,11 @@ public class DiffServiceTest
         +three
         """;
 
+    // The format options every diff command is given, so that the user's config cannot change the
+    // output the parser reads, and those of the commit header above a commit's diff
+    const string DiffFormat = "--no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/";
+    const string Format = "--no-decorate --no-abbrev-commit --no-show-signature " + DiffFormat;
+
     static async Task<CommitDiff> GetCommitDiffAsync(string output)
     {
         var service = new DiffService(new FakeCmd(output));
@@ -479,8 +484,8 @@ public class DiffServiceTest
         AssertOk(await service.GetLineHistoryAsync("a.txt", 1, 1, "", "/wd"));
 
         Assert.AreEqual(2, commitDiffs.Length);
-        Assert.AreEqual("log --date=iso \"-L3,7:my dir/a.txt\" abc123", cmd.Calls[0].Args);
-        Assert.AreEqual("log --date=iso \"-L1,1:a.txt\"", cmd.Calls[1].Args);
+        Assert.AreEqual($"log {Format} --date=iso \"-L3,7:my dir/a.txt\" abc123", cmd.Calls[0].Args);
+        Assert.AreEqual($"log {Format} --date=iso \"-L1,1:a.txt\"", cmd.Calls[1].Args);
     }
 
     [TestMethod]
@@ -550,6 +555,31 @@ public class DiffServiceTest
         }
     }
 
+    // Every diff command pins the format the parser reads, and every command with commit headers the
+    // format of those too, since the user's config can change both (GitIntegrationTest has the
+    // settings that did)
+    [TestMethod]
+    public async Task TestEveryDiffCommandPinsTheFormat()
+    {
+        await AssertArgsContain(Format, s => s.GetCommitDiffAsync("abc123", 6, "/wd"));
+        await AssertArgsContain(Format, s => s.GetFileDiffAsync("a.txt", 6, "/wd"));
+        await AssertArgsContain(Format, s => s.GetLineHistoryAsync("a.txt", 1, 2, "", "/wd"));
+        await AssertArgsContain(DiffFormat, s => s.GetStashDiffAsync("stash@{0}", 6, "/wd"));
+        await AssertArgsContain(DiffFormat, s => s.GetDiffRangeAsync("a", "b", "Range", 6, "/wd"));
+        await AssertArgsContain(DiffFormat, s => s.GetRefsDiffAsync("a", "b", "Refs", 6, "/wd"));
+
+        var cmd = new FakeCmd(ShowOutput);
+        await new DiffService(cmd).GetUncommittedDiff(6, TempWd());
+        StringAssert.Contains(cmd.Calls.Single(c => c.Args.StartsWith("diff")).Args, DiffFormat);
+
+        static async Task AssertArgsContain(string expected, Func<DiffService, Task> call)
+        {
+            var cmd = new FakeCmd(ShowOutput);
+            await call(new DiffService(cmd));
+            StringAssert.Contains(cmd.Calls[0].Args, expected);
+        }
+    }
+
     // The empty repo fallback is a second, separate diff command, and it used to carry no context
     // at all, so an empty repo ignored whatever was asked for
     [TestMethod]
@@ -564,7 +594,7 @@ public class DiffServiceTest
 
         await new DiffService(cmd).GetUncommittedDiff(15, TempWd());
 
-        CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), "diff --staged --unified=15");
+        CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), $"diff {DiffFormat} --staged --unified=15");
     }
 
     // A range diff has no commit header of its own, so it gets the message it was asked for
@@ -578,7 +608,7 @@ public class DiffServiceTest
         Assert.AreEqual("Range", commitDiff.Message);
         Assert.AreEqual("", commitDiff.Id);
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
-        Assert.AreEqual("diff --find-renames --unified=6 --full-index a~..b", cmd.Calls[0].Args);
+        Assert.AreEqual($"diff {DiffFormat} --find-renames --unified=6 --full-index a~..b", cmd.Calls[0].Args);
     }
 
     // A range from a root commit has no 'a~' to start from, so it is diffed from the empty tree, as
@@ -597,7 +627,7 @@ public class DiffServiceTest
         AssertOk(await new DiffService(cmd).GetDiffRangeAsync(root, "b", "Range", 6, "/wd"));
 
         Assert.AreEqual(
-            "diff --find-renames --unified=6 --full-index 4b825dc642cb6eb9a060e54bf8d69288fbee4904 b",
+            $"diff {DiffFormat} --find-renames --unified=6 --full-index 4b825dc642cb6eb9a060e54bf8d69288fbee4904 b",
             cmd.Calls[2].Args
         );
     }
@@ -626,7 +656,7 @@ public class DiffServiceTest
 
         var commitDiff = AssertOk(await service.GetRefsDiffAsync("a", "b", "Refs", 6, "/wd"));
         Assert.AreEqual("Refs", commitDiff.Message);
-        Assert.AreEqual("diff --find-renames --unified=6 --full-index a b", cmd.Calls[0].Args);
+        Assert.AreEqual($"diff {DiffFormat} --find-renames --unified=6 --full-index a b", cmd.Calls[0].Args);
     }
 
     [TestMethod]
@@ -665,11 +695,7 @@ public class DiffServiceTest
 
         Assert.AreEqual("Uncommitted changes", commitDiff.Message);
         CollectionAssert.AreEqual(
-            new[]
-            {
-                "add .",
-                "diff --date=iso --first-parent --root --patch --no-color --find-renames --unified=6 HEAD",
-            },
+            new[] { "add .", $"diff {DiffFormat} --find-renames --unified=6 HEAD" },
             cmd.Calls.Select(c => c.Args).ToArray(),
             "No 'git reset' afterwards"
         );
@@ -697,7 +723,7 @@ public class DiffServiceTest
         var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
 
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
-        var staged = cmd.Calls.Single(c => c.Args == "diff --staged --unified=6");
+        var staged = cmd.Calls.Single(c => c.Args == $"diff {DiffFormat} --staged --unified=6");
         Assert.AreEqual(IndexOf(cmd.Calls[0]), IndexOf(staged), "What is staged in the copy");
     }
 

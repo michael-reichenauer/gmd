@@ -265,7 +265,10 @@ public class LogServiceTest
         var ids = AssertOk(await log.GetIdsChangingTextAsync("retry \"count", 50, "/wd"));
 
         CollectionAssert.AreEqual(new[] { Id1, Id2 }, ids.ToArray());
-        Assert.AreEqual("log --all -i -S\"retry count\" --format=%H --max-count=50", cmd.Calls[0].Args);
+        Assert.AreEqual(
+            "log --all -i -S\"retry count\" --no-show-signature --format=%H --max-count=50",
+            cmd.Calls[0].Args
+        );
     }
 
     // The ids are given in chunks a Windows command line holds, each walked with everything kept
@@ -279,7 +282,10 @@ public class LogServiceTest
         var commits = AssertOk(await new LogService(cmd).GetUnreachableCommitsAsync(ids, ["5a5a"], "/wd"));
 
         Assert.AreEqual(3, cmd.Calls.Count);
-        StringAssert.StartsWith(cmd.Calls[0].Args, "log --ignore-missing -z --date-order --pretty=");
+        StringAssert.StartsWith(
+            cmd.Calls[0].Args,
+            "log --ignore-missing --date-order --no-show-signature -z --pretty="
+        );
         StringAssert.EndsWith(cmd.Calls[0].Args, $"{ids[399]} --not --all 5a5a");
         StringAssert.Contains(cmd.Calls[1].Args, $" {ids[400]} ");
         StringAssert.EndsWith(cmd.Calls[2].Args, $"{ids[899]} --not --all 5a5a");

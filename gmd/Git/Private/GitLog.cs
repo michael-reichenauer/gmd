@@ -25,6 +25,11 @@ internal class LogService : ILogService
     internal const int IdsPerCall = 400;
     const int MaxUnreachableCount = 2000;
 
+    // The fields of each commit, the rows NUL separated (-z), and no check of a signed commit's
+    // signature, which config can ask for (log.showSignature) and git writes in front of the commit's
+    // fields, so that the commit's id was the text of the check
+    const string CommitFormat = "--no-show-signature -z --pretty=\"%H|%ai|%ci|%an|%P|%B\"";
+
     private readonly ICmd cmd;
 
     internal LogService(ICmd cmd)
@@ -34,7 +39,7 @@ internal class LogService : ILogService
 
     public async Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
     {
-        var args = $"log --all --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={maxCount}";
+        var args = $"log --all --date-order {CommitFormat} --max-count={maxCount}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -54,7 +59,8 @@ internal class LogService : ILogService
     public async Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd)
     {
         var text = pathText.Replace("\"", "").Replace('\\', '/');
-        var args = $"log --all --full-history --no-merges --format=%H --max-count={maxCount} -- \":(icase)*{text}*\"";
+        var args =
+            $"log --all --full-history --no-merges --no-show-signature --format=%H --max-count={maxCount} -- \":(icase)*{text}*\"";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -68,7 +74,8 @@ internal class LogService : ILogService
     // typed, so a '"' would end the argument.
     public async Task<Result<IReadOnlyList<string>>> GetIdsChangingTextAsync(string text, int maxCount, string wd)
     {
-        var args = $"log --all -i -S\"{text.Replace("\"", "")}\" --format=%H --max-count={maxCount}";
+        var args =
+            $"log --all -i -S\"{text.Replace("\"", "")}\" --no-show-signature --format=%H --max-count={maxCount}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -93,7 +100,7 @@ internal class LogService : ILogService
         foreach (var chunk in ids.Chunk(IdsPerCall))
         {
             var args =
-                $"log --ignore-missing -z --date-order --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={MaxUnreachableCount} "
+                $"log --ignore-missing --date-order {CommitFormat} --max-count={MaxUnreachableCount} "
                 + $"{string.Join(' ', chunk)} --not --all {string.Join(' ', alsoReached)}";
             var result = await cmd.RunAsync("git", args.TrimEnd(), wd);
             if (result is not string output)
@@ -128,7 +135,7 @@ internal class LogService : ILogService
 
     public async Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd)
     {
-        var args = $"stash list -z --pretty=\"%H|%ai|%ci|%an|%P|%gd:%B\"";
+        var args = "stash list --no-show-signature -z --pretty=\"%H|%ai|%ci|%an|%P|%gd:%B\"";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
@@ -150,7 +157,7 @@ internal class LogService : ILogService
 
     public async Task<Result<IReadOnlyList<Commit>>> GetMergeLogAsync(string reference, string wd)
     {
-        var args = $"log --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count=100 HEAD..{reference}";
+        var args = $"log --date-order {CommitFormat} --max-count=100 HEAD..{reference}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
