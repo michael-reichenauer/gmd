@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Cui.Login;
 using gmd.Installation;
 using gmd.Server;
 using Terminal.Gui;

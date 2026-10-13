@@ -1,4 +1,5 @@
 using gmd.Common;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
 using gmd.Server;

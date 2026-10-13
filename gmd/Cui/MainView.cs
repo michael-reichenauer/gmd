@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
+using gmd.Cui.Login;
 using gmd.Cui.RepoView;
 using gmd.Cui.Start;
 using gmd.Git;

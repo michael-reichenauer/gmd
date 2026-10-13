@@ -1,5 +1,5 @@
-using gmd.Cui;
 using gmd.Cui.RepoView;
+using gmd.Cui.Worktrees;
 
 namespace gmdTest.Cui.RepoView;
 

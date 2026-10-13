@@ -1,3 +1,5 @@
+using gmd.Cui.Graphs;
+
 namespace gmd.Cui.RepoView;
 
 // The hoover is the branch, or the commit, that the mouse pointer or the cursor is currently on.

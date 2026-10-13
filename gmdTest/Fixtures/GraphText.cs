@@ -1,6 +1,6 @@
 using gmd.Common;
-using gmd.Cui;
 using gmd.Cui.Common;
+using gmd.Cui.Graphs;
 using gmd.Server;
 
 namespace gmdTest.Fixtures;

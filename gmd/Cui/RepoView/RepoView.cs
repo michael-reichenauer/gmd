@@ -1,5 +1,7 @@
 using gmd.Common;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
+using gmd.Cui.Login;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;

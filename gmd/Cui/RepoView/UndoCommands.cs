@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
+using gmd.Cui.Recovery;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;

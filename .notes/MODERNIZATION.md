@@ -566,17 +566,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
     (`repo.Cmds`, `.BranchCmds`). Commands made once that read the current snapshot when they run,
     with roadmap C's `CommandContext`, would end that class of bug. Roadmap C is worse than written:
     eight classes, about 65 `Do` sites, and `IBranchCommands` is some 30 forwarders.
-  - `gmd/Cui` itself holds 41 files in one namespace: the graph (`Graph`, `GraphCreater`,
-    `GraphWriter`), 25 dialogs, their `*Rows`, the login, the worktrees, the main view and the bar.
-    Grouping them by feature, as Diff, Blame, Conflict and Start already are, would read better:
-    `Cui/Graphs/` (not `Graph/`, which as a namespace hides the `Graph` type in `gmd.Cui.RepoView`),
-    `Commits/` (CommitDlg, CommitFiles, CommitMessage, SquashDlg, AddStashDlg, CommitDetailsView),
-    `Branches/` (Create, Rename, Delete, SetBranch, FindBranch, RefNameValidation), `Tags/`,
-    `Recovery/` (LostWork*, DeletedBranch*, RestoreBranchDlg), `Worktrees/`, `Login/`, Clone and Init
-    into `Start/`, FilterDlg into `RepoView/`; MainView, ApplicationBar, About, Config, Update and
-    HelpPage stay. Pure movement, best done when no other branch is open on these files.
-    `CommitDlg` / `FindBranchDlg` / `ApplicationBar` still reach into `RepoView` (`IViewRepo`,
-    `BranchMenu.Initials`, `RepoWriter.WorktreeMarker`), the last folder cycle.
+  - *Done 2026-10-13:* `gmd/Cui` held 41 files in one namespace, and is grouped by feature now, a
+    namespace per folder (`Graphs/`, `Commits/`, `Branches/`, `Tags/`, `Recovery/`, `Worktrees/`,
+    `Login/`, Clone and Init in `Start/`, FilterDlg in `RepoView/`, RefNameValidation in `Common/`),
+    the tests with them; see CLAUDE.md. Left: `CommitDlg` / `FindBranchDlg` / `ApplicationBar`
+    still reach into `RepoView` (`IViewRepo`, `BranchMenu.Initials`, `RepoWriter.WorktreeMarker`),
+    the last folder cycle.
   - `Cui/Common` is three things: the widget toolkit (ContentView, UIDialog and its views, Menu,
     ListDlg, MessageDlg, the browse dialogs, Text, Color), app services (UI, Progress, StatusLine,
     Confirm, BranchColorService, which needs the server's repo) and the spelling input helpers.

@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Text;
 using gmd.Common;
-using gmd.Cui;
 using gmd.Cui.Common;
+using gmd.Cui.Graphs;
 using gmd.Git;
 using gmd.Git.Private;
 using gmd.Server;

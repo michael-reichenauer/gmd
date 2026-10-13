@@ -1,4 +1,6 @@
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
+using gmd.Cui.Graphs;
 using gmd.Server;
 using Terminal.Gui;
 

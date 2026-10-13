@@ -1,6 +1,8 @@
 using gmd.Cui.Blame;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
+using gmd.Cui.Tags;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;

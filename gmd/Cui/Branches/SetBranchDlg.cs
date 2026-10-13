@@ -1,0 +1,78 @@
+using gmd.Cui.Common;
+using Terminal.Gui;
+using Color = gmd.Cui.Common.Color;
+
+namespace gmd.Cui.Branches;
+
+interface ISetBranchDlg
+{
+    Result<string> Show(
+        string commitSid,
+        bool isBranchSetByUser,
+        string niceName,
+        IReadOnlyList<string> possibleBranches
+    );
+}
+
+class SetBranchDlg : ISetBranchDlg
+{
+    public Result<string> Show(
+        string commitSid,
+        bool isBranchSetByUser,
+        string niceName,
+        IReadOnlyList<string> possibleBranches
+    )
+    {
+        if (possibleBranches.Count == 0)
+            return new Error();
+
+        (var width, var height) = (50, 22);
+        (var x, var y, var w, var h) = (1, 5, width - 5, height - 12);
+
+        // A name too long for the list is cut at its start, which is the end that tells branches apart,
+        // and marked so, to the width of the list: the cut kept two characters too many, which the
+        // list then cut off the end
+        var items = possibleBranches;
+        IReadOnlyList<Text> itemTexts = items
+            .Select(item =>
+                item.Length > w
+                    ? Text.Dark("┅").White(item[^(w - 1)..]).ToText()
+                    : Text.White(item.Max(w, true)).ToText()
+            )
+            .ToList();
+
+        var dlg = new UIDialog($"Set Commit {commitSid} Branch Manually", width, height, null, o => o.Y = 0);
+
+        dlg.AddLabel(1, 3, "Select Branch:");
+        var listView = dlg.AddContentView(x, y, w, h, itemTexts);
+        listView.IsShowCursor = false;
+        listView.IsScrollMode = false;
+        listView.IsHighlightCurrentIndex = true;
+        dlg.AddBorderView(listView, Color.Dark);
+
+        dlg.AddLabel(1, 16, "Name:");
+        var nameField = dlg.AddInputField(7, 16, width - 11, items[0]);
+        listView.CurrentIndexChange += () => nameField.Text = items[listView.CurrentIndex];
+
+        // Unset
+        var color = isBranchSetByUser ? Color.White : Color.Dark;
+        dlg.AddLabel(1, 1, Text.Color(color, "Manually Set: ").Dark(isBranchSetByUser ? niceName : "-"));
+        var isUnsetClicked = false;
+        var unsetBtn = dlg.AddButton(
+            width - 12,
+            1,
+            "Clear",
+            () =>
+            {
+                isUnsetClicked = true;
+                nameField.Text = "";
+                dlg.Close();
+            }
+        );
+        unsetBtn.Enabled = isBranchSetByUser;
+
+        if (!dlg.ShowOkCancel(listView) && !isUnsetClicked)
+            return new Error();
+        return nameField.Text;
+    }
+}

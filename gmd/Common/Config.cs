@@ -1,3 +1,5 @@
+using gmd.Cui.Worktrees;
+
 namespace gmd.Common;
 
 [SingleInstance]

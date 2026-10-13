@@ -155,6 +155,13 @@ Key types and flow:
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
+- `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,
+  `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
+  details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
+  `Worktrees/` and `Login/`, with `Common/` for the widgets and services they share; the shell
+  (`MainView`, `ApplicationBar`, About, Config, Update, the help) is in `Cui/` itself. A folder that
+  would be named as a type is named in the plural, `Graphs/`: a namespace `gmd.Cui.Graph` would hide
+  the `Graph` type from every namespace below `gmd.Cui`.
 - `Cui/Start/` — the start page, shown in place of the log until a repo is opened: when gmd is
   started outside one, or with `-m`. `StartRepos` is what it lists, the recent repos and those in the
   start folder, read off the disk with no git process (`GitDir.IsRoot`); `StartRows` lays it out and
@@ -181,7 +188,7 @@ Key types and flow:
   key-hint line writes it, and so are the keys named in status messages and in the reasons a greyed
   out item gives; the help and the README write `Shift-P` in their text. Item names are
   plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
-- `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
+- `Cui/Graphs/` — `GraphCreater`, `Graph` and `GraphWriter` turn a `Repo` into the drawn
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
@@ -255,7 +262,7 @@ layers, which calls `UI.Post` / `UI.InfoMessage` itself to say a new version was
 `gmd.Git` goes further: it is meant to stay a general git library, one that could be a library of
 its own. It uses nothing of gmd but itself and `gmd.Utils` (`Result`, `Cmd`, `Log` and small
 helpers), and knows nothing of the app: no UI wording or keys (a failed login says what failed, and
-`Cui/LoginAdvice.cs` what to do about it), no server ids (blame gives git's id of an uncommitted line,
+`Cui/Login/LoginAdvice.cs` what to do about it), no server ids (blame gives git's id of an uncommitted line,
 and `GitConverter` gmd's), no state of the app's (the current author is read with the repo).
 `GitNamespaceTest` reads the compiled code and fails if a type of `gmd.Git` names any other type of
 gmd or a package's. Its records are not shared with `gmd/Server/Repo.cs`, though several are copies:
@@ -453,7 +460,7 @@ The one exception to that layout is the end-to-end tier, which is a project of i
 shares with `gmdTest` (`TempRepo`, `TempHome`, `Proc`, `ResultAssert`) as linked files rather than
 copies, so they stay in `gmdTest/Fixtures/`. `scripts/test` runs both projects. Inside it the same
 rule holds: one class per area of the app, placed as the code it reaches is in `gmd/Cui/` —
-`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/WorktreeTest.cs` and so on. The
+`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/Worktrees/WorktreeTest.cs` and so on. The
 `Integration` and `E2e` categories are set once for the whole assembly in its `TestSetup.cs`, so a new
 class needs nothing but `[TestClass]` to be kept out of the fast run.
 

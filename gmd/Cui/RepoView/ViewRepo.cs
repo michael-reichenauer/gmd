@@ -1,3 +1,4 @@
+using gmd.Cui.Graphs;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
