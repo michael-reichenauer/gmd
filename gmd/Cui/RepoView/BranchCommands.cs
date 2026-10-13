@@ -324,10 +324,15 @@ class BranchCommands : IBranchCommands
             return new Error("Failed to stash the changes", stashError);
 
         if (await server.SwitchToAsync(repo.Repo, branchName) is Error switchError)
-        { // Back where it was, with the changes put back
-            await server.StashPopAsync("stash@{0}", repo.Path);
+        { // Back where it was, with the changes put back, or said to be in the stash if they could not be
+            var popped = await server.StashPopAsync("stash@{0}", repo.Path);
             Refresh();
-            return new Error($"Failed to switch to {name}", switchError);
+            return new Error(
+                popped is Error
+                    ? $"Failed to switch to {name}, and to put the changes back: they are in the stash, '{stashMessage}'"
+                    : $"Failed to switch to {name}",
+                switchError
+            );
         }
 
         if (await server.StashPopAsync("stash@{0}", repo.Path) is Error)
