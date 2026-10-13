@@ -21,6 +21,11 @@ static class Why
     // The main branch is the line every other branch is drawn off, so it cannot be hidden
     public static string AlwaysShown(Branch b) => $"'{b.NiceNameUnique}' is the main branch, which is always shown";
 
+    // The colors no one picks: main is drawn in magenta, the line every other branch is drawn off,
+    // and a deleted branch in gray, which says it is gone
+    public const string AlwaysMagenta = "The main branch is always magenta";
+    public const string AlwaysGray = "A deleted branch is always gray";
+
     // Git lets a branch be checked out in one worktree only, and moves it only there
     public static string InWorktree(Branch b) => $"'{b.NiceNameUnique}' is checked out in another worktree";
 }

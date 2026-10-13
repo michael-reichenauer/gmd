@@ -135,6 +135,28 @@ public class LogKeysTest
         );
     }
 
+    // 'g' colors the highlighted branch, or the row's, but main is always magenta and a deleted
+    // branch always gray: it did nothing on them, and said nothing
+    [TestMethod]
+    public async Task TestMainAndADeletedBranchKeepTheirColors()
+    {
+        var builder = new RepoBuilder()
+            .Commit("c3", "Merge branch 'feature' into main", "c2", "f1")
+            .Commit("f1", "Feature work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .LocalBranch("dev", "c2");
+        var view = await ViewOf(builder, "dev", "feature:f10000");
+
+        Assert.AreEqual(new KeyAction(""), LogKeys.Color(view, HooverOn(view, "dev", "c2")), "Acts, with no hint");
+        Assert.AreEqual("The main branch is always magenta", LogKeys.Color(view, HooverOn(view, "main", "c3")).WhyNot);
+        Assert.AreEqual(
+            "A deleted branch is always gray",
+            LogKeys.Color(view, HooverOn(view, "feature:f10000", "f1")).WhyNot
+        );
+    }
+
     // The uncommitted row is no commit to start a branch at, a branch highlighted there is
     [TestMethod]
     public async Task TestANewBranchStartsAtACommitOrABranch()

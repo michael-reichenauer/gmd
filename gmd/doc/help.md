@@ -211,7 +211,7 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | Shift-E    | Merge the current branch into the highlighted branch       |
 | h          | Hide the highlighted branch                                |
 | Backspace  | Undo the last show or hide of branches                     |
-| g          | Change the color of the highlighted branch                 |
+| g          | Change the color of the highlighted branch (not main's)    |
 | p          | Push the highlighted branch, or the current one            |
 | u          | Pull the highlighted branch, or the current one            |
 | Shift-P    | Push all shown branches                                    |

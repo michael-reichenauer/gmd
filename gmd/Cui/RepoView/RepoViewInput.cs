@@ -139,7 +139,7 @@ class RepoViewInput
 
         commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);
         commitsView.RegisterKeyHandler(Key.Tab, host.ToggleDetailsFocus);
-        commitsView.RegisterKeyHandler(Key.g, () => BranchCmds.ChangeBranchColor(GetBranchName()));
+        commitsView.RegisterKeyHandler(Key.g, OnKeyG);
 
         commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => OnClicked(x + 1, y));
         commitsView.RegisterMouseHandler(MouseFlags.Button2Clicked, (x, y) => OnClickedMiddle(x + 1, y));
@@ -199,6 +199,14 @@ class RepoViewInput
             return;
 
         BranchCmds.HideBranch(GetBranchName());
+    }
+
+    void OnKeyG()
+    {
+        if (IsRefused(LogKeys.Color(Repo, hoover)))
+            return;
+
+        BranchCmds.ChangeBranchColor(GetBranchName());
     }
 
     void OnKeyF()

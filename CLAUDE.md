@@ -182,7 +182,7 @@ Key types and flow:
   cursor is, again with no view; `KeyHintBar` draws it, with the layout of `KeyHintLine` (both in
   `Cui/Common/`). The diff, blame and conflict views and the start page have a `KeyHintBar` of their
   own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). A key
-  whose meaning depends on where the cursor is (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`) is decided in
+  whose meaning depends on where the cursor is (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`, `h`, `g`) is decided in
   `LogKeys`, which says what its hint is or why it does nothing, and the keys and the hints both
   ask it; for any other key, when its behavior changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
