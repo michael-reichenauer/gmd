@@ -89,7 +89,9 @@ class CommitDlg : ICommitDlg
         (string subjectPart, string messagePart) = ParseMessage(original);
 
         int filesCount = repo.Repo.Status.ChangesCount;
-        string branchName = repo.Repo.ViewCommits[0].BranchName;
+        // The current branch, which the top row is only while there are changes: with none it is
+        // the newest commit shown, of whichever branch, e.g. main after a fetch
+        string branchName = repo.Repo.CurrentBranch()?.NiceNameUnique ?? "";
         var title = isAmend ? "Amend" : "Commit";
         if (files?.Files.Count == 0)
             files = null;
@@ -150,12 +152,14 @@ class CommitDlg : ICommitDlg
                     Toggle(() => files.Toggle(list.FirstIndex + y));
                 }
             );
-            if (older == null)
+            if (!isAmend)
                 dlg.Validate(() => files.TickedCount > 0, "No file is ticked to commit: Space ticks one");
         }
 
-        // An older commit amended with the message it has and no file is not amended at all
-        if (older != null)
+        // A commit amended with the message it has and no file is not amended at all. The last one
+        // can be given a new message alone with changes there too, by unticking them all: a ticked
+        // file was asked for, so the message could not be fixed without taking work in progress in.
+        if (older != null || (isAmend && files != null))
             dlg.Validate(
                 () => GetMessage(subject, message) != JoinMessage(subjectPart, messagePart) || files?.TickedCount > 0,
                 "Nothing to amend: edit the message or tick a file"
@@ -181,9 +185,9 @@ class CommitDlg : ICommitDlg
     static Text Heading(string title, int count, bool isAmend, CommitFiles? files, string branchName)
     {
         var changes =
-            files == null || files.TickedCount == files.Files.Count
-                ? Changes(count, isAmend)
-                : $"{files.TickedCount} of {Changes(files.Files.Count, isAmend)}";
+            files == null || files.TickedCount == files.Files.Count ? Changes(count, isAmend)
+            : isAmend && files.TickedCount == 0 ? Changes(0, isAmend)
+            : $"{files.TickedCount} of {Changes(files.Files.Count, isAmend)}";
         return Text.White($"{title} {changes} on '{branchName}':");
     }
 
