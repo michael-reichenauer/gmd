@@ -244,7 +244,7 @@ public class StatusServiceTest
         Assert.IsFalse(status.IsMerging);
         Assert.AreEqual("", status.MergeMessage);
         Assert.AreEqual("", status.MergeHeadId);
-        Assert.IsFalse(StatusService.IsOperationInProgress(wd));
+        Assert.IsFalse(OperationState.Read(wd).IsInProgress);
     }
 
     // While merging, the message is the first line of MERGE_MSG — the rest is git's '# Conflicts:'
@@ -262,7 +262,7 @@ public class StatusServiceTest
         Assert.IsTrue(status.IsMerging);
         Assert.AreEqual("Merge branch 'topic'", status.MergeMessage);
         Assert.AreEqual("388362014956bb2f054d1699d4853904194e3dab", status.MergeHeadId);
-        Assert.IsTrue(StatusService.IsOperationInProgress(wd));
+        Assert.IsTrue(OperationState.Read(wd).IsInProgress);
     }
 
     // A squash merge or a merge of an unrelated ref writes MERGE_MSG but no MERGE_HEAD
@@ -376,7 +376,7 @@ public class StatusServiceTest
 
         Assert.IsFalse(File.Exists(Path.Join(wd, ".git", "MERGE_MSG")), "The fixture writes none");
         Assert.IsTrue(status.IsMerging);
-        Assert.IsTrue(StatusService.IsOperationInProgress(wd), "What guards the two 'git add .' sites");
+        Assert.IsTrue(OperationState.Read(wd).IsInProgress, "What guards the two 'git add .' sites");
     }
 
     // A stopped rebase and a stopped cherry-pick both write MERGE_MSG, so it never meant "a merge
@@ -487,7 +487,7 @@ public class StatusServiceTest
 
         Assert.IsTrue(status.IsMerging, "It is still an operation in progress, so 'git add .' stays guarded");
         Assert.IsTrue(status.IsFinishedByCommit, "but a commit is the whole of what is left of it");
-        Assert.IsTrue(StatusService.IsFinishedByCommit(wd));
+        Assert.IsTrue(OperationState.Read(wd).IsFinishedByCommit);
     }
 
     // A revert of several commits does have to be continued: a commit would make the one git
@@ -502,7 +502,7 @@ public class StatusServiceTest
         var status = await GetStatusAsync(ConflictOutput);
 
         Assert.IsFalse(status.IsFinishedByCommit);
-        Assert.IsFalse(StatusService.IsFinishedByCommit(wd));
+        Assert.IsFalse(OperationState.Read(wd).IsFinishedByCommit);
     }
 
     // A cherry pick needs no such test: gmd's own runs '--no-commit', which writes no
@@ -514,7 +514,7 @@ public class StatusServiceTest
         WriteGitFile("CHERRY_PICK_HEAD", "388362014956bb2f054d1699d4853904194e3dab\n");
 
         Assert.IsFalse((await GetStatusAsync(ConflictOutput)).IsFinishedByCommit);
-        Assert.IsFalse(StatusService.IsFinishedByCommit(wd));
+        Assert.IsFalse(OperationState.Read(wd).IsFinishedByCommit);
     }
 
     // A merge has no '--continue' at all, and a rebase or an 'am' is never finished by the commit
@@ -534,7 +534,7 @@ public class StatusServiceTest
     public async Task TestNothingInProgressIsFinishedByCommitting()
     {
         Assert.IsTrue((await GetStatusAsync("")).IsFinishedByCommit);
-        Assert.IsTrue(StatusService.IsFinishedByCommit(wd));
+        Assert.IsTrue(OperationState.Read(wd).IsFinishedByCommit);
     }
 
     // 'merge --abort' needs MERGE_HEAD. gmd's own Cherry Pick leaves a conflict with neither that
@@ -546,7 +546,7 @@ public class StatusServiceTest
         StartMerge("topic\n");
 
         Assert.AreEqual(GitOperation.Merge, (await GetStatusAsync(ConflictOutput)).Operation);
-        Assert.IsTrue(StatusService.IsMergeWithoutHead(wd));
+        Assert.IsTrue(OperationState.Read(wd).IsMergeWithoutHead);
     }
 
     [TestMethod]
@@ -555,6 +555,6 @@ public class StatusServiceTest
         StartMerge("Merge branch 'topic'\n", "388362014956bb2f054d1699d4853904194e3dab");
 
         Assert.AreEqual(GitOperation.Merge, (await GetStatusAsync(ConflictOutput)).Operation);
-        Assert.IsFalse(StatusService.IsMergeWithoutHead(wd));
+        Assert.IsFalse(OperationState.Read(wd).IsMergeWithoutHead);
     }
 }

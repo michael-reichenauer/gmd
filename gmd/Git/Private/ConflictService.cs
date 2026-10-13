@@ -45,10 +45,11 @@ class ConflictService : IConflictService
         // all — and it is a squash merge too. 'reset --merge' is what git's own advice points at
         // for backing out of one: it drops the conflicted merge from the index and the working
         // tree and clears the message, while keeping changes that are not part of it.
-        if (StatusService.IsMergeWithoutHead(wd))
+        var state = OperationState.Read(wd);
+        if (state.IsMergeWithoutHead)
             return await cmd.RunAsync("git", "reset --merge", wd);
 
-        var verbResult = OperationVerb(wd);
+        var verbResult = OperationVerb(state.Operation);
         if (verbResult is not string verb)
             return verbResult.Error;
 
@@ -61,11 +62,11 @@ class ConflictService : IConflictService
         // and gmd's own Cherry Pick and Undo/Revert Commit run '--no-commit', which leaves one
         // change staged for the commit dialog — continuing one would commit it with git's own
         // message instead. The UI offers Commit for all of these rather than this.
-        var operation = StatusService.GetOperation(wd);
-        if (operation != GitOperation.None && StatusService.IsFinishedByCommit(wd))
-            return new Error($"A {ToName(operation).ToLower()} is finished by committing it, not by continuing.");
+        var state = OperationState.Read(wd);
+        if (state.IsInProgress && state.IsFinishedByCommit)
+            return new Error($"A {ToName(state.Operation).ToLower()} is finished by committing it, not by continuing.");
 
-        var verbResult = OperationVerb(wd);
+        var verbResult = OperationVerb(state.Operation);
         if (verbResult is not string verb)
             return verbResult.Error;
 
@@ -74,13 +75,13 @@ class ConflictService : IConflictService
 
     public async Task<Result> SkipOperationAsync(string wd)
     {
-        var operation = StatusService.GetOperation(wd);
+        var operation = OperationState.Read(wd).Operation;
 
         // Only the two that replay a series of commits have anything to skip
         if (operation != GitOperation.Rebase && operation != GitOperation.Am)
             return new Error($"{ToName(operation)} has no commit to skip.");
 
-        var verbResult = OperationVerb(wd);
+        var verbResult = OperationVerb(operation);
         if (verbResult is not string verb)
             return verbResult.Error;
 
@@ -160,7 +161,7 @@ class ConflictService : IConflictService
         if (!stages.TryGetValue(1, out var baseSha) || !stages.ContainsKey(2) || !stages.ContainsKey(3))
             return file;
 
-        var tempDir = System.IO.Path.Join(StatusService.GetGitDir(wd), $"gmd-conflict-{Guid.NewGuid():N}");
+        var tempDir = System.IO.Path.Join(GitDir.GitDirPathOf(wd), $"gmd-conflict-{Guid.NewGuid():N}");
         if (Result.Catch(() => Directory.CreateDirectory(tempDir)) is Error e)
             return new Error("Failed to create a scratch folder", e);
 
@@ -395,10 +396,8 @@ class ConflictService : IConflictService
     }
 
     // The git sub command of whatever is in progress, i.e. what '--abort' and friends attach to
-    static Result<string> OperationVerb(string wd)
-    {
-        var operation = StatusService.GetOperation(wd);
-        return operation switch
+    static Result<string> OperationVerb(GitOperation operation) =>
+        operation switch
         {
             GitOperation.Merge => "merge",
             GitOperation.CherryPick => "cherry-pick",
@@ -407,7 +406,6 @@ class ConflictService : IConflictService
             GitOperation.Am => "am",
             _ => new Error("No merge, rebase, cherry pick or revert is in progress."),
         };
-    }
 
     internal static string ToName(GitOperation operation) =>
         operation switch

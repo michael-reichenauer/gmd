@@ -37,7 +37,7 @@ class CommitService : ICommitService
         //
         // The test used to be for .git/MERGE_MSG, which a rebase with the --apply backend and
         // 'git am' do not write, so those went down the staging path.
-        var isOperationInProgress = StatusService.IsOperationInProgress(wd);
+        var isOperationInProgress = OperationState.Read(wd).IsInProgress;
         if (!isOperationInProgress)
         {
             if (await cmd.RunAsync("git", "add .", wd) is Error e)

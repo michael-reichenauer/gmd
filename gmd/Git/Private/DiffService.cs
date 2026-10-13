@@ -102,7 +102,7 @@ class DiffService : IDiffService
         // A copy rather than a new, empty index, so that git's record of which files are unchanged
         // since it last looked carries over, and it need not read every file in the working tree.
         // A repo that has never staged anything has no index to copy, and git creates one.
-        var index = Path.Join(StatusService.GetGitDir(wd), "index");
+        var index = Path.Join(GitDir.GitDirPathOf(wd), "index");
         if (File.Exists(index) && Result.Catch(() => File.Copy(index, tempIndex)) is Error copyError)
             return new Error("Failed to copy the index", copyError);
 

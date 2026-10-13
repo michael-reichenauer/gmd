@@ -97,6 +97,11 @@ internal static class GitDir
         return new GitDirInfo(rootPath, gitDir, commonDir, true);
     }
 
+    // Where a working tree's own git state is, HEAD, the index and a stopped operation, or "" when
+    // the folder is no working tree root. Usually '<root>/.git', but in a linked worktree and a
+    // submodule '.git' is a file pointing elsewhere, so joining '.git' blindly finds none of it.
+    public static string GitDirPathOf(string rootPath) => Resolve(rootPath) is GitDirInfo info ? info.GitDirPath : "";
+
     static string FullPath(string path, string relativeTo) =>
         Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Join(relativeTo, path));
 
