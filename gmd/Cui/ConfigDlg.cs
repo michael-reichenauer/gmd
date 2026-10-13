@@ -47,7 +47,7 @@ class ConfigDlg : IConfigDlg
 
         dlg.AddLabel(1, 8, $"General:");
         var isCheckUpdates = dlg.AddCheckBox(1, 9, "Check for new releases", config.CheckUpdates);
-        var isAutoUpdate = dlg.AddCheckBox(1, 10, "Auto update when starting", config.AutoUpdate);
+        var isAutoUpdate = dlg.AddCheckBox(1, 10, "Auto update to new releases", config.AutoUpdate);
         var isAllowPreview = dlg.AddCheckBox(1, 11, "Allow preview releases", config.AllowPreview);
         var isSpellCheck = dlg.AddCheckBox(1, 12, "Spell check commit messages", config.SpellCheck);
         var isShowKeyHints = dlg.AddCheckBox(1, 13, "Show key hints at the bottom of the log", config.ShowKeyHints);
