@@ -13,11 +13,21 @@ public class DiffHintsTest
     {
         Assert.AreEqual(
             "m menu  Esc close  + - context  s to file  ←→ columns",
-            Line(DiffHints.For(isUncommitted: false, hasConflicts: false))
+            Line(DiffHints.For(canCommit: false, hasContext: true, hasConflicts: false))
         );
         Assert.AreEqual(
             "m menu  Esc close  Enter resolve  c commit  + - context  s to file  u discard  ←→ columns",
-            Line(DiffHints.For(isUncommitted: true, hasConflicts: true))
+            Line(DiffHints.For(canCommit: true, hasContext: true, hasConflicts: true))
+        );
+    }
+
+    // A line history, 'git log -L', takes no context, so '+' and '-' are not offered
+    [TestMethod]
+    public void TestALineHistoryHasNoContextToStep()
+    {
+        Assert.AreEqual(
+            "m menu  Esc close  s to file  ←→ columns",
+            Line(DiffHints.For(canCommit: false, hasContext: false, hasConflicts: false))
         );
     }
 

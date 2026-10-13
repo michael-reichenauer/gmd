@@ -381,12 +381,12 @@ class BranchCommands : IBranchCommands
 
             message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
-            var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
-            var diffsResult = await reload(DiffContext.Default);
+            var source = DiffSource.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
-            diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
+            diffView.Show(diffs, source, repo.Path);
             return Result.Ok;
         });
 

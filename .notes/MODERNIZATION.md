@@ -594,10 +594,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
     are decided in `LogKeys`, which `RepoViewInput` and `KeyHints` both ask. Left: the menus decide
     apart from both, through the shared rules (`CanPushBranch`, `CommitRewrite`, …) where there are
     some.
-  - `IDiffView` cannot be told what its source supports: line history (`git log -L`, which takes no
-    context) offers `+` / `-` and says the context changed; the diff of an uncommitted line from blame
-    offers commit and discard, and a discard leaves the blame stale. A `DiffSource` record (reload,
-    has context, can commit) in place of `DiffReload` would carry it.
+  - *Done 2026-10-14:* `IDiffView` could not be told what its source supports: line history (`git
+    log -L`, which takes no context) offered `+` / `-` and said the context changed; the diff of an
+    uncommitted line from blame offered commit and discard, and a discard left the blame stale; a
+    range ending in the uncommitted changes offered them too. It is given a `DiffSource` now, the
+    reload and whether the diff has context and can be committed.
   - `Text` measures columns in UTF-16 units, so a CJK character or an emoji in a subject moves the
     sid, author and time columns, and a cut can split a surrogate pair.
   - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every

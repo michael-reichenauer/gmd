@@ -271,27 +271,31 @@ class CommitCommands : ICommitCommands
             if (commitId == Repo.EmptyRepoCommitId)
                 return Result.Ok;
 
-            // How the diff view gets this same diff again, at whatever context it is asked for
-            DiffReload reload;
+            // How the diff view gets this same diff again, at whatever context it is asked for, and
+            // whether it is the uncommitted changes alone, which it can commit and discard
+            DiffSource source;
             if (commitId2 == "")
             {
-                reload = DiffReloads.Single(n => server.GetCommitDiffAsync(commitId, n, repo.Path));
+                source = DiffSource.Single(n => server.GetCommitDiffAsync(commitId, n, repo.Path)) with
+                {
+                    CanCommit = commitId == Repo.UncommittedId,
+                };
             }
             else
             {
                 repoView.ClearSelection();
                 var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
-                reload = DiffReloads.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path));
+                source = DiffSource.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path));
             }
 
-            var diffsResult = await reload(DiffContext.Default);
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
             // Only the uncommitted diff can have conflicts, and reading them here keeps the await
             // off the main loop — see the note on IDiffView.Show
             var conflicts = ConflictState.None;
-            if (commitId == Repo.UncommittedId && !repo.Repo.Status.IsOk)
+            if (source.CanCommit && !repo.Repo.Status.IsOk)
             {
                 if (await server.GetConflictStateAsync(repo.Path) is ConflictState state)
                     conflicts = state;
@@ -299,7 +303,7 @@ class CommitCommands : ICommitCommands
 
             UI.Post(() =>
             {
-                var rsp = diffView.Show(diffs[0], commitId, repo.Path, reload, conflicts);
+                var rsp = diffView.Show(diffs, source, repo.Path, conflicts);
                 if (rsp == DiffResult.Commit && !isFromCommit)
                 {
                     RefreshAndCommit();
@@ -332,14 +336,14 @@ class CommitCommands : ICommitCommands
 
             var (older, newer) = marked.GitIndex > commit.GitIndex ? (marked, commit) : (commit, marked);
             var message = $"Diff {older.Sid} to {newer.Sid}";
-            var reload = DiffReloads.Single(n =>
+            var source = DiffSource.Single(n =>
                 server.GetPreviewMergeDiffAsync(older.Id, newer.Id, message, n, repo.Path)
             );
-            var diffsResult = await reload(DiffContext.Default);
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
-            diffView.Show(diffs[0], newer.Id, repo.Path, reload, ConflictState.None);
+            diffView.Show(diffs, source, repo.Path);
             return Result.Ok;
         });
 
@@ -435,12 +439,12 @@ class CommitCommands : ICommitCommands
     public void StashDiff(string name) =>
         Do(async repo =>
         {
-            var reload = DiffReloads.Single(n => server.GetStashDiffAsync(name, n, repo.Path));
-            var diffsResult = await reload(DiffContext.Default);
+            var source = DiffSource.Single(n => server.GetStashDiffAsync(name, n, repo.Path));
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to diff stash {name}", diffsResult.Error);
 
-            diffView.Show(diffs[0], name, repo.Path, reload, ConflictState.None);
+            diffView.Show(diffs, source, repo.Path);
             return Result.Ok;
         });
 
@@ -787,12 +791,12 @@ class CommitCommands : ICommitCommands
             if (browser.Show(files, title) is not string path)
                 return Result.Ok;
 
-            DiffReload reload = n => server.GetFileDiffAsync(path, n, repo.Path);
-            var diffsResult = await reload(DiffContext.Default);
+            var source = new DiffSource(n => server.GetFileDiffAsync(path, n, repo.Path));
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to show file history", diffsResult.Error);
 
-            diffView.Show(diffs, repo.Path, reload);
+            diffView.Show(diffs, source, repo.Path);
             return Result.Ok;
         });
 

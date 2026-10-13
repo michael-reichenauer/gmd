@@ -338,18 +338,19 @@ class BlameView : IBlameView
     }
 
     // Shows the commit that last changed the current line. The uncommitted lines carry the all '0'
-    // sha, which the server routes to the uncommitted diff, so they need no special case here.
+    // sha, which the server routes to the uncommitted diff, shown read only: a view two dialogs deep
+    // cannot act on a commit, and a discard would change the lines this blame shows.
     async void ShowLineCommitDiff()
     {
         var row = CurrentRow;
         if (row == null)
             return;
 
-        var reload = DiffReloads.Single(n => server.GetCommitDiffAsync(row.Commit.Id, n, repo.Path));
+        var source = DiffSource.Single(n => server.GetCommitDiffAsync(row.Commit.Id, n, repo.Path));
         Server.CommitDiff[] diffs;
         using (progress.Show())
         {
-            var diffsResult = await reload(DiffContext.Default);
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not Server.CommitDiff[] loaded)
             {
                 UI.ErrorMessage($"Failed to get diff\n{diffsResult.Error.AllMessages()}");
@@ -358,8 +359,7 @@ class BlameView : IBlameView
             diffs = loaded;
         }
 
-        // A read only view two dialogs deep cannot usefully act on the result, so it is ignored
-        diffView.Show(diffs[0], row.Commit.Id, repo.Path, reload, ConflictState.None);
+        diffView.Show(diffs, source, repo.Path);
         contentView.SetNeedsDisplay();
     }
 
@@ -398,11 +398,15 @@ class BlameView : IBlameView
         var (first, last) = HistoryLines;
         var (firstLine, lastLine) = (blame.Lines[first].LineNbr, blame.Lines[last].LineNbr);
         var reference = blame.Reference;
-        DiffReload reload = _ => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, repo.Path);
+        // 'git log -L' takes no context, so there is none to step
+        var source = new DiffSource(_ => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, repo.Path))
+        {
+            HasContext = false,
+        };
         Server.CommitDiff[] diffs;
         using (progress.Show())
         {
-            var diffsResult = await reload(DiffContext.Default);
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not Server.CommitDiff[] loaded)
             {
                 UI.ErrorMessage($"Failed to get the history of the lines\n{diffsResult.Error.AllMessages()}");
@@ -411,7 +415,7 @@ class BlameView : IBlameView
             diffs = loaded;
         }
 
-        diffView.Show(diffs, repo.Path, reload);
+        diffView.Show(diffs, source, repo.Path);
         contentView.SetNeedsDisplay();
     }
 
