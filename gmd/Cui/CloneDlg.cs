@@ -18,16 +18,19 @@ class CloneDlg : ICloneDlg
 
     public Result<CloneInfo> Show(IReadOnlyList<string> recentParentFolders)
     {
-        var basePath = recentParentFolders.Any() ? recentParentFolders[0] + Path.DirectorySeparatorChar : "";
+        // The folder the clone goes in, the repo's name after it: the recent one, or the one browsed
+        // to. The browsed one was dropped when the uri had no name in it yet, and replaced by the
+        // recent one again with the next key typed into the uri.
+        var parent = recentParentFolders.Any() ? recentParentFolders[0] : "";
 
         var dlg = new UIDialog("Clone Repo", width + 4, 8);
 
         dlg.AddLabel(1, 0, "Uri:");
         var uri = dlg.AddInputField(6, 0, width - 6, "");
-        uri.KeyUp += _ => UpdatePath(basePath, uri.Text);
+        uri.KeyUp += _ => UpdatePath(parent, uri.Text);
 
         dlg.AddLabel(1, 2, "Path:");
-        path = dlg.AddInputField(7, 2, width - 16, basePath, InputMarkers.None);
+        path = dlg.AddInputField(7, 2, width - 16, WithSeparator(parent), InputMarkers.None);
 
         dlg.AddButton(
             width - 9,
@@ -36,9 +39,10 @@ class CloneDlg : ICloneDlg
             () =>
             {
                 FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (browseDlg.Show(recentParentFolders) is not string path || path == "")
+                if (browseDlg.Show(recentParentFolders) is not string folder || folder.Trim() == "")
                     return;
-                SetBrowsedPath(uri.Text, path);
+                parent = folder.Trim();
+                UpdatePath(parent, uri.Text, isBrowsed: true);
             }
         );
 
@@ -51,36 +55,27 @@ class CloneDlg : ICloneDlg
         return new CloneInfo(uri.Text, path.Text);
     }
 
-    // Update path field when uri changes
-    void UpdatePath(string basePath, string uri)
+    // The path is the folder and the repo's name from the uri, once the uri has one; just browsed
+    // to, the folder alone until it has
+    void UpdatePath(string parent, string uri, bool isBrowsed = false)
     {
-        if (!basePath.EndsWith(Path.DirectorySeparatorChar))
+        if (parent == "")
             return;
 
-        if (TryParseRepoName(uri) is not string name)
-            return;
-
-        UpdatePathField(basePath, name);
+        if (TryParseRepoName(uri) is string name)
+            SetPath(Files.UniqueFolderPath(WithSeparator(parent), name));
+        else if (isBrowsed)
+            SetPath(WithSeparator(parent));
     }
 
-    // Update path after user has browsed target folders
-    void SetBrowsedPath(string uri, string path)
+    void SetPath(string text)
     {
-        path = path.Trim();
-
-        if (TryParseRepoName(uri) is not string name)
-            return;
-
-        string basePath = path + Path.DirectorySeparatorChar;
-
-        UpdatePathField(basePath, name);
-    }
-
-    void UpdatePathField(string basePath, string name)
-    {
-        this.path!.Text = Files.UniqueFolderPath(basePath, name);
+        this.path!.Text = text;
         this.path!.SetNeedsDisplay();
     }
+
+    static string WithSeparator(string folder) =>
+        folder == "" || folder.EndsWith(Path.DirectorySeparatorChar) ? folder : folder + Path.DirectorySeparatorChar;
 
     // Try to extract git repo name
     static Result<string> TryParseRepoName(string uri)
