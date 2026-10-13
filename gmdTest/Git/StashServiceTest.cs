@@ -66,10 +66,10 @@ public class StashServiceTest
         Assert.AreEqual("First stash", stashes[1].Message);
     }
 
-    // The subject is split on ':' and only the third part is used, so a stash message containing a
-    // colon is cut short. A branch name cannot contain one, so only the message is affected.
+    // A message is kept whole with colons of its own, which it used to be cut short at, since the
+    // subject was split at every ':'. A branch name cannot have one.
     [TestMethod]
-    public async Task TestParseStashMessageWithColonIsTruncated()
+    public async Task TestParseStashMessageWithColons()
     {
         var output =
             "1111111111111111111111111111111111111111|2026-07-31 04:00:14 +0200|2026-07-31 04:00:14 +0200|Test|"
@@ -78,7 +78,25 @@ public class StashServiceTest
 
         var stashes = await ListAsync(output);
 
-        Assert.AreEqual("fix", stashes[0].Message);
+        Assert.AreEqual("fix: the thing", stashes[0].Message);
+        Assert.AreEqual("main", stashes[0].Branch);
+    }
+
+    // A subject with fewer colons than git writes, as another tool may store a stash with, is kept
+    // as the message, where it failed the whole list
+    [TestMethod]
+    public async Task TestParseStashMessageOfAnotherTool()
+    {
+        var output =
+            "1111111111111111111111111111111111111111|2026-07-31 04:00:14 +0200|2026-07-31 04:00:14 +0200|Test|"
+            + "2222222222222222222222222222222222222222 3333333333333333333333333333333333333333"
+            + "|stash@{0}:Before the upgrade\x00";
+
+        var stashes = await ListAsync(output);
+
+        Assert.AreEqual("stash@{0}", stashes[0].Name);
+        Assert.AreEqual("Before the upgrade", stashes[0].Message);
+        Assert.AreEqual("", stashes[0].Branch);
     }
 
     [TestMethod]
