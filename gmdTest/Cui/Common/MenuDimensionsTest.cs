@@ -129,6 +129,51 @@ public class MenuDimensionsTest
         Assert.AreEqual(10, d.TitleWidth);
     }
 
+    // The rows between the borders are the items, so a click or the pointer on row 1 is the first
+    [TestMethod]
+    public void TestItemAtARowIsTheItemDrawnThere()
+    {
+        var d = Calculate(Three, "Title", 5, 5);
+
+        Assert.AreEqual(0, d.ItemAt(1, 0, 3));
+        Assert.AreEqual(2, d.ItemAt(3, 0, 3));
+    }
+
+    // A click on the title or the bottom border ran the item next to it, the first or the last
+    [TestMethod]
+    public void TestItemAtTheBordersIsNone()
+    {
+        var d = Calculate(Three, "Title", 5, 5);
+
+        Assert.AreEqual(-1, d.ItemAt(0, 0, 3));
+        Assert.AreEqual(-1, d.ItemAt(4, 0, 3));
+    }
+
+    // In a menu scrolled down, a row shows an item further down the list. The pointer used to make
+    // the item of the row's number current, one scrolled out of view that Enter then ran, and a
+    // click on the bottom border ran the item scrolled out of view below it.
+    [TestMethod]
+    public void TestItemAtARowOfAScrolledMenuIsTheItemScrolledThere()
+    {
+        var many = Enumerable.Range(1, 40).Select(i => Item($"Item {i}")).ToList();
+        var d = Calculate(many, "Title", 5, 0, screenHeight: 12); // 10 items shown
+
+        Assert.AreEqual(12, d.Height);
+        Assert.AreEqual(15, d.ItemAt(1, 15, 40));
+        Assert.AreEqual(24, d.ItemAt(10, 15, 40));
+        Assert.AreEqual(-1, d.ItemAt(11, 15, 40), "The bottom border, not item 25 below it");
+    }
+
+    // An empty menu, e.g. merge from with only main shown, is its borders, and a click in it threw
+    [TestMethod]
+    public void TestItemAtInAnEmptyMenuIsNone()
+    {
+        var d = Calculate([], "Title", 5, 5);
+
+        Assert.AreEqual(-1, d.ItemAt(0, 0, 0));
+        Assert.AreEqual(-1, d.ItemAt(1, 0, 0));
+    }
+
     static readonly List<MenuItem> Three = [Item("One", "a"), Item("Two", "bb"), Item("Three")];
 
     static MenuItem Item(string text, string shortcut = "") => new MenuItem(text, shortcut, () => { });

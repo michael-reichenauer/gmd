@@ -167,9 +167,9 @@ class Menu
         (var x, var y) = ToViewCoordinates(screenX, screenY);
         if (!IsInside(x, y))
             return;
-        var index = y - 1;
+        var index = dimensions.ItemAt(y, itemsView.FirstIndex, items.Count);
 
-        if (index < 0 || index >= items.Count || !items.Any() || items[index].IsDisabled)
+        if (index == -1 || items[index].IsDisabled)
             return;
         itemsView.SetCurrentIndex(index);
     }
@@ -187,7 +187,7 @@ class Menu
         }
 
         // Is inside this menu, handle click
-        UI.Post(() => OnClick(x, y - 1));
+        UI.Post(() => OnClick(y));
     }
 
     ContentView CreateItemsView()
@@ -289,9 +289,13 @@ class Menu
         action?.Invoke();
     }
 
-    void OnClick(int _, int y)
+    void OnClick(int y)
     {
-        itemsView.SetIndexAtViewY(y);
+        var index = dimensions.ItemAt(y, itemsView.FirstIndex, items.Count);
+        if (index == -1)
+            return;
+
+        itemsView.SetCurrentIndex(index);
         if (CurrentItem.IsDisabled)
         { // Clicked on disabled item, say why, and select the next enabled item
             SayWhyNot(CurrentItem);
