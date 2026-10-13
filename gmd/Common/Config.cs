@@ -4,7 +4,7 @@ namespace gmd.Common;
 class Config
 {
     public const int MaxRecentFolders = 15;
-    readonly Lazy<IConfigService>? configService;
+    readonly IConfigService? configService;
 
     // User config values
     public bool CheckUpdates { get; set; } = true;
@@ -22,16 +22,18 @@ class Config
     public string GitVersion { get; set; } = "";
     public bool IsHiddenBranchesTold { get; set; } = false; // Once, see HiddenBranchesTip
 
-    // Constructor used when deserializing Config, the values are copied to the single instance
-    // by the IConfigService
+    // Constructor used when deserializing Config, and by tests, for a config that is never stored
     public Config() { }
 
-    // Constructor used by Dependency Injection for this single instance
-    public Config(Lazy<IConfigService> configService) => this.configService = configService;
+    // Constructor used by Dependency Injection for the single instance, which holds the stored values
+    // from the start: a value read before they were loaded used to be the default, unnoticed
+    internal Config(IConfigService configService)
+    {
+        this.configService = configService;
+        configService.Load(this);
+    }
 
-    public void Set(Action<Config> set) => configService?.Value.Set(set);
-
-    internal void Init() => configService?.Value.Get();
+    public void Set(Action<Config> set) => configService?.Set(this, set);
 }
 
 public class Release

@@ -68,6 +68,11 @@ class Updater : IUpdater
             return;
 
         CleanTempFiles();
+        if (!config.CheckUpdates)
+        {
+            Log.Info("Check for updates is disabled");
+            return;
+        }
         if (await IsUpdateAvailableAsync() is Error e)
         {
             Log.Warn($"Failed to check remote version, {e}");
@@ -133,7 +138,7 @@ class Updater : IUpdater
         {
             await CheckUpdateAvailableAsync();
 
-            if (config.AutoUpdate)
+            if (config.CheckUpdates && config.AutoUpdate)
             {
                 if (await IsUpdateAvailableAsync() is UpdateAvailability { IsAvailable: true })
                 {
@@ -156,14 +161,10 @@ class Updater : IUpdater
         }
     }
 
+    // Checks even when CheckUpdates is off, which turns off only the checks gmd makes by itself: an
+    // update the user asks for, by --update or in the update dialog, is looked for
     public async Task<Result<UpdateAvailability>> IsUpdateAvailableAsync()
     {
-        if (!config.CheckUpdates)
-        {
-            Log.Info("Check for updates is disabled");
-            return new UpdateAvailability(false, buildVersion);
-        }
-
         var releaseResult = await GetRemoteInfoAsync();
         if (releaseResult is not Release release)
         {

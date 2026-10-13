@@ -303,6 +303,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   it is never half written, and a write reads the file afresh, so two instances no longer drop each
   other's changes (the recent folders, a word added to the dictionary, the shown branches of a repo
   open twice). (2026-10-08)
+- The user config held its defaults until the UI was ready (`Config.Init`, in `MainView.OnReady`) or
+  something was set, so whatever read it earlier read the defaults, unnoticed: `gmd --update` checked
+  with the default `CheckUpdates` and no cached ETag. `Config` now loads the stored values when it is
+  created (`IConfigService.Load`, no more `Lazy` cycle between the two), and `CheckUpdates` turns off
+  only the checks gmd makes by itself, so `--update` and the update dialog look for a release even
+  so; the dialog used to say there was none. The reflective copy into the one `Config` instance
+  stays, as every class holds that instance. (2026-10-13)
 
 ---
 
@@ -492,8 +499,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   and 25 of 62 `Do(` bodies end in `Refresh(); return Result.Ok;` — a `CommandContext` and a
   `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
   first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
-  layout state inside the server model; `ConfigService` syncs a second `Config` by a reflective
-  property copy and `Config` has two constructors; static leftovers (`Build.IsWindows` assignable,
+  layout state inside the server model; static leftovers (`Build.IsWindows` assignable,
   `BranchService.remotePrefix`, `MessageDlg.Clicked`, `Updater`'s static task cache, the single
   `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
   `ResentParentFolders`, `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
