@@ -1,7 +1,7 @@
-using gmd.Cui;
+using gmd.Cui.App;
 using gmd.Server;
 
-namespace gmdTest.Cui;
+namespace gmdTest.Cui.App;
 
 // What the application bar says about an operation git stopped part way through
 [TestClass]

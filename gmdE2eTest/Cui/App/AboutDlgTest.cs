@@ -1,6 +1,6 @@
 using gmdE2eTest.Fixtures;
 
-namespace gmdE2eTest.Cui;
+namespace gmdE2eTest.Cui.App;
 
 // The About dialog, from the repo menu
 //

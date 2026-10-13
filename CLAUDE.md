@@ -158,10 +158,13 @@ Key types and flow:
 - `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,
   `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
   details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
-  `Worktrees/` and `Login/`, with `Common/` for the widgets and services they share; the shell
-  (`MainView`, `ApplicationBar`, About, Config, Update, the help) is in `Cui/` itself. A folder that
-  would be named as a type is named in the plural, `Graphs/`: a namespace `gmd.Cui.Graph` would hide
-  the `Graph` type from every namespace below `gmd.Cui`.
+  `Worktrees/` and `Login/`, with `Common/` for the widgets and services they share and `App/` for
+  the parts of the shell the views use (`ApplicationBar`, About, Config, Update, the help page).
+  `MainView`, which puts the views together, is alone in `Cui/` itself. The folders depend on each
+  other one way only, from `RepoView/` down to `Common/`, with no cycle: keep it so, since a type in
+  `gmd.Cui` is in scope in every folder below it without a using, so nothing else goes there. A
+  folder that would be named as a type is named in the plural, `Graphs/`: a namespace
+  `gmd.Cui.Graph` would hide the `Graph` type from every namespace below `gmd.Cui`.
 - `Cui/Start/` — the start page, shown in place of the log until a repo is opened: when gmd is
   started outside one, or with `-m`. `StartRepos` is what it lists, the recent repos and those in the
   start folder, read off the disk with no git process (`GitDir.IsRoot`); `StartRows` lays it out and
@@ -813,6 +816,6 @@ write there asks for permission.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
   once `scripts/test` passes, so that the git log and its diffs are the review. Push only when asked.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (which `?` opens on
-  GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/HelpPage.cs`) needs updating
+  GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/App/HelpPage.cs`) needs updating
   too, and the known limits under *Is Gmd for You?* in the README when one of them is lifted. The
   development half of the old README is `docs/CONTRIBUTING.md`.

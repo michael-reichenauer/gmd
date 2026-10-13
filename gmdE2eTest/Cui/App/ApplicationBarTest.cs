@@ -1,6 +1,6 @@
 using gmdE2eTest.Fixtures;
 
-namespace gmdE2eTest.Cui;
+namespace gmdE2eTest.Cui.App;
 
 // The line at the top: the repository, the current branch and the markers after it.
 //

@@ -1,7 +1,7 @@
 using gmd.Common;
 using gmd.Cui.Common;
 
-namespace gmd.Cui;
+namespace gmd.Cui.App;
 
 interface IAboutDlg
 {

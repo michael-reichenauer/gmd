@@ -1,3 +1,4 @@
+using gmd.Cui.App;
 using gmd.Cui.Commits;
 using gmd.Cui.Common;
 using gmd.Cui.Graphs;

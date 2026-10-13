@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
 using gmd.Common;
-using gmd.Cui;
+using gmd.Cui.App;
 
-namespace gmdTest.Cui;
+namespace gmdTest.Cui.App;
 
 // The help is gmd/doc/help.md on GitHub, which gmd opens at a heading, so a heading renamed in
 // help.md must be renamed where it is linked to as well, or the help opens at the top

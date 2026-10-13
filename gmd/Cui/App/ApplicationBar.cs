@@ -4,7 +4,7 @@ using gmd.Cui.Worktrees;
 using gmd.Server;
 using Terminal.Gui;
 
-namespace gmd.Cui;
+namespace gmd.Cui.App;
 
 enum ApplicationBarItem
 {

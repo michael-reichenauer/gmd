@@ -1,6 +1,6 @@
-using gmd.Cui;
+using gmd.Cui.App;
 
-namespace gmdTest.Cui;
+namespace gmdTest.Cui.App;
 
 [TestClass]
 public class ConfigDlgTest

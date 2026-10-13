@@ -1,7 +1,7 @@
 using gmd.Cui.Common;
 using Terminal.Gui;
 
-namespace gmd.Cui;
+namespace gmd.Cui.App;
 
 interface IUnicodeSetsDlg
 {

@@ -569,9 +569,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - *Done 2026-10-13:* `gmd/Cui` held 41 files in one namespace, and is grouped by feature now, a
     namespace per folder (`Graphs/`, `Commits/`, `Branches/`, `Tags/`, `Recovery/`, `Worktrees/`,
     `Login/`, Clone and Init in `Start/`, FilterDlg in `RepoView/`, RefNameValidation in `Common/`),
-    the tests with them; see CLAUDE.md. Left: `CommitDlg` / `FindBranchDlg` / `ApplicationBar`
-    still reach into `RepoView` (`IViewRepo`, `BranchMenu.Initials`, `RepoWriter.WorktreeMarker`),
-    the last folder cycle.
+    the tests with them; see CLAUDE.md. The folders depend on each other one way only since: the
+    shell's shared parts are in `App/`, `MainView` is alone in `Cui/`, and `CommitDlg`,
+    `FindBranchDlg` and `ApplicationBar` no longer reach into `RepoView`.
   - `Cui/Common` is three things: the widget toolkit (ContentView, UIDialog and its views, Menu,
     ListDlg, MessageDlg, the browse dialogs, Text, Color), app services (UI, Progress, StatusLine,
     Confirm, BranchColorService, which needs the server's repo) and the spelling input helpers.

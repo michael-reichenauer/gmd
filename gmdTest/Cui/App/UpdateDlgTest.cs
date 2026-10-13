@@ -1,7 +1,7 @@
 using gmd.Common;
-using gmd.Cui;
+using gmd.Cui.App;
 
-namespace gmdTest.Cui;
+namespace gmdTest.Cui.App;
 
 // What the question before an update says, and where its change log is. The dialog itself is out
 // of reach of the end-to-end tests, which run a dev instance, and a dev instance never offers one.

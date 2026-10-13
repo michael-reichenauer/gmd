@@ -2,7 +2,7 @@ using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Installation;
 
-namespace gmd.Cui;
+namespace gmd.Cui.App;
 
 interface IUpdateDlg
 {
