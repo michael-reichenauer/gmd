@@ -240,8 +240,6 @@ class FakeGit : IGit
     public Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result> PullRefAsync(string name, string wd) => throw new NotSupportedException();
-
     public Task<Result> CloneAsync(string uri, string path, string wd) => throw new NotSupportedException();
 
     public Task<Result> InitRepoAsync(string path, string wd) => throw new NotSupportedException();

@@ -128,14 +128,12 @@ class BranchService : IBranchService
 
     public async Task<Result> MergeBranchAsync(string name, string wd)
     {
-        //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"merge --no-ff --no-commit --stat {name}", wd);
         return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
     }
 
     public async Task<Result> RebaseBranchAsync(string name, string wd)
     {
-        //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --stat {name}", wd);
         return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
     }
@@ -155,7 +153,6 @@ class BranchService : IBranchService
 
     public async Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd)
     {
-        //  name = RemoteService.TrimRemotePrefix(name);
         var rsp = await cmd.RunAsync("git", $"rebase --onto {newBase} {oldBase}", wd);
         return ConflictError.ToConflict(rsp, "Merge Conflicts!\nPlease resolve conflicts before committing");
     }

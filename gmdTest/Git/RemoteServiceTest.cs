@@ -220,12 +220,6 @@ public class RemoteServiceTest
         );
     }
 
-    [TestMethod]
-    public async Task TestPullRef()
-    {
-        Assert.AreEqual("fetch origin dev:dev", await ArgsOf(s => s.PullRefAsync("origin/dev", "/wd")));
-    }
-
     // The address and the target path are quoted, since they come from the user and may contain
     // spaces
     [TestMethod]

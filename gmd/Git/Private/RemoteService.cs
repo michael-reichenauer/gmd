@@ -12,7 +12,6 @@ interface IRemoteService
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
     Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
-    Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> PushTagAsync(string name, string wd);
     Task<Result> DeleteRemoteTagAsync(string name, string wd);
@@ -111,10 +110,8 @@ class RemoteService : IRemoteService
 
     public async Task<Result> PullCurrentBranchAsync(string wd)
     {
-        var args = $"pull";
-        // var args = $"pull --ff --no-rebase";
         return LoginError.ToLogin(
-            ConflictError.ToConflict(await cmd.RunAsync("git", args, wd), "The pull stopped on conflicts")
+            ConflictError.ToConflict(await cmd.RunAsync("git", "pull", wd), "The pull stopped on conflicts")
         );
     }
 
@@ -173,14 +170,6 @@ class RemoteService : IRemoteService
         name = TrimRemotePrefix(name);
         var args =
             $"push --porcelain --force-with-lease=refs/heads/{name}:{expectedId} origin {oldId}:refs/heads/{name}";
-        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
-    }
-
-    public async Task<Result> PullRefAsync(string name, string wd)
-    {
-        name = TrimRemotePrefix(name);
-        string refs = $"{name}:{name}";
-        var args = $"fetch origin {refs}";
         return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 

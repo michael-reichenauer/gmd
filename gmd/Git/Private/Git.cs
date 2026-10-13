@@ -58,7 +58,13 @@ internal class Git : IGit
 
     public string CurrentAuthor { get; private set; } = "";
 
-    public Result<string> RootPath(string path) => RootPathDir(path);
+    // The root of the working tree a folder is in. A linked worktree is a root of its own, even
+    // when nested inside the main repository's folder — see GitDir.
+    public Result<string> RootPath(string path)
+    {
+        var found = GitDir.Find(path);
+        return found is GitDirInfo gitDir ? gitDir.RootPath : found.Error;
+    }
 
     public async Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd)
     {
@@ -151,8 +157,6 @@ internal class Git : IGit
     public Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd) =>
         remoteService.PushRestoreAsync(name, oldId, expectedId, wd);
 
-    public Task<Result> PullRefAsync(string name, string wd) => remoteService.PullRefAsync(name, wd);
-
     public Task<Result> PullCurrentBranchAsync(string wd) => remoteService.PullCurrentBranchAsync(wd);
 
     public Task<Result<bool>> IsPullWayConfiguredAsync(string branchName, string wd) =>
@@ -164,7 +168,7 @@ internal class Git : IGit
 
     public Task<Result> CloneAsync(string uri, string path, string wd) => remoteService.CloneAsync(uri, path, wd);
 
-    public Task<Result> InitRepoAsync(string path, string wd) => repoService.InitAsync(path, false);
+    public Task<Result> InitRepoAsync(string path, string wd) => repoService.InitAsync(path);
 
     public Task<Result> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
 
@@ -346,15 +350,5 @@ internal class Git : IGit
             return;
         Log.Info($"user {output}");
         CurrentAuthor = output.Trim();
-    }
-
-    // The root of the working tree a folder is in. A linked worktree is a root of its own, even
-    // when nested inside the main repository's folder — see GitDir.
-    public static Result<string> RootPathDir(string path)
-    {
-        var found = GitDir.Find(path);
-        if (found is not GitDirInfo gitDir)
-            return found.Error;
-        return gitDir.RootPath;
     }
 }

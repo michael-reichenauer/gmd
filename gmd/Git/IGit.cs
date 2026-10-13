@@ -75,7 +75,6 @@ interface IGit
     // Force pushes a remote branch back to a commit, if it is still at the expected one, or creates it
     // there, if it does not exist, when the expected one is ""
     Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
-    Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
     Task<Result> CheckoutAsync(string name, string wd);

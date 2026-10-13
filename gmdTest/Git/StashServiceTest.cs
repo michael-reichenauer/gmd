@@ -18,7 +18,7 @@ public class StashServiceTest
         + "134e1960d41fc44fb5ffffde38c2273f5e9910fc eba19185b85912777802e8a8575c41ed25e221d8"
         + "|stash@{1}:On main: First stash\x00";
 
-    static StashService NewService(ICmd cmd) => new StashService(cmd, new LogService(cmd), new DiffService(cmd));
+    static StashService NewService(ICmd cmd) => new StashService(cmd, new LogService(cmd));
 
     static async Task<IReadOnlyList<gmd.Git.Stash>> ListAsync(string output)
     {
@@ -144,17 +144,5 @@ public class StashServiceTest
         Assert.AreEqual("stash pop stash@{0}", cmd.Calls[0].Args);
         Assert.AreEqual("stash drop stash@{1}", cmd.Calls[1].Args);
         Assert.AreEqual("stash apply stash@{2}", cmd.Calls[2].Args, "Apply keeps the stash, which pop drops");
-    }
-
-    [TestMethod]
-    public async Task TestGetDiffDelegatesToDiffService()
-    {
-        var cmd = new FakeCmd("");
-        var service = NewService(cmd);
-
-        await service.GetDiffAsync("stash@{0}", 6, "/wd");
-
-        StringAssert.StartsWith(cmd.Calls[0].Args, "stash show -u ");
-        StringAssert.EndsWith(cmd.Calls[0].Args, " stash@{0}");
     }
 }

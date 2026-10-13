@@ -93,7 +93,7 @@ sealed class TempRepo : IDisposable
             new RepoService(cmd),
             tagService,
             new KeyValueService(cmd),
-            new StashService(cmd, logService, diffService),
+            new StashService(cmd, logService),
             new BlameService(cmd),
             new ConflictService(cmd),
             new WorktreeService(cmd),

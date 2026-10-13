@@ -50,7 +50,7 @@ class DiffService : IDiffService
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
-        var commitDiffs = ParseCommitDiffs(output, "", false);
+        var commitDiffs = ParseCommitDiffs(output);
         if (commitDiffs.Count == 0)
             return new Error("Failed to parse diff");
 
@@ -123,7 +123,7 @@ class DiffService : IDiffService
         // Add commit prefix text to support parser.
         output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" + output;
 
-        var commitDiffs = ParseCommitDiffs(output, "", false);
+        var commitDiffs = ParseCommitDiffs(output);
         if (!commitDiffs.Any())
         {
             return new Error("Failed to parse diff");
@@ -152,7 +152,7 @@ class DiffService : IDiffService
         if (result is not string output)
             return result.Error;
 
-        var commitDiffs = ParseCommitDiffs(output, path, false);
+        var commitDiffs = ParseCommitDiffs(output);
         if (!commitDiffs.Any())
             return new Error("Failed to parse the history of the lines");
         return commitDiffs.ToArray();
@@ -166,7 +166,7 @@ class DiffService : IDiffService
         if (result is not string output)
             return result.Error;
 
-        var commitDiffs = ParseCommitDiffs(output, path, false);
+        var commitDiffs = ParseCommitDiffs(output);
         if (!commitDiffs.Any())
         {
             return new Error("Failed to parse diff");
@@ -245,13 +245,13 @@ class DiffService : IDiffService
         // Split string and ignore some lines
         var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
 
-        (var fileDiffs, var i) = ParseFileDiffs(0, lines);
+        var (fileDiffs, _) = ParseFileDiffs(0, lines);
 
         return new CommitDiff("", "", DateTime.UtcNow, message, fileDiffs);
     }
 
     // Parse diff output for possible multiple commits
-    static IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string _, bool __)
+    static IReadOnlyList<CommitDiff> ParseCommitDiffs(string output)
     {
         // Split string and ignore some lines
         var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();

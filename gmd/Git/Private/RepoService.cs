@@ -2,7 +2,7 @@ namespace gmd.Git.Private;
 
 interface IRepoService
 {
-    Task<Result> InitAsync(string path, bool isBare = false);
+    Task<Result> InitAsync(string path);
 }
 
 class RepoService : IRepoService
@@ -14,10 +14,5 @@ class RepoService : IRepoService
         this.cmd = cmd;
     }
 
-    public async Task<Result> InitAsync(string path, bool isBare = false)
-    {
-        string bareText = isBare ? " --bare " : "";
-
-        return await cmd.RunAsync("git", $"init {bareText} {Cmd.Quote(path)}", "");
-    }
+    public async Task<Result> InitAsync(string path) => await cmd.RunAsync("git", $"init {Cmd.Quote(path)}", "");
 }
