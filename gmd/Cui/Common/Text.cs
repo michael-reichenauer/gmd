@@ -6,6 +6,9 @@ record TextFragment(string Text, Common.Color Color);
 // Text text = Text.Red("Red text").Blue("Blue text"));
 // Supports highlighting and subtext and drawing on a view
 // Cooperates automatically with TextBuilder to seamlessly compose a text with multiple colors
+//
+// Its length, and the indexes of Subtext and Draw, are terminal columns (TextWidth), which is what a
+// row is laid out in, not chars.
 class Text
 {
     readonly List<TextFragment> fragments;
@@ -16,7 +19,7 @@ class Text
     public Text(IEnumerable<TextFragment> fragments)
     {
         this.fragments = fragments.ToList();
-        Length = fragments.Any() ? fragments.Sum(f => f.Text.Length) : 0;
+        Length = this.fragments.Sum(f => TextWidth.Of(f.Text));
     }
 
     public static Text Empty => new Text();
@@ -125,39 +128,25 @@ class Text
         return new TextBuilder().Color(fragments[0].Color, new string(fragments[0].Text[0], width));
     }
 
-    // Returns a portion of the text, starting at startIndex, and with length
+    // The part of the text from column startIndex, length columns long, padded with spaces to that
+    // length when isFillRest. A wide character cut by either end is spaces, see TextWidth.Slice.
     public Text Subtext(int startIndex, int length, bool isFillRest = false)
     {
         var newText = new TextBuilder();
+        long end = (long)startIndex + length;
         int x = 0;
         foreach (var fragment in fragments)
         {
-            string text = fragment.Text;
-            int end = x + text.Length;
-            if (end < startIndex)
+            if (x >= end)
+                break;
+            var width = TextWidth.Of(fragment.Text);
+            if (x + width > startIndex)
             {
-                // Text left of rowX s
-                x += text.Length;
-                continue;
+                var text = TextWidth.Slice(fragment.Text, x, startIndex, end);
+                if (text != "")
+                    newText.Color(fragment.Color, text);
             }
-
-            if (x < startIndex)
-            {
-                text = text[(startIndex - x)..];
-                x += startIndex - x;
-            }
-
-            if (x + text.Length >= (startIndex + length))
-            {
-                text = text[..(startIndex + length - x)];
-            }
-
-            if (text == "")
-            {
-                continue;
-            }
-            newText.Color(fragment.Color, text);
-            x += text.Length;
+            x += width;
         }
 
         if (isFillRest && newText.Length < length)
@@ -168,52 +157,15 @@ class Text
         return newText;
     }
 
-    // Draws the text on the view, starting at x,y, and with length
+    // Draws the text on the view, starting at x,y, from column startIndex, length columns long
     public void Draw(Terminal.Gui.View view, int x, int y, int startIndex = 0, int length = int.MaxValue)
     {
         view.Move(x, y);
-        Draw(startIndex, length);
-    }
-
-    void Draw(int startIndex = 0, int length = int.MaxValue)
-    {
-        int x = 0;
-        foreach (var fragment in fragments)
+        var shown = startIndex == 0 && length >= Length ? this : Subtext(startIndex, length);
+        foreach (var fragment in shown.fragments)
         {
-            if (x >= length)
-            {
-                // Reached beyond last text to show
-                return;
-            }
-
-            string text = fragment.Text;
-            int end = x + text.Length;
-            if (end < startIndex)
-            {
-                // Text left of rowX
-                x += text.Length;
-                continue;
-            }
-
-            if (x < startIndex)
-            {
-                text = text[(startIndex - x)..];
-                x += startIndex - x;
-            }
-
-            if (x + text.Length >= (startIndex + length))
-            {
-                text = text[..(startIndex + length - x)];
-            }
-
-            if (text == "")
-            {
-                continue;
-            }
-
             Terminal.Gui.View.Driver.SetAttribute(fragment.Color);
-            Terminal.Gui.View.Driver.AddStr(text);
-            x += text.Length;
+            Terminal.Gui.View.Driver.AddStr(TextWidth.Drawn(fragment.Text));
         }
     }
 }
@@ -300,7 +252,7 @@ class TextBuilder
 
     TextBuilder Add(Common.Color color, string text)
     {
-        Length += text.Length;
+        Length += TextWidth.Of(text);
         if (!fragments.Any())
         { // First fragment
             fragments.Add(new TextFragment(text, color));

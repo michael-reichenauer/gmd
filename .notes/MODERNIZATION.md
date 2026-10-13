@@ -599,8 +599,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
     uncommitted line from blame offered commit and discard, and a discard left the blame stale; a
     range ending in the uncommitted changes offered them too. It is given a `DiffSource` now, the
     reload and whether the diff has context and can be committed.
-  - `Text` measures columns in UTF-16 units, so a CJK character or an emoji in a subject moves the
-    sid, author and time columns, and a cut can split a surrogate pair.
+  - *Done 2026-10-14:* `Text` measured columns in UTF-16 units, so a CJK character in a subject moved
+    the sid, author and time columns, a cut could split a surrogate pair, and an emoji was drawn as
+    `~I`, since Terminal.Gui 1.x's curses driver cannot draw a character outside the basic plane.
+    `TextWidth` measures in columns, with Terminal.Gui's own table, slices without splitting a
+    character, and draws one outside the basic plane as `�`, one column. Left: strings measured in
+    chars outside `Text` (`Max`, which is `gmd.Utils`', and the menu widths), so a menu item in CJK
+    is cut short rather than drawn wider.
   - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every
     branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
     the colors already. Not measured.

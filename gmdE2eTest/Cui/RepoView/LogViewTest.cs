@@ -38,6 +38,33 @@ public class LogViewTest
     // The guard on every other end-to-end test: that the redirected HOME actually took, i.e. that
     // gmd wrote its state into the throwaway home rather than into the developer's. If another
     // write anchored on SpecialFolder.UserProfile is ever added, this is where it shows up.
+    // A subject in Japanese, an emoji in one and an author named in kanji leave the sid, author and
+    // time columns where they are: measured in chars rather than in columns, each wide character
+    // moved the columns after it one more, off the screen, and the emoji was drawn as '~I'
+    [TestMethod]
+    public async Task TestWideCharactersKeepTheColumnsInPlace()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("a.txt", "a\n", "Plain subject", t);
+        await repo.CommitFileAtAsync("a.txt", "b\n", "日本語のコミットメッセージ", t.AddMinutes(1));
+        await repo.CommitFileAtAsync("a.txt", "c\n", "Party 🎉 time", t.AddMinutes(2));
+        repo.WriteFile("a.txt", "d\n");
+        await repo.GitAsync("add a.txt");
+        repo.GitAt(["commit", "-q", "--author=山田太郎 <taro@example.com>", "-m", "Author in kanji"], t.AddMinutes(3));
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            """
+            ┣ ● Author in kanji                                                     (● main) 5db392 山田太郎       2024-10-15 12:03
+            ┣   Party � time                                                                 e24544 Test User      2024-10-15 12:02
+            ┣   日本語のコミットメッセージ                                                   43de22 Test User      2024-10-15 12:01
+            ┗   Plain subject                                                                e42df2 Test User      2024-10-15 12:00
+            """,
+            ScreenText.Rows(gmd.WaitFor("Plain subject"), repo.Path, 2, 4)
+        );
+    }
+
     [TestMethod]
     public async Task TestRunsUnderTheThrowawayHome()
     {
