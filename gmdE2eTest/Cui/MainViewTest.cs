@@ -321,9 +321,12 @@ public class MainViewTest
         using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
         gmd.WaitFor("Failed to load repo");
         gmd.Send("Enter");
+        gmd.WaitUntilGone("Failed to load repo");
 
-        var screen = gmd.WaitUntilGone("Failed to load repo");
-        StringAssert.Contains(screen, "▸ o  Open a folder");
+        // The page itself, rather than the screen once the box is gone: between the two the screen
+        // can stand still with neither, for longer than WaitUntilGone waits, as on a busy CI runner
+        // that compiled the page's code on its first show (2026-10-14)
+        var screen = gmd.WaitFor("▸ o  Open a folder");
         StringAssert.StartsWith(ScreenText.LastLine(screen), "Enter open  o open folder  c clone  i init  Esc quit");
     }
 
