@@ -142,7 +142,9 @@ Keys and features that depend on the terminal or the system:
 5. The commit dialog (`c`): `Tab` into the file list, `Space` unticks a file, `a` all, and `Alt-O`
    commits. On macOS, Alt keys need *Use Option as Meta key* (Terminal) or *Esc+* for the Option key
    (iTerm2); without it `Alt-O` types `ø`.
-6. `Shift-→` opens Show Branch, and `Shift-↑` / `Shift-↓` select rows in the log.
+6. `Shift-→` opens Show Branch, and `Shift-↑` / `Shift-↓` select rows in the log. macOS Terminal
+   sends the last two as plain arrows until its profile maps them to `\033[1;2A` / `\033[1;2B` (the
+   *Keys* section of the help says how); `cat -v` shows what a key sends.
 7. `i` copies the commit id and `Shift-I` its message: paste them somewhere else.
 8. In a repository on GitHub, the commit menu's Open Commit in Browser opens it in the browser.
 9. With an ssh key that has a passphrase and is not in the ssh agent, a push or `r` asks for the

@@ -462,6 +462,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
   no Ctrl+C: `i` and `Shift-I` copy them, as the commit menu's *Copy Commit Id* and *Copy Commit
   Message* do (2026-10-07).
+- macOS Terminal sends Shift+↑/↓ as a plain `\E[A`/`\E[B` (`cat -v` shows `^[[A`), so they move
+  rather than select there; gmd cannot tell them from ↑/↓. A profile key sending `\033[1;2A` /
+  `\033[1;2B` fixes it, as `help.md` (Keys) says; iTerm2, VS Code and the Linux terminals send those
+  already. gmd itself is fine: replayed into it through tmux, `\E[1;2B` selected with ncurses
+  decoding it (`TERM=xterm-256color`, `kind`) and with Terminal.Gui doing so (`screen-256color`,
+  no `kind`), so the old ncurses macOS ships is not a factor (2026-10-14).
 - `UILabel.Text`'s setter sizes the label from the text it is *replacing*, so a header that grows is
   clipped. `BlameView` works around it with `Width = Dim.Fill()`; the setter is the fix.
 - Pull all only considers shown branches; a hidden branch that is behind is neither pulled nor

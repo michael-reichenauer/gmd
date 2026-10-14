@@ -257,6 +257,14 @@ commit), and middle-click merges a branch into the current branch, after
 asking. The items in the top bar can be clicked as well: `▲` and `▼` open
 a menu to push or pull the current branch or all of them.
 
+On macOS, the Terminal app sends `Shift-↑` and `Shift-↓` as a plain `↑` and
+`↓`, so they move the cursor rather than select rows. Add the two keys in
+Terminal → Settings → Profiles → Keyboard, with `+`: Cursor Up with Shift,
+Send Text `\033[1;2A`, and Cursor Down with Shift, `\033[1;2B` (press `Esc`
+in the text field for the `\033`). `cat -v` shows what a key sends:
+`^[[1;2A` once it is set, `^[[A` before. Dragging over rows with the mouse
+selects them too, in any terminal.
+
 
 ## Symbols
 
