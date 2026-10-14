@@ -1088,6 +1088,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   views'.
 - Blocking the main loop (`.Result`, `.Wait()`) deadlocks: the `SynchronizationContext` posts every
   continuation to the loop being blocked. Load before the view opens and pass the data in.
+- No program may be started while `Application.Init()` runs. Curses sets the locale as it starts
+  (`setlocale(LC_ALL, "")` in Terminal.Gui's `initscr`), and on macOS 27 a `fork` in another thread
+  meanwhile deadlocks both: `sample` of a gmd hung at its start showed the main thread in
+  `setlocale` → `__collate_load_tables` waiting in `_xzm_fork_lock_wait` for malloc, which the fork
+  had locked, and the fork (`SystemNative_ForkAndExecProcess`) waiting in `libSystem_atfork_prepare`
+  for a lock setlocale held. `git version`, started just before `Init` for the log, hung two starts
+  in three, with nothing drawn and no CPU; it is started after `Init` now (2026-10-14). The window
+  is the loading of the locale's tables, so a `C` locale, as the end-to-end tests have, never shows it.
 - `SetFocus()` does not move the keyboard, and `ContentView.ProcessHotKey` returns early without
   focus, so a pane that looks focused receives nothing. Forward keys by hand from the view that has
   them, as `FilterDlg` and `BlameView` do.
