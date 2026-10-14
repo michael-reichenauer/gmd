@@ -424,7 +424,10 @@ Reach:
   next, in this order: winget and an `install.ps1` (`irm … | iex`) for Windows, which should
   meet no SmartScreen warning since no browser downloads anything (to be tried on Windows), with
   `gmdSetup.exe` out of the README; a dev container feature; then maybe Scoop, a dotnet tool, an
-  Intel Mac build.
+  Intel Mac build. *`install.ps1` on dev (2026-10-14):* `irm … | iex` installs gmd.exe to
+  `%LOCALAPPDATA%\Programs\gmd` and the user's PATH, and the README leads with it on Windows; tried
+  on Linux PowerShell as far as it goes there (the download, the checksum, the replace), untried on
+  Windows.
 
 Waiting for the Terminal.Gui 2.x port:
 
