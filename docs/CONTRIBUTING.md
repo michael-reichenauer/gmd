@@ -181,9 +181,9 @@ To try a change to the formula before a release puts it there, install from a cl
 the change committed:
 
 ```bash
-brew untap --force michael-reichenauer/tap   # --force: with gmd installed from it, untap refuses
+brew untap --force michael-reichenauer/tap   # --force uninstalls gmd too; untap refuses without it
 brew tap michael-reichenauer/tap ~/src/homebrew-tap
-brew reinstall michael-reichenauer/tap/gmd && brew test gmd
+brew install michael-reichenauer/tap/gmd && brew test gmd
 brew info --json=v2 --variations michael-reichenauer/tap/gmd   # the download on every OS and CPU
 ```
 
