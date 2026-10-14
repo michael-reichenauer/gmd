@@ -87,6 +87,12 @@ class ProgramCommands : IProgramCommands
             Console.WriteLine($"{available.Version} is already latest version.");
             return 0;
         }
+        if (updater.PackageManager is PackageManager manager)
+        {
+            Console.WriteLine($"{available.Version} is available, and gmd was installed with {manager.Name},");
+            Console.WriteLine($"so update it with: {manager.UpdateCommand}");
+            return -1;
+        }
 
         Console.WriteLine($"Downloading {available.Version} ...");
         var newVersionResult = await updater.UpdateAsync();

@@ -13,6 +13,10 @@ interface IBinaryInstaller
     // (CleanUp). Cancelled, it stops before the new binary is put in place, an UpdateCancelledError.
     Task<Result> InstallAsync(ReleaseBinary binary, string targetPath, CancellationToken cancel = default);
 
+    // Whether a new binary can be put in place of the one at the target path, i.e. whether its folder
+    // can be written to, which the download is
+    Result CanInstall(string targetPath);
+
     // Deletes what earlier updates left beside the binary at the target path
     void CleanUp(string targetPath);
 }
@@ -107,6 +111,23 @@ class BinaryInstaller : IBinaryInstaller
             if (File.Exists(stagedPath) && Result.Catch(() => File.Delete(stagedPath)) is Error e)
                 Log.Warn($"Failed to delete {stagedPath}, {e}");
         }
+    }
+
+    // Tried with a file named as a download is, '<binary>.update_<random>', deleted as it is closed,
+    // and by CleanUp should gmd end before that
+    public Result CanInstall(string targetPath)
+    {
+        var path = $"{targetPath}{StagedInfix}{RandomString(5)}";
+        return Result.Catch(() =>
+            new FileStream(
+                path,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                1,
+                FileOptions.DeleteOnClose
+            ).Dispose()
+        );
     }
 
     static UpdateCancelledError Cancelled(ReleaseBinary binary)

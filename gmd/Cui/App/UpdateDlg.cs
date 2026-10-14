@@ -8,14 +8,16 @@ interface IUpdateDlg
 {
     // Asks whether to update to the new version, with a button for its change log first, and updates
     // if so, after which gmd quits, since the new version runs once gmd is started again. Ok when
-    // not asked to, or when there is no new version known.
+    // not asked to, or when there is no new version known. When a package manager installed gmd,
+    // it says how to update with that instead.
     Task<Result> ShowAsync();
 }
 
 // The question before an update, the same from the start page, the menus and the ⇓ in the bar: the
 // version running and the new one, and what updating does, including that gmd then has to be
 // started again, which is better known before than after. 'Change Log' shows what the new version
-// brings, in the browser, and asks again.
+// brings, in the browser, and asks again. A gmd that a package manager installed is updated by it,
+// so then it says the command to run rather than asking.
 class UpdateDlg : IUpdateDlg
 {
     const int updateButton = 0;
@@ -53,24 +55,27 @@ class UpdateDlg : IUpdateDlg
         if (!Version.TryParse(releases.LatestVersion, out var latest))
             return Result.Ok;
 
+        var manager = updater.PackageManager;
         var message = Message(
             Build.Version(),
             Build.Time().ToLocalTime(),
             latest,
             Build.GetBuildTime(releases.LatestVersion).ToLocalTime(),
-            releases.IsPreview
+            releases.IsPreview,
+            manager
         );
+        string[] buttons = manager == null ? ["Update", "Change Log", "Cancel"] : ["OK", "Change Log"];
         while (true)
         {
-            var button = UI.InfoMessage("Update Available", message, updateButton, ["Update", "Change Log", "Cancel"]);
+            var button = UI.InfoMessage("Update Available", message, updateButton, buttons);
             if (button == changeLogButton)
             {
                 await ShowChangeLogAsync(ChangeLogUrl(releases));
                 continue;
             }
-            if (button != updateButton)
+            if (manager != null || button != updateButton)
             {
-                Log.Info("Skip update");
+                Log.Info(manager != null ? $"Update left to {manager.Name}" : "Skip update");
                 return Result.Ok;
             }
             break;
@@ -129,21 +134,32 @@ class UpdateDlg : IUpdateDlg
     //
     //   Gmd quits once it is updated, and the new
     //   version runs when gmd is started again.
+    //
+    // or, when a package manager installed gmd, in place of the last two lines:
+    //
+    //   Gmd was installed with Homebrew, so it is
+    //   updated with:
+    //
+    //     brew update && brew upgrade gmd
     internal static string Message(
         Version running,
         DateTime runningBuilt,
         Version latest,
         DateTime latestBuilt,
-        bool isPreview
+        bool isPreview,
+        PackageManager? manager = null
     )
     {
         // The version lines end in a space, which keeps them off the right border of the box
         var width = Math.Max(running.Txt().Length, latest.Txt().Length);
+        var how =
+            manager == null
+                ? "Gmd quits once it is updated, and the new\nversion runs when gmd is started again."
+                : $"Gmd was installed with {manager.Name}, so it is\nupdated with:\n\n  {manager.UpdateCommand}";
         return $"Gmd {latest.Txt()} is available{(isPreview ? ", a preview" : "")}.\n\n"
             + $"This version:  {running.Txt().PadRight(width)}   built {runningBuilt.IsoDate()} \n"
             + $"New version:   {latest.Txt().PadRight(width)}   built {latestBuilt.IsoDate()} \n\n"
-            + "Gmd quits once it is updated, and the new\n"
-            + "version runs when gmd is started again.";
+            + how;
     }
 
     // The change log, every release newest first, so it covers the ones skipped too, or for a
