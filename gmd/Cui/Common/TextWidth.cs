@@ -78,15 +78,31 @@ static class TextWidth
         return slice.ToString();
     }
 
-    // The string as drawn: a character outside the basic plane as '�'
+    // The string as drawn: a character outside the basic plane as '�', and a control character as
+    // its picture, e.g. '\r' as '␍', one column as counted: a '\r' kept from a file, e.g. a lone one
+    // in a line of a diff, was drawn as it is, which moves the terminal's cursor back to the start of
+    // the row, over what was drawn there
     public static string Drawn(string text)
     {
-        if (!text.AsSpan().ContainsAnyInRange((char)0xD800, (char)0xDFFF))
+        if (
+            !text.AsSpan().ContainsAnyInRange((char)0xD800, (char)0xDFFF)
+            && !text.AsSpan().ContainsAnyInRange('\0', (char)0x1F)
+            && !text.Contains('\u007F')
+        )
             return text;
 
         var drawn = new System.Text.StringBuilder();
         foreach (var rune in text.EnumerateRunes())
-            drawn.Append(rune.IsBmp ? rune.ToString() : Replacement);
+        {
+            if (!rune.IsBmp)
+                drawn.Append(Replacement);
+            else if (rune.Value < 0x20)
+                drawn.Append((char)(0x2400 + rune.Value));
+            else if (rune.Value == 0x7F)
+                drawn.Append('\u2421');
+            else
+                drawn.Append(rune.ToString());
+        }
         return drawn.ToString();
     }
 

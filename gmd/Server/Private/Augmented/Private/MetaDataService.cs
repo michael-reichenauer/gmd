@@ -293,14 +293,31 @@ class MetaDataService : IMetaDataService
             return Result.Ok;
         }
 
-        // Never asking for a login, as the fetch above
+        // Never asking for a login, as the fetch above, and best effort, as it is: a push that fails is
+        // left to the next one. Refused, for another clone having pushed since the last fetch here,
+        // origin's is fetched and merged first, and the merge pushed, rather than pushed over origin's,
+        // which lost the choices made there.
         using (Timing.Start())
         using (Askpass.NeverAsk())
         {
-            await git.PushValueAsync(metaDataKey, path);
+            for (var tries = 0; tries < MaxPushes; tries++)
+            {
+                if (await git.PushValueAsync(metaDataKey, path) is not false)
+                    return Result.Ok;
+
+                using (await LockAsync())
+                {
+                    if (await FetchAndMergeMetaDataAsync(path) is Error)
+                        return Result.Ok;
+                }
+            }
+
             return Result.Ok;
         }
     }
+
+    // Another clone can push again between a fetch here and the push after it, so a few goes
+    const int MaxPushes = 3;
 
     bool IsNoLocalKey(Error e) => e.Message.Contains("Not a valid object name");
 

@@ -774,7 +774,9 @@ message.
   porcelain output in a pipe too (`diff.noprefix`, `color.ui=always`, `log.showSignature`, …), so a
   command whose output is parsed pins its format, as `DiffService.DiffFormat` and
   `LogService.CommitFormat` do. A path in the output is read with `-z` where git offers it, and
-  unquoted (`QuotedPath`) where not, since git writes `ä` as `"\303\244"`. A message or a path given
+  unquoted (`QuotedPath`) where not, since git writes `ä` as `"\303\244"`. `Cmd` reads output whole,
+  a `\r\n` as a `\n` and a lone `\r` kept, but a diff with its `\r\n` (`isKeepCr`), so that the diff
+  view can show a change of line ends; a parser of content lines expects a `\r` in them. A message or a path given
   to git goes through `Cmd.Quote`, never into plain quotes, which a `\"` in it breaks out of.
 - **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
   resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the

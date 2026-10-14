@@ -733,6 +733,32 @@ public class GitIntegrationTest
         );
     }
 
+    // A diff keeps the '\r' of a line, for the diff view to show a change of line ends alone, which
+    // was the same text on both sides when every '\r' was dropped, and a lone '\r' is part of its
+    // line, which the line reader took for a line break, splitting the line and losing its rest
+    [TestMethod]
+    public async Task TestADiffKeepsTheCarriageReturnsOfItsLines()
+    {
+        await repo.GitAsync("config core.autocrlf false");
+        await repo.CommitFileAsync("crlf.txt", "one\ntwo\n", "Initial");
+        await repo.CommitFileAsync("lone.txt", "alpha\nbeta\n", "Lone");
+        repo.WriteFile("crlf.txt", "one\r\ntwo\r\n");
+        repo.WriteFile("lone.txt", "alpha\nbe\rta\n");
+
+        var diff = Value(await repo.Git.GetUncommittedDiffAsync(6, repo.Path));
+
+        var crlf = diff.FileDiffs.First(f => f.PathAfter == "crlf.txt").SectionDiffs[0].LineDiffs;
+        Assert.AreEqual(
+            "DiffRemoved one, DiffRemoved two, DiffAdded one\r, DiffAdded two\r",
+            string.Join(", ", crlf.Select(l => $"{l.DiffMode} {l.Line}"))
+        );
+        var lone = diff.FileDiffs.First(f => f.PathAfter == "lone.txt").SectionDiffs[0].LineDiffs;
+        Assert.AreEqual(
+            "DiffSame alpha, DiffRemoved beta, DiffAdded be\rta",
+            string.Join(", ", lone.Select(l => $"{l.DiffMode} {l.Line}"))
+        );
+    }
+
     // Sets up 'main' and 'dev' both changing the same line, so anything replaying one onto the
     // other conflicts. Returns the dev commit id.
     async Task<string> TwoBranchesThatConflictAsync()

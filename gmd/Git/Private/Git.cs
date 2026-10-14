@@ -250,6 +250,12 @@ internal class Git : IGit
 
     public Task<Result> DropCommitAsync(string id, string wd) => commitService.DropCommitAsync(id, wd);
 
+    public Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd) =>
+        commitService.CommitTreeAsync(filesOfId, parentId, message, wd);
+
+    public Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
+        commitService.RebaseOntoKeepingMergesAsync(onto, upstream, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
         commitService.GetRefsContainingAsync(id, wd);
 
@@ -269,7 +275,7 @@ internal class Git : IGit
     public Task<Result<string>> GetOriginValueAsync(string key, string wd) =>
         keyValueService.GetOriginValueAsync(key, wd);
 
-    public Task<Result> PushValueAsync(string key, string wd) => keyValueService.PushValueAsync(key, wd);
+    public Task<Result<bool>> PushValueAsync(string key, string wd) => keyValueService.PushValueAsync(key, wd);
 
     public Task<Result> FetchValueAsync(string key, string wd) => keyValueService.FetchValueAsync(key, wd);
 
@@ -293,9 +299,6 @@ internal class Git : IGit
         tagService.AddAnnotatedTagAsync(name, message, commitId, wd);
 
     public Task<Result> RemoveTagAsync(string name, string wd) => tagService.RemoveTagAsync(name, wd);
-
-    public Task<Result> ResetHardUntilCommitAsync(string id, string wd) =>
-        commitService.ResetHardUntilCommitAsync(id, wd);
 
     public Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd) =>
         commitService.ResetBranchAsync(name, toId, fromId, isKeep, wd);

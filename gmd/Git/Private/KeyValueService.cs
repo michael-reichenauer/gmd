@@ -11,8 +11,9 @@ interface IKeyValueService
     // Origin's value as last fetched or pushed
     Task<Result<string>> GetOriginValueAsync(string key, string wd);
 
-    // Pushes the value over origin's, and records it as origin's
-    Task<Result> PushValueAsync(string key, string wd);
+    // Pushes the value over origin's as last fetched or pushed, and records it as origin's: true, or
+    // false when origin's has changed since, which is then to be fetched and merged first
+    Task<Result<bool>> PushValueAsync(string key, string wd);
 
     // Fetches origin's value into the record of it, leaving the repository's own as it is
     Task<Result> FetchValueAsync(string key, string wd);
@@ -60,18 +61,29 @@ class KeyValueService : IKeyValueService
         cmd.RunAsync("git", $"cat-file -p {OriginRef(key)}", wd, true, true);
 
     // Pushed by its object id, resolved first, so that a value set while the push runs is not recorded
-    // as origin's. Forced, since the value is a merge of the two rather than a fast forward of origin's.
-    public async Task<Result> PushValueAsync(string key, string wd)
+    // as origin's. Forced, since the value is a merge of the two rather than a fast forward of origin's,
+    // but leased on origin's value as last fetched or pushed, or on there being none, when there is no
+    // record of it: a value another clone pushed since is refused rather than pushed over, which lost
+    // what was chosen there, and the push says so, false.
+    public async Task<Result<bool>> PushValueAsync(string key, string wd)
     {
         var resolved = await cmd.RunAsync("git", $"rev-parse --verify {KeyRef(key)}", wd, true, true);
         if (resolved is not string output)
             return resolved.Error;
         var id = output.Trim();
+        var lastOrigin = await cmd.RunAsync("git", $"rev-parse --verify --quiet {OriginRef(key)}", wd, true, true);
+        var expected = lastOrigin is string last ? last.Trim() : "";
 
-        var args = $"push --porcelain origin --force {id}:{KeyRef(key)}";
-        if (await cmd.RunAsync("git", args, wd, true, false) is Error pushError)
+        var args = $"push --porcelain origin --force-with-lease={KeyRef(key)}:{expected} {id}:{KeyRef(key)}";
+        var pushed = await cmd.RunAsync("git", args, wd, true, false);
+        if (pushed is CmdError e && (e.Output.Contains("stale info") || e.ErrorOutput.Contains("stale info")))
+            return false;
+        if (pushed is Error pushError)
             return pushError;
-        return await cmd.RunAsync("git", $"update-ref {OriginRef(key)} {id}", wd, true, true);
+
+        if (await cmd.RunAsync("git", $"update-ref {OriginRef(key)} {id}", wd, true, true) is Error recordError)
+            return recordError;
+        return true;
     }
 
     // Into the record of origin's rather than over the repository's own value: a fetch over it lost a

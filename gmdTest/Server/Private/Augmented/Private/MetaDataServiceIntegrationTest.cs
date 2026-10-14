@@ -39,8 +39,8 @@ public class MetaDataServiceIntegrationTest
     [TestCleanup]
     public void Cleanup() => repo.Dispose();
 
-    async Task SetAsync(string path, string branch) =>
-        AssertOk(await service.UpdateMetaDataAsync(path, m => m.SetCommitBranch("abc123", branch)));
+    async Task SetAsync(string path, string branch, string sid = "abc123") =>
+        AssertOk(await service.UpdateMetaDataAsync(path, m => m.SetCommitBranch(sid, branch)));
 
     async Task<string> GetAsync(string path)
     {
@@ -74,5 +74,29 @@ public class MetaDataServiceIntegrationTest
         AssertOk(await service.FetchMetaDataAsync(repo.Path));
 
         Assert.AreEqual("main", await GetAsync(repo.Path));
+    }
+
+    // A choice another clone pushed since the last fetch here is not lost by a push from here: the
+    // value was pushed with --force over origin's, so it was gone from origin, and from every clone
+    // that fetched after. The push is leased on origin's value as last fetched, and refused, origin's
+    // is then fetched and merged, and the merge pushed.
+    [TestMethod]
+    public async Task TestAChoicePushedByAnotherCloneIsNotPushedOver()
+    {
+        await SetAsync(repo.Path, "dev");
+        AssertOk(await service.PushMetaDataAsync(repo.Path));
+        AssertOk(await service.FetchMetaDataAsync(other));
+        await SetAsync(other, "feature", "def456");
+        AssertOk(await service.PushMetaDataAsync(other));
+
+        await SetAsync(repo.Path, "fix", "aaa111");
+        AssertOk(await service.PushMetaDataAsync(repo.Path));
+
+        var origin = await repo.GitAsync($"-C \"{repo.Path}-origin\" cat-file -p refs/gmd-metadata-key-value/data");
+        StringAssert.Contains(origin, "def456", "The other clone's choice is still on origin");
+        StringAssert.Contains(origin, "aaa111", "and this one's was pushed");
+        var here = AssertOk(await service.GetMetaDataAsync(repo.Path));
+        Assert.IsTrue(here.TryGetCommitBranch("def456", out var branch, out _));
+        Assert.AreEqual("feature", branch, "Merged here");
     }
 }

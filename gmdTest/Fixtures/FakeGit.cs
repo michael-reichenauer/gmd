@@ -130,15 +130,18 @@ class FakeGit : IGit
         );
     }
 
-    public Task<Result> PushValueAsync(string key, string wd)
+    // Leased on origin's value as last fetched or pushed, as git's push is
+    public Task<Result<bool>> PushValueAsync(string key, string wd)
     {
         ValueCalls.Add($"push {key}");
         if (!Values.TryGetValue(key, out var value))
-            return Task.FromResult<Result>(new Error("fatal: Needed a single revision"));
+            return Task.FromResult<Result<bool>>(new Error("fatal: Needed a single revision"));
+        if (RemoteValues.GetValueOrDefault(key) != OriginValues.GetValueOrDefault(key))
+            return Task.FromResult<Result<bool>>(false);
 
         RemoteValues[key] = value;
         OriginValues[key] = value;
-        return Task.FromResult(Result.Ok);
+        return Task.FromResult<Result<bool>>(true);
     }
 
     public Task<Result> FetchValueAsync(string key, string wd)
@@ -360,6 +363,12 @@ class FakeGit : IGit
 
     public Task<Result> DropCommitAsync(string id, string wd) => throw new NotSupportedException();
 
+    public Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
         throw new NotSupportedException();
 
@@ -395,8 +404,6 @@ class FakeGit : IGit
         throw new NotSupportedException();
 
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => throw new NotSupportedException();
-
-    public Task<Result> ResetHardUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
 
     public Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd) =>
         throw new NotSupportedException();

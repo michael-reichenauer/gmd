@@ -505,14 +505,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
   hardware (the platform checklist in `docs/CONTRIBUTING.md` has it, with the rest that only Windows and
   macOS show). Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
-- Squash still resets the branch and cherry-picks the newer commits back one by one
-  (`AugmentedService.SquashCommits`), so a conflict stops it half done: the branch already reset, a
-  cherry-pick stopped, and its `squash-backup-…` branch left behind. Amend and Drop of an older
-  commit are git's own rebase instead (`AutosquashAsync`, `DropCommitAsync`), which a conflict stops
-  cleanly for the resolver and Continue or Abort; Squash could be the same, as `fixup!` commits and
-  `--autosquash`, with the message given to the first. The rewrites that are rebases recorded for
-  Undo only when they finish in one go: one stopped on a conflict and continued is named by the
-  reflog, i.e. Undo Rebase, which leaves an Amend's `amend!` commit, a second Undo.
+- *Done 2026-10-14:* Squash reset the branch and cherry-picked the newer commits back one by one,
+  so a failure stopped it half done, with a `squash-backup-…` branch left behind; a merge among the
+  newer commits always did, cherry-pick refusing a merge; and the newer commits were committed again
+  as the user, losing their authors and dates. The squash is `git commit-tree` now, the files of the
+  newest commit on the parent of the oldest, moving nothing, and a `rebase --rebase-merges` of the
+  newer commits onto it, which cannot conflict, being made on the very files they were made on, and
+  is the one move of the branch. No hook runs for the squashed commit, as for the commits a rebase
+  replays, where `git commit` ran `commit-msg` for it (a Gerrit Change-Id is then not added).
+- The rewrites that are rebases are recorded for Undo only when they finish in one go: one stopped
+  on a conflict and continued is named by the reflog, i.e. Undo Rebase, which leaves an Amend's
+  `amend!` commit, a second Undo.
 
 - Left by the review of `gmd/Git` (2026-10-13):
   - A hunk is read by the prefix of its lines rather than by the counts in its header, so with
@@ -530,9 +533,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - A failure before the UI runs, e.g. a `~/.gmdconfig` that cannot be written, ends gmd with the
     runtime's "Unhandled exception" and a stack trace rather than `Program.CrashMessage`, which only
     follows the main loop.
-  - `Cmd` reads output by lines (`BeginOutputReadLine`), which also break at a lone `\r`, and drops
-    every `\r`, so the diff of a file with a bare CR in a line is split there, and a change of line
-    endings alone shows nothing. Not tried end to end.
+  - *Done 2026-10-14:* `Cmd` read output by lines (`BeginOutputReadLine`), which also broke at a lone
+    `\r`, and dropped every `\r`, so a diff line with a lone `\r` was split there and its rest lost,
+    and a change of line ends alone showed lines the same on both sides. It reads the bytes whole now:
+    a `\r\n` is a `\n`, a lone `\r` is kept (stderr's are line breaks, git's progress), and a diff is
+    read with its `\r\n` (`isKeepCr`), whose `\r` the diff view shows as `␍` where it is the change.
+    `TextWidth.Drawn` draws a control character as its picture, `␍` for a lone `\r`.
   - *Done 2026-10-14:* the timers of `Progress` and `MessageDlg` were `System.Threading.Timer`s
     that pulsed a view and dereferenced `Application.MainLoop` on a thread pool thread, where an
     exception ended the process with the terminal left as Terminal.Gui set it. They are main loop
@@ -550,9 +556,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - `Repo` is three things in one type, the augmented repo, the view and the filtered view, told apart
     by whether `ViewCommits` is filled, and with the view state in `Commit` and `Branch` (roadmap C)
     every Show and Hide copies every commit of the log, up to 30,000.
-  - The metadata is pushed with `--force` over origin's, so a choice someone pushed since the last
-    fetch here is lost. A lease on the recorded value of origin's
-    (`--force-with-lease=<ref>:<recorded id>`) and a fetch and merge on refusal would keep it.
+  - *Done 2026-10-14:* the metadata was pushed with `--force` over origin's, so a choice someone
+    pushed since the last fetch here was lost. The push is leased on the record of origin's value
+    (`--force-with-lease=<ref>:<recorded id>`, or on there being none), and refused, origin's is
+    fetched and merged and the merge pushed, three goes at most.
   - A diverged branch pair is still merged or rebased onto by the younger tip (`MergeTipName`).
   - An empty repo's branch is shown as `main` whatever its unborn HEAD is named
     (`AugmentedService.EmptyGitRepo`).
