@@ -21,7 +21,9 @@ it.
 
 The easiest way is the devcontainer, locally in VS Code with Docker or in GitHub Codespaces. It
 installs both .NET SDKs, and `scripts/installtools` then adds the tools that the scripts and the
-end-to-end tests use (tmux, lnav, agg).
+end-to-end tests use (tmux, lnav, agg). It has the GitHub CLI too, which reads the CI runs
+(`gh run view <id> --log-failed`): log it in once with `gh auth login`, and the login is kept in a
+volume across rebuilds.
 
 To set up a machine yourself you need:
 

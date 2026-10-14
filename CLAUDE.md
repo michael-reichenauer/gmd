@@ -29,6 +29,10 @@ scripts/demo           # re-record gmd/doc/Animation.gif, the README's animation
 scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
 ```
 
+`gh` (the GitHub CLI) is in the dev container, a feature of `devcontainer.json` with its login kept
+in a volume, so a failed CI run is read with `gh run list` and `gh run view <id> --log-failed`; if it
+says it is not logged in, the user runs `gh auth login` once.
+
 Each script runs at the repository root, wherever it is started from, so `scripts/run` opens this
 repository (`-d <folder>` opens another). Faster inner loop for verification: `dotnet build gmd.sln`
 and `scripts/test`.
