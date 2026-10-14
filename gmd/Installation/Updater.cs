@@ -11,6 +11,10 @@ interface IUpdater
 {
     Task CheckUpdateAvailableAsync();
     Task<Result<Version>> UpdateAsync();
+
+    // Cancels the update in progress, which stops before the new version is put in place, with an
+    // UpdateCancelledError, or finishes when it is too late to stop
+    void CancelUpdate();
     Task<Result<UpdateAvailability>> IsUpdateAvailableAsync();
     Task StartCheckUpdatesRegularly();
 }
@@ -54,6 +58,7 @@ class Updater : IUpdater
 
     readonly object updateLock = new();
     Task<Result<Version>>? update; // The update in progress, which a second one waits for
+    CancellationTokenSource cancelUpdate = new(); // What cancels it, a new one for each
     Version? installedVersion; // Installed by this gmd, and run once gmd is started again
     bool isUpdateCheckerRunning = false;
 
@@ -106,12 +111,26 @@ class Updater : IUpdater
         lock (updateLock)
         {
             if (update is not { IsCompleted: false })
-                update = UpdateOnceAsync(self);
+            {
+                cancelUpdate = new CancellationTokenSource();
+                update = UpdateOnceAsync(self, cancelUpdate.Token);
+            }
             return update;
         }
     }
 
-    async Task<Result<Version>> UpdateOnceAsync(RunningGmd self)
+    // The one in progress, whichever started it, the update dialog or the regular check, since the
+    // dialog waits for one the check started too
+    public void CancelUpdate()
+    {
+        lock (updateLock)
+        {
+            if (update is { IsCompleted: false })
+                cancelUpdate.Cancel();
+        }
+    }
+
+    async Task<Result<Version>> UpdateOnceAsync(RunningGmd self, CancellationToken cancel)
     {
         // The binary of a dev instance is a build, e.g. gmd/bin/Debug, which is never replaced by a
         // release. It is never offered one either, but a guard there was all that stood between an
@@ -155,7 +174,9 @@ class Updater : IUpdater
 
         var checksums = ReleaseChoice.Checksums(release);
         var releaseBinary = new ReleaseBinary(version, binary.Name, binary.Url, checksums?.Url ?? "");
-        if (await installer.InstallAsync(releaseBinary, path) is Error installError)
+        if (cancel.IsCancellationRequested)
+            return new UpdateCancelledError();
+        if (await installer.InstallAsync(releaseBinary, path, cancel) is Error installError)
             return installError;
 
         installedVersion = version;

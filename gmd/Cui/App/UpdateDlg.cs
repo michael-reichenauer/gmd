@@ -20,6 +20,8 @@ class UpdateDlg : IUpdateDlg
 {
     const int updateButton = 0;
     const int changeLogButton = 1;
+    const int continueButton = 0; // Of the question before an update is cancelled
+    const int cancelButton = 1;
 
     readonly Config config;
     readonly IUpdater updater;
@@ -81,15 +83,43 @@ class UpdateDlg : IUpdateDlg
             UI.ShowMessageWhile(
                 "Updating",
                 $"Updating to Gmd {latest.Txt()},\nthis might take a while ...",
-                updateTask
+                updateTask,
+                () => IsCancelConfirmed(latest)
             );
-            if (await updateTask is Error e)
+            var updated = await updateTask;
+            if (updated is UpdateCancelledError)
+            {
+                status.Info($"Cancelled the update to {latest.Txt()}, and gmd is as it was");
+                return Result.Ok;
+            }
+            if (updated is Error e)
                 return new Error($"Failed to update to {latest.Txt()}", e);
         }
 
         UI.InfoMessage("Restart Required", $"Gmd is updated to {latest.Txt()},\nwhich runs once gmd is started again.");
         UI.Shutdown();
         return Result.Ok;
+    }
+
+    // The Cancel button of the box shown while updating asks first, with going on as the default, so
+    // that a slip of Enter or Esc does not cancel a download that has taken minutes. Cancelled, the
+    // update stops before it puts the new version in place, or finishes if it is doing so already.
+    bool IsCancelConfirmed(Version latest)
+    {
+        var button = UI.InfoMessage(
+            "Cancel Update",
+            $"Cancel the update to Gmd {latest.Txt()}?\n\n"
+                + "Gmd is left as it is, and what is\n"
+                + "downloaded so far is deleted.",
+            continueButton,
+            ["Continue", "Cancel Update"]
+        );
+        if (button != cancelButton)
+            return false;
+
+        Log.Info($"Cancelling the update to {latest.Txt()}");
+        updater.CancelUpdate();
+        return true;
     }
 
     //   Gmd 1.6 (1444.518) is available, a preview.

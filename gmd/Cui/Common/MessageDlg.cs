@@ -12,29 +12,66 @@ static class MessageDlg
     internal static int ShowError(string title, string message, int defaultButton = 0, params string[] buttons) =>
         ShowFull(true, title, message, defaultButton, buttons);
 
-    // Shows a message box with no buttons while the (already started) task is running, and closes
-    // it once the task has completed. The dialog is run modally, which keeps pumping the main loop,
-    // so the task keeps making progress while the message is shown (its awaits continue on the main
-    // loop). The caller is expected to await the task afterwards to get at its result.
-    internal static void ShowWhile(string title, string message, Task task)
+    // Shows a message box while the (already started) task is running, and closes it once the task
+    // has completed. The dialog is run modally, which keeps pumping the main loop, so the task keeps
+    // making progress while the message is shown (its awaits continue on the main loop). The caller
+    // is expected to await the task afterwards to get at its result.
+    //
+    // With askCancel, a Cancel button, and Esc, call it, which asks the user and cancels the task if
+    // so, saying whether it did; the box then says it is cancelling, until the task has stopped.
+    // Without, it has no buttons.
+    internal static void ShowWhile(string title, string message, Task task, Func<bool>? askCancel = null)
     {
-        var d = CreateDialog(false, title, message, []);
+        var cancelButton = askCancel == null ? null : new Button("Cancel") { ColorScheme = ColorSchemes.Button };
+        var isAsking = false;
+        var isClosed = false;
+        Dialog d = null!;
+
+        // Asked while the task goes on, and the box is closed once both are done, since closing it
+        // while the question is up would close the question instead
+        void AskCancel()
+        {
+            if (askCancel == null || cancelButton is not { Enabled: true })
+                return;
+
+            isAsking = true;
+            var isCancelled = askCancel();
+            isAsking = false;
+            if (task.IsCompleted)
+            {
+                Application.RequestStop(d);
+                return;
+            }
+
+            if (isCancelled)
+            {
+                cancelButton.Text = "Cancelling ...";
+                cancelButton.Enabled = false;
+            }
+        }
+
+        // An extra row for the marquee, above the button
+        d =
+            cancelButton == null
+                ? CreateDialog(false, title, message, [])
+                : CreateDialog(false, title, message + "\n", [cancelButton], AskCancel);
+        if (cancelButton != null)
+            cancelButton.Clicked += AskCancel;
 
         // Only the modal itself is redrawn while it is running, so the Progress marquee on the
         // application bar below it would appear frozen. The box gets its own marquee instead, on
-        // the row that the buttons of a normal message box would use.
-        var marquee = new Marquee(Pos.Center(), Pos.AnchorEnd(1));
+        // the row that the buttons of a normal message box would use, or the one above the button.
+        var marquee = new Marquee(Pos.Center(), Pos.AnchorEnd(cancelButton == null ? 1 : 2));
         d.Add(marquee.View);
 
         // The posted close can only run once the modal below is pumping the main loop, since this
         // is the main loop thread and it is blocked in Application.Run until then. Should the
         // dialog be closed some other way first, isClosed keeps the post from stopping whatever
-        // toplevel happens to be current by then.
-        var isClosed = false;
+        // toplevel happens to be current by then, and while the cancel is asked, AskCancel closes it.
         task.ContinueWith(_ =>
             UI.Post(() =>
             {
-                if (!isClosed)
+                if (!isClosed && !isAsking)
                     Application.RequestStop(d);
             })
         );
@@ -112,8 +149,15 @@ static class MessageDlg
         return clicked;
     }
 
-    // Creates the dialog sized to fit the message, with the buttons (if any) on its last row.
-    static Dialog CreateDialog(bool useErrorColors, string title, string message, IReadOnlyList<Button> buttons)
+    // Creates the dialog sized to fit the message, with the buttons (if any) on its last row. With
+    // onEsc, Esc calls it, where Terminal.Gui's dialog closes on it.
+    static Dialog CreateDialog(
+        bool useErrorColors,
+        string title,
+        string message,
+        IReadOnlyList<Button> buttons,
+        Action? onEsc = null
+    )
     {
         int defaultWidth = 30;
         if (defaultWidth > Application.Driver.Cols / 2)
@@ -133,12 +177,11 @@ static class MessageDlg
         // textHeight + (top + top padding + buttons + bottom)
         int msgBoxHeight = Math.Min(Math.Max(1, textHeight) + 3 + buttonsHeight, Application.Driver.Rows);
 
-        var d = new Dialog(title, buttons.ToArray())
-        {
-            Height = msgBoxHeight,
-            Border = { Effect3D = false, BorderStyle = BorderStyle.Rounded },
-            ColorScheme = useErrorColors ? ColorSchemes.ErrorDialog : ColorSchemes.InfoDialog,
-        };
+        var d = onEsc == null ? new Dialog(title, buttons.ToArray()) : new EscDialog(title, buttons.ToArray(), onEsc);
+        d.Height = msgBoxHeight;
+        d.Border.Effect3D = false;
+        d.Border.BorderStyle = BorderStyle.Rounded;
+        d.ColorScheme = useErrorColors ? ColorSchemes.ErrorDialog : ColorSchemes.InfoDialog;
 
         d.Add(
             new Label(message)
@@ -161,6 +204,27 @@ static class MessageDlg
         );
 
         return d;
+    }
+
+    // A dialog whose Esc is the caller's: Dialog closes on it, before the key reaches anything else
+    class EscDialog : Dialog
+    {
+        readonly Action onEsc;
+
+        public EscDialog(string title, Button[] buttons, Action onEsc)
+            : base(title, buttons)
+        {
+            this.onEsc = onEsc;
+        }
+
+        public override bool ProcessKey(KeyEvent kb)
+        {
+            if (kb.Key != Key.Esc)
+                return base.ProcessKey(kb);
+
+            onEsc();
+            return true;
+        }
     }
 
     internal static int GetButtonsWidth(IReadOnlyList<Button> buttons)

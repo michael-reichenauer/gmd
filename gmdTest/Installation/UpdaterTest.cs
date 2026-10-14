@@ -150,6 +150,39 @@ public class UpdaterTest
         Assert.AreEqual(1, installer.Calls.Count);
     }
 
+    // Cancel, from the box shown while updating, reaches the update in progress, whichever started it,
+    // and the next update can be cancelled again, rather than be cancelled already
+    [TestMethod]
+    public async Task TestCancelCancelsTheUpdateInProgress()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+        var installing = new TaskCompletionSource<Result>();
+        installer.InstallTask = () => installing.Task;
+
+        var update = updater.UpdateAsync(Running);
+        updater.CancelUpdate();
+
+        Assert.IsTrue(installer.Cancel.IsCancellationRequested);
+        installing.SetResult(new UpdateCancelledError());
+        Assert.IsInstanceOfType<UpdateCancelledError>(AssertError(await update));
+
+        installer.InstallTask = () => Task.FromResult(Result.Ok);
+        AssertOk(await updater.UpdateAsync(Running));
+        Assert.IsFalse(installer.Cancel.IsCancellationRequested, "A new update is not cancelled already");
+    }
+
+    // A cancel with no update in progress cancels none to come
+    [TestMethod]
+    public async Task TestACancelWithNoUpdateInProgressCancelsNothing()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+
+        updater.CancelUpdate();
+
+        AssertOk(await updater.UpdateAsync(Running));
+        Assert.IsFalse(installer.Cancel.IsCancellationRequested);
+    }
+
     // The running gmd is still the old version after an update, so the release is still newer than
     // it, and the regular check of a gmd left open installed it again every hour
     [TestMethod]
@@ -231,11 +264,15 @@ public class UpdaterTest
         public List<string> Calls { get; } = [];
         public Func<Task<Result>> InstallTask { get; set; } = () => Task.FromResult(Result.Ok);
 
-        public Task<Result> InstallAsync(ReleaseBinary binary, string targetPath)
+        public Task<Result> InstallAsync(ReleaseBinary binary, string targetPath, CancellationToken cancel = default)
         {
             Calls.Add($"{binary.Version} {binary.Name} {binary.Url} {binary.ChecksumsUrl} {targetPath}");
+            Cancel = cancel;
             return InstallTask();
         }
+
+        // What the install was given to cancel it
+        public CancellationToken Cancel { get; private set; }
 
         public void CleanUp(string targetPath) { }
     }

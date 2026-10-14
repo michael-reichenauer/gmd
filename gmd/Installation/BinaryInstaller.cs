@@ -10,8 +10,8 @@ interface IBinaryInstaller
 {
     // Downloads the binary of a release, checks it, and puts it in place of the one at the target
     // path, the binary of the running gmd, which goes on running and is deleted at a later start
-    // (CleanUp)
-    Task<Result> InstallAsync(ReleaseBinary binary, string targetPath);
+    // (CleanUp). Cancelled, it stops before the new binary is put in place, an UpdateCancelledError.
+    Task<Result> InstallAsync(ReleaseBinary binary, string targetPath, CancellationToken cancel = default);
 
     // Deletes what earlier updates left beside the binary at the target path
     void CleanUp(string targetPath);
@@ -23,6 +23,9 @@ interface IBinaryInstaller
 // updates. Its checksum is checked against the release's, and it is run, to say its version, as CI
 // runs it before it releases. A download that fails either check is deleted, as one that did not
 // complete is.
+//
+// It can be cancelled until the new binary is put in place, and not while it is: on Windows that is
+// two renames, and stopped between them, there is no gmd at all.
 class BinaryInstaller : IBinaryInstaller
 {
     // How long a download may go on with nothing coming before it is given up on. A release is some
@@ -55,19 +58,21 @@ class BinaryInstaller : IBinaryInstaller
         this.http = http;
     }
 
-    public async Task<Result> InstallAsync(ReleaseBinary binary, string targetPath)
+    public async Task<Result> InstallAsync(ReleaseBinary binary, string targetPath, CancellationToken cancel = default)
     {
         // With '.exe' on Windows, where a program is run by its name, as the check below runs it
         var stagedPath = $"{targetPath}{StagedInfix}{RandomString(5)}{(Build.IsWindows ? ".exe" : "")}";
         try
         {
-            if (await DownloadAsync(binary.Url, stagedPath, StallTimeout) is Error downloadError)
+            if (await DownloadAsync(binary.Url, stagedPath, StallTimeout, cancel) is Error downloadError)
             {
                 Log.Warn($"Failed to download new version {binary.Version}, {downloadError}");
                 return downloadError;
             }
 
-            if (await VerifyChecksumAsync(binary, stagedPath) is Error checksumError)
+            if (cancel.IsCancellationRequested)
+                return Cancelled(binary);
+            if (await VerifyChecksumAsync(binary, stagedPath, cancel) is Error checksumError)
             {
                 Log.Warn($"Failed to verify new version {binary.Version}, {checksumError}");
                 return checksumError;
@@ -79,12 +84,15 @@ class BinaryInstaller : IBinaryInstaller
                 return new Error("Failed to make the new version executable", modeError);
             }
 
-            if (await CheckRunsAsync(stagedPath, binary.Version) is Error runError)
+            if (await CheckRunsAsync(stagedPath, binary.Version, cancel) is Error runError)
             {
                 Log.Warn($"Failed to run new version {binary.Version}, {runError}");
                 return runError;
             }
 
+            // The last moment it can be cancelled, see above
+            if (cancel.IsCancellationRequested)
+                return Cancelled(binary);
             if (await InstallAsync(stagedPath, targetPath, Build.IsWindows, MoveRetryDelay) is Error installError)
             {
                 Log.Warn($"Failed to install new version {binary.Version}, {installError}");
@@ -99,6 +107,12 @@ class BinaryInstaller : IBinaryInstaller
             if (File.Exists(stagedPath) && Result.Catch(() => File.Delete(stagedPath)) is Error e)
                 Log.Warn($"Failed to delete {stagedPath}, {e}");
         }
+    }
+
+    static UpdateCancelledError Cancelled(ReleaseBinary binary)
+    {
+        Log.Info($"Cancelled the update to {binary.Version}");
+        return new UpdateCancelledError();
     }
 
     public void CleanUp(string targetPath) => CleanUp(targetPath, Path.GetTempPath(), DateTime.UtcNow, Build.IsWindows);
@@ -141,10 +155,16 @@ class BinaryInstaller : IBinaryInstaller
             Log.Info($"Failed to delete {path}, {e.Message}");
     }
 
-    // Streams the file at the url to a new file at the path, for as long as it keeps coming
-    internal async Task<Result> DownloadAsync(string url, string path, TimeSpan stallTimeout)
+    // Streams the file at the url to a new file at the path, for as long as it keeps coming, or until
+    // cancelled
+    internal async Task<Result> DownloadAsync(
+        string url,
+        string path,
+        TimeSpan stallTimeout,
+        CancellationToken cancel = default
+    )
     {
-        using var stalled = new CancellationTokenSource();
+        using var stalled = CancellationTokenSource.CreateLinkedTokenSource(cancel);
         try
         {
             Log.Info($"Downloading {url} ...");
@@ -153,10 +173,10 @@ class BinaryInstaller : IBinaryInstaller
             // The client's timeout, 100 seconds, is how long it may take to get the headers. It is not
             // a limit on reading what follows them, which reading the whole of it at once had been,
             // so a download slower than 100 MB in 100 seconds, about 8 Mbit/s, always failed.
-            using var response = await http.Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await http.Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancel);
             response.EnsureSuccessStatusCode();
 
-            await using var source = await response.Content.ReadAsStreamAsync();
+            await using var source = await response.Content.ReadAsStreamAsync(cancel);
             await using var target = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             var buffer = new byte[81920];
             long size = 0;
@@ -166,12 +186,17 @@ class BinaryInstaller : IBinaryInstaller
                 var count = await source.ReadAsync(buffer, stalled.Token);
                 if (count == 0)
                     break;
-                await target.WriteAsync(buffer.AsMemory(0, count));
+                await target.WriteAsync(buffer.AsMemory(0, count), cancel);
                 size += count;
             }
 
             Log.Info($"Downloaded {size} bytes to {path} {t}");
             return Result.Ok;
+        }
+        catch (OperationCanceledException) when (cancel.IsCancellationRequested)
+        {
+            Log.Info($"Cancelled the download of {url}");
+            return new UpdateCancelledError();
         }
         catch (OperationCanceledException e) when (stalled.IsCancellationRequested)
         {
@@ -188,7 +213,7 @@ class BinaryInstaller : IBinaryInstaller
     // The checksum of the download against the one CI made for the release, which install.sh checks
     // its download against too. A release from before the checksums were made has none, and the run
     // of the new binary is then the only check.
-    async Task<Result> VerifyChecksumAsync(ReleaseBinary binary, string path)
+    async Task<Result> VerifyChecksumAsync(ReleaseBinary binary, string path, CancellationToken cancel)
     {
         if (binary.ChecksumsUrl == "")
         {
@@ -196,7 +221,9 @@ class BinaryInstaller : IBinaryInstaller
             return Result.Ok;
         }
 
-        var sumsResult = await DownloadTextAsync(binary.ChecksumsUrl);
+        var sumsResult = await DownloadTextAsync(binary.ChecksumsUrl, cancel);
+        if (sumsResult is UpdateCancelledError cancelled)
+            return cancelled;
         if (sumsResult is not string sums)
             return new Error(
                 $"Failed to download the {ReleaseChoice.ChecksumsName} of the new version",
@@ -223,11 +250,15 @@ class BinaryInstaller : IBinaryInstaller
         return Result.Ok;
     }
 
-    async Task<Result<string>> DownloadTextAsync(string url)
+    async Task<Result<string>> DownloadTextAsync(string url, CancellationToken cancel)
     {
         try
         {
-            return await http.Client.GetStringAsync(url);
+            return await http.Client.GetStringAsync(url, cancel);
+        }
+        catch (OperationCanceledException) when (cancel.IsCancellationRequested)
+        {
+            return new UpdateCancelledError();
         }
         catch (Exception e) when (e.IsNotFatal())
         {
@@ -252,7 +283,7 @@ class BinaryInstaller : IBinaryInstaller
     // not as an askpass, which Cmd makes every program it starts be, so that the git it runs can ask
     // this gmd for a passphrase: as one, it would answer '--version' by asking this gmd to show a
     // login dialog. (On Windows the home folder is not HOME, but there the config file is there.)
-    internal async Task<Result> CheckRunsAsync(string path, Version version)
+    internal async Task<Result> CheckRunsAsync(string path, Version version, CancellationToken cancel = default)
     {
         var homeResult = Result.Catch(() => Directory.CreateTempSubdirectory("gmd-update-").FullName);
         if (homeResult is not string home)
@@ -261,8 +292,12 @@ class BinaryInstaller : IBinaryInstaller
         {
             var environment = new Dictionary<string, string> { ["HOME"] = home, [Askpass.Variable] = "" };
             var run = cmd.RunAsync(path, "--version", home, environment: environment);
-            if (await Task.WhenAny(run, Task.Delay(RunTimeout)) != run)
+            if (await Task.WhenAny(run, Task.Delay(RunTimeout, cancel)) != run)
+            {
+                if (cancel.IsCancellationRequested)
+                    return new UpdateCancelledError();
                 return new Error($"The new version did not say its version within {RunTimeout.TotalSeconds:0} seconds");
+            }
 
             var runResult = await run;
             if (runResult is not string output)

@@ -627,8 +627,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
     binary to check it, named `<binary>.update_<random>.exe` for that, and renaming it right after
     it ran, which the retries are for. Try an updater change through two dev previews, with a real
     update on Linux, macOS and Windows, before it goes to `main`.
-  - The update dialog shows "Updating ..." with no progress for the minutes a slow download takes,
-    and cannot be cancelled; the download itself could report its progress.
+  - The update dialog shows "Updating ..." with no progress for the minutes a slow download takes;
+    the download itself could report its progress. *Done 2026-10-14:* it can be cancelled, Cancel
+    or Esc, asked first with Continue the default (`UpdateDlg.IsCancelConfirmed`), which stops the
+    install (`BinaryInstaller`, a token through the download, the checksum and the run of the new
+    binary) up to the moment the new binary is put in place, never during it, since on Windows that
+    is two renames. Seen in a harness only: a dev build is never offered an update.
   - The release list is the first page of `/releases`, 30 by creation date, which holds the latest
     stable release only while fewer than about 25 previews are kept after it (five are).
   - On Windows the run of the new binary to check it cannot be given a home folder of its own
