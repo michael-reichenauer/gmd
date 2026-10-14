@@ -5,8 +5,8 @@ using gmdTest.Fixtures;
 
 namespace gmdTest.Server.Private.Augmented.Private;
 
-// Amend and Drop of an older commit over a real repository: git's own --autosquash and rebase do the
-// rewrite, so what git then has is asserted, and that Undo takes each back as one change.
+// Amend and Drop of an older commit, and Squash, over a real repository: git's own --autosquash and
+// rebase do the rewrite, so what git then has is asserted, and that Undo takes each back as one change.
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
 // wanted:  scripts/test --filter "TestCategory!=Integration"
@@ -153,5 +153,50 @@ public class CommitRewriteIntegrationTest
 
         Assert.IsTrue(ConflictError.IsIn(error), error.AllMessages());
         StringAssert.Contains(await repo.GitAsync("status"), "rebase in progress");
+    }
+
+    // A merge among the commits on top of the squashed ones is kept: they were cherry-picked back one
+    // by one, and cherry-pick refused the merge, which stopped the squash with the branch already reset
+    [TestMethod]
+    public async Task TestSquashKeepsAMergeOnTop()
+    {
+        await repo.GitAsync("checkout -q -b side");
+        await repo.CommitFileAsync("s.txt", "s\n", "Side work");
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAsync("d.txt", "d\n", "On top");
+        await repo.GitAsync("merge --no-ff -q -m \"Merge side\" side");
+        var tip = await repo.HeadIdAsync();
+        var augmented = AssertOk(await ReadAsync());
+
+        AssertOk(await rewrite.SquashCommitsAsync(augmented, c3, c2, "Squashed"));
+
+        Assert.AreEqual(
+            "Merge side\nOn top\nSquashed\nInitial",
+            (await repo.GitAsync("log --format=%s --first-parent")).Trim()
+        );
+        Assert.AreEqual(3, (await repo.GitAsync("rev-list --parents -1 HEAD")).Trim().Split(' ').Length, "A merge");
+        Assert.AreEqual("", await repo.GitAsync($"diff {tip} HEAD"), "The same files");
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+    }
+
+    // The squash is the files of the newest commit on the parent of the oldest, with the message
+    // given, and the commits on top keep their files and authors
+    [TestMethod]
+    public async Task TestSquashKeepsTheFilesAndTheCommitsOnTop()
+    {
+        repo.WriteFile("d.txt", "d\n");
+        await repo.GitAsync("add d.txt");
+        await repo.GitAsync("commit -q --author=\"Ann Other <ann@example.com>\" -m \"On top\"");
+        var tip = await repo.HeadIdAsync();
+        var augmented = AssertOk(await ReadAsync());
+
+        AssertOk(await rewrite.SquashCommitsAsync(augmented, c3, c2, "Squashed\n\nSecond and third"));
+
+        Assert.AreEqual("On top\nSquashed\nInitial", await LogAsync());
+        Assert.AreEqual("Squashed\n\nSecond and third", (await repo.GitAsync("log --format=%B -1 HEAD~1")).Trim());
+        Assert.AreEqual("", await repo.GitAsync($"diff {c3} HEAD~1"), "The squash has the third commit's files");
+        Assert.AreEqual("", await repo.GitAsync($"diff {tip} HEAD"));
+        Assert.AreEqual("Ann Other", (await repo.GitAsync("log --format=%an -1")).Trim());
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
     }
 }

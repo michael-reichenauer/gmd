@@ -360,6 +360,12 @@ class FakeGit : IGit
 
     public Task<Result> DropCommitAsync(string id, string wd) => throw new NotSupportedException();
 
+    public Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
         throw new NotSupportedException();
 
@@ -395,8 +401,6 @@ class FakeGit : IGit
         throw new NotSupportedException();
 
     public Task<Result> DeleteRemoteTagAsync(string name, string wd) => throw new NotSupportedException();
-
-    public Task<Result> ResetHardUntilCommitAsync(string id, string wd) => throw new NotSupportedException();
 
     public Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd) =>
         throw new NotSupportedException();

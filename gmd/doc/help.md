@@ -432,7 +432,9 @@ throw changes away for good ask first.
   takes it back.
 - **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
-  squash them into one commit with a new message.
+  squash them into one commit with a new message. The commits after them
+  are put back on top as they were, merges and authors too, and **Undo**
+  takes the squash back. Nothing changes until the squash is made.
 - **Tags** (in the commit menu's **Tag** menu):
   **Add Tag ...** (`t`) puts a tag on the commit, and pushes it to origin
   unless its box is unticked. **Tags ...** lists every tag, newest commit

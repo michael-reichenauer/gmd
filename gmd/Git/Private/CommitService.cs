@@ -10,11 +10,12 @@ interface ICommitService
     Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
     Task<Result> AutosquashAsync(string baseId, string wd);
     Task<Result> DropCommitAsync(string id, string wd);
+    Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd);
+    Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
-    Task<Result> ResetHardUntilCommitAsync(string id, string wd);
     Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd);
 }
 
@@ -185,6 +186,26 @@ class CommitService : ICommitService
             "The drop stopped on conflicts"
         );
 
+    // A new commit with the files of a commit on the given parent, made without moving a branch or
+    // touching the index or the working tree, e.g. the commits from that parent up to that commit
+    // made one; its id. No hook runs, as for the commits a rebase replays.
+    public async Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd)
+    {
+        var args = $"commit-tree {filesOfId}^{{tree}} -p {parentId} -m {Cmd.Quote(message)}";
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
+        return output.Trim();
+    }
+
+    // Moves the commits of the current branch after 'upstream' onto 'onto', keeping the merges among
+    // them, which a plain rebase leaves out, putting the commits they merged in on the line instead
+    public async Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
+        ConflictError.ToConflict(
+            await cmd.RunAsync("git", $"rebase --rebase-merges --onto {onto} {upstream}", wd),
+            "The rebase stopped on conflicts"
+        );
+
     // The branches, remote branches and tags that have the commit, i.e. are on it or after it, as
     // full ref names, e.g. 'refs/heads/main', 'refs/remotes/origin/main' and 'refs/tags/v1'
     public async Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd)
@@ -210,9 +231,6 @@ class CommitService : ICommitService
 
     public async Task<Result> UncommitUntilCommitAsync(string id, string wd) =>
         await cmd.RunAsync("git", $"reset --soft {id}", wd);
-
-    public async Task<Result> ResetHardUntilCommitAsync(string id, string wd) =>
-        await cmd.RunAsync("git", $"reset --hard {id}", wd);
 
     // Moves the current branch back to where it was, as Undo does: '--keep' moves the files too,
     // and refuses rather than overwrite a file with uncommitted changes, while '--mixed' leaves the

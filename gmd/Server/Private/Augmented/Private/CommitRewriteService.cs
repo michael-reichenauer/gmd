@@ -36,17 +36,15 @@ class CommitRewriteService : ICommitRewriteService
         // is git's own, not the uncommitted row.
         var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote);
 
-        // The commits on top of the squashed ones, to be picked back onto the squash, walked from
-        // the local branch's tip. Not from the tip of the branch the commits are on: commits
-        // already pushed are on the remote branch, whose tip is below the local one's when there
-        // are commits on top not pushed yet, and those were squashed in with the others. A commit
-        // that is not on the local branch's line, e.g. one only origin has when the two have
-        // diverged, is refused before anything is changed, rather than the branch reset onto it.
-        var preCommits = new List<Commit>();
+        // The commits are on the local branch's line, walked down from its tip, and the ones above
+        // them are the ones put back on the squash. Not walked from the tip of the branch the commits
+        // are on: commits already pushed are on the remote branch, whose tip is below the local one's
+        // when there are commits on top not pushed yet, and those were squashed in with the others. A
+        // commit that is not on the local branch's line, e.g. one only origin has when the two have
+        // diverged, is refused before anything is changed, rather than the branch moved onto it.
         var c = repo.CommitById[local?.TipId ?? branch.TipId];
         while (c.Id != c1.Id)
         {
-            preCommits.Add(c);
             if (c.ParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.ParentIds[0], out var parent))
                 return new Error(
                     $"Only commits on the current branch can be squashed, and {c1.Sid} is not on "
@@ -55,36 +53,19 @@ class CommitRewriteService : ICommitRewriteService
             c = parent;
         }
 
-        // Create a backup branch (in case of errors)
-        var tmpName = $"squash-backup-{Guid.NewGuid().ToString()[..6]}";
-        if (await git.CreateBranchAsync(tmpName, false, repo.Path) is Error backupError)
-            return new Error("Failed to create backup branch", backupError);
+        // The squash is a commit with the files of the newest of the commits on the parent of the
+        // oldest, made without moving anything, onto which the commits on top of them are then moved,
+        // the one move of the branch. They were made on those very files, so they cannot conflict,
+        // and nothing has changed until the branch moves. The branch used to be reset first and the
+        // commits on top cherry-picked back one by one, so a failure among them left it half done,
+        // with a backup branch, and a merge among them stopped it, cherry-pick refusing a merge.
+        var squashResult = await git.CommitTreeAsync(id1, c2.ParentIds[0], message, repo.Path);
+        if (squashResult is not string squashId)
+            return new Error("Failed to squash commits", squashResult.Error);
+        if (await git.RebaseOntoKeepingMergesAsync(squashId, id1, repo.Path) is Error rebaseError)
+            return new Error("Failed to put the commits on top back on the squash", rebaseError);
 
-        // Remove all prefix commits on current branch until the first commit to squash
-        if (preCommits.Any())
-        {
-            if (await git.ResetHardUntilCommitAsync(id1, repo.Path) is Error resetError)
-                return new Error("Failed to prepare for squash", resetError);
-        }
-
-        // Squash commits and commit
-        if (await git.UncommitUntilCommitAsync(c2.ParentIds[0], repo.Path) is Error uncommitError)
-            return new Error("Failed to squash commits", uncommitError);
-        if (await git.CommitAllChangesAsync(message, false, repo.Path) is Error commitError)
-            return new Error("Failed to commit squashed commits", commitError);
-
-        // Cherry pick prefix commits back to current branch
-        foreach (var commit in preCommits.AsEnumerable().Reverse())
-        {
-            if (await git.CherryPickAsync(commit.Id, repo.Path) is Error pickError)
-                return new Error($"Failed to cherry pick {commit.Sid}", pickError);
-            if (await git.CommitAllChangesAsync(commit.Message, false, repo.Path) is Error pickCommitError)
-                return new Error($"Failed to commit cherry pick {commit.Sid}", pickCommitError);
-        }
-
-        // The squash is several moves of the branch, one entry each in its reflog: the reset of
-        // the newer commits, if any, the reset of the squashed ones, their commit and the commit of
-        // each newer one picked back. Recorded as one change, so that Undo takes it back whole.
+        // One move of the branch, the rebase, recorded as the squash, so that Undo names it
         if (local != null)
         {
             UndoService.Record(
@@ -96,14 +77,10 @@ class CommitRewriteService : ICommitRewriteService
                     Kind = nameof(StepKind.Squash),
                     Name = message.Split('\n')[0].Trim(),
                     BeforeId = local.TipId,
-                    Moves = (preCommits.Any() ? 1 : 0) + 2 + preCommits.Count,
+                    Moves = 1,
                 }
             );
         }
-
-        // Remove temp backup branch
-        if (await git.DeleteLocalBranchAsync(tmpName, true, repo.Path) is Error deleteError)
-            return new Error("Failed to delete backup branch", deleteError);
 
         return Result.Ok;
     }

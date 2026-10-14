@@ -128,6 +128,12 @@ interface IGit
     // Takes a commit out of the current branch, replaying the newer ones onto its parent
     Task<Result> DropCommitAsync(string id, string wd);
 
+    // A new commit with the files of commit 'filesOfId' on 'parentId', moving no branch, and its id
+    Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd);
+
+    // Moves the commits of the current branch after 'upstream' onto 'onto', keeping their merges
+    Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
+
     // The branches, remote branches and tags on the commit or after it, as full ref names
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
@@ -152,7 +158,6 @@ interface IGit
     // The tags origin had at the last fetch, or that gmd pushed since, as name -> object id
     Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd);
     Task<Result> DeleteRemoteTagAsync(string name, string wd);
-    Task<Result> ResetHardUntilCommitAsync(string id, string wd);
 
     // Moves the current branch from one commit to another, with the files (keep) or without them
     // (mixed), refused if it has moved or is no longer checked out

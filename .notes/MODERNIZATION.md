@@ -505,14 +505,17 @@ Add new open issues and findings here as work lands; keep them short and drop th
   hardware (the platform checklist in `docs/CONTRIBUTING.md` has it, with the rest that only Windows and
   macOS show). Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
-- Squash still resets the branch and cherry-picks the newer commits back one by one
-  (`AugmentedService.SquashCommits`), so a conflict stops it half done: the branch already reset, a
-  cherry-pick stopped, and its `squash-backup-…` branch left behind. Amend and Drop of an older
-  commit are git's own rebase instead (`AutosquashAsync`, `DropCommitAsync`), which a conflict stops
-  cleanly for the resolver and Continue or Abort; Squash could be the same, as `fixup!` commits and
-  `--autosquash`, with the message given to the first. The rewrites that are rebases recorded for
-  Undo only when they finish in one go: one stopped on a conflict and continued is named by the
-  reflog, i.e. Undo Rebase, which leaves an Amend's `amend!` commit, a second Undo.
+- *Done 2026-10-14:* Squash reset the branch and cherry-picked the newer commits back one by one,
+  so a failure stopped it half done, with a `squash-backup-…` branch left behind; a merge among the
+  newer commits always did, cherry-pick refusing a merge; and the newer commits were committed again
+  as the user, losing their authors and dates. The squash is `git commit-tree` now, the files of the
+  newest commit on the parent of the oldest, moving nothing, and a `rebase --rebase-merges` of the
+  newer commits onto it, which cannot conflict, being made on the very files they were made on, and
+  is the one move of the branch. No hook runs for the squashed commit, as for the commits a rebase
+  replays, where `git commit` ran `commit-msg` for it (a Gerrit Change-Id is then not added).
+- The rewrites that are rebases are recorded for Undo only when they finish in one go: one stopped
+  on a conflict and continued is named by the reflog, i.e. Undo Rebase, which leaves an Amend's
+  `amend!` commit, a second Undo.
 
 - Left by the review of `gmd/Git` (2026-10-13):
   - A hunk is read by the prefix of its lines rather than by the counts in its header, so with

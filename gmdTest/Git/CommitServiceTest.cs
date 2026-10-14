@@ -292,17 +292,32 @@ public class CommitServiceTest
         Assert.AreEqual("revert -m 1 --no-commit abc123", cmd.Calls[1].Args);
     }
 
-    // Uncommit keeps the changes, reset hard throws them away
+    // Uncommit keeps the changes
     [TestMethod]
-    public async Task TestUncommitAndReset()
+    public async Task TestUncommit()
     {
         var cmd = new FakeCmd("");
         var service = new CommitService(cmd);
 
         await service.UncommitLastCommitAsync(wd);
         await service.UncommitUntilCommitAsync("abc123", wd);
-        await service.ResetHardUntilCommitAsync("abc123", wd);
 
-        CollectionAssert.AreEqual(new[] { "reset HEAD~1", "reset --soft abc123", "reset --hard abc123" }, ArgsOf(cmd));
+        CollectionAssert.AreEqual(new[] { "reset HEAD~1", "reset --soft abc123" }, ArgsOf(cmd));
+    }
+
+    // A squash is a commit made of a commit's files and another parent, moving no branch, and a
+    // rebase of the commits on top onto it, which keeps their merges
+    [TestMethod]
+    public async Task TestCommitTreeAndRebaseOntoKeepingMerges()
+    {
+        var cmd = new FakeCmd("1234abcd\n");
+        var service = new CommitService(cmd);
+
+        Assert.AreEqual("1234abcd", AssertOk(await service.CommitTreeAsync("c3", "c1", "Squashed \"two\"", wd)));
+        AssertOk(await service.RebaseOntoKeepingMergesAsync("1234abcd", "c3", wd));
+
+        StringAssert.StartsWith(ArgsOf(cmd)[0], "commit-tree c3^{tree} -p c1 -m ");
+        StringAssert.Contains(ArgsOf(cmd)[0], "Squashed");
+        Assert.AreEqual("rebase --rebase-merges --onto 1234abcd c3", ArgsOf(cmd)[1]);
     }
 }
