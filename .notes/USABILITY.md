@@ -193,6 +193,7 @@ Both are reworked, see proposal D.1.
   with no `✦`, `Ϙ` or `ß`, and 80 columns (the worktrees dialog needs about that).
 - **Can people install it the way they install everything else?** There is the install script and
   the Windows installer, but no Homebrew, Scoop, winget or AUR package, and no build for Intel Macs.
+  *Homebrew since 1.7 (2026-10-14), see proposal 24.*
 - **What happens when gmd crashes?** It logs the exception and exits without a word
   (`ExceptionHandling.cs:60-110`, where the dialog for it is commented out). The About box has no
   link to the project, and nothing says how to report a problem or where the log is.
