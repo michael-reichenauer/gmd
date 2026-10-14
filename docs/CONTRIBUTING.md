@@ -207,8 +207,9 @@ x64 and arm64, and runs `devcontainer-feature/test/gmd/test.sh` in each. From `m
 publishes the feature, at the version in `devcontainer-feature.json`, so a change of the feature is
 published only with a new version there.
 
-The package is private when it is first published. Make it public once: on GitHub, *Packages* →
-*gmd/gmd* → *Package settings* → *Change visibility* → *Public*.
+The package is linked to this repository, whose workflow published it, so it is public as the
+repository is: no step by hand is needed, and anyone can fetch it with no login (checked when 1.8
+first published it).
 
 To try a change before it is pushed, with Docker:
 

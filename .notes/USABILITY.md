@@ -428,7 +428,7 @@ Reach:
   `%LOCALAPPDATA%\Programs\gmd` and the user's PATH, and the README leads with it on Windows; tried
   on Linux PowerShell as far as it goes there (the download, the checksum, the replace), untried on
   Windows. *Dev container feature on dev (2026-10-14):* `ghcr.io/michael-reichenauer/gmd/gmd:1`,
-  tested by CI in containers and published from main; its package is to be made public once.
+  tested by CI in containers and published from main, in 1.8, public with no step by hand.
   *winget on dev (2026-10-14):* a gmd installed by winget leaves updating to it, and the release
   workflow proposes each release with Komac; the package's first version, submitted by hand, waits
   for a release with that, and the README's line for it waits for the package.

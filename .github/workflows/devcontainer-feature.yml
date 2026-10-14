@@ -39,8 +39,8 @@ jobs:
           devcontainer features test --project-folder devcontainer-feature --features gmd --base-image "${{ matrix.image }}"
 
   # Publishes the version in devcontainer-feature.json, and the tags its major and minor make, so a
-  # change of the feature is published only with a new version there. A package is private when it
-  # is first published; it is made public by hand once (docs/CONTRIBUTING.md).
+  # change of the feature is published only with a new version there. The package is linked to this
+  # repository, which published it, so it is public as the repository is.
   publish:
     if: github.ref == 'refs/heads/main'
     needs: test
