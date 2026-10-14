@@ -329,6 +329,71 @@ static class E2eRepo
         return repo;
     }
 
+    // A merge stopped on two conflicts whose sides are uneven: at line 20, both sides made six lines
+    // one, so the common ancestor is taller than either side, and at line 60, main made one line
+    // twelve, a result taller than the resolver's result pane
+    public static async Task<TempRepo> CreateWithUnevenConflictsAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", Text(lines), "Add long file", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        var dev = lines.ToList();
+        dev[59] = "line 60 on dev";
+        dev[19] = "lines 20 to 25 on dev";
+        dev.RemoveRange(20, 5);
+        await repo.CommitFileAtAsync("long.txt", Text(dev), "Change it on dev", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        var main = lines.ToList();
+        main.RemoveAt(59);
+        main.InsertRange(59, Enumerable.Range(1, 12).Select(k => $"line 60 on main, {k} of 12"));
+        main[19] = "lines 20 to 25 on main";
+        main.RemoveRange(20, 5);
+        await repo.CommitFileAtAsync("long.txt", Text(main), "Change it on main", t.AddMinutes(2));
+
+        await repo.GitAllowFailAsync("merge dev");
+
+        return repo;
+
+        static string Text(List<string> lines) => string.Join("\n", lines) + "\n";
+    }
+
+    // A rebase of dev onto main that stopped on the first of dev's two commits, whose conflict is
+    // resolved and staged, and that stops again on the second one's once it is continued
+    public static async Task<TempRepo> CreateWithRebaseResolvedOnceAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        var lines = Enumerable.Range(1, 80).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", Text(lines), "Add long file", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        lines[19] = "line 20 on dev";
+        await repo.CommitFileAtAsync("long.txt", Text(lines), "Change line 20 on dev", t.AddMinutes(1));
+        lines[59] = "line 60 on dev";
+        await repo.CommitFileAtAsync("long.txt", Text(lines), "Change line 60 on dev", t.AddMinutes(2));
+
+        await repo.GitAsync("checkout -q main");
+        lines[19] = "line 20 on main";
+        lines[59] = "line 60 on main";
+        await repo.CommitFileAtAsync("long.txt", Text(lines), "Change both on main", t.AddMinutes(3));
+
+        await repo.GitAsync("checkout -q dev");
+        await repo.GitAllowFailAsync("rebase main");
+        lines[19] = "line 20 resolved";
+        repo.WriteFile("long.txt", Text(lines));
+        await repo.GitAsync("add long.txt");
+
+        return repo;
+
+        static string Text(List<string> lines) => string.Join("\n", lines) + "\n";
+    }
+
     // Plain commits on a branch that is fully pushed, for squashing them together. Everything is
     // pushed on purpose: a commit belongs to the remote branch once it is on it, and squash refuses
     // a commit whose branch is not IsLocalCurrent — a flag only a remote branch ever carries.

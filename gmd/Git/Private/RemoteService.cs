@@ -12,7 +12,6 @@ interface IRemoteService
     Task<Result> PullBranchAsync(string name, string wd);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
     Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
-    Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> PushTagAsync(string name, string wd);
     Task<Result> DeleteRemoteTagAsync(string name, string wd);
@@ -20,8 +19,8 @@ interface IRemoteService
 
 class RemoteService : IRemoteService
 {
-    private readonly ICmd cmd;
-    private readonly ITagService tagService;
+    readonly ICmd cmd;
+    readonly ITagService tagService;
 
     public RemoteService(ICmd cmd, ITagService tagService)
     {
@@ -111,10 +110,8 @@ class RemoteService : IRemoteService
 
     public async Task<Result> PullCurrentBranchAsync(string wd)
     {
-        var args = $"pull";
-        // var args = $"pull --ff --no-rebase";
         return LoginError.ToLogin(
-            ConflictError.ToConflict(await cmd.RunAsync("git", args, wd), "The pull stopped on conflicts")
+            ConflictError.ToConflict(await cmd.RunAsync("git", "pull", wd), "The pull stopped on conflicts")
         );
     }
 
@@ -176,17 +173,9 @@ class RemoteService : IRemoteService
         return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
-    public async Task<Result> PullRefAsync(string name, string wd)
-    {
-        name = TrimRemotePrefix(name);
-        string refs = $"{name}:{name}";
-        var args = $"fetch origin {refs}";
-        return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
-    }
-
     public async Task<Result> CloneAsync(string uri, string path, string wd)
     {
-        var args = $"clone {uri} \"{path}\"";
+        var args = $"clone {Cmd.Quote(uri)} {Cmd.Quote(path)}";
         return LoginError.ToLogin(await cmd.RunAsync("git", args, wd));
     }
 
@@ -202,7 +191,7 @@ class RemoteService : IRemoteService
 
     // Deletes a tag on the remote. gmd's record of the remote's tags keeps it until the next fetch,
     // which then sees it gone, as it would a tag someone else deleted, and prunes the local tag of the
-    // name, which gmd has removed first anyway (AugmentedService.RemoveTagAsync).
+    // name, which gmd has removed first anyway (Server.RemoveTagAsync).
     public async Task<Result> DeleteRemoteTagAsync(string name, string wd)
     {
         return LoginError.ToLogin(await cmd.RunAsync("git", $"push --porcelain origin --delete refs/tags/{name}", wd));

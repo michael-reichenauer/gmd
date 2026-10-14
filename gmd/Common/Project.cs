@@ -11,6 +11,13 @@ static class Project
 
     public const string HelpFile = "gmd/doc/help.md";
 
+    // What changed in every release, newest first, which CI writes from main's history at a release
+    public const string ChangeLogUrl = Url + "/blob/main/CHANGELOG.md";
+
+    // The page of a release, with its notes: for a preview, what is new on dev since the last release,
+    // which the change log does not have until the next release
+    public static string ReleaseUrl(string version) => $"{Url}/releases/tag/v{version}";
+
     // The help as GitHub shows it, at the section of that name ('## <section>' in help.md) or at the
     // top. It is the file at the commit gmd was built from, so it tells of the keys and commands this
     // version has, whichever release or preview it is, and is on main for a build that is not CI's,

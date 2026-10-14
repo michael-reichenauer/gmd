@@ -3,26 +3,28 @@ using System.Runtime.CompilerServices;
 
 namespace gmd.Utils;
 
-// Measure time and log it.
+// Measures the time since it was started, for the log: '{t}' in a message is the time so far, and
+// disposing it logs how long the block it was started for took.
+//
+//   var t = Timing.Start();
+//   ...
+//   Log.Info($"Read the repo {t}");
+//
+//   using (Timing.Start("Pushed")) { ... }
 public class Timing : IDisposable
 {
-    readonly Stopwatch stopwatch;
+    readonly Stopwatch stopwatch = Stopwatch.StartNew();
     readonly string msg;
-    readonly string msgMember;
-    readonly string msgSourceFilePath;
-    readonly int msgSourceLineNumber;
+    readonly string memberName;
+    readonly string sourceFilePath;
+    readonly int sourceLineNumber;
 
-    TimeSpan lastTimeSpan = TimeSpan.Zero;
-    int count = 0;
-
-    private Timing(string msg, string memberName, string sourceFilePath, int sourceLineNumber)
+    Timing(string msg, string memberName, string sourceFilePath, int sourceLineNumber)
     {
-        stopwatch = new Stopwatch();
-        stopwatch.Start();
         this.msg = msg;
-        this.msgMember = memberName;
-        this.msgSourceFilePath = sourceFilePath;
-        this.msgSourceLineNumber = sourceLineNumber;
+        this.memberName = memberName;
+        this.sourceFilePath = sourceFilePath;
+        this.sourceLineNumber = sourceLineNumber;
     }
 
     public static Timing Start(
@@ -30,73 +32,16 @@ public class Timing : IDisposable
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
-    ) => new Timing(msg, memberName, sourceFilePath, sourceLineNumber);
+    ) => new(msg, memberName, sourceFilePath, sourceLineNumber);
 
-    public void Dispose()
-    {
-        var text = msg != "" ? $"{msg} {ToString()}" : $"{msgMember} {ToString()}";
-        Utils.Logging.Log.Info(text, msgMember, msgSourceFilePath, msgSourceLineNumber);
-    }
+    // Logged under the message it was started with, or else the name of the member that started it
+    public void Dispose() =>
+        Log.Info($"{(msg != "" ? msg : memberName)} {this}", memberName, sourceFilePath, sourceLineNumber);
 
-    public TimeSpan Stop()
-    {
-        stopwatch.Stop();
-        return stopwatch.Elapsed;
-    }
+    public override string ToString() => $"({Text(stopwatch.Elapsed)})";
 
-    public TimeSpan Elapsed
-    {
-        get
-        {
-            lastTimeSpan = stopwatch.Elapsed;
-            return lastTimeSpan;
-        }
-    }
-
-    public long ElapsedMs => (long)Elapsed.TotalMilliseconds;
-
-    public string ElapsedText =>
-        ElapsedMs < 1000 ? $"{ElapsedMs}ms"
-        : ElapsedMs < 60 * 1000 ? $"{Elapsed.Seconds}s, {Elapsed.Milliseconds}ms"
-        : $"{Elapsed.Hours}:{Elapsed.Minutes}:{Elapsed.Seconds}:{Elapsed.Milliseconds}";
-
-    public TimeSpan Diff
-    {
-        get
-        {
-            TimeSpan previous = lastTimeSpan;
-            return Elapsed - previous;
-        }
-    }
-
-    public long DiffMs => (long)Diff.TotalMilliseconds;
-
-    public void Log(
-        string message,
-        StopParameter stopParameter = default(StopParameter),
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0
-    )
-    {
-        count++;
-
-        Utils.Logging.Log.Info($"{count}: {message}: {this}", memberName, sourceFilePath, sourceLineNumber);
-    }
-
-    public void Log(
-        StopParameter stopParameter = default(StopParameter),
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0
-    )
-    {
-        count++;
-
-        Utils.Logging.Log.Info($"At {count}: {this}", memberName, sourceFilePath, sourceLineNumber);
-    }
-
-    public override string ToString() => count == 0 ? $"({ElapsedText})" : $"{DiffMs}ms ({ElapsedText})";
-
-    public struct StopParameter { }
+    internal static string Text(TimeSpan elapsed) =>
+        elapsed.TotalMilliseconds < 1000 ? $"{(long)elapsed.TotalMilliseconds}ms"
+        : elapsed.TotalMilliseconds < 60 * 1000 ? $"{elapsed.Seconds}s, {elapsed.Milliseconds}ms"
+        : $"{elapsed.Hours}:{elapsed.Minutes}:{elapsed.Seconds}:{elapsed.Milliseconds}";
 }

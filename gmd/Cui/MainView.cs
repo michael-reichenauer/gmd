@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
+using gmd.Cui.Login;
 using gmd.Cui.RepoView;
 using gmd.Cui.Start;
 using gmd.Git;
@@ -13,12 +14,11 @@ interface IMainView
     View View { get; }
 }
 
-partial class MainView : IMainView
+class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IStartView startView;
     readonly IGit git;
-    readonly Config config;
     readonly ISpellChecker spellChecker;
     readonly IAskpassServer askpassServer;
     readonly ILoginDlg loginDlg;
@@ -31,19 +31,16 @@ partial class MainView : IMainView
         IRepoView repoView,
         IStartView startView,
         IGit git,
-        Config config,
         ISpellChecker spellChecker,
         IStatusLine statusLine,
         IAskpassServer askpassServer,
         ILoginDlg loginDlg
     )
-        : base()
     {
         Menu.StatusLine = statusLine;
         this.repoView = repoView;
         this.startView = startView;
         this.git = git;
-        this.config = config;
         this.spellChecker = spellChecker;
         this.askpassServer = askpassServer;
         this.loginDlg = loginDlg;
@@ -99,8 +96,7 @@ partial class MainView : IMainView
     void OnReady()
     {
         Threading.SetUp();
-        config.Init();
-        spellChecker.WarmUp(); // Loads the dictionary, with the user's words from the config just read
+        spellChecker.WarmUp(); // Loads the dictionary, with the user's words from the config
 
         // From now on what git asks is asked in a dialog, before the first fetch of a repo is started
         askpassServer.Start(loginDlg.AskAsync);
@@ -121,18 +117,17 @@ partial class MainView : IMainView
 
     // The folder given with '-d', or the current one. A folder that is not there is said, and the
     // current one is used instead, while one that is there but is no repository needs no box: the
-    // start page says so.
+    // start page says so. Read as the other options are, so '-d -m' is no folder named '-m'.
     static string GetStartFolder()
     {
-        var args = Environment.GetCommandLineArgs();
-        int i = args.ToList().FindIndex(n => n == "-d");
-        if (i == -1 || args.Length < i + 2 || args[i + 1] == "")
+        var folder = ProgramCommands.OptionValue(Environment.GetCommandLineArgs(), "-d");
+        if (string.IsNullOrEmpty(folder))
             return Environment.CurrentDirectory;
 
-        var path = Result.Catch(() => Path.GetFullPath(args[i + 1])) is string full ? full : args[i + 1];
+        var path = Result.Catch(() => Path.GetFullPath(folder)) is string full ? full : folder;
         if (!Directory.Exists(path))
         {
-            UI.ErrorMessage($"Not a valid working folder:\n'{args[i + 1]}'");
+            UI.ErrorMessage($"Not a valid working folder:\n'{folder}'");
             return Environment.CurrentDirectory;
         }
 

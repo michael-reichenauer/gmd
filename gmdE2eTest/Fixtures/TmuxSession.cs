@@ -267,6 +267,19 @@ sealed class TmuxSession : IDisposable
         SendText($"\u001b[<{button};{x + 1};{y + 1}m");
     }
 
+    // Drags the left button from a cell to another, given as for Click: a press, a move with the
+    // button held, which a terminal sends as button 32, and a release
+    public void Drag(int x1, int y1, int x2, int y2)
+    {
+        SendText($"\u001b[<0;{x1 + 1};{y1 + 1}M");
+        SendText($"\u001b[<32;{x2 + 1};{y2 + 1}M");
+        SendText($"\u001b[<0;{x2 + 1};{y2 + 1}m");
+    }
+
+    // Turns the mouse wheel a notch over a cell, given as for Click, down for a step of 1 and up for
+    // -1: a terminal sends it as a press of button 65 or 64, with no release
+    public void Wheel(int x, int y, int step) => SendText($"\u001b[<{(step > 0 ? 65 : 64)};{x + 1};{y + 1}M");
+
     // Where a text first is on the screen, 0-based, for clicking it. Every rune gmd draws is one cell
     // wide, so the index in the row is the column.
     public static (int X, int Y) PositionOf(string screen, string text)

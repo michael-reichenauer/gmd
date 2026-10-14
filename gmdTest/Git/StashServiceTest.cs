@@ -6,8 +6,9 @@ namespace gmdTest.Git;
 [TestClass]
 public class StashServiceTest
 {
-    // Output of: git stash list -z --pretty="%H|%ai|%ci|%an|%P|%gd:%B", records NUL separated.
-    // A stash commit has two parents, or three when untracked files were stashed too (-u). The
+    // Output of: git stash list -z --pretty=%H%x1f%ai%x1f%ci%x1f%an%x1f%P%x1f%gd:%B, records NUL
+    // separated, and the fields by the ASCII unit separator, written '|' here and swapped in by
+    // ListAsync, since a control character in the source is invisible. A stash commit has two parents, or three when untracked files were stashed too (-u). The
     // subject is '<stash ref>:<git's own message>', where git's message is either
     // 'WIP on <branch>: <sha> <subject>' or 'On <branch>: <the message the user gave>'.
     const string StashListOutput =
@@ -18,11 +19,11 @@ public class StashServiceTest
         + "134e1960d41fc44fb5ffffde38c2273f5e9910fc eba19185b85912777802e8a8575c41ed25e221d8"
         + "|stash@{1}:On main: First stash\x00";
 
-    static StashService NewService(ICmd cmd) => new StashService(cmd, new LogService(cmd), new DiffService(cmd));
+    static StashService NewService(ICmd cmd) => new StashService(cmd, new LogService(cmd));
 
     static async Task<IReadOnlyList<gmd.Git.Stash>> ListAsync(string output)
     {
-        var result = await NewService(new FakeCmd(output)).ListAsync("/wd");
+        var result = await NewService(new FakeCmd(output.Replace('|', LogService.FieldSeparator))).ListAsync("/wd");
         var stashes = AssertOk(result);
         return stashes;
     }
@@ -66,10 +67,10 @@ public class StashServiceTest
         Assert.AreEqual("First stash", stashes[1].Message);
     }
 
-    // The subject is split on ':' and only the third part is used, so a stash message containing a
-    // colon is cut short. A branch name cannot contain one, so only the message is affected.
+    // A message is kept whole with colons of its own, which it used to be cut short at, since the
+    // subject was split at every ':'. A branch name cannot have one.
     [TestMethod]
-    public async Task TestParseStashMessageWithColonIsTruncated()
+    public async Task TestParseStashMessageWithColons()
     {
         var output =
             "1111111111111111111111111111111111111111|2026-07-31 04:00:14 +0200|2026-07-31 04:00:14 +0200|Test|"
@@ -78,7 +79,25 @@ public class StashServiceTest
 
         var stashes = await ListAsync(output);
 
-        Assert.AreEqual("fix", stashes[0].Message);
+        Assert.AreEqual("fix: the thing", stashes[0].Message);
+        Assert.AreEqual("main", stashes[0].Branch);
+    }
+
+    // A subject with fewer colons than git writes, as another tool may store a stash with, is kept
+    // as the message, where it failed the whole list
+    [TestMethod]
+    public async Task TestParseStashMessageOfAnotherTool()
+    {
+        var output =
+            "1111111111111111111111111111111111111111|2026-07-31 04:00:14 +0200|2026-07-31 04:00:14 +0200|Test|"
+            + "2222222222222222222222222222222222222222 3333333333333333333333333333333333333333"
+            + "|stash@{0}:Before the upgrade\x00";
+
+        var stashes = await ListAsync(output);
+
+        Assert.AreEqual("stash@{0}", stashes[0].Name);
+        Assert.AreEqual("Before the upgrade", stashes[0].Message);
+        Assert.AreEqual("", stashes[0].Branch);
     }
 
     [TestMethod]
@@ -99,7 +118,7 @@ public class StashServiceTest
         AssertError(result, "Expected the git failure to propagate");
     }
 
-    // A named stash uses 'save', an unnamed one does not. Both include untracked files (-u).
+    // A named stash has the message given, an unnamed one git's own. Both include untracked files.
     [TestMethod]
     public async Task TestStashWithAndWithoutMessage()
     {
@@ -109,8 +128,8 @@ public class StashServiceTest
         await service.StashAsync("My message", "/wd");
         await service.StashAsync("", "/wd");
 
-        Assert.AreEqual("stash save \"My message\" -u", cmd.Calls[0].Args);
-        Assert.AreEqual("stash -u", cmd.Calls[1].Args);
+        Assert.AreEqual("stash push --include-untracked -m \"My message\"", cmd.Calls[0].Args);
+        Assert.AreEqual("stash push --include-untracked", cmd.Calls[1].Args);
     }
 
     [TestMethod]
@@ -126,17 +145,5 @@ public class StashServiceTest
         Assert.AreEqual("stash pop stash@{0}", cmd.Calls[0].Args);
         Assert.AreEqual("stash drop stash@{1}", cmd.Calls[1].Args);
         Assert.AreEqual("stash apply stash@{2}", cmd.Calls[2].Args, "Apply keeps the stash, which pop drops");
-    }
-
-    [TestMethod]
-    public async Task TestGetDiffDelegatesToDiffService()
-    {
-        var cmd = new FakeCmd("");
-        var service = NewService(cmd);
-
-        await service.GetDiffAsync("stash@{0}", 6, "/wd");
-
-        StringAssert.StartsWith(cmd.Calls[0].Args, "stash show -u ");
-        StringAssert.EndsWith(cmd.Calls[0].Args, " stash@{0}");
     }
 }

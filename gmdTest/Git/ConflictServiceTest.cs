@@ -1,3 +1,4 @@
+using gmd.Git;
 using gmd.Git.Private;
 using gmdTest.Utils;
 
@@ -27,6 +28,27 @@ public class ConflictServiceTest
     void WriteGitFile(string name, string content) => File.WriteAllText(Path.Join(wd, ".git", name), content);
 
     void MakeGitDir(string name) => Directory.CreateDirectory(Path.Join(wd, ".git", name));
+
+    // A UTF-16 file has a NUL in every other byte of ASCII text, so git merges it as binary and
+    // leaves it whole, and so does gmd: it is offered as one side or the other rather than parsed,
+    // which as UTF-8 it could not be. Taken for text, it was refused with an error.
+    [TestMethod]
+    public async Task TestAUtf16FileIsResolvedWholeAsGitMergesItAsBinary()
+    {
+        byte[] utf16 = [.. System.Text.Encoding.Unicode.Preamble, .. System.Text.Encoding.Unicode.GetBytes("text\n")];
+        File.WriteAllBytes(Path.Join(wd, "file.txt"), utf16);
+        var cmd = new FakeCmd(
+            "100644 1111111111111111111111111111111111111111 2\tfile.txt\n"
+                + "100644 2222222222222222222222222222222222222222 3\tfile.txt"
+        );
+
+        var file = AssertOk(
+            await new ConflictService(cmd).GetConflictFileAsync("file.txt", ConflictKind.BothModified, wd)
+        );
+
+        Assert.IsTrue(file.IsBinary);
+        Assert.IsTrue(file.HasOurs && file.HasTheirs);
+    }
 
     [TestMethod]
     [DataRow("MERGE_HEAD", "merge --abort")]
@@ -229,6 +251,7 @@ public class ConflictServiceTest
         var result = await new ConflictService(cmd).ContinueOperationAsync(wd);
 
         var e = AssertError(result);
+        Assert.IsInstanceOfType<ConflictError>(e, "Shown as a conflict, not as an error");
         StringAssert.Contains(e.Message, "stopped on more conflicts");
     }
 

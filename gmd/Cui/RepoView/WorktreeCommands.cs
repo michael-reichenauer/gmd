@@ -1,5 +1,7 @@
 using gmd.Common;
 using gmd.Cui.Common;
+using gmd.Cui.Recovery;
+using gmd.Cui.Worktrees;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -8,7 +10,6 @@ interface IWorktreeCommands
 {
     void ShowWorktrees();
     void CreateWorktree(string branchName);
-    void OpenWorktree(string path);
     Task<Result> OpenWorktreeAsync(string path);
 }
 
@@ -17,7 +18,7 @@ interface IWorktreeCommands
 // gmd shows one worktree at a time, and everything then acts on that folder.
 class WorktreeCommands : IWorktreeCommands
 {
-    readonly IViewRepo repo;
+    readonly CommandContext context;
     readonly IRepoView repoView;
     readonly IProgress progress;
     readonly IStatusLine status;
@@ -29,11 +30,7 @@ class WorktreeCommands : IWorktreeCommands
     readonly IClipboardService clipboard;
 
     public WorktreeCommands(
-        IViewRepo repo,
-        IRepoView repoView,
-        IProgress progress,
-        IStatusLine status,
-        IServer server,
+        CommandContext context,
         Config config,
         IWorktreesDlg worktreesDlg,
         IAddWorktreeDlg addWorktreeDlg,
@@ -41,11 +38,11 @@ class WorktreeCommands : IWorktreeCommands
         IClipboardService clipboard
     )
     {
-        this.repo = repo;
-        this.repoView = repoView;
-        this.progress = progress;
-        this.status = status;
-        this.server = server;
+        this.context = context;
+        this.repoView = context.View;
+        this.progress = context.Progress;
+        this.status = context.Status;
+        this.server = context.Server;
         this.config = config;
         this.worktreesDlg = worktreesDlg;
         this.addWorktreeDlg = addWorktreeDlg;
@@ -56,7 +53,7 @@ class WorktreeCommands : IWorktreeCommands
     // The dialog is shown again after every action but opening, with the worktrees re-read so
     // what it shows is what is, not what the last reload saw
     public void ShowWorktrees() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var selected = 0;
             while (true)
@@ -103,9 +100,7 @@ class WorktreeCommands : IWorktreeCommands
     // From the branch menu: a worktree for that branch, or when it is checked out already, for a
     // new branch started from it. Whether it was opened matters to nothing here, so only the
     // outcome is kept.
-    public void CreateWorktree(string branchName) => Do(async () => await CreateWorktreeAsync(repo.Repo, branchName));
-
-    public void OpenWorktree(string path) => Do(() => OpenWorktreeAsync(path));
+    public void CreateWorktree(string branchName) => Do(async repo => await CreateWorktreeAsync(repo.Repo, branchName));
 
     public async Task<Result> OpenWorktreeAsync(string path)
     {
@@ -244,6 +239,7 @@ class WorktreeCommands : IWorktreeCommands
     // Forgets the worktrees whose folders are gone, after saying which
     async Task<Result> PruneAsync(IReadOnlyList<Worktree> worktrees)
     {
+        var repo = context.ViewRepo;
         var missing = worktrees.Where(w => w.IsPrunable).Select(w => w.Path).ToList();
         if (missing.Count == 0)
             return Result.Ok;
@@ -259,5 +255,5 @@ class WorktreeCommands : IWorktreeCommands
         return Result.Ok;
     }
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
+    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 }

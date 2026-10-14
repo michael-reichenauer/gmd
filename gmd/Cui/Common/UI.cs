@@ -34,24 +34,29 @@ static class UI
         onActivated = activated;
     }
 
-    public static void CloseDialog() => Application.RequestStop();
+    // Keys are dropped while git works, but not in a dialog, see KeyGate
+    static readonly KeyGate keys = new();
 
     internal static void StopInput()
     {
-        Application.RootKeyEvent = (_) => true;
+        keys.GitStarted();
+        ApplyKeyGate();
     }
 
     internal static void StartInput()
     {
-        Application.RootKeyEvent = null;
+        keys.GitDone();
+        ApplyKeyGate();
     }
+
+    static void ApplyKeyGate() => Application.RootKeyEvent = keys.IsDropping ? DropKey : null;
+
+    static bool DropKey(KeyEvent _) => true;
 
     internal static void Post(Action action)
     {
         Application.MainLoop.Invoke(action);
     }
-
-    internal static void ShowCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Default);
 
     internal static void HideCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
 
@@ -79,6 +84,14 @@ static class UI
         Application.RequestStop();
     }
 
+    // Ends the main loop from whichever thread a failure is on (ExceptionHandling); before the loop
+    // runs there is none to end, and the exception thrown ends gmd
+    internal static void ShutdownFromAnyThread()
+    {
+        if (Application.MainLoop is MainLoop loop)
+            loop.Invoke(() => Application.RequestStop());
+    }
+
     internal static int InfoMessage(string title, string message, params string[] buttons)
     {
         return InfoMessage(title, message, 0, buttons);
@@ -94,12 +107,22 @@ static class UI
         }
     }
 
-    // Shows a message box while the (already started) task is running. The box has no buttons and
-    // is closed when the task completes, so it cannot be dismissed by the user. Input is left as it
-    // is, i.e. a Progress spinner started by the caller keeps running while the message is shown.
-    internal static void ShowMessageWhile(string title, string message, Task task)
+    // Shows a message box while the (already started) task is running. The box is closed when the
+    // task completes, so it cannot be dismissed by the user. With askCancel, it has a Cancel button,
+    // which calls it, see MessageDlg.ShowWhile, and takes keys for it; without, it has no buttons,
+    // and input is left as it is, i.e. a Progress spinner started by the caller drops the keys.
+    internal static void ShowMessageWhile(string title, string message, Task task, Func<bool>? askCancel = null)
     {
-        MessageDlg.ShowWhile(title, message, task);
+        if (askCancel == null)
+        {
+            MessageDlg.ShowWhile(title, message, task);
+            return;
+        }
+
+        using (EnableInput())
+        {
+            MessageDlg.ShowWhile(title, message, task, askCancel);
+        }
     }
 
     internal static int ErrorMessage(string message, int defaultButton = 0, params string[] buttons)
@@ -119,12 +142,13 @@ static class UI
 
     static Disposable EnableInput()
     {
-        var rootKeyEvent = Application.RootKeyEvent;
-        Application.RootKeyEvent = null;
+        keys.DialogOpened();
+        ApplyKeyGate();
         onDeactivated?.Invoke();
         return new Disposable(() =>
         {
-            Application.RootKeyEvent = rootKeyEvent;
+            keys.DialogClosed();
+            ApplyKeyGate();
             onActivated?.Invoke();
         });
     }

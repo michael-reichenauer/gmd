@@ -51,6 +51,33 @@ public class StatusMessageTest
         Assert.AreEqual("Commit the changes first, then merge", ScreenText.LastLine(gmd.WaitFor("then merge")));
     }
 
+    // 'e' on a branch the current one has all of: git merges nothing, so there is nothing to commit,
+    // and it did nothing and said nothing. The fixture has dev merged into main already.
+    [TestMethod]
+    public async Task TestNothingToMergeIsSaid()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        // Down to the merge commit, left to hoover main, Enter to show dev, right to hoover it
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+
+        gmd.Send("e");
+
+        Assert.AreEqual(
+            "Nothing to merge: 'main' is already up to date with 'dev'",
+            ScreenText.LastLine(gmd.WaitFor("Nothing to merge"))
+        );
+        Assert.AreEqual("", await repo.GitAsync("status -s"), "Nothing is staged");
+    }
+
     // Nothing to push was a red 'Error !' box, which had to be dismissed; it is a line now
     [TestMethod]
     public async Task TestNothingToPushIsNotAnError()

@@ -1,3 +1,5 @@
+using gmd.Cui.Graphs;
+
 namespace gmd.Cui.RepoView;
 
 // The hoover is the branch, or the commit, that the mouse pointer or the cursor is currently on.
@@ -128,8 +130,13 @@ class Hoover
     // drawing the key hints does so on every redraw. A branch goes when it is hidden, when it is
     // deleted, here or elsewhere, and when a fetch prunes it, and FollowCurrentIndex does not
     // notice, since the current row need not move. The graph rather than the repo's branches,
-    // since a hidden branch is still one of those. Returns true if the branch was given up.
-    public bool FollowRepo(Graph graph) => IsBranch && !graph.HasBranch(BranchName) && Clear();
+    // since a hidden branch is still one of those. So is a branch drawn under another primary
+    // name now, which is what a local branch ahead of origin's is once a fetch prunes origin's: the
+    // primary name is what the hints look up. Returns true if the branch was given up.
+    public bool FollowRepo(Graph graph) =>
+        IsBranch
+        && (!graph.HasBranch(BranchName) || graph.BranchByName(BranchName).B.PrimaryName != BranchPrimaryName)
+        && Clear();
 
     public override string ToString() =>
         IsBranch ? $"({ColumnIndex},{RowIndex}) {BranchPrimaryName}" : $"({ColumnIndex},{RowIndex}) <commit>";

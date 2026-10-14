@@ -81,6 +81,47 @@ public class ConflictRowsTest
         Assert.AreEqual(hunkRow, rows.NextHunkRow(hunkRow + 2, -1));
     }
 
+    // Showing the common ancestor makes a conflict as tall as its longest side, so the rows after it
+    // move down: the cursor is kept on the line it was on, where 'b' left it at its row index, which
+    // could be in another conflict
+    [TestMethod]
+    public void TestTheCursorKeepsItsLineWhenTheAncestorIsShown()
+    {
+        var segments = new List<ConflictSegment>();
+        for (int i = 0; i < 2; i++)
+        {
+            segments.Add(new ConflictSegment(Lines($"before {i}"), null));
+            var hunk = new ConflictHunk(
+                i,
+                "HEAD",
+                "base",
+                "topic",
+                Lines($"o{i}"),
+                Lines("b1", "b2", "b3"),
+                Lines($"t{i}")
+            );
+            segments.Add(new ConflictSegment([], hunk));
+        }
+        segments.Add(new ConflictSegment(Lines("after"), null));
+        var file = new ConflictFile("f.txt", ConflictKind.BothModified, false, segments, true, true);
+        var service = new ConflictRowService();
+        var without = service.ToRows(file, new ConflictResolution(file), false);
+        var with = service.ToRows(file, new ConflictResolution(file), true);
+
+        foreach (var text in new[] { "before 0", "before 1", "after", "o1 │ t1" })
+        {
+            var at = without.Rows.FindIndexBy(r => r.ToString() == text);
+            var line = with.Rows[with.IndexOf(without.AnchorAt(at))].ToString();
+            Assert.AreEqual(text, line.Replace(" │ b1", ""), $"The cursor on '{text}'");
+        }
+
+        // A row of a conflict that is not there once the ancestor is hidden again is its last row
+        var lastOfFirst = with.IndexOfHunk(1) - 2;
+        Assert.AreEqual("b3", with.Rows[lastOfFirst].ToString().Split(" │ ")[1]);
+        var back = without.IndexOf(with.AnchorAt(lastOfFirst));
+        Assert.AreEqual("o0 │ t0", without.Rows[back].ToString());
+    }
+
     // A file with no conflicts left to walk, e.g. one that only differs in a way git resolved
     [TestMethod]
     public void TestAFileWithNoConflictsHasNowhereToGo()

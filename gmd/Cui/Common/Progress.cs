@@ -7,13 +7,17 @@ interface IProgress
     Disposable Show(bool isShowImmediately = false);
 }
 
-// cspell:ignore Wakeup
+// The marquee on the application bar while a command runs, shown once it has run for a moment and
+// pulsed on the main loop, by its timeouts, as everything that touches a view is: it was pulsed from
+// a System.Threading.Timer on the thread pool, where an exception ended the process, with no
+// Application.Shutdown to give the terminal back.
 [SingleInstance]
 class Progress : IProgress
 {
     const int defaultInitialDelay = 800;
+    const int pulseInterval = 100;
 
-    Timer? progressTimer;
+    object? pulse; // The main loop timeout that shows and pulses the marquee
     int count = 0;
     Toplevel? currentParentView;
     Marquee? marquee;
@@ -35,25 +39,7 @@ class Progress : IProgress
 
         // One column wider than the marquee itself, to keep a blank between it and the repo path
         marquee = new Marquee(5, 0, Marquee.TotalWidth + 1, isVisible: false);
-
-        bool isFirst = true;
-        progressTimer = new Timer(
-            _ =>
-            {
-                if (marquee == null)
-                    return;
-                if (isFirst)
-                {
-                    isFirst = false;
-                    marquee.IsVisible = true;
-                }
-                marquee.Pulse();
-                Application.MainLoop.Driver.Wakeup();
-            },
-            null,
-            initialDelay,
-            100
-        );
+        StartPulse(initialDelay);
 
         currentParentView = Application.Current;
         currentParentView.Add(marquee.View);
@@ -80,18 +66,49 @@ class Progress : IProgress
             // showed it.
             currentParentView?.BringSubviewToFront(marquee.View);
             marquee.IsVisible = true;
+            StartPulse(200);
         }
-
-        progressTimer?.Change(200, 100);
     }
 
     private void Deactivated()
     {
-        progressTimer?.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+        StopPulse();
         if (marquee != null)
         {
             marquee.IsVisible = false;
         }
+    }
+
+    // Shows the marquee after the delay, and pulses it from then on, until stopped
+    void StartPulse(int delay)
+    {
+        StopPulse();
+        pulse = UI.AddTimeout(
+            TimeSpan.FromMilliseconds(delay),
+            _ =>
+            {
+                if (marquee == null)
+                    return false;
+                marquee.IsVisible = true;
+                marquee.Pulse();
+                pulse = UI.AddTimeout(
+                    TimeSpan.FromMilliseconds(pulseInterval),
+                    _ =>
+                    {
+                        marquee?.Pulse();
+                        return marquee != null;
+                    }
+                );
+                return false;
+            }
+        );
+    }
+
+    void StopPulse()
+    {
+        if (pulse != null)
+            UI.RemoveTimeout(pulse);
+        pulse = null;
     }
 
     void Stop()
@@ -102,11 +119,7 @@ class Progress : IProgress
             return;
         }
 
-        if (progressTimer != null)
-        {
-            progressTimer.Dispose();
-            progressTimer = null;
-        }
+        StopPulse();
         currentParentView!.Remove(marquee!.View);
         currentParentView = null;
         marquee = null;

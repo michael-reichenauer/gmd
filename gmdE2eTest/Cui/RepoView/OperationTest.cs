@@ -56,6 +56,25 @@ public class OperationTest
         gmd.WaitFor("Conflicts:   long.txt");
     }
 
+    // A continue that stops again, on the conflicts of the rebase's next commit, says so as the first
+    // stop did, where it used to put git's output in a red error box
+    [TestMethod]
+    public async Task TestAContinueThatStopsAgainSaysHowToGoOn()
+    {
+        using var repo = await E2eRepo.CreateWithRebaseResolvedOnceAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Rebasing");
+
+        // c offers to continue a rebase, which a commit does not finish
+        gmd.Send("c");
+        gmd.WaitFor("Rebase In Progress");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Rebase Stopped on Conflicts");
+        Assert.IsFalse(screen.Contains("Error !"), "Not an error box");
+        StringAssert.Contains(screen, "Rebase 'dev' stopped on conflicts in 1 file:");
+    }
+
     // Abort in the box throws the merge away there and then, with no second question, since nothing
     // has been resolved yet to lose; the application bar has nothing in progress to show after
     [TestMethod]

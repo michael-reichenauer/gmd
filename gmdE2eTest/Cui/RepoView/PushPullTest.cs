@@ -9,6 +9,50 @@ namespace gmdE2eTest.Cui.RepoView;
 [TestClass]
 public class PushPullTest
 {
+    // Rebase and Push onto pushes the rebased branch over origin's copy with force, for everyone, and
+    // ran it with no question, an Enter on the sub menu's first item, where Force Push and Restore
+    // origin both ask. It asks now, No the default, and No leaves both sides where they were.
+    [TestMethod]
+    public async Task TestRebaseAndPushAsksBeforeItPushesWithForce()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("feature.txt", "feature\n", "Feature work", TempRepo.BaseTime.AddMinutes(8));
+        await repo.GitAsync("push -q --set-upstream origin feature");
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("eta.txt", "eta\n", "Add eta", TempRepo.BaseTime.AddMinutes(9));
+        await repo.GitAsync("checkout -q feature");
+        var before = await repo.GitAsync("rev-parse feature origin/feature");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Feature work");
+
+        // Down to feature's commit, left to highlight feature, and its menu
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Branch: feature");
+        // Past 'Merge into feature' and 'Merge feature into' to 'Rebase and Push onto', and main in it
+        for (var i = 0; i < 2; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        StringAssert.Contains(
+            gmd.WaitFor("push it with force"),
+            "Rebase 'feature' onto 'main', and push it with force?"
+        );
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("push it with force");
+        Assert.AreEqual(before, await repo.GitAsync("rev-parse feature origin/feature"), "Neither side moved");
+    }
+
     // Pushing the current branch with 'p'. The fixture has one commit that is not on the remote,
     // so before the push the local and remote branches are on different commits and each names
     // itself — '(^/main)' on the remote's tip and '(● main)' on the local one — and the commit
@@ -462,7 +506,8 @@ public class PushPullTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Restore origin/main from before the Force Push");
-        for (var i = 0; i < 3; i++)
+        // Two moves, Hide Branch being greyed out for main, which is always shown
+        for (var i = 0; i < 2; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();

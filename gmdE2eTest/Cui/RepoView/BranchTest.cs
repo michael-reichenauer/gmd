@@ -109,6 +109,87 @@ public class BranchTest
         Assert.AreEqual("  dev\n* main", await repo.GitAsync("branch"), "No branch should have been created");
     }
 
+    // A name with a space went to git as two arguments, 'checkout -b fix main', which made a branch
+    // 'fix' at main's tip and checked it out. The dialog refuses it, and keeps the name to fix.
+    [TestMethod]
+    public async Task TestCreateBranchRefusesANameGitWouldTakeAsTwo()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Left"); // Hoovers main
+        gmd.WaitForStable();
+        gmd.Send("b");
+        gmd.WaitFor("Create Branch");
+
+        gmd.SendText("fix dev");
+        gmd.WaitFor("fix dev");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Not a branch name"), "no spaces");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Not a branch name");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Create Branch");
+        Assert.AreEqual("  dev\n* main", await repo.GitAsync("branch"), "No branch was created");
+    }
+
+    // The main branch is always shown, so 'h' on it says so; it did nothing, and said nothing
+    [TestMethod]
+    public async Task TestHideOnTheMainBranchSaysItIsAlwaysShown()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Left"); // Hoovers main
+        gmd.WaitForStable();
+
+        gmd.Send("h");
+
+        Assert.AreEqual(
+            "'main' is the main branch, which is always shown",
+            ScreenText.LastLine(gmd.WaitFor("always shown"))
+        );
+    }
+
+    // The uncommitted row is no commit to start a branch at, which the commit menu and the hints say,
+    // and 'b' there opened Create Branch at 000000, which git then failed on
+    [TestMethod]
+    public async Task TestCreateBranchOnTheUncommittedRowSaysWhyNot()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("b");
+
+        Assert.AreEqual(
+            "A branch starts at a commit: move to one first",
+            ScreenText.LastLine(gmd.WaitFor("move to one first"))
+        );
+    }
+
+    // Rows selected go before a highlighted branch, as the key hints say: with a branch highlighted
+    // and rows selected, 'd' opened the branch's diff menu while the hints offered the rows' diff
+    [TestMethod]
+    public async Task TestDiffOfSelectedRowsWithABranchHighlighted()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Left"); // Hoovers main
+        gmd.WaitForStable();
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+
+        gmd.Send("d");
+
+        var screen = gmd.WaitFor("delta.txt");
+        Assert.IsFalse(screen.Contains("Diff Branch to"), "Not the branch's diff menu");
+    }
+
     // Renaming is menu only, so this is also the one test that drives a menu item all the way to
     // its command. The item is disabled for the main branch, hence renaming dev, and the fixture
     // has no origin, so this is the local half of a rename; the remote half is a push and a delete
@@ -336,6 +417,26 @@ public class BranchTest
 
         Assert.AreEqual("v2.0", await repo.GitAsync($"{origin} tag"), "Not pushed, as unticked");
         StringAssert.Contains(await repo.GitAsync("tag"), "v3.0");
+    }
+
+    // A tag whose push fails is still added, and says so: it said the tag had failed, which was there
+    // and which Push in the list of tags then pushes
+    [TestMethod]
+    public async Task TestAddATagWhosePushFailsSaysItWasAdded()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync($"remote set-url origin \"{repo.Path}-gone\"");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+
+        gmd.Send("t");
+        gmd.WaitFor("Push to origin");
+        gmd.SendText("v2.0");
+        gmd.WaitFor("v2.0");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Added the tag v2.0, but failed to push it");
+        Assert.AreEqual("v2.0", await repo.GitAsync("tag --points-at HEAD"), "Added here");
     }
 
     // 's' switches to the hoovered branch, with no confirmation of any kind — one keystroke from
@@ -583,15 +684,10 @@ public class BranchTest
         gmd.WaitForStable();
         gmd.Send("E");
 
+        // Said on the status line, as the merge the other way says it, not in a box to dismiss
         Assert.AreEqual(
-            """
-                                                   ╭ Merge ─────────────────────────────────╮
-                                                   │'main' is already up to date with 'dev'.│
-                                                   │                                        │
-                                                   │                [◦ OK ◦]                │
-                                                   ╰────────────────────────────────────────╯
-            """,
-            ScreenText.Rows(gmd.WaitFor("already up to date"), repo.Path, 17, 5)
+            "Nothing to merge: 'main' is already up to date with 'dev'",
+            ScreenText.LastLine(gmd.WaitFor("Nothing to merge"))
         );
 
         // Left on the branch it started on, with nothing committed anywhere

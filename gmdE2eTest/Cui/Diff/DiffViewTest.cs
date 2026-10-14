@@ -27,7 +27,7 @@ public class DiffViewTest
             Date:    2024-10-15 12:06:00
             Message: Add delta
 
-            1 Files:
+            1 File:  1 added   +1 -0 lines
               Added:       delta.txt
 
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -159,7 +159,7 @@ public class DiffViewTest
             Date:    2024-10-15 12:02:00          │Resolve Conflicts                   Enter >│
             Message: Change both files            │Run External Merge Tool                   >│
                                                   │Discard Changes                         u >│
-            2 Files:                              │Refresh                                 r  │
+            2 Files:  2 modified   +2 -2 lines    │Refresh                                 r  │
               Modified:    long.txt               │Commit                                  c  │
               Modified:    short.txt              │More Context of long.txt (15 lines)     +  │
                                                   │Less Context                            -  │

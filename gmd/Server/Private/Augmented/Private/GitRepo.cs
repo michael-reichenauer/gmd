@@ -22,11 +22,11 @@ class GitRepo
         IReadOnlyList<GitStash> stashes,
         bool isTruncated,
         IReadOnlyList<GitWorktree>? worktrees = null,
-        IReadOnlyDictionary<string, int>? worktreeChanges = null,
         IReadOnlyList<ReflogEntry>? reflog = null,
         IReadOnlyCollection<string>? integrationNames = null,
         IReadOnlyDictionary<string, RecordedStep>? recordedSteps = null,
-        IReadOnlyList<ReflogEntry>? remoteReflog = null
+        IReadOnlyList<ReflogEntry>? remoteReflog = null,
+        string currentAuthor = ""
     )
     {
         TimeStamp = timeStamp;
@@ -39,12 +39,15 @@ class GitRepo
         Stashes = stashes;
         IsTruncated = isTruncated;
         Worktrees = worktrees ?? [];
-        WorktreeChanges = worktreeChanges ?? new Dictionary<string, int>();
         Reflog = reflog ?? [];
         IntegrationNames = integrationNames ?? [];
         RecordedSteps = recordedSteps ?? new Dictionary<string, RecordedStep>();
         RemoteReflog = remoteReflog ?? [];
+        CurrentAuthor = currentAuthor;
     }
+
+    // The name commits are made with in the repository, its user.name, or "" when none is set
+    public string CurrentAuthor { get; }
 
     public DateTime TimeStamp { get; }
     public string Path { get; }
@@ -56,12 +59,9 @@ class GitRepo
     public IReadOnlyList<GitStash> Stashes { get; }
     public bool IsTruncated { get; }
 
-    // The worktrees of the repository, and the number of uncommitted changes in each of the
-    // others, by path. A worktree not in the dictionary is unknown: the changes are not read with
-    // the repo but after it is shown, so a freshly read repo has none, and one whose status
-    // failed is left out.
+    // The worktrees of the repository. The uncommitted changes of the others are not read with the
+    // repo but after it is shown (AugmentedService.GetUpdatedWorktreesRepoAsync).
     public IReadOnlyList<GitWorktree> Worktrees { get; }
-    public IReadOnlyDictionary<string, int> WorktreeChanges { get; }
 
     // The reflogs, which are local and expire, so often short or empty, and what they witnessed about
     // the branches of commits, see ReflogWitness

@@ -3,17 +3,18 @@ using gmd.Server;
 
 namespace gmd.Common;
 
-record CommandResult(bool IsCommand, int ExitCode);
-
 // Handles command line options commands instead of running the UI
 interface IProgramCommands
 {
-    Task<CommandResult> HandleCommands(string[] args);
+    // The exit code of the command the options name, or null when they name none and the UI is to run
+    Task<int?> HandleCommandsAsync(string[] args);
 }
 
 // cSpell:ignore updatechangelog
 class ProgramCommands : IProgramCommands
 {
+    const string ChangeLogHeading = "# Change Log for Gmd\n--------------------";
+
     readonly IUpdater updater;
     readonly IServer server;
 
@@ -23,30 +24,20 @@ class ProgramCommands : IProgramCommands
         this.server = server;
     }
 
-    public async Task<CommandResult> HandleCommands(string[] args)
+    public async Task<int?> HandleCommandsAsync(string[] args)
     {
         if (HasOptions(args, "--help", "-h", "-?"))
-        {
-            return new CommandResult(true, ShowHelp());
-        }
+            return ShowHelp();
         if (HasOptions(args, "--version"))
-        {
-            return new CommandResult(true, ShowVersion());
-        }
+            return ShowVersion();
         if (HasOptions(args, "--update", "-u"))
-        {
-            return new CommandResult(true, await UpdateAsync());
-        }
+            return await UpdateAsync();
         if (HasOptions(args, "--changelog"))
-        {
-            return new CommandResult(true, ShowChangeLog());
-        }
+            return await ShowChangeLogAsync();
         if (HasOptions(args, "--updatechangelog"))
-        {
-            return new CommandResult(true, UpdateChangeLog(OptionValue(args, "--updatechangelog")));
-        }
+            return await UpdateChangeLogAsync(OptionValue(args, "--updatechangelog"));
 
-        return new CommandResult(false, 0);
+        return null;
     }
 
     static int ShowHelp()
@@ -76,7 +67,7 @@ class ProgramCommands : IProgramCommands
 
     static int ShowVersion()
     {
-        Console.WriteLine($"{Build.Version()}");
+        Console.WriteLine(Build.Version());
         return 0;
     }
 
@@ -96,6 +87,12 @@ class ProgramCommands : IProgramCommands
             Console.WriteLine($"{available.Version} is already latest version.");
             return 0;
         }
+        if (updater.PackageManager is PackageManager manager)
+        {
+            Console.WriteLine($"{available.Version} is available, and gmd was installed with {manager.Name},");
+            Console.WriteLine($"so update it with: {manager.UpdateCommand}");
+            return -1;
+        }
 
         Console.WriteLine($"Downloading {available.Version} ...");
         var newVersionResult = await updater.UpdateAsync();
@@ -109,57 +106,46 @@ class ProgramCommands : IProgramCommands
         return 0;
     }
 
-    int ShowChangeLog()
+    async Task<int> ShowChangeLogAsync()
     {
-        Task.Run(async () =>
-            {
-                Console.WriteLine($"# Change Log for Gmd\n--------------------");
-                var logResult = await server.GetChangeLogAsync();
-                if (logResult is not string log)
-                {
-                    Log.Error($"Failed to get change log, {logResult.Error}");
-                    Console.WriteLine($"Failed to get change log, {logResult.Error}");
-                    return;
-                }
+        Console.WriteLine(ChangeLogHeading);
+        var logResult = await server.GetChangeLogAsync();
+        if (logResult is not string log)
+        {
+            Log.Error($"Failed to get change log, {logResult.Error}");
+            Console.WriteLine($"Failed to get change log, {logResult.Error}");
+            return -1;
+        }
 
-                Console.WriteLine($"{log}");
-            })
-            .Wait();
-
+        Console.WriteLine(log);
         return 0;
     }
 
     // Fails with a non-zero exit code, since CI runs it to make the release commit on main
-    int UpdateChangeLog(string? newRelease)
+    async Task<int> UpdateChangeLogAsync(string? newRelease)
     {
-        return Task.Run(async () =>
+        Console.WriteLine("Generating change log ...");
+        var logResult = await server.GetChangeLogAsync(newRelease);
+        if (logResult is not string log)
         {
-            Console.WriteLine($"Generating change log ...");
-            var logResult = await server.GetChangeLogAsync(newRelease);
-            if (logResult is not string log)
-            {
-                Console.WriteLine($"Failed to get change log, {logResult.Error}");
-                return -1;
-            }
+            Console.WriteLine($"Failed to get change log, {logResult.Error}");
+            return -1;
+        }
 
-            var text = $"# Change Log for Gmd\n--------------------\n{log}";
-            if (Result.Catch(() => File.WriteAllText("CHANGELOG.md", text)) is Error e)
-            {
-                Console.WriteLine($"Failed to write change log, {e}");
-                return -1;
-            }
-            Console.WriteLine($"Generated change log");
-            return 0;
-        }).Result;
+        var text = $"{ChangeLogHeading}\n{log}";
+        if (Result.Catch(() => File.WriteAllText("CHANGELOG.md", text)) is Error e)
+        {
+            Console.WriteLine($"Failed to write change log, {e}");
+            return -1;
+        }
+        Console.WriteLine("Generated change log");
+        return 0;
     }
 
-    static bool HasOptions(string[] args, params string[] options)
-    {
-        return options.Any(x => args.Contains(x));
-    }
+    static bool HasOptions(string[] args, params string[] options) => options.Any(args.Contains);
 
     // The argument after an option, unless it is missing or is another option
-    static string? OptionValue(string[] args, string option)
+    internal static string? OptionValue(string[] args, string option)
     {
         var index = Array.IndexOf(args, option);
         return index >= 0 && index + 1 < args.Length && !args[index + 1].StartsWith('-') ? args[index + 1] : null;

@@ -147,6 +147,11 @@ public class DiffServiceTest
         +three
         """;
 
+    // The format options every diff command is given, so that the user's config cannot change the
+    // output the parser reads, and those of the commit header above a commit's diff
+    const string DiffFormat = "--no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/";
+    const string Format = "--no-decorate --no-abbrev-commit --no-show-signature " + DiffFormat;
+
     static async Task<CommitDiff> GetCommitDiffAsync(string output)
     {
         var service = new DiffService(new FakeCmd(output));
@@ -246,6 +251,95 @@ public class DiffServiceTest
         Assert.AreEqual(0, file.SectionDiffs.Count);
     }
 
+    // Captured from real git: the paths git quotes, each of the two on its own, with the bytes of a
+    // character that is not ASCII as octal escapes; a path with a space, which git does not quote in
+    // the 'diff --git' line, but ends with a tab on the '---' and '+++' lines; a mode change before the
+    // hunks; and a path with ' b/' in it, where the two paths used to be split
+    const string SpecialPathsOutput = """
+        commit d25338945bb5b79d865b2242512894d55f5fe047
+        Author: t <a@b>
+        Date:   2026-10-13 12:04:37 +0200
+
+            Special paths
+
+        diff --git a/a b.txt b/a b.txt
+        old mode 100644
+        new mode 100755
+        index 975fbec..ebf9bec
+        --- a/a b.txt<TAB>
+        +++ b/a b.txt<TAB>
+        @@ -1 +1,2 @@
+         y
+        +more
+        diff --git a/base.txt "b/b\303\244se.txt"
+        similarity index 50%
+        rename from base.txt
+        rename to "b\303\244se.txt"
+        index 7898192..9327e29 100644
+        --- a/base.txt
+        +++ "b/b\303\244se.txt"
+        @@ -1 +1,2 @@
+         a
+        +m
+        diff --git "a/q\"t.txt" "b/q\"t.txt"
+        new file mode 100644
+        index 0000000..b680253
+        --- /dev/null
+        +++ "b/q\"t.txt"
+        @@ -0,0 +1 @@
+        +z
+        diff --git "a/\303\204rende.md" "b/\303\204rende.md"
+        deleted file mode 100644
+        index 587be6b..0000000
+        --- "a/\303\204rende.md"
+        +++ /dev/null
+        @@ -1 +0,0 @@
+        -x
+        diff --git a/x b/y.txt b/x b/y.txt
+        index 587be6b..aee5fdc 100644
+        --- a/x b/y.txt<TAB>
+        +++ b/x b/y.txt<TAB>
+        @@ -1 +1 @@
+        -x
+        +y
+        diff --git "a/\303\266.bin" "b/\303\266.bin"
+        index d630fa5..370a411 100644
+        Binary files "a/\303\266.bin" and "b/\303\266.bin" differ
+        diff --git a/run.sh b/run.sh
+        old mode 100644
+        new mode 100755
+        """;
+
+    [TestMethod]
+    public async Task TestParseSpecialPaths()
+    {
+        var diff = await GetCommitDiffAsync(SpecialPathsOutput.Replace("<TAB>", "\t"));
+
+        Assert.AreEqual(
+            """
+            a b.txt DiffModified: +more
+            base.txt -> bäse.txt DiffModified: +m
+            q"t.txt DiffAdded: +z
+            Ärende.md DiffRemoved: -x
+            x b/y.txt DiffModified: -x +y
+            ö.bin DiffModified binary
+            run.sh DiffModified
+            """,
+            string.Join("\n", diff.FileDiffs.Select(Summary))
+        );
+
+        static string Summary(FileDiff f)
+        {
+            var path = f.IsRenamed ? $"{f.PathBefore} -> {f.PathAfter}" : f.PathAfter;
+            var changes = f
+                .SectionDiffs.SelectMany(s => s.LineDiffs)
+                .Where(l => l.DiffMode != DiffMode.DiffSame)
+                .Select(l => (l.DiffMode == DiffMode.DiffAdded ? "+" : "-") + l.Line);
+            return $"{path} {f.DiffMode}{(f.IsBinary ? " binary" : "")}"
+                + (changes.Any() ? $": {string.Join(" ", changes)}" : "");
+        }
+    }
+
     // The hunk header '@@ -1,3 +1,3 @@' is kept as ChangedIndexes without the leading '-'
     [TestMethod]
     public async Task TestParseSectionIndexes()
@@ -339,7 +433,7 @@ public class DiffServiceTest
     public async Task TestParseConflictMarkers()
     {
         var service = new DiffService(new FakeCmd(ConflictOutput));
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await service.GetUncommittedDiffAsync(6, TempWd()));
 
         var file = FileOf(commitDiff, "addboth.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, file.DiffMode, "A file with markers is a conflict");
@@ -363,7 +457,7 @@ public class DiffServiceTest
     public async Task TestParseDiff3ConflictMarkers()
     {
         var service = new DiffService(new FakeCmd(Diff3ConflictOutput));
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await service.GetUncommittedDiffAsync(6, TempWd()));
 
         var file = FileOf(commitDiff, "f.txt");
         Assert.AreEqual(DiffMode.DiffConflicts, file.DiffMode);
@@ -388,7 +482,7 @@ public class DiffServiceTest
     public async Task TestParseFileWithoutMarkersInConflictedDiff()
     {
         var service = new DiffService(new FakeCmd(ConflictOutput));
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await service.GetUncommittedDiffAsync(6, TempWd()));
 
         Assert.AreEqual(DiffMode.DiffAdded, FileOf(commitDiff, "mod-del.txt").DiffMode);
     }
@@ -479,8 +573,8 @@ public class DiffServiceTest
         AssertOk(await service.GetLineHistoryAsync("a.txt", 1, 1, "", "/wd"));
 
         Assert.AreEqual(2, commitDiffs.Length);
-        Assert.AreEqual("log --date=iso \"-L3,7:my dir/a.txt\" abc123", cmd.Calls[0].Args);
-        Assert.AreEqual("log --date=iso \"-L1,1:a.txt\"", cmd.Calls[1].Args);
+        Assert.AreEqual($"log {Format} --date=iso \"-L3,7:my dir/a.txt\" abc123", cmd.Calls[0].Args);
+        Assert.AreEqual($"log {Format} --date=iso \"-L1,1:a.txt\"", cmd.Calls[1].Args);
     }
 
     [TestMethod]
@@ -535,7 +629,7 @@ public class DiffServiceTest
 
         // The uncommitted diff also stages, so its diff is not the only call
         var cmd = new FakeCmd(ShowOutput);
-        await new DiffService(cmd).GetUncommittedDiff(contextLines, TempWd());
+        await new DiffService(cmd).GetUncommittedDiffAsync(contextLines, TempWd());
         CollectionAssert.Contains(
             cmd.Calls.Select(c => c.Args.Contains(expected)).ToArray(),
             true,
@@ -546,6 +640,31 @@ public class DiffServiceTest
         {
             var cmd = new FakeCmd(ShowOutput);
             await call(new DiffService(cmd), contextLines);
+            StringAssert.Contains(cmd.Calls[0].Args, expected);
+        }
+    }
+
+    // Every diff command pins the format the parser reads, and every command with commit headers the
+    // format of those too, since the user's config can change both (GitIntegrationTest has the
+    // settings that did)
+    [TestMethod]
+    public async Task TestEveryDiffCommandPinsTheFormat()
+    {
+        await AssertArgsContain(Format, s => s.GetCommitDiffAsync("abc123", 6, "/wd"));
+        await AssertArgsContain(Format, s => s.GetFileDiffAsync("a.txt", 6, "/wd"));
+        await AssertArgsContain(Format, s => s.GetLineHistoryAsync("a.txt", 1, 2, "", "/wd"));
+        await AssertArgsContain(DiffFormat, s => s.GetStashDiffAsync("stash@{0}", 6, "/wd"));
+        await AssertArgsContain(DiffFormat, s => s.GetDiffRangeAsync("a", "b", "Range", 6, "/wd"));
+        await AssertArgsContain(DiffFormat, s => s.GetRefsDiffAsync("a", "b", "Refs", 6, "/wd"));
+
+        var cmd = new FakeCmd(ShowOutput);
+        await new DiffService(cmd).GetUncommittedDiffAsync(6, TempWd());
+        StringAssert.Contains(cmd.Calls.Single(c => c.Args.StartsWith("diff")).Args, DiffFormat);
+
+        static async Task AssertArgsContain(string expected, Func<DiffService, Task> call)
+        {
+            var cmd = new FakeCmd(ShowOutput);
+            await call(new DiffService(cmd));
             StringAssert.Contains(cmd.Calls[0].Args, expected);
         }
     }
@@ -562,9 +681,9 @@ public class DiffServiceTest
                     : FakeCmd.Ok(ConflictOutput)
         );
 
-        await new DiffService(cmd).GetUncommittedDiff(15, TempWd());
+        await new DiffService(cmd).GetUncommittedDiffAsync(15, TempWd());
 
-        CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), "diff --staged --unified=15");
+        CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), $"diff {DiffFormat} --staged --unified=15");
     }
 
     // A range diff has no commit header of its own, so it gets the message it was asked for
@@ -578,7 +697,7 @@ public class DiffServiceTest
         Assert.AreEqual("Range", commitDiff.Message);
         Assert.AreEqual("", commitDiff.Id);
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
-        Assert.AreEqual("diff --find-renames --unified=6 --full-index a~..b", cmd.Calls[0].Args);
+        Assert.AreEqual($"diff {DiffFormat} --find-renames --unified=6 --full-index a~..b", cmd.Calls[0].Args);
     }
 
     // A range from a root commit has no 'a~' to start from, so it is diffed from the empty tree, as
@@ -597,7 +716,7 @@ public class DiffServiceTest
         AssertOk(await new DiffService(cmd).GetDiffRangeAsync(root, "b", "Range", 6, "/wd"));
 
         Assert.AreEqual(
-            "diff --find-renames --unified=6 --full-index 4b825dc642cb6eb9a060e54bf8d69288fbee4904 b",
+            $"diff {DiffFormat} --find-renames --unified=6 --full-index 4b825dc642cb6eb9a060e54bf8d69288fbee4904 b",
             cmd.Calls[2].Args
         );
     }
@@ -626,7 +745,7 @@ public class DiffServiceTest
 
         var commitDiff = AssertOk(await service.GetRefsDiffAsync("a", "b", "Refs", 6, "/wd"));
         Assert.AreEqual("Refs", commitDiff.Message);
-        Assert.AreEqual("diff --find-renames --unified=6 --full-index a b", cmd.Calls[0].Args);
+        Assert.AreEqual($"diff {DiffFormat} --find-renames --unified=6 --full-index a b", cmd.Calls[0].Args);
     }
 
     [TestMethod]
@@ -661,15 +780,11 @@ public class DiffServiceTest
             }
         );
 
-        var commitDiff = AssertOk(await new DiffService(cmd).GetUncommittedDiff(6, wd));
+        var commitDiff = AssertOk(await new DiffService(cmd).GetUncommittedDiffAsync(6, wd));
 
         Assert.AreEqual("Uncommitted changes", commitDiff.Message);
         CollectionAssert.AreEqual(
-            new[]
-            {
-                "add .",
-                "diff --date=iso --first-parent --root --patch --no-color --find-renames --unified=6 HEAD",
-            },
+            new[] { "add .", $"diff {DiffFormat} --find-renames --unified=6 HEAD" },
             cmd.Calls.Select(c => c.Args).ToArray(),
             "No 'git reset' afterwards"
         );
@@ -694,10 +809,10 @@ public class DiffServiceTest
         );
         var service = new DiffService(cmd);
 
-        var commitDiff = AssertOk(await service.GetUncommittedDiff(6, TempWd()));
+        var commitDiff = AssertOk(await service.GetUncommittedDiffAsync(6, TempWd()));
 
         Assert.AreEqual(2, commitDiff.FileDiffs.Count);
-        var staged = cmd.Calls.Single(c => c.Args == "diff --staged --unified=6");
+        var staged = cmd.Calls.Single(c => c.Args == $"diff {DiffFormat} --staged --unified=6");
         Assert.AreEqual(IndexOf(cmd.Calls[0]), IndexOf(staged), "What is staged in the copy");
     }
 
@@ -712,7 +827,7 @@ public class DiffServiceTest
         );
         var service = new DiffService(cmd);
 
-        var result = await service.GetUncommittedDiff(6, wd);
+        var result = await service.GetUncommittedDiffAsync(6, wd);
 
         AssertError(result, "Expected the git failure to propagate");
         Assert.AreEqual("add, diff", string.Join(", ", cmd.Calls.Select(c => c.Args.Split(' ')[0])));
@@ -722,7 +837,7 @@ public class DiffServiceTest
     // The index file a command was given, empty if it was given none
     static string IndexOf(CmdCall call) => call.Environment?.GetValueOrDefault("GIT_INDEX_FILE") ?? "";
 
-    // GetUncommittedDiff copies .git/index, when there is one, so it needs a working directory. A
+    // GetUncommittedDiffAsync copies .git/index, when there is one, so it needs a working directory. A
     // plain temp folder with a .git in it is enough, no repository required.
     static string TempWd()
     {

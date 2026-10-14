@@ -7,7 +7,6 @@ enum ConflictRowMode
 {
     Panes, // One cell per pane, e.g. ours │ theirs
     SpanAll, // One text across the whole width, e.g. a file header
-    Divider, // A rule drawn to the full width
 }
 
 // A drawn row of the resolver.
@@ -22,10 +21,14 @@ record ConflictRow(IReadOnlyList<Text> Panes, ConflictRowMode Mode, int HunkInde
     public static ConflictRow Header(Text text, int hunkIndex) =>
         new ConflictRow([text], ConflictRowMode.SpanAll, hunkIndex, IsHunkHeader: true);
 
-    public static ConflictRow Divider(Text text) => new ConflictRow([text], ConflictRowMode.Divider, -1);
-
     public override string ToString() => string.Join(" │ ", Panes.Select(p => p.ToString()));
 }
+
+// Where the cursor is as content rather than as a row index, which survives the rows being laid
+// out again, e.g. with the common ancestor shown, which makes a conflict as tall as its longest side.
+// A row of a conflict is held by the conflict and the row in it, and a row of the text between
+// conflicts by the conflict before it (-1 for none) and the row after that conflict.
+record ConflictAnchor(int HunkIndex, int Offset, bool IsInHunk);
 
 class ConflictRows
 {
@@ -63,6 +66,39 @@ class ConflictRows
         }
 
         return -1;
+    }
+
+    public ConflictAnchor AnchorAt(int index)
+    {
+        index = Math.Clamp(index, 0, rows.Count - 1);
+        var row = rows[index];
+        if (row.HunkIndex >= 0)
+            return new(row.HunkIndex, index - IndexOfHunk(row.HunkIndex), true);
+
+        var last = index - 1;
+        while (last >= 0 && rows[last].HunkIndex == -1)
+            last--;
+
+        return last == -1 ? new(-1, index, false) : new(rows[last].HunkIndex, index - last - 1, false);
+    }
+
+    // The row the anchor points at, the last row of its conflict if the conflict is shorter now, or
+    // -1 if the conflict is not there
+    public int IndexOf(ConflictAnchor anchor)
+    {
+        if (anchor.HunkIndex == -1)
+            return Math.Min(anchor.Offset, rows.Count - 1);
+
+        var header = IndexOfHunk(anchor.HunkIndex);
+        if (header == -1)
+            return -1;
+        var last = header;
+        while (last + 1 < rows.Count && rows[last + 1].HunkIndex == anchor.HunkIndex)
+            last++;
+
+        return anchor.IsInHunk
+            ? Math.Min(header + anchor.Offset, last)
+            : Math.Min(last + 1 + anchor.Offset, rows.Count - 1);
     }
 
     public override string ToString() => $"Rows: {Count}";

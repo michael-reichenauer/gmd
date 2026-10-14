@@ -7,18 +7,20 @@ namespace gmdTest.Git;
 [TestClass]
 public class StatusServiceTest
 {
-    // Output of: git status -s --porcelain --ahead-behind --untracked-files=all, captured from a
-    // repo with one file of every kind: staged add, unstaged delete, unstaged modify, rename,
-    // staged delete, staged modify, and two untracked files, one with a space in its name (which
-    // git quotes).
+    // Output of: git status --porcelain -z --untracked-files=all, captured from a repo with one file
+    // of every kind: staged add, unstaged delete, unstaged modify, rename, staged delete, staged
+    // modify, and two untracked files, one with a space in its name. Git separates the entries with
+    // NUL, written here one to a line (GetStatusAsync puts the NULs back), and a rename is the new
+    // path followed by the old one, on its own.
     const string StatusOutput = """
         A  added.txt
          D del.txt
          M mod.txt
-        R  ren.txt -> renamed.txt
+        R  renamed.txt
+        ren.txt
         D  stagedel.txt
         M  stagemod.txt
-        ?? "another file.txt"
+        ?? another file.txt
         ?? untracked.txt
         """;
 
@@ -66,8 +68,10 @@ public class StatusServiceTest
         File.WriteAllText(Path.Join(wd, ".git", dir, name), content);
     }
 
-    async Task<gmd.Git.Status> GetStatusAsync(string output)
+    // The output git writes for these entries, one to a line, which it ends each with a NUL
+    async Task<gmd.Git.Status> GetStatusAsync(string entries)
     {
+        var output = entries == "" ? "" : entries.Replace("\n", "\0") + "\0";
         var service = new StatusService(new FakeCmd(output));
         var result = await service.GetStatusAsync(wd);
         var status = AssertOk(result);
@@ -93,10 +97,9 @@ public class StatusServiceTest
         CollectionAssert.AreEqual(new[] { "mod.txt", "stagemod.txt" }, status.ModifiedFiles);
     }
 
-    // The new files, staged or untracked. Git quotes a path containing a space, the quotes are not
-    // part of the name.
+    // The new files, staged or untracked
     [TestMethod]
-    public async Task TestParseAddedFilesAreTheNewOnesAndAreUnquoted()
+    public async Task TestParseAddedFilesAreTheNewOnes()
     {
         var status = await GetStatusAsync(StatusOutput);
 
@@ -109,7 +112,7 @@ public class StatusServiceTest
     [DataRow("AM added.txt")]
     [DataRow("AD added.txt")]
     [DataRow(" A added.txt")]
-    [DataRow(" A a")] // One letter, which the trimmed ' A' leaves one column short of '?? '
+    [DataRow(" A a")] // One letter, which a trimmed ' A' used to leave one column short of '?? '
     public async Task TestParseAStagedNewFileIsAdded(string line)
     {
         var status = await GetStatusAsync(line);
@@ -126,7 +129,7 @@ public class StatusServiceTest
         CollectionAssert.AreEqual(new[] { "del.txt", "stagedel.txt" }, status.DeletedFiles);
     }
 
-    // A rename is one line with both paths, split on ' -> '
+    // A rename is two entries, the new path and then the old one
     [TestMethod]
     public async Task TestParseRenamedFiles()
     {
@@ -137,13 +140,38 @@ public class StatusServiceTest
         CollectionAssert.AreEqual(new[] { "renamed.txt" }, status.RenamedTargetFiles);
     }
 
+    // The paths as they are: without '-z' git quoted a path with a space, a '"' or a character that
+    // is not ASCII, the last as octal escapes ('"\303\204rende.md"'), and wrote a rename as
+    // 'old -> new', which a path with ' -> ' in it would split in the wrong place
     [TestMethod]
-    public async Task TestParseRenamedFilesWithSpacesInNames()
+    public async Task TestParsePathsAsTheyAre()
     {
-        var status = await GetStatusAsync("R  \"old name.txt\" -> \"new name.txt\"");
+        var status = await GetStatusAsync(
+            """
+            ?? Ärende.md
+             M q"t.txt
+            R  new -> name.txt
+            old name.txt
+            UU some file.txt
+            """
+        );
 
+        CollectionAssert.AreEqual(new[] { "Ärende.md" }, status.AddedFiles);
+        CollectionAssert.AreEqual(new[] { "q\"t.txt" }, status.ModifiedFiles);
         CollectionAssert.AreEqual(new[] { "old name.txt" }, status.RenamedSourceFiles);
-        CollectionAssert.AreEqual(new[] { "new name.txt" }, status.RenamedTargetFiles);
+        CollectionAssert.AreEqual(new[] { "new -> name.txt" }, status.RenamedTargetFiles);
+        Assert.AreEqual(new ConflictedFile("some file.txt", ConflictKind.BothModified), status.Conflicts[0]);
+    }
+
+    // A copy, which git reports with status.renames set to 'copies', is a new file, and the path it
+    // was copied from that follows it is no file of its own
+    [TestMethod]
+    public async Task TestParseACopyIsANewFile()
+    {
+        var status = await GetStatusAsync("C  copy.txt\norig.txt\n M mod.txt");
+
+        Assert.AreEqual("M:1,A:1,D:0,C:0,R:0", status.ToString());
+        CollectionAssert.AreEqual(new[] { "copy.txt" }, status.AddedFiles);
     }
 
     [TestMethod]
@@ -190,15 +218,6 @@ public class StatusServiceTest
         Assert.AreEqual(kind, status.Conflicts[0].Kind);
     }
 
-    // A quoted path is unquoted like any other, and the ' -> ' of a rename is not involved
-    [TestMethod]
-    public async Task TestParseConflictedFileWithSpacesInName()
-    {
-        var status = await GetStatusAsync("UU \"some file.txt\"");
-
-        Assert.AreEqual(new ConflictedFile("some file.txt", ConflictKind.BothModified), status.Conflicts[0]);
-    }
-
     [TestMethod]
     public async Task TestParseEmptyStatusIsNoChanges()
     {
@@ -208,11 +227,11 @@ public class StatusServiceTest
         Assert.AreEqual(0, status.ModifiedFiles.Length);
     }
 
-    // Real git output ends with a newline, the trailing empty line is not a file
+    // Git ends each entry with a NUL, so the last is followed by an empty one, which is no file
     [TestMethod]
-    public async Task TestParseIgnoresTrailingNewline()
+    public async Task TestParseIgnoresTheEmptyEntryAtTheEnd()
     {
-        var status = await GetStatusAsync(" M mod.txt\n");
+        var status = AssertOk(await new StatusService(new FakeCmd(" M mod.txt\0")).GetStatusAsync(wd));
 
         Assert.AreEqual("M:1,A:0,D:0,C:0,R:0", status.ToString());
     }
@@ -225,7 +244,7 @@ public class StatusServiceTest
         Assert.IsFalse(status.IsMerging);
         Assert.AreEqual("", status.MergeMessage);
         Assert.AreEqual("", status.MergeHeadId);
-        Assert.IsFalse(StatusService.IsOperationInProgress(wd));
+        Assert.IsFalse(OperationState.Read(wd).IsInProgress);
     }
 
     // While merging, the message is the first line of MERGE_MSG — the rest is git's '# Conflicts:'
@@ -243,7 +262,7 @@ public class StatusServiceTest
         Assert.IsTrue(status.IsMerging);
         Assert.AreEqual("Merge branch 'topic'", status.MergeMessage);
         Assert.AreEqual("388362014956bb2f054d1699d4853904194e3dab", status.MergeHeadId);
-        Assert.IsTrue(StatusService.IsOperationInProgress(wd));
+        Assert.IsTrue(OperationState.Read(wd).IsInProgress);
     }
 
     // A squash merge or a merge of an unrelated ref writes MERGE_MSG but no MERGE_HEAD
@@ -344,7 +363,7 @@ public class StatusServiceTest
 
     // The bug this detection exists for. A rebase with the --apply backend and 'git am' write no
     // MERGE_MSG, so the old .git/MERGE_MSG test reported "not merging" — and both 'git add .' in
-    // GetUncommittedDiff and 'git commit -a' then staged the unmerged paths, resolving the conflict
+    // GetUncommittedDiffAsync and 'git commit -a' then staged the unmerged paths, resolving the conflict
     // with the markers as content and dropping the stages with no way back but --abort.
     [TestMethod]
     [DataRow("rebase-apply")]
@@ -357,7 +376,7 @@ public class StatusServiceTest
 
         Assert.IsFalse(File.Exists(Path.Join(wd, ".git", "MERGE_MSG")), "The fixture writes none");
         Assert.IsTrue(status.IsMerging);
-        Assert.IsTrue(StatusService.IsOperationInProgress(wd), "What guards the two 'git add .' sites");
+        Assert.IsTrue(OperationState.Read(wd).IsInProgress, "What guards the two 'git add .' sites");
     }
 
     // A stopped rebase and a stopped cherry-pick both write MERGE_MSG, so it never meant "a merge
@@ -436,7 +455,7 @@ public class StatusServiceTest
         Assert.AreEqual(1, cmd.Calls.Count);
         Assert.AreEqual("git", cmd.Calls[0].Path);
         Assert.AreEqual(wd, cmd.Calls[0].WorkingDirectory);
-        Assert.AreEqual("status -s --porcelain --ahead-behind --untracked-files=all", cmd.Calls[0].Args);
+        Assert.AreEqual("status --porcelain -z --untracked-files=all", cmd.Calls[0].Args);
     }
 
     // The read for a worktree someone else is working in must not take that worktree's index
@@ -451,10 +470,7 @@ public class StatusServiceTest
 
         Assert.AreEqual(1, cmd.Calls.Count);
         Assert.AreEqual(wd, cmd.Calls[0].WorkingDirectory);
-        Assert.AreEqual(
-            "--no-optional-locks status -s --porcelain --ahead-behind --untracked-files=all",
-            cmd.Calls[0].Args
-        );
+        Assert.AreEqual("--no-optional-locks status --porcelain -z --untracked-files=all", cmd.Calls[0].Args);
     }
 
     // gmd's own Undo/Revert Commit runs 'revert --no-commit', which stages one change for the
@@ -471,7 +487,7 @@ public class StatusServiceTest
 
         Assert.IsTrue(status.IsMerging, "It is still an operation in progress, so 'git add .' stays guarded");
         Assert.IsTrue(status.IsFinishedByCommit, "but a commit is the whole of what is left of it");
-        Assert.IsTrue(StatusService.IsFinishedByCommit(wd));
+        Assert.IsTrue(OperationState.Read(wd).IsFinishedByCommit);
     }
 
     // A revert of several commits does have to be continued: a commit would make the one git
@@ -486,7 +502,7 @@ public class StatusServiceTest
         var status = await GetStatusAsync(ConflictOutput);
 
         Assert.IsFalse(status.IsFinishedByCommit);
-        Assert.IsFalse(StatusService.IsFinishedByCommit(wd));
+        Assert.IsFalse(OperationState.Read(wd).IsFinishedByCommit);
     }
 
     // A cherry pick needs no such test: gmd's own runs '--no-commit', which writes no
@@ -498,7 +514,7 @@ public class StatusServiceTest
         WriteGitFile("CHERRY_PICK_HEAD", "388362014956bb2f054d1699d4853904194e3dab\n");
 
         Assert.IsFalse((await GetStatusAsync(ConflictOutput)).IsFinishedByCommit);
-        Assert.IsFalse(StatusService.IsFinishedByCommit(wd));
+        Assert.IsFalse(OperationState.Read(wd).IsFinishedByCommit);
     }
 
     // A merge has no '--continue' at all, and a rebase or an 'am' is never finished by the commit
@@ -518,7 +534,7 @@ public class StatusServiceTest
     public async Task TestNothingInProgressIsFinishedByCommitting()
     {
         Assert.IsTrue((await GetStatusAsync("")).IsFinishedByCommit);
-        Assert.IsTrue(StatusService.IsFinishedByCommit(wd));
+        Assert.IsTrue(OperationState.Read(wd).IsFinishedByCommit);
     }
 
     // 'merge --abort' needs MERGE_HEAD. gmd's own Cherry Pick leaves a conflict with neither that
@@ -530,7 +546,7 @@ public class StatusServiceTest
         StartMerge("topic\n");
 
         Assert.AreEqual(GitOperation.Merge, (await GetStatusAsync(ConflictOutput)).Operation);
-        Assert.IsTrue(StatusService.IsMergeWithoutHead(wd));
+        Assert.IsTrue(OperationState.Read(wd).IsMergeWithoutHead);
     }
 
     [TestMethod]
@@ -539,6 +555,6 @@ public class StatusServiceTest
         StartMerge("Merge branch 'topic'\n", "388362014956bb2f054d1699d4853904194e3dab");
 
         Assert.AreEqual(GitOperation.Merge, (await GetStatusAsync(ConflictOutput)).Operation);
-        Assert.IsFalse(StatusService.IsMergeWithoutHead(wd));
+        Assert.IsFalse(OperationState.Read(wd).IsMergeWithoutHead);
     }
 }

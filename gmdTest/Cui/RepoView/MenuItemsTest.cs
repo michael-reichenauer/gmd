@@ -57,7 +57,7 @@ public class MenuItemsTest
             Merge into main >  [e]  (disabled)
             Merge main into >  [⇧e]  (disabled)
             Rebase and Push onto >  (disabled)
-            Hide Branch  [h]
+            Hide Branch  [h]  (disabled)
             Pull  [u]  (disabled)
             Push  [p]
             Create Branch ...  [b]
@@ -76,6 +76,15 @@ public class MenuItemsTest
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main"))
         );
+    }
+
+    // The main branch is always shown, so its Hide Branch is greyed out, saying so: it did nothing
+    [TestMethod]
+    public async Task TestTheMainBranchCannotBeHidden()
+    {
+        var items = BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main").ToList();
+
+        Assert.AreEqual("'main' is the main branch, which is always shown", WhyNot(items, "Hide Branch"));
     }
 
     // A branch checked out in another worktree can be neither checked out, pulled, merged into
@@ -154,7 +163,7 @@ public class MenuItemsTest
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
         Assert.AreEqual(14, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(8, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(7, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]
@@ -343,8 +352,8 @@ public class MenuItemsTest
     {
         Assert.AreEqual(
             """
-            Pull All Branches  [⇧u]
-            Push All Branches  [⇧p]
+            Pull All Branches  [⇧u]  (disabled)
+            Push All Branches  [⇧p]  (disabled)
             Search ...  [f]
             Next Match  [n]  (disabled)
             Previous Match  [⇧n]  (disabled)
@@ -405,15 +414,42 @@ public class MenuItemsTest
         }
     }
 
-    // Uncommitted changes block a pull, which would move the working tree from under them, but not
-    // a push, which sends commits and leaves the changes where they are
+    // Push All and Pull All follow the rules of the ▲ and ▼ menus and of their keys: offered when
+    // there is something to push or pull. Uncommitted changes leave the current branch unpulled,
+    // since 'git pull' would move the working tree from under them, but not the others, which are
+    // fetched, and the menu greyed Pull All out with any change while Shift-U pulled them. A push
+    // sends commits and leaves the changes where they are.
     [TestMethod]
-    public async Task TestUncommittedChangesDisablePullingButNotPushing()
+    public async Task TestUncommittedChangesLeaveTheOtherBranchesToPullAndPush()
     {
-        var items = Items(RepoMenuOf(await ViewOf(Fixture().WithStatus(modified: 1))).GetRepoMenuItems());
+        var view = await ViewOf(
+            Fixture()
+                .Commit("o1", "Old on origin", "c1")
+                .BranchWithRemote("old", "c1", remoteTipCommit: "o1", behind: 1)
+                .WithStatus(modified: 1),
+            "old"
+        );
+        var items = Items(RepoMenuOf(view).GetRepoMenuItems());
 
-        StringAssert.Contains(items, "Pull All Branches  [⇧u]  (disabled)");
-        StringAssert.Contains(items, "Push All Branches  [⇧p]\n");
+        StringAssert.Contains(items, "Pull All Branches  [⇧u]\n");
+    }
+
+    [TestMethod]
+    public async Task TestUncommittedChangesLeaveNothingToPullWhenOnlyTheCurrentBranchIsBehind()
+    {
+        var view = await ViewOf(
+            new RepoBuilder()
+                .Commit("r1", "Remote", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c1", isCurrent: true, remoteTipCommit: "r1", behind: 1)
+                .WithStatus(modified: 1)
+        );
+
+        StringAssert.Contains(Items(RepoMenuOf(view).GetRepoMenuItems()), "Pull All Branches  [⇧u]  (disabled)");
+        Assert.AreEqual(
+            "Commit or stash the changes first, then pull 'main'",
+            BranchPushPullCommands.WhyNoPull(view.Repo)
+        );
     }
 
     // What does block a push is a merge or rebase stopped part way through, the branch being
@@ -643,31 +679,36 @@ public class MenuItemsTest
     static async Task<FakeViewRepo> ViewOf(RepoBuilder builder, params string[] showBranches) =>
         new FakeViewRepo(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
 
-    static IBranchMenu BranchMenuOf(FakeViewRepo view) => new BranchMenu(RepoMenuOf(view), view);
+    static IBranchMenu BranchMenuOf(FakeViewRepo view)
+    {
+        var commands = Commands(view);
+        return new BranchMenu(RepoMenuOf(view, commands), view, commands);
+    }
 
-    // Only OperationName and OperationSummary are called while the items are built, and both read
-    // nothing but repo.Repo.Status, so the rest of RepoCommands is never reached
-    static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) =>
-        new RepoMenu(
-            view,
-            new RepoCommands(
-                view,
-                null!,
-                null!,
-                null!,
-                null!,
-                null!,
-                null!,
-                null!,
-                null!,
-                new Config(),
-                null!,
-                null!,
-                _ => null!
-            ),
-            config ?? new Config(),
-            null!
+    static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) => RepoMenuOf(view, Commands(view), config);
+
+    static IRepoMenu RepoMenuOf(FakeViewRepo view, CommandContext commands, Config? config = null) =>
+        new RepoMenu(view, commands, config ?? new Config(), null!);
+
+    // The command classes the menus are made with. Only RepoCommands' OperationName and
+    // OperationSummary are called while the items are built, and both read nothing but the shown
+    // repo's status, so the rest of RepoCommands, and the other two, are never reached.
+    static CommandContext Commands(FakeViewRepo view)
+    {
+        var commands = FakeRepoView.Context(view);
+        commands.RepoCmds = new RepoCommands(
+            commands,
+            null!,
+            null!,
+            null!,
+            null!,
+            new Config(),
+            null!,
+            null!,
+            _ => null!
         );
+        return commands;
+    }
 
     // 'dev' is current and branched from 'main', 'feature' from 'dev' and 'alpha' from 'main',
     // so the branch order the graph draws is not the order the chain of the current branch is

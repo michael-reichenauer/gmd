@@ -1,75 +1,36 @@
-using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.InteropServices;
+namespace gmd.Utils;
 
-namespace gmd.Utils
+public static class FatalExceptionsExtensions
 {
-    public class FatalExceptionEventArgs : EventArgs
-    {
-        public string Message { get; }
-
-        public Exception Exception { get; }
-
-        public FatalExceptionEventArgs(string message, Exception exception)
-        {
-            Message = message;
-            Exception = exception;
-        }
-    }
-
-    public static class FatalExceptionsExtensions
-    {
-        private static readonly IReadOnlyList<Type> FatalTypes = new[]
-        {
-            typeof(ArgumentException),
-            typeof(AccessViolationException),
-            typeof(AppDomainUnloadedException),
-            typeof(ArithmeticException),
-            typeof(ArrayTypeMismatchException),
-            typeof(BadImageFormatException),
-            typeof(CannotUnloadAppDomainException),
-            typeof(ContextMarshalException),
-            typeof(DataMisalignedException),
-            typeof(IndexOutOfRangeException),
-            typeof(InsufficientExecutionStackException),
-            typeof(InvalidCastException),
-            typeof(InvalidOperationException),
-            typeof(InvalidProgramException),
-            typeof(MemberAccessException),
-            typeof(MulticastNotSupportedException),
-            typeof(NotImplementedException),
-            typeof(NotSupportedException),
-            typeof(NullReferenceException),
-            typeof(OutOfMemoryException),
-            typeof(RankException),
-            typeof(AmbiguousMatchException),
-            typeof(InvalidComObjectException),
-            typeof(InvalidOleVariantTypeException),
-            typeof(MarshalDirectiveException),
-            typeof(SafeArrayRankMismatchException),
-            typeof(SafeArrayTypeMismatchException),
-            typeof(StackOverflowException),
-            typeof(TypeInitializationException),
-        };
-
-        public static event EventHandler<FatalExceptionEventArgs>? FatalException;
-
-        public static bool IsNotFatal(this Exception e)
-        {
-            Exception exception = e;
-            Type exceptionType = e.GetType();
-
-            if (FatalTypes.Contains(exceptionType))
-            {
-                StackTrace stackTrace = new StackTrace(1, true);
-                string stackTraceText = stackTrace.ToString();
-                string message = $"Exception type is fatal: {exceptionType}, {e}\n at \n{stackTraceText}";
-
-                FatalException?.Invoke(null, new FatalExceptionEventArgs(message, exception));
-                return false;
-            }
-
-            return true;
-        }
-    }
+    // Whether an exception can be taken for a failure of what was tried, rather than for a bug in
+    // gmd or a broken runtime, which no catch should take for one: those go on up to the handlers
+    // of ExceptionHandling, which stop gmd. For a catch around what fails for reasons outside gmd,
+    // a process, a pipe, a download:
+    //
+    //   catch (Exception e) when (e.IsNotFatal())
+    //
+    // An ArgumentException, InvalidOperationException or NotSupportedException is not fatal, since
+    // an API throws them for input it cannot take as well, which is a failure of the call, as
+    // Result.Catch takes it too. The types are matched with what derives from them, e.g. a
+    // DivideByZeroException is an ArithmeticException.
+    public static bool IsNotFatal(this Exception e) =>
+        e
+            is not (
+                AssertException
+                or ResultException
+                or NullReferenceException
+                or InvalidCastException
+                or IndexOutOfRangeException
+                or ArrayTypeMismatchException
+                or ArithmeticException
+                or NotImplementedException
+                or OutOfMemoryException
+                or InsufficientExecutionStackException
+                or StackOverflowException
+                or AccessViolationException
+                or BadImageFormatException
+                or InvalidProgramException
+                or TypeInitializationException
+                or MemberAccessException
+            );
 }

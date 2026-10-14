@@ -99,6 +99,13 @@ Each item can be clicked:
 | commit on dev  | With key hints off, the row's commit: show a branch  |
 | Ϙ Search ? X   | Search (also f), help (also ?), and quit             |
 
+An update downloads the new version and checks it before it replaces gmd,
+which quits then; the new version runs when gmd is started again. **Cancel**
+in the box shown meanwhile stops it, after asking, and leaves gmd as it is,
+up to the moment the new version is put in place. A gmd installed with
+Homebrew is updated by Homebrew instead, so ⇓ then says the command to run,
+`brew update && brew upgrade gmd`.
+
 The line at the bottom shows the keys that do something where the cursor
 is, and changes as it moves; the diff, blame and conflict views have one of
 their own. It starts with what the keys act on: the highlighted branch,
@@ -131,7 +138,8 @@ hidden until it next becomes current.
 - `Enter` on a highlighted branch where it has a `╮` or `╯` beside it, or a
   click there, shows that hidden branch, or opens **Show/Hide Branch** when
   there are several. The same hides it again.
-- `h` hides the highlighted branch, and the branches made from it.
+- `h` hides the highlighted branch, and the branches made from it. The main
+  branch is always shown, so it cannot be hidden.
   **Hide All Branches** goes back to showing just main.
 - `Backspace` undoes the last show or hide, going back to the branches
   shown before it, one step at a time. **Undo** under **Branches** in the
@@ -210,7 +218,7 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | Shift-E    | Merge the current branch into the highlighted branch       |
 | h          | Hide the highlighted branch                                |
 | Backspace  | Undo the last show or hide of branches                     |
-| g          | Change the color of the highlighted branch                 |
+| g          | Change the color of the highlighted branch (not main's)    |
 | p          | Push the highlighted branch, or the current one            |
 | u          | Pull the highlighted branch, or the current one            |
 | Shift-P    | Push all shown branches                                    |
@@ -250,6 +258,14 @@ views), double-click switches to a branch (or toggles the details of a
 commit), and middle-click merges a branch into the current branch, after
 asking. The items in the top bar can be clicked as well: `▲` and `▼` open
 a menu to push or pull the current branch or all of them.
+
+On macOS, the Terminal app sends `Shift-↑` and `Shift-↓` as a plain `↑` and
+`↓`, so they move the cursor rather than select rows. Add the two keys in
+Terminal → Settings → Profiles → Keyboard, with `+`: Cursor Up with Shift,
+Send Text `\033[1;2A`, and Cursor Down with Shift, `\033[1;2B` (press `Esc`
+in the text field for the `\033`). `cat -v` shows what a key sends:
+`^[[1;2A` once it is set, `^[[A` before. Dragging over rows with the mouse
+selects them too, in any terminal.
 
 
 ## Symbols
@@ -431,7 +447,9 @@ throw changes away for good ask first.
   takes it back.
 - **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
-  squash them into one commit with a new message.
+  squash them into one commit with a new message. The commits after them
+  are put back on top as they were, merges and authors too, and **Undo**
+  takes the squash back. Nothing changes until the squash is made.
 - **Tags** (in the commit menu's **Tag** menu):
   **Add Tag ...** (`t`) puts a tag on the commit, and pushes it to origin
   unless its box is unticked. **Tags ...** lists every tag, newest commit
@@ -465,7 +483,11 @@ Find more commands in the menus (the `m` key).
 
 ## Diff and Blame
 
-**Commit Diff** (`d`) shows the changes of a commit side by side. `+` shows
+**Commit Diff** (`d`) shows the changes of a commit side by side, after a
+list of its files, headed by how many were added, modified, renamed and
+removed, and the lines added and removed, e.g.
+`3 Files:  1 added, 2 modified   +25 -7 lines`. A line whose line end
+alone changed, e.g. from LF to CRLF, has a `␍` on the side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
 stepping from the 6 lines of context it starts with to 15, and then to the
 whole file (and `=` does what `+` does, without the shift). It applies to
@@ -499,9 +521,11 @@ and marked `©`.
 Within the blame: `Enter` toggles the commit details of the current line,
 the same pane the log view shows, which follows the cursor as you move down
 the lines (`Tab` moves into it to scroll a long message). `d` shows the
-diff of the current line's commit, `l` the history of the lines selected
-with `Shift-↑↓`, or of the current one: every commit that changed them,
-with the diff of those lines alone, `p` blames the version before it (so a
+diff of the current line's commit, or for a line not committed yet the
+uncommitted changes, to read (they are committed and discarded from the
+log), `l` the history of the lines selected with `Shift-↑↓`, or of the
+current one: every commit that changed them, with the diff of those lines
+alone (and no more context, which git does not give it), `p` blames the version before it (so a
 reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column
@@ -552,10 +576,13 @@ next and previous one from wherever the cursor is.
 | s          | Save and mark the file resolved                            |
 | m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
+| Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 
 Nothing is written until `s`, so closing without saving leaves the file as
-it was, and closing with decisions unsaved asks first.
+it was, and closing with decisions unsaved asks first. A file saved with
+conflicts still undecided keeps their markers, and is marked resolved once
+none is left.
 
 `b` shows the version both sides started from, which is usually what
 settles which change to keep, and `0` resolves the conflict *to* it, the
@@ -575,8 +602,9 @@ to the buttons, since Enter inside it is a newline.
 
 A file with no text to merge is not shown in columns; it asks the one
 question it can, and which question depends on which sides still have the
-file. A binary file both sides changed asks which version to use. A file
-only one side has (one deleted it, or each renamed it differently) asks
+file. A binary file both sides changed asks which version to use. A text
+file whose conflict markers were taken out by hand, in an editor, is marked
+resolved as it is, or one side is taken after all. A file only one side has (one deleted it, or each renamed it differently) asks
 whether to keep it or accept the deletion. A file neither side has any
 longer can only be removed, and says so rather than offering a version that
 is not there.
@@ -590,7 +618,8 @@ got and how many conflicts are left, e.g.
 
 **Continue** carries on once every conflicted file is resolved and marked
 resolved (`git add`); a rebase over several commits may then stop again on
-the next one, and it says so. **Skip This Commit** drops the commit it
+the next one, which is shown as the first stop was, with the files and the
+way on. **Skip This Commit** drops the commit it
 stopped on and carries on with the rest. **Abort** throws the whole
 operation away and puts the working folder back as it was.
 

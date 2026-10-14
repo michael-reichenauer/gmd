@@ -169,6 +169,92 @@ public class CommitRewriteTest
         );
     }
 
+    // Uncommit resets the branch to the commit before this one and keeps the changes, so it follows
+    // the rule of Amend and Drop: only commits not pushed yet, on the current branch. It was offered
+    // on pushed commits, and on the first commit, which has nothing before it, and threw there.
+    [TestMethod]
+    public async Task TestUncommitTakesCommitsNotPushedThatHaveOneBefore()
+    {
+        var ahead = await Ahead().ViewRepoAsync();
+        Assert.AreEqual("", CommitRewrite.WhyNotUncommit(ahead, C(ahead, "c3")));
+        Assert.AreEqual(
+            "Only a commit not yet pushed can be uncommitted",
+            CommitRewrite.WhyNotUncommit(ahead, C(ahead, "c2"))
+        );
+
+        var neverPushed = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .LocalBranch("main", "c2", isCurrent: true)
+            .ViewRepoAsync();
+        Assert.AreEqual("", CommitRewrite.WhyNotUncommit(neverPushed, C(neverPushed, "c2")));
+        Assert.AreEqual(
+            "The first commit cannot be uncommitted",
+            CommitRewrite.WhyNotUncommit(neverPushed, C(neverPushed, "c1"))
+        );
+    }
+
+    [TestMethod]
+    public async Task TestUncommitNeedsACleanTreeAndTheCurrentBranch()
+    {
+        var changed = await Ahead().WithStatus(modified: 1).ViewRepoAsync();
+        Assert.AreEqual(Why.Changes, CommitRewrite.WhyNotUncommit(changed, C(changed, "c3")));
+        Assert.AreEqual(
+            "Commits are uncommitted: move to one first",
+            CommitRewrite.WhyNotUncommit(changed, changed.CommitById[Repo.UncommittedId])
+        );
+
+        var other = await new RepoBuilder()
+            .Commit("f1", "Feature", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c1", ahead: 1)
+            .LocalBranch("feature", "f1")
+            .ViewRepoAsync("feature");
+        Assert.AreEqual(
+            "Only commits on the current branch can be uncommitted",
+            CommitRewrite.WhyNotUncommit(other, C(other, "f1"))
+        );
+    }
+
+    // Squash takes selected commits of the current branch. The menu offered it for any rows, and the
+    // command refused the rest in an error box.
+    [TestMethod]
+    public async Task TestSquashTakesCommitsOfTheCurrentBranch()
+    {
+        var ahead = await Ahead().ViewRepoAsync();
+        Assert.AreEqual("", CommitRewrite.WhyNotSquash(ahead, C(ahead, "c4"), C(ahead, "c3")));
+        Assert.AreEqual(
+            "The first commit cannot be squashed",
+            CommitRewrite.WhyNotSquash(ahead, C(ahead, "c2"), C(ahead, "c1"))
+        );
+
+        var changed = await Ahead().WithStatus(modified: 1).ViewRepoAsync();
+        Assert.AreEqual(Why.Changes, CommitRewrite.WhyNotSquash(changed, C(changed, "c4"), C(changed, "c3")));
+    }
+
+    [TestMethod]
+    public async Task TestSquashRefusesRowsOfTwoBranchesOrAnother()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f2", "Feature two", "f1")
+            .Commit("c2", "Second", "c1")
+            .Commit("f1", "Feature one", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c1", ahead: 1)
+            .LocalBranch("feature", "f2")
+            .ViewRepoAsync("feature");
+
+        Assert.AreEqual(
+            "The selected commits are on different branches: select commits of one branch",
+            CommitRewrite.WhyNotSquash(repo, C(repo, "c2"), C(repo, "f1"))
+        );
+        Assert.AreEqual(
+            "Only commits on the current branch can be squashed",
+            CommitRewrite.WhyNotSquash(repo, C(repo, "f2"), C(repo, "f1"))
+        );
+    }
+
     [TestMethod]
     public async Task TestNotWhileAnOperationIsInProgress()
     {

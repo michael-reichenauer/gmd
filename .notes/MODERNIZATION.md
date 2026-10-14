@@ -50,6 +50,41 @@ Add new open issues and findings here as work lands; keep them short and drop th
   dump of a real repo of about 1750 commits.
 - Collection expressions adopted (107 mechanical sites), the two `Converter`s renamed
   `WorkRepoConverter` / `ViewRepoConverter`, and dead `NoWarn` entries removed.
+- `gmd/Server` reviewed (2026-10-13): `AugmentedService` (1,035 lines) is the reading only, and the
+  writes that need the inferred model are services of their own beside `BranchWriteService`
+  (`CommitRewriteService`, `UndoService`, `DeletedBranchService`), called by `Server` directly; every
+  write the user asks for pauses the file monitor in one place (`Server.Paused`), where half did,
+  by the path they took; git's records are converted in one place (`GitConverter`), where five
+  held them, three conversions twice; a repo's lookups follow its lists in a copy too.
+  `FileMonitor` moved out of `Augmented/Private`. `IServer` was left one facade, by choice: every
+  member is used, and the command classes span the areas, `CommitCommands` 27 members over five.
+- `gmd/Installation` reviewed (2026-10-13): `Updater` (one class, untested) is split into `Updater`
+  (when to check and update, one update at a time), `GitHubReleases` (the release list, with its
+  ETag), `ReleaseChoice` (the release and the binary for a platform, the platform handed in) and
+  `BinaryInstaller` (download, check, swap, clean up), with `IHttp` as the seam the tests answer
+  through (`FakeHttp`, and `LoopbackServer` for what HttpClient does with a slow or broken
+  connection) and `RunningGmd` handing in the gmd to update, since the test process is a dotnet host.
+  From no tests to 49. A real update of a running gmd was tried by hand on Linux arm64.
+- A Homebrew tap (2026-10-14), `michael-reichenauer/homebrew-tap`, which the release workflow
+  writes for every release from main (`scripts/brewformula`, a deploy key as `HOMEBREW_TAP_KEY`).
+  A gmd installed from it is known by its binary's folder in the Cellar (`PackageManager`) and
+  leaves updating to Homebrew: no install, no auto update, no previews, and ⇓ and `--update` say
+  `brew update && brew upgrade gmd`. The path is the binary's, not a link's that started it. A
+  folder the user cannot write to is said before the download. Tried with a real Homebrew on Linux
+  arm64 from a local tap, and on macOS 27 from a local tap of a preview: installed, known as Homebrew's,
+  and ⇓ says the brew command.
+- `gmd/Cui` reviewed (2026-10-13), by five reviewers in parallel and every finding checked against
+  the code before it was acted on: 32 commits, the bugs under Bugs fixed. Structure: the key-hint
+  line is `Cui/Common`'s (`KeyHint`, `KeyHintBar`, `KeyHintLine`) and each view's hints are beside
+  it (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`), which ends the diff, blame,
+  conflict and start views' dependency on `RepoView/` (the folders depended on each other); the
+  Cui `DiffService` / `BlameService` are `DiffRowService` / `BlameRowService`; rules that the
+  menus, the keys and the hints each had a copy of are one function each (`CommitRewrite.
+  WhyNotUncommit` / `WhyNotSquash`, `BranchCommands.WhyNotRebaseAndPush`, `BranchPushPullCommands.
+  CanPushBranch` / `CanPull`, `Selection.IsRows`, `RefName.IsValid`); and the index math that was
+  in views went beside them (`MenuDimensions.ItemAt`, `DiffRows.AnchorAt` / `IndexOf`,
+  `DiffRowService.CopyText`, `KeyGate`, `ContentView.ShowCurrentIndex`). Some 60 members nothing
+  used are gone. What is left, the structure included, is under Open issues.
 
 **The result type is a C# 15 union** (2026-09-11)
 
@@ -303,6 +338,97 @@ Add new open issues and findings here as work lands; keep them short and drop th
   it is never half written, and a write reads the file afresh, so two instances no longer drop each
   other's changes (the recent folders, a word added to the dictionary, the shown branches of a repo
   open twice). (2026-10-08)
+- The user config held its defaults until the UI was ready (`Config.Init`, in `MainView.OnReady`) or
+  something was set, so whatever read it earlier read the defaults, unnoticed: `gmd --update` checked
+  with the default `CheckUpdates` and no cached ETag. `Config` now loads the stored values when it is
+  created (`IConfigService.Load`, no more `Lazy` cycle between the two), and `CheckUpdates` turns off
+  only the checks gmd makes by itself, so `--update` and the update dialog look for a release even
+  so; the dialog used to say there was none. The reflective copy into the one `Config` instance
+  stays, as every class holds that instance. (2026-10-13)
+- Found by the review of `gmd/Utils` (2026-10-13):
+  - A `~/gmd.log` that gmd cannot write, as one a `sudo gmd` leaves owned by root, hung gmd at start
+    on a blank screen, for good: the log's static constructor asserted, the assert's handler waited
+    for the log to close, and the writing thread waited for the static constructor. The file is now
+    replaced when it cannot be emptied, and gmd logs nowhere rather than fail (`LogFile.Open`).
+  - `TrimPrefix` / `TrimSuffix`, which trim branch names in the inference, compared with the user's
+    culture, which ignores a soft hyphen or a zero width joiner, so trimming `origin/` off
+    `orig\u00ADin/dev` left `/dev`. And the log wrote its times in the culture's calendar, the year
+    1448 under ar-SA.
+  - `Files.IsText` read characters, so UTF-16 with a byte order mark read as text, which git merges
+    as binary: a conflicted UTF-16 file was refused with an error rather than resolved whole. It
+    reads bytes now, as git does.
+- Found by the review of `gmd/Server` (2026-10-13):
+  - gmd could not open a repo in the middle of merging a commit no branch reaches, as a
+    `git pull <url> <branch>` or a merge of FETCH_HEAD leaves on a conflict: the uncommitted commit
+    looked the merge head up in the log, and gmd stopped on every start until the merge was finished
+    outside it (`Uncommitted`).
+  - A branch choice made here was undone by the next background fetch, every five minutes, until it
+    was pushed: the metadata was fetched over the local value, and the merge took origin's for every
+    key both had. That covers a branch set by hand, an ambiguity resolved again, and Rename Branch's
+    rewrite of the old name, which brought the old name back as a branch. Origin's value is fetched
+    into a record of its own, and merged three ways against the record from before the fetch.
+  - Merge, Merge Into and Rebase onto chose between a branch and its remote branch by the author times
+    of their tips, which a cherry pick, a rebase or another machine's clock gets wrong, and so merged
+    the remote branch without the local commits. They go by git's ahead and behind counts now
+    (`BranchWriteService.MergeTipName`).
+- Found by the review of `gmd/Cui` (2026-10-13), each with a regression test unless said:
+  - *Rebase and Push onto* pushed with force with no question, on an Enter in its sub menu, and its
+    lease, origin's tip as shown, let it drop commits someone else pushed once a fetch brought them.
+    It asks now, and refuses a branch origin has commits for that it has not
+    (`BranchCommands.WhyNotRebaseAndPush`).
+  - Saving the resolver with conflicts undecided staged the file, markers and all: git no longer
+    listed it as conflicted, so the diff did not offer it, and the reopened resolver had lost the
+    ancestor and the sides. A file is staged once nothing in it is undecided (`ConflictService.
+    ResolveAsync`). A file resolved by hand in an editor could only be overwritten with a side; it can
+    be marked resolved as it is.
+  - Gmd stopped on: a click in an empty menu; `m` (and clicks) after the log shrank under the cursor;
+    the key hints of a highlighted local branch once a fetch pruned origin's copy, with no key
+    pressed; *Uncommit … and Newer* on the first commit; a range *Cherry Pick* of rows of two
+    branches; Ctrl+C after a drag in the empty rows under a short log. A pool-thread race in the
+    progress timer could end the process as well (not reproduced).
+  - A click on a menu's title or bottom border ran the item next to it (the push menu's *Push All*,
+    say), and the pointer picked an item scrolled out of view. Esc on a question answered Yes when
+    a message box had been shown over it (`MessageDlg.Clicked`, a static).
+  - The keyboard stayed dead after a menu opened by a click while a background read ran was closed
+    once the read was done (`UI.EnableInput` put back what it found; `KeyGate` now).
+  - Create Branch, Add Tag and Add Worktree took a name with a space, which git took as two
+    arguments: `fix dev` made a branch `fix` at dev's tip and checked it out (`RefName.IsValid`).
+  - Keys and menus that disagreed with their hints or with each other: the branch menu's Push of the
+    current branch skipped the force push question `p` asks; Pull All was greyed out with any change
+    while Shift-U pulled the other branches; `b` on the uncommitted row, `d` and `m` with rows
+    selected and a branch highlighted, Shift-E on a branch held by another worktree, `d` on a branch
+    with changes, `c` in the diff of a commit, and Squash, Uncommit and a diverged push offered where
+    they then failed.
+  - Amend could not reword the last commit while there were changes; the commit dialog named the
+    newest commit's branch rather than the current one; a copy of an added file's lines kept the line
+    number gutter; Scroll to a file left the cursor in the file before; `+` / `-` in a file history
+    went back to the newest commit; Back in blame put the cursor off the screen; a click in the
+    resolver landed two rows high; the diff and the resolver scrolled sideways into blank space; the
+    log squeezed branch tips and tags into 6 columns, and dropped a branch rune from a graph cut to
+    fit; Clone into a browsed folder was undone by the next key in the uri; `gmd -d -m` took `-m`
+    for the folder; the large file question said 0 B. (The last three have no test.)
+  - Cancelled create and rename dialogs refreshed and fetched; Continue and Skip refreshed twice at
+    once on a new stop. The graph's column placement tested every pair twice, which was most of the
+    time of a refresh with all branches shown (3.2 of git's 4 s, not measured again).
+- Found by the review of `gmd/Installation` (2026-10-13), the updater:
+  - An update over a link slower than about 8 Mbit/s always failed: the binary, some 100 MB, was read
+    whole within HttpClient's 100 second timeout. It is streamed now, given up on only when nothing
+    has come for a minute. A failed download was kept in a static field and handed back, faulted, to
+    every later update of that version until gmd was restarted.
+  - Nothing checked the new binary before it replaced gmd, and a file left at
+    `/tmp/gmd.<version>.RTXZERT` was installed unseen as "already downloaded". A download cut short
+    could leave a gmd that does not start, which no update can repair. The download is new each
+    time, beside the binary, and has to match the release's `SHA256SUMS` and to say its version when
+    run (`gmd --version`, as CI runs it) before the swap.
+  - The swap renamed the running binary aside and the new one in, and nothing renamed it back when
+    the second rename failed, leaving no gmd at all; a second gmd starting at that moment did that,
+    by deleting the new one, whose name was the one the clean-up deletes. Linux and macOS replace it
+    in one atomic rename now, and Windows renames the old one back.
+  - With Auto update on, a gmd left open installed the same release again every hour and opened
+    another "Restart for New Version" box each time, since the running gmd is still the old version.
+  - A folder with a space in its path failed every update (`chmod +x <path>`, unquoted). An update
+    with nothing newer made the dialog say gmd was updated, and quit it. A release with no binary
+    for this platform was offered. A release list with no ETag was dropped for the cached one.
 
 ---
 
@@ -344,8 +470,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
   no Ctrl+C: `i` and `Shift-I` copy them, as the commit menu's *Copy Commit Id* and *Copy Commit
   Message* do (2026-10-07).
-- `BlameView.ScrollToCommit` calls `SetCurrentIndex` before `ScrollToShowIndex`, which puts the
-  cursor on the last visible row rather than the target. Scroll first, then set the cursor.
+- macOS Terminal sends Shift+↑/↓ as a plain `\E[A`/`\E[B` (`cat -v` shows `^[[A`), so they move
+  rather than select there; gmd cannot tell them from ↑/↓. A profile key sending `\033[1;2A` /
+  `\033[1;2B` fixes it, as `help.md` (Keys) says; iTerm2, VS Code and the Linux terminals send those
+  already. gmd itself is fine: replayed into it through tmux, `\E[1;2B` selected with ncurses
+  decoding it (`TERM=xterm-256color`, `kind`) and with Terminal.Gui doing so (`screen-256color`,
+  no `kind`), so the old ncurses macOS ships is not a factor (2026-10-14).
 - `UILabel.Text`'s setter sizes the label from the text it is *replacing*, so a header that grows is
   clipped. `BlameView` works around it with `Width = Dim.Fill()`; the setter is the fix.
 - Pull all only considers shown branches; a hidden branch that is behind is neither pulled nor
@@ -370,11 +500,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
     that large, such a branch counts as absent: the record is listed, and git refuses the restore.
 - A repo with no commits still offers Uncommit (git refuses the reset). Ctrl+O is documented as
   activating OK but is bound nowhere; dialogs are accepted with Tab then Enter. The merge-from menu
-  lists only shown branches, so with only `main` shown it is an empty box.
+  lists only shown branches, so with only `main` shown it is an empty box (a click in it no longer
+  stops gmd).
 - Cosmetic and pinned by tests: a cut sid, author or time column carries no `┅` marker (the
-  subject column does); a binary file is headed `Modified:`; `FileSize` never shows a fraction; a
-  stash message is cut at its first `:`. (A staged added file used to be counted as modified, which
-  stopped being cosmetic once discarding a file asked whether it was new; it is added now.)
+  subject column does); a binary file is headed `Modified:`; `FileSize` never shows a fraction. (A
+  staged added file used to be counted as modified, which stopped being cosmetic once discarding a
+  file asked whether it was new; it is added now. A stash message was cut at its first `:`.)
 - Worktrees, deliberately left out of v1: no unlock of a locked worktree (a second `--force`),
   no bulk clean-up, no auto-prune; the stash list is the repository's and so shows stashes made
   in other worktrees; other worktrees' folders are not watched, so their change counts are up to
@@ -388,14 +519,145 @@ Add new open issues and findings here as work lands; keep them short and drop th
   hardware (the platform checklist in `docs/CONTRIBUTING.md` has it, with the rest that only Windows and
   macOS show). Linux with no display is covered end to end; the tool path was checked with a stand-in
   `xclip` that forks a child holding the pipes, as the real one does.
-- Squash still resets the branch and cherry-picks the newer commits back one by one
-  (`AugmentedService.SquashCommits`), so a conflict stops it half done: the branch already reset, a
-  cherry-pick stopped, and its `squash-backup-…` branch left behind. Amend and Drop of an older
-  commit are git's own rebase instead (`AutosquashAsync`, `DropCommitAsync`), which a conflict stops
-  cleanly for the resolver and Continue or Abort; Squash could be the same, as `fixup!` commits and
-  `--autosquash`, with the message given to the first. The rewrites that are rebases recorded for
-  Undo only when they finish in one go: one stopped on a conflict and continued is named by the
-  reflog, i.e. Undo Rebase, which leaves an Amend's `amend!` commit, a second Undo.
+- *Done 2026-10-14:* Squash reset the branch and cherry-picked the newer commits back one by one,
+  so a failure stopped it half done, with a `squash-backup-…` branch left behind; a merge among the
+  newer commits always did, cherry-pick refusing a merge; and the newer commits were committed again
+  as the user, losing their authors and dates. The squash is `git commit-tree` now, the files of the
+  newest commit on the parent of the oldest, moving nothing, and a `rebase --rebase-merges` of the
+  newer commits onto it, which cannot conflict, being made on the very files they were made on, and
+  is the one move of the branch. No hook runs for the squashed commit, as for the commits a rebase
+  replays, where `git commit` ran `commit-msg` for it (a Gerrit Change-Id is then not added).
+- The rewrites that are rebases are recorded for Undo only when they finish in one go: one stopped
+  on a conflict and continued is named by the reflog, i.e. Undo Rebase, which leaves an Amend's
+  `amend!` commit, a second Undo.
+
+- Left by the review of `gmd/Git` (2026-10-13):
+  - A hunk is read by the prefix of its lines rather than by the counts in its header, so with
+    `diff.suppressBlankEmpty` set an empty context line, written as an empty line, ends the hunk.
+    Reading by the counts would also be what a combined diff (`diff --cc`) needs.
+  - Branch and tag names go to git unquoted. Git refuses a space and a backslash in a ref name,
+    but not a `"`, which would split the argument. The dialogs that ask for a name refuse both
+    since the review of `gmd/Cui` (`RefName.IsValid`); a name git has from elsewhere is not checked.
+
+- Left by the review of `gmd/Utils` (2026-10-13):
+  - 78 more `StartsWith` / `EndsWith` / `IndexOf` with a string and no `StringComparison` outside
+    Utils, 44 in `Server/Private` and 21 in `Git/Private`, culture-sensitive as `TrimPrefix` was.
+    CA1310 / CA1307 as warnings would list them; the inference ones want an `InferenceDumpTest`
+    before and after.
+  - A failure before the UI runs, e.g. a `~/.gmdconfig` that cannot be written, ends gmd with the
+    runtime's "Unhandled exception" and a stack trace rather than `Program.CrashMessage`, which only
+    follows the main loop.
+  - *Done 2026-10-14:* `Cmd` read output by lines (`BeginOutputReadLine`), which also broke at a lone
+    `\r`, and dropped every `\r`, so a diff line with a lone `\r` was split there and its rest lost,
+    and a change of line ends alone showed lines the same on both sides. It reads the bytes whole now:
+    a `\r\n` is a `\n`, a lone `\r` is kept (stderr's are line breaks, git's progress), and a diff is
+    read with its `\r\n` (`isKeepCr`), whose `\r` the diff view shows as `␍` where it is the change.
+    `TextWidth.Drawn` draws a control character as its picture, `␍` for a lone `\r`.
+  - *Done 2026-10-14:* the timers of `Progress` and `MessageDlg` were `System.Threading.Timer`s
+    that pulsed a view and dereferenced `Application.MainLoop` on a thread pool thread, where an
+    exception ended the process with the terminal left as Terminal.Gui set it. They are main loop
+    timeouts now (`UI.AddTimeout`), which also need no `Wakeup`. `MessageDlg.ShowWhile` is only
+    reached by an update, which a dev build never offers, so its marquee was not seen running.
+  - A failure stops gmd with `Application.RequestStop()`, posted to the main loop
+    (`UI.ShutdownFromAnyThread`), which ends the current toplevel: with a modal dialog open, maybe
+    only the dialog. Not verified.
+
+- Left by the review of `gmd/Server` (2026-10-13):
+  - The inference keeps one read's state in a singleton (`BranchNameService`, whose parse cache
+    three stages share), which is why all inference runs under a static lock
+    (`BranchStructureService`). A context made per read and passed through the stages would remove
+    both; high-risk code, so only with `InferenceDumpTest` before and after.
+  - `Repo` is three things in one type, the augmented repo, the view and the filtered view, told apart
+    by whether `ViewCommits` is filled, and with the view state in `Commit` and `Branch` (roadmap C)
+    every Show and Hide copies every commit of the log, up to 30,000.
+  - *Done 2026-10-14:* the metadata was pushed with `--force` over origin's, so a choice someone
+    pushed since the last fetch here was lost. The push is leased on the record of origin's value
+    (`--force-with-lease=<ref>:<recorded id>`, or on there being none), and refused, origin's is
+    fetched and merged and the merge pushed, three goes at most.
+  - A diverged branch pair is still merged or rebased onto by the younger tip (`MergeTipName`).
+  - An empty repo's branch is shown as `main` whatever its unborn HEAD is named
+    (`AugmentedService.EmptyGitRepo`).
+
+- Left by the review of `gmd/Cui` (2026-10-13). The structure first:
+  - *Done 2026-10-14:* the command classes and menus were rebuilt with every snapshot of the repo
+    (every refresh, show or hide, and key typed in the search), eight command classes with their
+    dialogs through Autofac, and a command held the repo of when it was made, which is why
+    `CommandRunner`, `MergeToBranch` and `FindBranch` read `repoView.ViewRepo` again after a
+    refresh, and `IViewRepo` doubled as a service locator (`repo.Cmds`). The command classes are made
+    once now, with the view, and share a `CommandContext` (the repo shown now, the view, the server,
+    the status line, `Do`, and the command classes, `BranchCommands`' four forwarded ones included);
+    `Do(async repo => …)` hands a command the snapshot as it starts. `IViewRepo` is the snapshot
+    only, and the menus, still made with each one, take the commands from the context.
+  - *Done 2026-10-13:* `gmd/Cui` held 41 files in one namespace, and is grouped by feature now, a
+    namespace per folder (`Graphs/`, `Commits/`, `Branches/`, `Tags/`, `Recovery/`, `Worktrees/`,
+    `Login/`, Clone and Init in `Start/`, FilterDlg in `RepoView/`, RefNameValidation in `Common/`),
+    the tests with them; see CLAUDE.md. The folders depend on each other one way only since: the
+    shell's shared parts are in `App/`, `MainView` is alone in `Cui/`, and `CommitDlg`,
+    `FindBranchDlg` and `ApplicationBar` no longer reach into `RepoView`.
+  - `Cui/Common` is three things: the widget toolkit (ContentView, UIDialog and its views, Menu,
+    ListDlg, MessageDlg, the browse dialogs, Text, Color), app services (UI, Progress, StatusLine,
+    Confirm, BranchColorService, which needs the server's repo) and the spelling input helpers.
+    Splitting it is for the Terminal.Gui 2.x port, which it would make smaller: 19 of its 36 files
+    touch Terminal.Gui, 18 more outside it, nearly all of those through `Key`, `Dim` / `Pos` and
+    `Application.RequestStop`.
+  - *Done 2026-10-14:* `RepoView.cs` schedules refreshes, and a read that finished after a newer one
+    showed the older repo again: a status read started before a refresh and done after it, two
+    refreshes at once (a command's is not held back by the flag a change's is), or a show or hide by
+    the user during a refresh, which the refresh, read with the branches from before, undid; and the
+    first of two reads to finish cleared the flags the other still needed. `RepoReads` counts the
+    reads running and every repo shown, and a read that something was shown since it started is
+    overtaken: a refresh reads again (three reads at most, then the last is shown), a status read
+    looks at its change again against the repo now shown. Not reproduced end to end: the reads of a
+    small repo are too quick for a show to land in one; a stress run (commits from outside while
+    showing and hiding) ended right, with no read overtaken.
+  - *Done 2026-10-14:* keys and hints each decided what is possible, and drifted: most of what was
+    fixed above. The keys whose meaning depends on the cursor (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`)
+    are decided in `LogKeys`, which `RepoViewInput` and `KeyHints` both ask. Left: the menus decide
+    apart from both, through the shared rules (`CanPushBranch`, `CommitRewrite`, …) where there are
+    some.
+  - *Done 2026-10-14:* `IDiffView` could not be told what its source supports: line history (`git
+    log -L`, which takes no context) offered `+` / `-` and said the context changed; the diff of an
+    uncommitted line from blame offered commit and discard, and a discard left the blame stale; a
+    range ending in the uncommitted changes offered them too. It is given a `DiffSource` now, the
+    reload and whether the diff has context and can be committed.
+  - *Done 2026-10-14:* `Text` measured columns in UTF-16 units, so a CJK character in a subject moved
+    the sid, author and time columns, a cut could split a surrogate pair, and an emoji was drawn as
+    `~I`, since Terminal.Gui 1.x's curses driver cannot draw a character outside the basic plane.
+    `TextWidth` measures in columns, with Terminal.Gui's own table, slices without splitting a
+    character, and draws one outside the basic plane as `�`, one column. Left: strings measured in
+    chars outside `Text` (`Max`, which is `gmd.Utils`', and the menu widths), so a menu item in CJK
+    is cut short rather than drawn wider.
+  - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every
+    branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
+    the colors already. Not measured.
+  - *Done 2026-10-14:* the smaller ones, each with a test: the diff's right side numbered 3 low
+    after conflict markers; the resolver's result not scrollable, its tabs not expanded, and `b`
+    moving its cursor to another conflict; `g` on main silent; Merge silent with nothing to merge;
+    Add Tag saying the tag failed when its push did; a drag starting a cell late; the 100 ms timeouts
+    of Commit and Amend from the menu, which a menu closing before its item runs made needless; Init
+    proposing the home folder; the combo field's context menu and handlers; `MoveToEndOfContent`
+    showing 3 rows; `UnicodeSetsDlg`. The commit diff and blame were opened outside the command's
+    `Do`, and the other diffs inside it: outside is right, since a view run under `Do`'s progress
+    has none of its own, no marquee and no keys held while git works, so they all are, but the diff
+    of lost commits, which its list comes back after.
+- Left by the review of `gmd/Installation` (2026-10-13):
+  - The Windows swap (rename the running exe aside, the new one in, back on failure, each rename
+    tried five times) runs in the tests on Linux only, where any file can be renamed. Windows allows
+    renaming a running exe but not replacing it; that part is only known to work from the users who
+    updated with the old code, which did the same renames. New there and untried: running the new
+    binary to check it, named `<binary>.update_<random>.exe` for that, and renaming it right after
+    it ran, which the retries are for. Try an updater change through two dev previews, with a real
+    update on Linux, macOS and Windows, before it goes to `main`.
+  - The update dialog shows "Updating ..." with no progress for the minutes a slow download takes;
+    the download itself could report its progress. *Done 2026-10-14:* it can be cancelled, Cancel
+    or Esc, asked first with Continue the default (`UpdateDlg.IsCancelConfirmed`), which stops the
+    install (`BinaryInstaller`, a token through the download, the checksum and the run of the new
+    binary) up to the moment the new binary is put in place, never during it, since on Windows that
+    is two renames. Seen in a harness only: a dev build is never offered an update.
+  - The release list is the first page of `/releases`, 30 by creation date, which holds the latest
+    stable release only while fewer than about 25 previews are kept after it (five are).
+  - On Windows the run of the new binary to check it cannot be given a home folder of its own
+    (the user profile is not `HOME`); it writes only a missing config file, and there is one.
 
 **Inference pipeline**
 
@@ -447,8 +709,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **Performance** (measured 2026-09-26, see Findings)
 
 - The graph with all branches shown is now nearly all of such a refresh: 4 s for git's 5,900
-  branches, 9 s for kubernetes' 11,000. Of git's 4 s, `GraphCreater.SetBranchesXLocation` is 3.2 s
-  (each branch tested for overlap against every placed one), the sort by column 0.4 s (Sorter, whose
+  branches, 9 s for kubernetes' 11,000. Of git's 4 s, `GraphCreater.SetBranchesXLocation` was 3.2 s
+  (each branch tested for overlap against every branch, twice: since 2026-10-13 once, not measured
+  again; testing only the branches placed before it is the next step, nearly equivalent), the sort by column 0.4 s (Sorter, whose
   order of equal columns is the drawing), `SetGraph` 0.3 s. Only after the user asks for all branches
   (asked to confirm above 20), but then every refresh pays it.
 - Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
@@ -469,13 +732,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **Refactoring roadmap** (from the 2026-09-11 review; A before B before C)
 
 - A, correctness, each with a regression test: `FileStore` (*done 2026-10-08:* the lost update, the
-  unsynchronized cache, a malformed file); `Threading.AssertIsMainThread`
-  compares thread ids with `>` and so passes on any lower id; 13 `async void` handlers
-  (`DiffView` ×6, `Menu` ×3, `MainView` ×2, `BlameView` ×2) whose exceptions bypass the result path;
-  `IsCircularAncestors` is write-only (below); `IDiffService` / `IBlameService` are declared in both
-  `gmd.Cui` and `gmd.Git`, the silent DI takeover CLAUDE.md warns about — rename the Cui pair
-  `*RowService`; `[SingleInstance]` is matched by the attribute's name string and `FileStore` uses
-  `Activator.CreateInstance`; the vulnerability grep in `scripts/build` never fails the build,
+  unsynchronized cache, a malformed file); 13 `async void` handlers
+  (`DiffView` ×6, `Menu` ×4, `BlameView` ×3, and `RepoView.RefreshAndCommit` posts an async lambda;
+  `MainView`'s are gone) whose exceptions bypass the result path (*done 2026-10-13:* the Cui
+  `IDiffService` / `IBlameService` twins of `gmd.Git`'s are `*RowService`); the vulnerability grep in `scripts/build` never fails the build,
   `scripts/log.bat` hard-codes one user's home, `scripts/installtools` sets `safe.directory` to
   `/workspaces/gmd`, `scripts/updatepackages` expands an undefined `$projectFile`. (`run.bat`
   dropping its arguments was fixed when the scripts moved into `scripts/`, and `gmd_linux` and
@@ -488,22 +748,23 @@ Add new open issues and findings here as work lands; keep them short and drop th
   build; the workflow has no `concurrency` group, `timeout-minutes`, NuGet cache, `.trx` upload,
   coverage step or `NuGetAuditLevel` gate, and the fast tier never runs on Windows or
   macOS.
-- C, structure: the six `*Commands` classes repeat four fields, a constructor and a `Do` forwarder,
-  and 25 of 62 `Do(` bodies end in `Refresh(); return Result.Ok;` — a `CommandContext` and a
-  `DoAndRefresh` would also give `RepoCommands`, `BranchCommands` and `BranchCreateCommands` their
-  first unit tests; `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
-  layout state inside the server model; `ConfigService` syncs a second `Config` by a reflective
-  property copy and `Config` has two constructors; static leftovers (`Build.IsWindows` assignable,
-  `BranchService.remotePrefix`, `MessageDlg.Clicked`, `Updater`'s static task cache, the single
-  `UI.onActivated` slot); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
-  `ResentParentFolders`, `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
-  synchronous, `TipID` vs `TipId`, `RepoConfigImpl`); dead code (`exampleRunes.cs`, the commented
-  blocks in `UnicodeSetsDlg`, `ConfigDlg`, `MainView`, `ExceptionHandling`, `Cmd`, `TagService`,
-  `BranchService`, `FileMonitor`, `WindowsClipboard`); 23 type names declared in both `gmd/Git` and
-  `gmd/Server/Repo.cs`, some identical — share the leaf records only; no tests for
-  `ProgramCommands` and `Updater`, and `FakeGit` implements 12 of 76 members.
-- Not recommended: removing the one-implementation interfaces (they are the DI and test-double
-  seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it).
+- C, structure: (*done 2026-10-14:* the `*Commands` classes take a `CommandContext` in place of the
+  four fields they repeated, and `FakeRepoView.Context` makes them constructible in a test; about 25
+  `Do` bodies still end in `Refresh(); return Result.Ok;`, which a `DoAndRefresh` could take); `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
+  layout state inside the server model; static leftovers (`Build.IsWindows` assignable,
+  `Menu.StatusLine`, set by MainView, the single
+  `UI.onActivated` slot; `MessageDlg.Clicked` is gone); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
+  `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
+  synchronous, `TipID` vs `TipId`, in `Git.Branch` and the augmented `WorkBranch` alike, and
+  `Status.IsMerging`, which is any operation in progress); dead code (the
+  commented blocks in `UnicodeSetsDlg`, `ExceptionHandling`, `Cmd`, `FileMonitor`,
+  `WindowsClipboard`; `exampleRunes.cs` and `ConfigDlg`'s and `MainView`'s are gone); and `FakeGit` implements 12 of 76 members.
+- Not recommended: splitting `IServer` by area (decided 2026-10-13: every member is used and the
+  command classes span the areas, so each would take several interfaces and couple no less);
+  removing the one-implementation interfaces (they are the DI and test-double seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
+  records `gmd/Git` and `gmd/Server/Repo.cs` both declare, 14 of them copies (decided 2026-10-13:
+  `gmd.Git` is to stay a general git library, and the server's converters are its boundary, see
+  CLAUDE.md under Layering).
 
 **Deferred, with the reasoning so it is not redone**
 
@@ -593,7 +854,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (`TestRemoveWorktreeAndItsBranchFromTheDialog`, the `Kind    Branch` wait after `w`), and again
   not reproduced: a full rerun and 21 runs of the worktree tests were green. Once more on
   2026-09-24 (`TestStashPopBringsTheChangesBack`, message not captured), and green alone three
-  times, in an E2e rerun and in a full rerun. Recorded so nobody hunts a flake that is not biting.
+  times, in an E2e rerun and in a full rerun. Once more on 2026-10-13 (`TestPushATagFromTheList`, a
+  menu walk one item short right after a push, i.e. a key dropped while the refresh ran), green
+  alone three times. Recorded so nobody hunts a flake that is not biting.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The end-to-end tests were about four of `scripts/test`'s four and a half minutes, nearly all waiting:
@@ -624,6 +887,30 @@ Add new open issues and findings here as work lands; keep them short and drop th
 ## Findings worth remembering
 
 **Git**
+
+- The user's config changes the output of porcelain commands in a pipe too, so every command gmd
+  parses pins its format (2026-10-13): `diff.noprefix` and `diff.mnemonicPrefix` drop or change the
+  `a/` and `b/` (`--src-prefix=a/ --dst-prefix=b/`), `diff.external` runs another program for `git
+  diff` (`--no-ext-diff`), `color.ui=always` colors a pipe (`--no-color`), `log.decorate` and
+  `log.abbrevCommit` change the `commit <id>` line, and `log.showSignature` writes the check of a
+  signed commit's signature on stdout before it, even in front of a `--pretty=format:` record and a
+  reflog entry (`--no-show-signature`). `git status --porcelain` is the one meant to be immune.
+- Git quotes a path that has a `"`, a `\`, a control character or, by default (`core.quotePath`),
+  any character that is not ASCII, as a C string with the bytes of that character as octal
+  escapes (`"\303\244"` for `ä`). `status` and `clean -n` quote a path with a space as well, a diff's
+  `diff --git` line does not, which leaves it ambiguous when the two paths differ (a rename's
+  `rename from` / `rename to` lines say them again), and `---` / `+++` end such a path with a tab.
+  `diff --check` does not quote. `status`, `ls-tree` and `worktree list` take `-z`, which gives the
+  paths as they are; `QuotedPath` unquotes the rest.
+- A command line is split into arguments again by .NET on Linux and macOS and by the program itself
+  on Windows, both by the same rule: backslashes count only before a `"`, where they are halved.
+  `Cmd.Quote` writes a text as one argument; `git rev-parse --sq-quote <args>` shows what git got.
+- A repository of SHA-256 ids (`git init --object-format=sha256`) has ids of 64 hex characters, and
+  marks the lines blame finds uncommitted with 64 zeros; it cannot push to or fetch from one of SHA-1
+  ids (`rev-parse --show-object-format` tells which). gmd reads one since 2026-10-13: an id is 40 or
+  64 characters (`ObjectId`), and blame gives the uncommitted lines the 40 zeros gmd's own
+  `UncommittedId` has. `TempRepo.CreateSha256Async` makes one.
+- In C#, `\x` takes up to four hex digits, so `"\x1fb"` is U+01FB, not U+001F and `b`; write `\u001f`.
 
 - The reflog, as Undo, Recover and the force push detection read it (2026-10-06):
   - git writes no entry to a branch's reflog for an update that leaves it where it was, so the
@@ -802,6 +1089,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   views'.
 - Blocking the main loop (`.Result`, `.Wait()`) deadlocks: the `SynchronizationContext` posts every
   continuation to the loop being blocked. Load before the view opens and pass the data in.
+- No program may be started while `Application.Init()` runs. Curses sets the locale as it starts
+  (`setlocale(LC_ALL, "")` in Terminal.Gui's `initscr`), and on macOS 27 a `fork` in another thread
+  meanwhile deadlocks both: `sample` of a gmd hung at its start showed the main thread in
+  `setlocale` → `__collate_load_tables` waiting in `_xzm_fork_lock_wait` for malloc, which the fork
+  had locked, and the fork (`SystemNative_ForkAndExecProcess`) waiting in `libSystem_atfork_prepare`
+  for a lock setlocale held. `git version`, started just before `Init` for the log, hung two starts
+  in three, with nothing drawn and no CPU; it is started after `Init` now (2026-10-14). The window
+  is the loading of the locale's tables, so a `C` locale, as the end-to-end tests have, never shows it.
 - `SetFocus()` does not move the keyboard, and `ContentView.ProcessHotKey` returns early without
   focus, so a pane that looks focused receives nothing. Forward keys by hand from the view that has
   them, as `FilterDlg` and `BlameView` do.
@@ -814,9 +1109,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   dialog's text field. `UI.RunDialog` makes whatever it runs modal. A modal toplevel is not made
   `Application.Top`, so the log view goes on redrawing underneath, followed by a redraw of the view
   over it; that is by design and is what a `Dialog` has always done.
-- `UI.EnableInput` captures and restores `RootKeyEvent`. If progress reaches zero while a dialog is
-  open, the restore puts back "swallow everything" and input is dead for good — keep the dialog
-  inside the command's `Do`.
+- Keys are dropped while git works (`UI.StopInput`), and a dialog takes them while it is open. A
+  dialog that put back, when it closed, the `RootKeyEvent` it found left the keyboard dead for good
+  once progress had ended while it was open, which a menu opened by a click during a background read
+  did; whether keys are dropped is decided afresh at every change now (`KeyGate`, 2026-10-13).
 - `Application.Begin` brings the subview holding the focus to the front of the toplevel
   (`EnsuresTopOnFront`), so a view added to `Application.Top` after the main view — the progress
   marquee — is behind it once any dialog has run. `Progress.Activated` fronts it again, and only once
@@ -832,8 +1128,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   initializer form. `Text.ToLine(width)` repeats the first character,
   `Subtext(…, isFillRest: true)` pads. There is no `Key` for `+` / `-` / `=`; cast the ascii code.
   `Y = -1` on a dialog means "as high as possible", and a `Dialog` given no position is centered.
-- `ContentScroll` never clamps a cursor the content shrank past, so a reload restores it. Calling
-  `SetCurrentIndex` before `ScrollToShowIndex` applies the scroll delta to the cursor twice.
+- `ContentScroll` never clamps a cursor the content shrank past, so a reload restores it; read the
+  row through `IViewRepo.CurrentIndex`, which is clamped, never the view's (`m` stopped gmd on it).
+  Calling `SetCurrentIndex` before `ScrollToShowIndex` applies the scroll delta to the cursor twice,
+  hence `ContentView.ShowCurrentIndex`, which does both in the right order.
 - The highlight and selection are drawn on the columns after the graph only, and a highlighted row
   colors its spaces where an ordinary one does not. Read color snapshots with that in mind.
 - `Program.Main` resolves the DI graph before `Application.Init()`, so no constructor may touch
@@ -898,3 +1196,42 @@ Add new open issues and findings here as work lands; keep them short and drop th
   turned every multi-line expected value in the tests into `\r\n` and failed 80 of them, the tag
   parser's included (`TrimSuffix("^{}")` no longer matched). `.gitattributes` now checks out LF on
   every platform and CSharpier writes LF, which a Debug build applies before compiling.
+
+**The updater**
+
+- `HttpClient.Timeout` covers the whole body for `GetByteArrayAsync` and `GetStringAsync`, which read
+  it at once, but only the headers with `HttpCompletionOption.ResponseHeadersRead`; reading the
+  stream after that has no limit but the token given to each read. A fake handler cannot show the
+  difference, since the stream it hands back is the test's own; `LoopbackServer` can.
+- `Cmd` sets `GMD_ASKPASS=1` for every program it starts, so that the ssh of a git it runs can ask gmd
+  for a passphrase. A gmd started through it takes itself for an askpass: run as `gmd --version`, it
+  answers "gmd did not ask: --version", and with the UI up it would ask the running gmd to show a
+  login dialog. The check of a new binary overrides the variable.
+- `File.Move(source, target, overwrite: true)` is `rename(2)` on Linux and macOS: atomic, and a
+  process running from the old file keeps it (`/proc/<pid>/exe` then says `(deleted)`). Windows lets
+  the file of a running program be renamed, not replaced or deleted. Writing into a running binary
+  fails on Linux ("text file busy") and ends a signed program on macOS.
+- GitHub's ETag for the release list is weak, `W/"…"`; `ETag.Tag` drops the `W/`, and GitHub answers
+  304 to either form. Every release since 0.97 has `SHA256SUMS`, and each asset also has a `digest`
+  (`sha256:…`) in the API, which the cached `Releases` does not keep.
+- The gmd versions out there update with their own code, so what they rely on outlives any change
+  here: the asset names, the `v<a.b.c.d>` tags, the `<binary>.tmp_` files they leave for the next
+  version to delete, `~/.gmdconfig`'s `Releases`, and the askpass channel.
+
+**Homebrew** (tried on Linux arm64 and macOS 27, 2026-10-14)
+
+- A formula's download that is a plain file, not an archive, is staged under its URL's name
+  (`gmd_linux_arm64`), as a file downloaded is, 0644, so the formula renames it and sets its mode.
+  Homebrew then left the binary byte for byte as released (the .NET single-file bundle intact), and
+  its cleaner made it 0555, read only, in a folder the user can write to.
+- Homebrew's own build sandbox on Linux lets the build write to `/tmp`, and refuses to run when
+  Homebrew itself is under it ("Inherited sandbox permits writes to …/bin/brew"), so a Homebrew to
+  try things with goes elsewhere: `git clone --depth 1 https://github.com/Homebrew/brew` into
+  `~/.cache/…`, with its own `HOME` and `HOMEBREW_CACHE`, works in a custom prefix with a warning.
+- `brew upgrade` looks for new versions of a tap once a day (`HOMEBREW_AUTO_UPDATE_SECS`), so a
+  release of today needs `brew update` first. `brew untap` refuses while a formula of the tap is
+  installed, and `--force` uninstalls it, so a local tap tried after the real one is installed again. `brew info --json=v2 --variations` evaluates the formula on every OS and
+  CPU, so the macOS half is checked from Linux too.
+- A formula, not a cask: Homebrew stopped supporting casks that fail Gatekeeper on 2026-09-01, and
+  a formula's download is never quarantined, so neither notarization nor a Developer ID is needed.
+  homebrew-core builds from source, which the C# 15 compiler of a .NET 11 preview rules out for now.

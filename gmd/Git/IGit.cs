@@ -3,8 +3,10 @@ namespace gmd.Git;
 interface IGit
 {
     Result<string> RootPath(string path);
-    Task<Result<string>> Version();
-    string CurrentAuthor { get; }
+    Task<Result<string>> GetVersionAsync();
+
+    // The name commits are made with in the repository, its user.name, or "" when none is set
+    Task<Result<string>> GetCurrentAuthorAsync(string wd);
 
     Task<Result<IReadOnlyList<Commit>>> GetLogAsync(int maxCount, string wd);
 
@@ -24,7 +26,7 @@ interface IGit
 
     // The ones of the ids that are commits git still has
     Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
-    Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<Result<Status>> GetStatusAsync(string wd);
 
@@ -33,7 +35,7 @@ interface IGit
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
-    Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
+    Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
 
     // The commits that changed the lines of the file at the reference, or HEAD for "", newest first
@@ -75,7 +77,6 @@ interface IGit
     // Force pushes a remote branch back to a commit, if it is still at the expected one, or creates it
     // there, if it does not exist, when the expected one is ""
     Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
-    Task<Result> PullRefAsync(string name, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
     Task<Result> CheckoutAsync(string name, string wd);
@@ -127,6 +128,12 @@ interface IGit
     // Takes a commit out of the current branch, replaying the newer ones onto its parent
     Task<Result> DropCommitAsync(string id, string wd);
 
+    // A new commit with the files of commit 'filesOfId' on 'parentId', moving no branch, and its id
+    Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd);
+
+    // Moves the commits of the current branch after 'upstream' onto 'onto', keeping their merges
+    Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
+
     // The branches, remote branches and tags on the commit or after it, as full ref names
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
@@ -134,8 +141,9 @@ interface IGit
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
     Task<Result<string>> GetValueAsync(string key, string wd);
     Task<Result> SetValueAsync(string key, string value, string wd);
-    Task<Result> PushValueAsync(string key, string wd);
-    Task<Result> PullValueAsync(string key, string wd);
+    Task<Result<string>> GetOriginValueAsync(string key, string wd);
+    Task<Result<bool>> PushValueAsync(string key, string wd);
+    Task<Result> FetchValueAsync(string key, string wd);
     Task<Result> StashAsync(string message, string wd);
     Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd);
     Task<Result> StashPopAsync(string name, string wd);
@@ -143,14 +151,13 @@ interface IGit
     Task<Result> StashDropAsync(string name, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result> AddTagAsync(string name, string commitId, string wd);
-    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);
     Task<Result> RemoveTagAsync(string name, string wd);
     Task<Result> PushTagAsync(string name, string wd);
 
     // The tags origin had at the last fetch, or that gmd pushed since, as name -> object id
     Task<Result<IReadOnlyDictionary<string, string>>> GetTrackedRemoteTagsAsync(string wd);
     Task<Result> DeleteRemoteTagAsync(string name, string wd);
-    Task<Result> ResetHardUntilCommitAsync(string id, string wd);
 
     // Moves the current branch from one commit to another, with the files (keep) or without them
     // (mixed), refused if it has moved or is no longer checked out

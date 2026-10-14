@@ -9,7 +9,8 @@ interface ICmd
     // The output of a command that exited 0, or a CmdError carrying everything it printed. The
     // caller info is the error's Origin, so that it names the service that ran the command rather
     // than this class, which every command failure would otherwise share. The environment is
-    // variables set for this one command on top of gmd's own, e.g. GIT_INDEX_FILE.
+    // variables set for this one command on top of gmd's own, e.g. GIT_INDEX_FILE. A '\r\n' in the
+    // output is a '\n', unless isKeepCr, for an output of file content whose line ends matter, a diff.
     Result<string> Command(
         string path,
         string args,
@@ -17,6 +18,7 @@ interface ICmd
         bool skipLogError = false,
         bool skipLog = false,
         IReadOnlyDictionary<string, string>? environment = null,
+        bool isKeepCr = false,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
@@ -28,6 +30,7 @@ interface ICmd
         bool skipLogError = false,
         bool skipLog = false,
         IReadOnlyDictionary<string, string>? environment = null,
+        bool isKeepCr = false,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
@@ -122,6 +125,31 @@ class Cmd : ICmd
 
     static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
 
+    // A text as one argument of a command line, whatever it holds: in double quotes, with a '"' in
+    // it escaped and the backslashes before a '"', or before the closing quote, doubled. That is how
+    // the line is split into arguments again, by .NET on Linux and macOS and by the program itself on
+    // Windows. In quotes with only its '"' escaped, as messages and paths were, a text with '\"' in
+    // it, or that ended with a '\', was split into more arguments: a commit message cut short, and the
+    // rest taken as paths.
+    public static string Quote(string text)
+    {
+        var quoted = new StringBuilder("\"");
+        var backslashes = 0;
+        foreach (var c in text)
+        {
+            if (c == '\\')
+            {
+                backslashes++;
+                continue;
+            }
+
+            quoted.Append('\\', c == '"' ? backslashes * 2 + 1 : backslashes).Append(c);
+            backslashes = 0;
+        }
+
+        return quoted.Append('\\', backslashes * 2).Append('"').ToString();
+    }
+
     public Task<Result<string>> RunAsync(
         string path,
         string args,
@@ -129,6 +157,7 @@ class Cmd : ICmd
         bool skipLogError = false,
         bool skipLog = false,
         IReadOnlyDictionary<string, string>? environment = null,
+        bool isKeepCr = false,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
@@ -142,6 +171,7 @@ class Cmd : ICmd
                 skipLogError,
                 skipLog,
                 environment,
+                isKeepCr,
                 memberName,
                 sourceFilePath,
                 sourceLineNumber
@@ -160,17 +190,6 @@ class Cmd : ICmd
         return Task.Run(() => CommandRaw(path, args, workingDirectory, skipLogError, skipLog));
     }
 
-    public static Result<string> Run(string cmd, string workingDirectory = "")
-    {
-        var index = cmd.IndexOf(' ');
-        if (index == -1)
-            return new Cmd().Command(cmd, "", workingDirectory);
-
-        var path = cmd[..index];
-        var args = cmd[(index + 1)..];
-        return new Cmd().Command(path, args, workingDirectory);
-    }
-
     public Result<string> Command(
         string path,
         string args,
@@ -178,20 +197,22 @@ class Cmd : ICmd
         bool skipLogError = false,
         bool skipLog = false,
         IReadOnlyDictionary<string, string>? environment = null,
+        bool isKeepCr = false,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
     ) =>
-        CommandRaw(path, args, workingDirectory, skipLogError, skipLog, environment)
+        CommandRaw(path, args, workingDirectory, skipLogError, skipLog, environment, isKeepCr)
             .ToResult(memberName, sourceFilePath, sourceLineNumber);
 
-    public CmdResult CommandRaw(
+    CmdResult CommandRaw(
         string path,
         string args,
         string workingDirectory,
         bool skipLogError = false,
         bool skipLog = false,
-        IReadOnlyDictionary<string, string>? environment = null
+        IReadOnlyDictionary<string, string>? environment = null,
+        bool isKeepCr = false
     )
     {
         // The variables are part of the logged command, since they can change what it does, as
@@ -203,27 +224,7 @@ class Cmd : ICmd
         {
             Log.Debug($"Start: {cmdText} (0ms)] ...");
 
-            var outputLines = new List<string>();
-            var errorLines = new List<string>();
-
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = path,
-                    Arguments = args,
-                    UseShellExecute = false,
-                    // A pipe closed at once rather than gmd's terminal, see NeverAskOnTheTerminal
-                    RedirectStandardInput = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8,
-                },
-            };
-
-            using (process)
+            using (var process = NewProcess(path, args))
             {
                 NeverOpenAnEditor(process.StartInfo);
                 NeverAskOnTheTerminal(process.StartInfo, $"{path} {args}");
@@ -236,33 +237,37 @@ class Cmd : ICmd
                 {
                     process.StartInfo.WorkingDirectory = workingDirectory;
                 }
-                process.OutputDataReceived += (sender, args) => outputLines.Add(args.Data ?? "");
-                process.ErrorDataReceived += (sender, args) => errorLines.Add(args.Data ?? "");
-
                 process.Start();
-                process.StandardInput.Close();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
+                process.StandardInput.Close(); // A pipe closed at once, see NeverAskOnTheTerminal
 
-                process.WaitForExit(); //you need this in order to flush the output buffer
+                // Read whole, both at once, on threads of their own, so that neither waits for the
+                // other's pipe to be emptied. Read a line at a time, a lone '\r' ended a line too,
+                // which split a line of a file with one in it, a diff's, and the rest of it was then
+                // taken for a line of git's own; and every '\r' was dropped, so a change of line ends
+                // alone was a diff of lines the same on both sides.
+                var outputRead = Task.Run(() => ReadAll(process.StandardOutput.BaseStream));
+                var errorRead = Task.Run(() => ReadAll(process.StandardError.BaseStream));
+                process.WaitForExit(); // With no timeout
 
                 var exitCode = process.ExitCode;
-                var output = string.Join('\n', outputLines).Replace("\r", "").TrimEnd();
-                var error = string.Join('\n', errorLines).Replace("\r", "").TrimEnd();
+                var output = (isKeepCr ? outputRead.Result : outputRead.Result.Replace("\r\n", "\n")).TrimEnd();
+                // Git's progress rewrites its line with a lone '\r', each a line of its own here
+                var error = errorRead.Result.Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd();
 
-                if (process.ExitCode != 0)
+                if (exitCode != 0)
                 {
-                    if (!skipLogError)
-                        Log.Warn($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
+                    var failure = $"Error: {cmdText} {t}]\nExit Code: {exitCode}, Error:\n{error}";
                     if (skipLogError)
-                        Log.Debug($"Error: {cmdText} {t}]\nExit Code: {process.ExitCode}, Error:\n{error}");
-                    return new CmdResult(cmdText, process.ExitCode, output, error);
+                        Log.Debug(failure);
+                    else
+                        Log.Warn(failure);
+                    return new CmdResult(cmdText, exitCode, output, error);
                 }
 
-                if (!skipLog)
-                    Log.Info($"{cmdText} {t}]");
                 if (skipLog)
                     Log.Debug($"OK: {cmdText} {t}]");
+                else
+                    Log.Info($"{cmdText} {t}]");
                 return new CmdResult(cmdText, output, error);
             }
         }
@@ -271,6 +276,19 @@ class Cmd : ICmd
             Log.Error($"Failed: {cmdText} {t}]\n{e.Message}");
             return new CmdResult(cmdText, -1, "", e.Message);
         }
+    }
+
+    // The bytes of a stream as UTF-8, as the line reader decoded them: a byte order mark is kept, and
+    // an incomplete character at the very end is left out. The bytes, not the StreamReader, which
+    // takes a byte order mark away.
+    static string ReadAll(Stream stream)
+    {
+        using var bytes = new MemoryStream();
+        stream.CopyTo(bytes);
+        var length = (int)bytes.Length;
+        var chars = new char[Encoding.UTF8.GetMaxCharCount(length)];
+        var count = Encoding.UTF8.GetDecoder().GetChars(bytes.GetBuffer(), 0, length, chars, 0, flush: false);
+        return new string(chars, 0, count);
     }
 
     // Stops git from ever launching an editor in a child process.
@@ -388,22 +406,8 @@ class Cmd : ICmd
         var t = Timing.Start();
         try
         {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = path,
-                    Arguments = args,
-                    UseShellExecute = false,
-                    RedirectStandardInput = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8,
-                },
-                EnableRaisingEvents = true,
-            };
+            var process = NewProcess(path, args);
+            process.EnableRaisingEvents = true;
             var errorLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
             var errorEnd = new TaskCompletionSource();
 
@@ -490,25 +494,9 @@ class Cmd : ICmd
         var t = Timing.Start();
         try
         {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = path,
-                    Arguments = args,
-                    UseShellExecute = false,
-                    RedirectStandardInput = true,
-                    // Redirected so that a tool writing to the terminal cannot corrupt the drawn
-                    // UI, but deliberately never read while it may still be running, see above.
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardInputEncoding = new UTF8Encoding(false),
-                    StandardErrorEncoding = Encoding.UTF8,
-                },
-            };
-
-            using (process)
+            // The output is redirected, as for every command, but deliberately never read while the
+            // tool may still be running, see above
+            using (var process = NewProcess(path, args))
             {
                 process.Start();
 
@@ -546,6 +534,26 @@ class Cmd : ICmd
             return new CmdResult(cmdText, -1, "", e.Message);
         }
     }
+
+    // A process for a program that gmd reaches through pipes only: nothing it writes is drawn over
+    // the UI, which owns the terminal, and what it reads is UTF-8 with no byte order mark
+    static Process NewProcess(string path, string args) =>
+        new()
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = path,
+                Arguments = args,
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                StandardInputEncoding = new UTF8Encoding(false),
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            },
+        };
 
     // The text, and then end of input, which is what tells the tool that there is no more
     static void WriteStdin(Process process, string text)

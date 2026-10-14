@@ -7,43 +7,32 @@ interface IStashService
     Task<Result> ApplyAsync(string name, string wd);
     Task<Result> DropAsync(string name, string wd);
     Task<Result<IReadOnlyList<Stash>>> ListAsync(string wd);
-    Task<Result<CommitDiff>> GetDiffAsync(string name, int contextLines, string wd);
 }
 
 class StashService : IStashService
 {
     readonly ICmd cmd;
     readonly ILogService logService;
-    readonly IDiffService diffService;
 
-    public StashService(ICmd cmd, ILogService logService, IDiffService diffService)
+    public StashService(ICmd cmd, ILogService logService)
     {
         this.cmd = cmd;
         this.logService = logService;
-        this.diffService = diffService;
     }
 
     public async Task<Result> StashAsync(string message, string wd)
     {
-        var msg = message != "" ? $"save \"{message}\" " : "";
-        return await cmd.RunAsync("git", $"stash {msg}-u", wd);
+        var named = message != "" ? $" -m {Cmd.Quote(message)}" : "";
+        return await cmd.RunAsync("git", $"stash push --include-untracked{named}", wd);
     }
 
-    public async Task<Result> PopAsync(string name, string wd)
-    {
-        return await cmd.RunAsync("git", $"stash pop {name}", wd);
-    }
+    public async Task<Result> PopAsync(string name, string wd) => await cmd.RunAsync("git", $"stash pop {name}", wd);
 
     // As pop, but keeps the stash, e.g. to put the same changes on another branch too
-    public async Task<Result> ApplyAsync(string name, string wd)
-    {
-        return await cmd.RunAsync("git", $"stash apply {name}", wd);
-    }
+    public async Task<Result> ApplyAsync(string name, string wd) =>
+        await cmd.RunAsync("git", $"stash apply {name}", wd);
 
-    public async Task<Result> DropAsync(string name, string wd)
-    {
-        return await cmd.RunAsync("git", $"stash drop {name}", wd);
-    }
+    public async Task<Result> DropAsync(string name, string wd) => await cmd.RunAsync("git", $"stash drop {name}", wd);
 
     public async Task<Result<IReadOnlyList<Stash>>> ListAsync(string wd)
     {
@@ -54,25 +43,23 @@ class StashService : IStashService
         return stashes.Select(ToStash).ToList();
     }
 
-    Stash ToStash(Commit c)
+    // The subject is '<stash ref>:<git's message>' (LogService.GetStashListAsync), and git's message
+    // is 'WIP on <branch>: <sha> <subject>' or 'On <branch>: <the message given>'. Split at the first
+    // two colons only, since a branch name cannot have one but a message can ('fix: the thing'),
+    // and was cut short at it. One with fewer, as another tool may write it, is kept whole rather
+    // than failing the list.
+    static Stash ToStash(Commit c)
     {
-        var id = c.Id;
-        var parentId = c.ParentIds[0];
-        var indexId = c.ParentIds[1];
-        var parts = c.Subject.Split(':');
+        var parts = c.Subject.Split(':', 3);
         var name = parts[0].Trim();
-        var message = parts[2].Trim();
-
-        var branch = parts[1].Trim();
-        var start = branch.LastIndexOf(' ');
-        if (start != -1)
+        var (on, message) = parts.Length switch
         {
-            branch = branch.Substring(start).Trim();
-        }
+            3 => (parts[1].Trim(), parts[2].Trim()),
+            2 => ("", parts[1].Trim()),
+            _ => ("", ""),
+        };
+        var branch = on[(on.LastIndexOf(' ') + 1)..];
 
-        return new Stash(id, name, branch, parentId, indexId, message);
+        return new Stash(c.Id, name, branch, c.ParentIds[0], c.ParentIds.ElementAtOrDefault(1) ?? "", message);
     }
-
-    public Task<Result<CommitDiff>> GetDiffAsync(string name, int contextLines, string wd) =>
-        diffService.GetStashDiffAsync(name, contextLines, wd);
 }

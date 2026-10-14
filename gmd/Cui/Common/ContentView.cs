@@ -28,7 +28,6 @@ class ContentView : View
     readonly Dictionary<MouseFlags, OnMouseCallbackReturn> mouses = [];
 
     const int topBorderHeight = 1;
-    const int cursorWidth = 1;
     const int verticalScrollbarWidth = 1;
 
     readonly IReadOnlyList<Text>? contentRows;
@@ -62,8 +61,6 @@ class ContentView : View
         remove => scroll.CurrentIndexChange -= value;
     }
 
-    public event Action<Selection>? SelectionChange;
-
     // Whether the view has the focus as drawn, where two views share the keys and Tab moves between
     // them: the log and its commit details, and the blame and its. A view on its own leaves it on.
     public bool IsFocus { get; set; } = true;
@@ -82,12 +79,10 @@ class ContentView : View
     public int ViewWidth => Frame.Width;
     public bool IsShowCursor { get; set; } = true;
     public bool IsScrollMode { get; set; } = false;
-    public bool IsCursorMargin { get; set; } = false;
     public bool IsTopBorder { get; set; } = false;
     public bool IsHideCursor { get; set; } = false;
-    public int ContentX => IsCursorMargin ? cursorWidth : 0;
     public int ContentY => IsTopBorder ? topBorderHeight : 0;
-    public int ContentWidth => Frame.Width - ContentX - verticalScrollbarWidth;
+    public int ContentWidth => Frame.Width - verticalScrollbarWidth;
     public int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
     public Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
     public int SelectStartIndex => selection.StartIndex;
@@ -208,6 +203,19 @@ class ContentView : View
     public override bool MouseEvent(MouseEvent ev)
     {
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        // A view that never takes the focus, the resolver's result pane, is scrolled by the wheel
+        // over it, the one way the mouse has to it
+        if (!HasFocus && !CanFocus && ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        {
+            Scroll(1);
+            return true;
+        }
+        if (!HasFocus && !CanFocus && ev.Flags.HasFlag(MouseFlags.WheeledUp))
+        {
+            Scroll(-1);
+            return true;
+        }
+
         if (!HasFocus)
             return base.MouseEvent(ev);
 
@@ -236,6 +244,7 @@ class ContentView : View
         else if (ev.Flags.HasFlag(MouseFlags.Button1Pressed))
         {
             ClearSelection();
+            selection.Press(ev.X, IndexAtY(ev.Y));
             return true;
         }
 
@@ -282,7 +291,7 @@ class ContentView : View
                     txt = IsHighlightCurrentIndex && index == CurrentIndex && HasFocus ? row.ToHighlight() : row;
                 }
 
-                txt.Draw(this, ContentX, y++);
+                txt.Draw(this, 0, y++);
             }
         );
 
@@ -330,7 +339,7 @@ class ContentView : View
                     copyText.AppendLine(txt.ToString());
                 }
 
-                txt.Draw(this, ContentX, y++);
+                txt.Draw(this, 0, y++);
             }
         );
 
@@ -378,11 +387,12 @@ class ContentView : View
         SetNeedsDisplay();
     }
 
+    // The row index of a view row, below the top border if there is one
+    int IndexAtY(int y) => y + FirstIndex + (IsTopBorder ? -1 : 0);
+
     void MouseDrag(MouseEvent ev)
     {
-        var i = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
-
-        var direction = selection.Drag(ev.X, i);
+        var direction = selection.Drag(ev.X, IndexAtY(ev.Y), TotalCount);
         if (direction < 0 && ev.Y <= 2)
         { // Dragging up at the top of the view, scroll to show the rows above
             Scroll(-1);
@@ -393,7 +403,6 @@ class ContentView : View
         }
 
         SetNeedsDisplay();
-        SelectionChange?.Invoke(Selection);
     }
 
     void DrawTopBorder()
@@ -456,6 +465,14 @@ class ContentView : View
         int currentViewY = CurrentIndex - FirstIndex;
 
         Move(viewY - currentViewY);
+    }
+
+    // Puts the cursor on a row and scrolls it into view. The scroll comes first: scrolling moves the
+    // cursor with the rows, so a cursor set before it ended up as far off as the view scrolled.
+    internal void ShowCurrentIndex(int index)
+    {
+        ScrollToShowIndex(index);
+        SetCurrentIndex(index);
     }
 
     internal void SetCurrentIndex(int index)

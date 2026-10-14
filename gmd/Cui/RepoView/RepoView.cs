@@ -1,5 +1,8 @@
 using gmd.Common;
+using gmd.Cui.App;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
+using gmd.Cui.Login;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
@@ -14,8 +17,6 @@ interface IRepoView
     View ApplicationBarView { get; }
     View KeyHintView { get; }
     int CurrentIndex { get; }
-    int ContentWidth { get; }
-    Point CurrentPoint { get; }
     Selection Selection { get; }
 
     // The shown repo, which is an immutable snapshot replaced on every refresh, so a command that
@@ -69,6 +70,10 @@ class RepoView : IRepoView, IRepoViewInputHost
 {
     static readonly TimeSpan fetchInterval = TimeSpan.FromMinutes(5);
 
+    // How many times a refresh reads the repo when something else is shown while it reads, see
+    // ShowRefreshedRepoAsync
+    const int MaxReads = 3;
+
     // How often the other worktrees' changes are re-read. Their folders are not watched — a
     // worktree nested in this one is even excluded from the watcher, so a build there cannot storm
     // this gmd — so this is what turns the top bar marker yellow while someone edits in one. They
@@ -78,10 +83,10 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     readonly IServer server;
     readonly Func<IRepoView, Repo, IViewRepo> newViewRepo;
-    readonly Func<IViewRepo, IRepoViewMenus> newMenuService;
+    readonly Func<IViewRepo, CommandContext, IRepoViewMenus> newMenuService;
     readonly Config config;
     readonly IUpdater updater;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
@@ -99,12 +104,16 @@ class RepoView : IRepoView, IRepoViewInputHost
     IReadOnlyList<HiddenBranchNews> hiddenNews = [];
     readonly RepoViewInput input;
 
+    // What the command classes work with, and the command classes, made once with the view
+    readonly CommandContext commands;
+
     // State data
     IViewRepo repo; // Is set once the repo has been retrieved the first time in ShowRepo().
-    ICommitCommands CommitCmds => repo.CommitCmds;
+    ICommitCommands CommitCmds => commands.CommitCmds;
     IRepoViewMenus menuService = null!;
-    bool isStatusUpdateInProgress = false;
-    bool isRepoUpdateInProgress = false;
+
+    // The reads running, and whether one is still right to show when it is done, see RepoReads
+    readonly RepoReads reads = new();
 
     // A change that came while the repo was being read, or while the search was up, which is looked
     // at again once a repo is shown, see OnRefreshRepo
@@ -118,12 +127,19 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     internal RepoView(
         IServer server,
-        Func<View, int, IRepoWriter> newRepoWriter,
+        IRepoWriter repoWriter,
         Func<IRepoView, Repo, IViewRepo> newViewRepo,
-        Func<IViewRepo, IRepoViewMenus> newMenuService,
+        Func<CommandContext, IRepoCommands> newRepoCommands,
+        Func<CommandContext, ICommitCommands> newCommitCommands,
+        Func<CommandContext, IBranchCommands> newBranchCommands,
+        Func<CommandContext, IBranchCreateCommands> newCreateCommands,
+        Func<CommandContext, IBranchPushPullCommands> newPushPullCommands,
+        Func<CommandContext, IWorktreeCommands> newWorktreeCommands,
+        Func<CommandContext, IUndoCommands> newUndoCommands,
+        Func<IViewRepo, CommandContext, IRepoViewMenus> newMenuService,
         Config config,
         IUpdater updater,
-        IRepoConfig repoConfig,
+        IRepoConfigService repoConfig,
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,
@@ -155,7 +171,6 @@ class RepoView : IRepoView, IRepoViewInputHost
             Height = Dim.Fill(),
             IsFocus = true,
             IsShowCursor = false,
-            IsCursorMargin = false,
             IsScrollMode = false,
             IsHighlightCurrentIndex = false,
             IsCustomShowSelection = true,
@@ -164,8 +179,16 @@ class RepoView : IRepoView, IRepoViewInputHost
         keyHintBar = new KeyHintBar(GetKeyHints, () => status.Current);
         status.Changed += OnStatusChanged;
 
-        repoWriter = newRepoWriter(commitsView, commitsView.ContentX);
+        this.repoWriter = repoWriter;
+        commands = new CommandContext(this, server, progress, status);
         repo = newViewRepo(this, Server.Repo.Empty);
+        commands.RepoCmds = newRepoCommands(commands);
+        commands.CommitCmds = newCommitCommands(commands);
+        commands.BranchCmds = newBranchCommands(commands);
+        commands.CreateCmds = newCreateCommands(commands);
+        commands.PushPullCmds = newPushPullCommands(commands);
+        commands.WorktreeCmds = newWorktreeCommands(commands);
+        commands.UndoCmds = newUndoCommands(commands);
         input = new RepoViewInput(
             this,
             commitsView,
@@ -187,20 +210,18 @@ class RepoView : IRepoView, IRepoViewInputHost
     public View KeyHintView => keyHintBar;
     public IApplicationBar ApplicationBar => applicationBarView;
 
-    public int ContentWidth => commitsView.ContentWidth;
-
     public int CurrentIndex => commitsView.CurrentIndex;
-    public Point CurrentPoint => commitsView.CurrentPoint;
 
     public Selection Selection => commitsView.Selection;
 
-    // What RepoViewInput needs from the view, see IRepoViewInputHost. Both are replaced every time
-    // a repo is shown.
+    // What RepoViewInput needs from the view, see IRepoViewInputHost. The view repo and the menus
+    // are replaced every time a repo is shown, the command classes are made once.
     public IViewRepo ViewRepo => repo;
     public ShownHistory ShownHistory => shownHistory;
     public SearchMatches SearchMatches => searchMatches;
     public IReadOnlyList<HiddenBranchNews> HiddenNews => hiddenNews;
     public IRepoViewMenus Menus => menuService;
+    public CommandContext Commands => commands;
 
     public void ClearSelection() => commitsView.ClearSelection();
 
@@ -330,7 +351,7 @@ class RepoView : IRepoView, IRepoViewInputHost
                 searchMatches.Set(pick.Filter, pick.MatchIds, pick.Commit.Id);
             else
                 searchMatches.Clear();
-            repo.BranchCmds.ShowBranch(pick.Commit.BranchName, pick.Commit.Id);
+            commands.BranchCmds.ShowBranch(pick.Commit.BranchName, pick.Commit.Id);
         }
         else
         { // A search given up on is not one to go on with
@@ -471,7 +492,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         UI.AssertOnUIThread();
         if (e.IsSeenBy(repo.Repo))
             return;
-        if (isRepoUpdateInProgress || isShowFilter)
+        if (reads.IsReadingRepo || isShowFilter)
         {
             pendingRepoChange = e;
             return;
@@ -487,13 +508,13 @@ class RepoView : IRepoView, IRepoViewInputHost
         UI.AssertOnUIThread();
         if (e.IsSeenBy(repo.Repo))
             return;
-        if (isStatusUpdateInProgress || isRepoUpdateInProgress || isShowFilter)
+        if (reads.IsReading || isShowFilter)
         {
             pendingStatusChange = e;
             return;
         }
 
-        ShowUpdatedStatusRepoAsync().RunInBackground();
+        ShowUpdatedStatusRepoAsync(e).RunInBackground();
     }
 
     // Looks again at a change that came while the repo was being read or the search was up, now
@@ -522,7 +543,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     void UpdateWorktreesStatus()
     {
         UI.AssertOnUIThread();
-        if (isStatusUpdateInProgress || isRepoUpdateInProgress)
+        if (reads.IsReading)
             return;
         if (!repo.Repo.OtherWorktrees().Any())
             return;
@@ -578,7 +599,8 @@ class RepoView : IRepoView, IRepoViewInputHost
         using (progress.Show())
         {
             var t = Timing.Start();
-            var viewRepoResult = await GetRepoAsync(path, showBranches);
+            // Shown whatever was shown meanwhile, since it is the repo the user asked for
+            var (viewRepoResult, _) = await ReadRepoAsync(path, showBranches);
             if (viewRepoResult is not Server.Repo viewRepo)
                 return viewRepoResult.Error;
 
@@ -598,17 +620,28 @@ class RepoView : IRepoView, IRepoViewInputHost
 
             var t = Timing.Start();
 
-            var branchNames = repo!.Repo.ViewBranches.Select(b => b.Name).ToList();
-            if (addBranchName != "")
+            // Read again while something was shown during the read, which what it read would undo,
+            // see RepoReads; read with the branches shown now, and from the repo shown now. A few
+            // times at most, then the last read is shown, so that one show after another cannot keep
+            // the log from being refreshed.
+            Server.Repo viewRepo;
+            for (var count = 1; ; count++)
             {
-                branchNames.Add(addBranchName);
-            }
+                var branchNames = repo.Repo.ViewBranches.Select(b => b.Name).ToList();
+                if (addBranchName != "")
+                    branchNames.Add(addBranchName);
 
-            var viewRepoResult = await GetRepoAsync(repo.Repo.Path, branchNames);
-            if (viewRepoResult is not Server.Repo viewRepo)
-            {
-                UI.ErrorMessage($"Failed to refresh:\n{viewRepoResult.Error}");
-                return;
+                var (viewRepoResult, isOvertaken) = await ReadRepoAsync(repo.Repo.Path, branchNames);
+                if (viewRepoResult is not Server.Repo read)
+                {
+                    UI.ErrorMessage($"Failed to refresh:\n{viewRepoResult.Error}");
+                    return;
+                }
+
+                viewRepo = read;
+                if (!isOvertaken || count == MaxReads)
+                    break;
+                Log.Info("Read again, since a repo was shown while this one was read");
             }
 
             viewRepo = WithCurrentBranchShown(viewRepo);
@@ -637,15 +670,39 @@ class RepoView : IRepoView, IRepoViewInputHost
         }
     }
 
-    async Task ShowUpdatedStatusRepoAsync()
+    async Task ShowUpdatedStatusRepoAsync(Server.ChangeEvent change)
     {
+        if (isShowFilter)
+        { // Looked at again once the search is closed, see ShowChangesMadeMeanwhile
+            pendingStatusChange = change;
+            return;
+        }
+
         using (progress.Show())
         {
             var t = Timing.Start();
-            var viewRepoResult = await GetUpdateStatusRepoAsync(repo.Repo);
+            var read = reads.StartStatus();
+            Result<Server.Repo> viewRepoResult;
+            try
+            {
+                viewRepoResult = await server.GetUpdateStatusRepoAsync(repo.Repo);
+            }
+            finally
+            {
+                reads.End(read);
+            }
             if (viewRepoResult is not Server.Repo viewRepo)
             {
                 UI.ErrorMessage($"Failed to update status:\n{viewRepoResult.Error}");
+                return;
+            }
+
+            // The status of the repo shown when the read started, whose commits it would put back
+            // over a repo shown meanwhile: the change is looked at again with that one, which may
+            // have read it already
+            if (reads.IsOvertaken(read))
+            {
+                UI.Post(() => OnRefreshStatus(change));
                 return;
             }
 
@@ -668,9 +725,10 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     void ShowRepo(Server.Repo serverRepo)
     {
+        reads.Shown();
         repo = newViewRepo(this, serverRepo);
         currentBranchShown.Shown(serverRepo);
-        menuService = newMenuService(repo);
+        menuService = newMenuService(repo, commands);
         hoover.FollowRepo(repo.Graph); // Redrawn below
         keyHintBar.Visible = IsKeyHintBarShown; // Once there is a repo, the hints are for it
 
@@ -748,8 +806,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             if (branch != null)
             {
                 var tip = repo.Repo.CommitById[branch.TipId];
-                commitsView.ScrollToShowIndex(tip.ViewIndex);
-                commitsView.SetCurrentIndex(tip.ViewIndex);
+                commitsView.ShowCurrentIndex(tip.ViewIndex);
             }
         }
     }
@@ -758,10 +815,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     {
         var commit = repo.Repo.ViewCommits.FirstOrDefault(c => c.Id == commitId);
         if (commit != null)
-        {
-            commitsView.ScrollToShowIndex(commit.ViewIndex);
-            commitsView.SetCurrentIndex(commit.ViewIndex);
-        }
+            commitsView.ShowCurrentIndex(commit.ViewIndex);
     }
 
     void OnCurrentIndexChange()
@@ -792,7 +846,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // branches has nothing to fetch, and is not told so.
     //
     // Only a fetch that was asked for asks for a login, in a dialog. One in the background never
-    // raises a dialog by itself: it fails, and says that r asks (LoginError).
+    // raises a dialog by itself: it fails, and says that r asks (LoginAdvice).
     async Task FetchBestEffortAsync(bool isAsked = false)
     {
         Result fetched;
@@ -821,7 +875,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     static string Reason(Error e)
     {
         if (Git.LoginError.Find(e) is Git.LoginError login)
-            return login.Message;
+            return LoginAdvice.Of(login);
 
         var lines = e.AllMessages().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var line =
@@ -842,37 +896,22 @@ class RepoView : IRepoView, IRepoViewInputHost
         );
     }
 
-    async Task<Result<Server.Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
+    // Reads the repo with the branches given, and whether something was shown while it read, see
+    // RepoReads. While the search is up, the repo shown is all there is to read.
+    async Task<(Result<Server.Repo>, bool IsOvertaken)> ReadRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         if (isShowFilter)
-            return repo.Repo;
+            return (repo.Repo, false);
 
+        var read = reads.StartRepo();
         try
         {
-            isStatusUpdateInProgress = true;
-            isRepoUpdateInProgress = true;
-            return await server.GetRepoAsync(path, showBranches);
+            var result = await server.GetRepoAsync(path, showBranches);
+            return (result, reads.IsOvertaken(read));
         }
         finally
         {
-            isStatusUpdateInProgress = false;
-            isRepoUpdateInProgress = false;
-        }
-    }
-
-    async Task<Result<Server.Repo>> GetUpdateStatusRepoAsync(Server.Repo repo)
-    {
-        if (isShowFilter)
-            return repo!;
-
-        try
-        {
-            isStatusUpdateInProgress = true;
-            return await server.GetUpdateStatusRepoAsync(repo);
-        }
-        finally
-        {
-            isStatusUpdateInProgress = false;
+            reads.End(read);
         }
     }
 }

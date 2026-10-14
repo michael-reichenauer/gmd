@@ -26,6 +26,19 @@ public class StringExtensionsTest
         Assert.AreEqual("dev", "dev".TrimPrefix(""));
     }
 
+    // Compared character by character, not by the user's culture, which ignores characters that
+    // are not drawn, as a soft hyphen (U+00AD) or a zero width joiner: 'origin/' was then a prefix
+    // of 'orig\u00ADin/dev', and trimming it cut one character too few, leaving '/dev'. A branch
+    // name may hold either.
+    [TestMethod]
+    public void TestTrimPrefixAndSuffixCompareCharacters()
+    {
+        Assert.AreEqual("orig\u00ADin/dev", "orig\u00ADin/dev".TrimPrefix("origin/"));
+        Assert.AreEqual("origin\u200D/dev", "origin\u200D/dev".TrimPrefix("origin/"));
+        Assert.AreEqual("repo.git\u00AD", "repo.git\u00AD".TrimSuffix(".git"));
+        Assert.AreEqual("dev", "origin/dev".TrimPrefix("origin/"));
+    }
+
     [TestMethod]
     public void TestTrimSuffix()
     {
@@ -49,13 +62,6 @@ public class StringExtensionsTest
         Assert.AreEqual("", "abc".Max(0));
     }
 
-    [TestMethod]
-    public void TestToJson()
-    {
-        Assert.AreEqual("{\n  \"Name\": \"dev\"\n}", new { Name = "dev" }.ToJson().Replace("\r\n", "\n"));
-        Assert.AreEqual("", ((object?)null).ToJson());
-    }
-
     // The version text in the About dialog: 'major.minor' is the hand set version and the two in
     // parenthesis are derived from the build time
     [TestMethod]
@@ -66,8 +72,17 @@ public class StringExtensionsTest
         Assert.AreEqual("0.91 (-1.-1)", new Version(0, 91).Txt(), "Missing parts are -1");
     }
 
-    // Note the integer division: a size is rounded down to a whole unit, so the '0.##' in the
-    // format never has a fraction to show
+    // Who made a branch's last commit, as the branch lists show it
+    [TestMethod]
+    public void TestInitials()
+    {
+        Assert.AreEqual("T U", "Test User".Initials());
+        Assert.AreEqual("A", "  Anna  ".Initials());
+        Assert.AreEqual("J R", "John Ronald Tolkien".Initials(), "Two at most");
+        Assert.AreEqual("", "".Initials());
+    }
+
+    // A size is rounded down to a whole unit
     [TestMethod]
     public void TestFileSize()
     {

@@ -6,15 +6,14 @@ namespace gmdTest.Fixtures;
 // TmuxSession, for the gmd it starts, and the TestSetup of each test project, gmdTest and
 // gmdE2eTest (which compiles this file in), for the test process itself.
 //
-// gmd has no way to redirect where it keeps its state: the paths in ConfigService, ConfigLogger
-// and Upgrader are all anchored on SpecialFolder.UserProfile with no flag, env var or setting to
-// override them. On Unix that resolves $HOME, so pointing HOME at a temp folder is the only way
+// gmd has no way to redirect where it keeps its state: the paths in ConfigService and LogFile
+// are both anchored on SpecialFolder.UserProfile with no flag, env var or setting to override
+// them. On Unix that resolves $HOME, so pointing HOME at a temp folder is the only way
 // to run gmd without writing to the developer's home. It matters more than it sounds, because a
 // gmd run does not merely read:
 //
 //   ~/.gmdconfig    written on every run (GitVersion, and the opened repo into RecentFolders)
 //   ~/gmd.log       TRUNCATED on every start
-//   ~/.gmdstate*    DELETED on every start
 //
 // Redirecting HOME also isolates ~/.gitconfig from the git commands gmd runs, which is the same
 // isolation TempRepo gets by setting its config locally.
@@ -106,7 +105,7 @@ sealed class TempHome : IDisposable
         this.isKeyHints = isKeyHints;
         this.isHiddenBranchesTip = isHiddenBranchesTip;
 
-        // All three have to exist before gmd starts: ConfigLogger's static constructor writes
+        // All three have to exist before gmd starts: LogFile's static constructor writes
         // the log file and fails fast if it cannot
         Directory.CreateDirectory(Path);
         Directory.CreateDirectory(IOPath.Join(Path, ".config"));

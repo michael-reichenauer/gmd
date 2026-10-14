@@ -38,6 +38,33 @@ public class LogViewTest
     // The guard on every other end-to-end test: that the redirected HOME actually took, i.e. that
     // gmd wrote its state into the throwaway home rather than into the developer's. If another
     // write anchored on SpecialFolder.UserProfile is ever added, this is where it shows up.
+    // A subject in Japanese, an emoji in one and an author named in kanji leave the sid, author and
+    // time columns where they are: measured in chars rather than in columns, each wide character
+    // moved the columns after it one more, off the screen, and the emoji was drawn as '~I'
+    [TestMethod]
+    public async Task TestWideCharactersKeepTheColumnsInPlace()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("a.txt", "a\n", "Plain subject", t);
+        await repo.CommitFileAtAsync("a.txt", "b\n", "日本語のコミットメッセージ", t.AddMinutes(1));
+        await repo.CommitFileAtAsync("a.txt", "c\n", "Party 🎉 time", t.AddMinutes(2));
+        repo.WriteFile("a.txt", "d\n");
+        await repo.GitAsync("add a.txt");
+        repo.GitAt(["commit", "-q", "--author=山田太郎 <taro@example.com>", "-m", "Author in kanji"], t.AddMinutes(3));
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            """
+            ┣ ● Author in kanji                                                     (● main) 5db392 山田太郎       2024-10-15 12:03
+            ┣   Party � time                                                                 e24544 Test User      2024-10-15 12:02
+            ┣   日本語のコミットメッセージ                                                   43de22 Test User      2024-10-15 12:01
+            ┗   Plain subject                                                                e42df2 Test User      2024-10-15 12:00
+            """,
+            ScreenText.Rows(gmd.WaitFor("Plain subject"), repo.Path, 2, 4)
+        );
+    }
+
     [TestMethod]
     public async Task TestRunsUnderTheThrowawayHome()
     {
@@ -741,9 +768,46 @@ public class LogViewTest
             repo.Path
         );
 
-        // And hiding it again gives back exactly the screen we started with
+        // And hiding it again gives back exactly the screen we started with. The highlight is still on
+        // main, which is always shown, so it moves on to dev first: 'h' on main used to hide every
+        // branch made from it, dev too, and says main is always shown now.
+        gmd.Send("Right");
+        gmd.WaitForStable();
         gmd.Send("h");
         ScreenText.AssertEqual(ScreenText.Of(before, repo.Path), gmd.WaitUntilGone("More dev work"), repo.Path);
+    }
+
+    // A log that shrinks under the cursor leaves the cursor where it was, past its last row (see
+    // ContentScroll), and 'm' opened the commit menu for the row the cursor is on, which threw and
+    // ended gmd. The menu is the last commit's, as the key hints and every key already take it.
+    [TestMethod]
+    public async Task TestTheMenuKeyAfterTheLogShrankUnderTheCursor()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        // Show dev from the merge commit, which puts the cursor on dev's tip, then down to the last row
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        foreach (var _ in Enumerable.Range(0, 3))
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right"); // The hoover followed down onto main, and right of it is the commit
+        gmd.WaitForStable();
+
+        // Back to dev hidden, two rows fewer, so the cursor is below the last of them
+        gmd.Send("BSpace");
+        gmd.WaitUntilGone("More dev work");
+        gmd.Send("m");
+
+        StringAssert.Contains(gmd.WaitFor("Commit: 9dc406"), "Commit Diff", "The menu of 'Initial', the last row");
+        Assert.IsTrue(gmd.IsRunning, "gmd is still running");
     }
 
     // Backspace goes back to the branches shown before the last show or hide, one step at a time, as

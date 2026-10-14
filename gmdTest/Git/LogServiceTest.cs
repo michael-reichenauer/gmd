@@ -7,18 +7,19 @@ namespace gmdTest.Git;
 [TestClass]
 public class LogServiceTest
 {
-    // Output of: git log --all --date-order -z --pretty="%H|%ai|%ci|%an|%P|%B"
-    // Records are NUL separated, fields are '|' separated:
-    //   %H id | %ai author time | %ci commit time | %an author | %P parents | %B message
+    // Output of: git log --all --date-order -z --pretty=%H%x1f%ai%x1f%ci%x1f%an%x1f%P%x1f%B
+    // Records are NUL separated, fields are separated by the ASCII unit separator, written '¦' here
+    // and swapped in by GetLogAsync, since a control character in the source is invisible:
+    //   %H id ¦ %ai author time ¦ %ci commit time ¦ %an author ¦ %P parents ¦ %B message
     const string Id1 = "1111111111111111111111111111111111111111";
     const string Id2 = "2222222222222222222222222222222222222222";
 
-    static string GitLogOutput(string message = "Subject line", string parents = Id2) =>
-        $"{Id1}|2024-10-15 12:34:56 +0200|2024-10-15 12:35:00 +0200|Alice|{parents}|{message}\x00";
+    static string GitLogOutput(string message = "Subject line", string parents = Id2, string author = "Alice") =>
+        $"{Id1}¦2024-10-15 12:34:56 +0200¦2024-10-15 12:35:00 +0200¦{author}¦{parents}¦{message}\x00";
 
     static async Task<IReadOnlyList<gmd.Git.Commit>> GetLogAsync(string output)
     {
-        var log = new LogService(new FakeCmd(output));
+        var log = new LogService(new FakeCmd(output.Replace('¦', LogService.FieldSeparator)));
         var result = await log.GetLogAsync(100, "/wd");
         var commits = AssertOk(result);
         return commits;
@@ -83,15 +84,25 @@ public class LogServiceTest
         CollectionAssert.AreEqual(new[] { Id2 }, c.ParentIds);
     }
 
-    // A commit message may contain '|', which is also the field separator, so the trailing
-    // parts must be rejoined into the original message.
+    // A commit message may contain the field separator, which is kept as part of the message, since
+    // the message is the last field, all of the rest of the row
     [TestMethod]
     public async Task TestParseMessageContainingFieldSeparator()
     {
-        var commits = await GetLogAsync(GitLogOutput("Fix a|b parsing|and more"));
+        var commits = await GetLogAsync(GitLogOutput("Fix a¦b parsing¦and more"));
 
-        Assert.AreEqual("Fix a|b parsing|and more", commits[0].Message);
-        Assert.AreEqual("Fix a|b parsing|and more", commits[0].Subject);
+        Assert.AreEqual("Fix a\u001fb parsing\u001fand more", commits[0].Message);
+    }
+
+    // An author's name can have a '|' in it, which used to be the field separator
+    [TestMethod]
+    public async Task TestParseAuthorAndMessageWithABar()
+    {
+        var commits = await GetLogAsync(GitLogOutput("Fix a|b", author: "Jane Doe | Acme"));
+
+        Assert.AreEqual("Jane Doe | Acme", commits[0].Author);
+        CollectionAssert.AreEqual(new[] { Id2 }, commits[0].ParentIds);
+        Assert.AreEqual("Fix a|b", commits[0].Message);
     }
 
     // The subject is the first line, the message keeps all lines
@@ -150,25 +161,25 @@ public class LogServiceTest
     }
 
     // Records are NUL separated, and a record of white space only, e.g. the newline after the last,
-    // is no commit. A '|' in a message after its first line is part of the message as well.
+    // is no commit. A separator in a message after its first line is part of the message as well.
     [TestMethod]
     public async Task TestParseSeveralRecords()
     {
         var output =
-            $"{Id1}|2024-10-15 12:34:56 +0200|2024-10-15 12:35:00 +0200|Alice|{Id2}|First\n\nWith a | in it\n\x00"
+            $"{Id1}¦2024-10-15 12:34:56 +0200¦2024-10-15 12:35:00 +0200¦Alice¦{Id2}¦First\n\nWith a ¦ in it\n\x00"
             + "\n\x00"
-            + $"{Id2}|2024-10-14 12:34:56 +0200|2024-10-14 12:35:00 +0200|Bob||Second|and more\n\x00\n";
+            + $"{Id2}¦2024-10-14 12:34:56 +0200¦2024-10-14 12:35:00 +0200¦Bob¦¦Second¦and more\n\x00\n";
 
         var commits = await GetLogAsync(output);
 
         Assert.AreEqual(2, commits.Count);
-        Assert.AreEqual("First\n\nWith a | in it", commits[0].Message);
+        Assert.AreEqual("First\n\nWith a \u001f in it", commits[0].Message);
         Assert.AreEqual("First", commits[0].Subject);
         Assert.AreEqual(Id2, commits[1].Id);
         Assert.AreEqual("Bob", commits[1].Author);
         Assert.AreEqual(0, commits[1].ParentIds.Length);
-        Assert.AreEqual("Second|and more", commits[1].Message);
-        Assert.AreEqual("Second|and more", commits[1].Subject);
+        Assert.AreEqual("Second\u001fand more", commits[1].Message);
+        Assert.AreEqual("Second\u001fand more", commits[1].Subject);
     }
 
     // The parents are space separated, and white space around them is not part of an id
@@ -209,12 +220,12 @@ public class LogServiceTest
     [TestMethod]
     public async Task TestParseTooFewFieldsIsError()
     {
-        var log = new LogService(new FakeCmd($"{Id1}|2024-10-15 12:34:56 +0200|Alice\x00"));
+        var log = new LogService(new FakeCmd($"{Id1}\u001f2024-10-15 12:34:56 +0200\u001fAlice\x00"));
 
         var result = await log.GetLogAsync(100, "/wd");
 
         var error = AssertError(result, "Expected a parse error");
-        StringAssert.Contains(error.Message, $"{Id1}|2024-10-15 12:34:56 +0200|Alice");
+        StringAssert.Contains(error.Message, $"{Id1}\u001f2024-10-15 12:34:56 +0200\u001fAlice");
     }
 
     [TestMethod]
@@ -230,7 +241,7 @@ public class LogServiceTest
     [TestMethod]
     public async Task TestGetLogPassesMaxCountAndWorkingDirectoryToGit()
     {
-        var cmd = new FakeCmd(GitLogOutput());
+        var cmd = new FakeCmd(GitLogOutput().Replace('¦', LogService.FieldSeparator));
         var log = new LogService(cmd);
 
         await log.GetLogAsync(42, "/some/wd");
@@ -241,8 +252,8 @@ public class LogServiceTest
         StringAssert.Contains(cmd.Calls[0].Args, "--max-count=42");
     }
 
-    // The path of a search is what the user typed: a '"' would end the argument, and a Windows
-    // user's '\' is a '/' to git. The ids come back one per line.
+    // The path of a search is what the user typed, a '"' included, and a Windows user's '\' is a '/'
+    // to git. The ids come back one per line.
     [TestMethod]
     public async Task TestTheFileSearchKeepsTheTypedPathInItsArgument()
     {
@@ -252,10 +263,10 @@ public class LogServiceTest
         var ids = AssertOk(await log.GetIdsChangingFilesAsync("gmd\\Cui \"x", 50, "/wd"));
 
         CollectionAssert.AreEqual(new[] { Id1, Id2 }, ids.ToArray());
-        StringAssert.EndsWith(cmd.Calls[0].Args, "--max-count=50 -- \":(icase)*gmd/Cui x*\"");
+        StringAssert.EndsWith(cmd.Calls[0].Args, "--max-count=50 -- \":(icase)*gmd/Cui \\\"x*\"");
     }
 
-    // The pickaxe, in any case, with the text as typed but for a '"', which would end the argument
+    // The pickaxe, in any case, with the text as typed, a '"' included
     [TestMethod]
     public async Task TestTheChangeSearchIsThePickaxe()
     {
@@ -265,7 +276,10 @@ public class LogServiceTest
         var ids = AssertOk(await log.GetIdsChangingTextAsync("retry \"count", 50, "/wd"));
 
         CollectionAssert.AreEqual(new[] { Id1, Id2 }, ids.ToArray());
-        Assert.AreEqual("log --all -i -S\"retry count\" --format=%H --max-count=50", cmd.Calls[0].Args);
+        Assert.AreEqual(
+            "log --all -i -S\"retry \\\"count\" --no-show-signature --format=%H --max-count=50",
+            cmd.Calls[0].Args
+        );
     }
 
     // The ids are given in chunks a Windows command line holds, each walked with everything kept
@@ -273,13 +287,16 @@ public class LogServiceTest
     [TestMethod]
     public async Task TestUnreachableCommitsAreReadInChunks()
     {
-        var cmd = new FakeCmd(GitLogOutput());
+        var cmd = new FakeCmd(GitLogOutput().Replace('¦', LogService.FieldSeparator));
         var ids = Enumerable.Range(0, 900).Select(i => i.ToString("x40")).ToList();
 
         var commits = AssertOk(await new LogService(cmd).GetUnreachableCommitsAsync(ids, ["5a5a"], "/wd"));
 
         Assert.AreEqual(3, cmd.Calls.Count);
-        StringAssert.StartsWith(cmd.Calls[0].Args, "log --ignore-missing -z --date-order --pretty=");
+        StringAssert.StartsWith(
+            cmd.Calls[0].Args,
+            "log --ignore-missing --date-order --no-show-signature -z --pretty="
+        );
         StringAssert.EndsWith(cmd.Calls[0].Args, $"{ids[399]} --not --all 5a5a");
         StringAssert.Contains(cmd.Calls[1].Args, $" {ids[400]} ");
         StringAssert.EndsWith(cmd.Calls[2].Args, $"{ids[899]} --not --all 5a5a");
@@ -289,7 +306,7 @@ public class LogServiceTest
     [TestMethod]
     public async Task TestNoUnreachableCommitsWithoutIds()
     {
-        var cmd = new FakeCmd(GitLogOutput());
+        var cmd = new FakeCmd(GitLogOutput().Replace('¦', LogService.FieldSeparator));
 
         Assert.AreEqual(0, AssertOk(await new LogService(cmd).GetUnreachableCommitsAsync([], [], "/wd")).Count);
         Assert.AreEqual(0, cmd.Calls.Count);

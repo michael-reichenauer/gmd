@@ -34,12 +34,12 @@ class WorktreeService : IWorktreeService
     }
 
     public async Task<Result> AddAsync(string path, string branchName, string wd) =>
-        await cmd.RunAsync("git", $"worktree add \"{path}\" {branchName}", wd);
+        await cmd.RunAsync("git", $"worktree add {Cmd.Quote(path)} {branchName}", wd);
 
     public async Task<Result> AddNewBranchAsync(string path, string newBranchName, string startPoint, string wd)
     {
         var start = startPoint != "" ? $" {startPoint}" : "";
-        return await cmd.RunAsync("git", $"worktree add -b {newBranchName} \"{path}\"{start}", wd);
+        return await cmd.RunAsync("git", $"worktree add -b {newBranchName} {Cmd.Quote(path)}{start}", wd);
     }
 
     // Git refuses to remove a worktree with uncommitted changes unless forced, and a locked one
@@ -47,7 +47,7 @@ class WorktreeService : IWorktreeService
     public async Task<Result> RemoveAsync(string path, bool isForce, string wd)
     {
         var force = isForce ? "--force " : "";
-        return await cmd.RunAsync("git", $"worktree remove {force}\"{path}\"", wd);
+        return await cmd.RunAsync("git", $"worktree remove {force}{Cmd.Quote(path)}", wd);
     }
 
     // Forgets the worktrees whose folders are gone
@@ -60,7 +60,7 @@ class WorktreeService : IWorktreeService
         if (paths.Count == 0)
             return new List<string>();
 
-        var args = "check-ignore -- " + string.Join(' ', paths.Select(p => $"\"{p.TrimSuffix("/")}/\""));
+        var args = "check-ignore -- " + string.Join(' ', paths.Select(p => Cmd.Quote($"{p.TrimSuffix("/")}/")));
         var rsp = await cmd.RunRawAsync("git", args, wd, true, true);
 
         // Exit code 1 is git's answer that none of them is ignored

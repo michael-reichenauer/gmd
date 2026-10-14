@@ -13,13 +13,13 @@ interface IServer
     event Action<ChangeEvent> RepoChange;
     event Action<ChangeEvent> StatusChange;
 
-    string CurrentAuthor { get; }
-
     Task<Result<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
     Task<Result<Repo>> GetUpdateStatusRepoAsync(Repo repo);
     Task<Result<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount);
 
-    IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll = false);
+    // The branches of the commits next to a commit, and those starting at it, but its own; with
+    // isAll false only those not shown
+    IReadOnlyList<Branch> GetCommitBranches(Repo repo, string commitId, bool isAll);
     IReadOnlyList<string> GetPossibleBranchNames(Repo repo, string commitId, int maxCount);
 
     Repo ShowBranch(
@@ -37,22 +37,16 @@ interface IServer
     Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
     Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId);
     Task<Result> SetBranchManuallyAsync(Repo repo, string commitId, string setHumanName);
-    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout, string wd);
-    Task<Result> CreateBranchFromBranchAsync(
-        Repo serverRepo,
-        string newBranchName,
-        string sourceBranch,
-        bool isCheckout,
-        string repoPath
-    );
-    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout, string wd);
+    Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout);
+    Task<Result> CreateBranchFromBranchAsync(Repo repo, string newBranchName, string sourceBranch, bool isCheckout);
+    Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout);
     Task<Result> RenameBranchAsync(string oldName, string newName, string wd);
     Task<Result> StashAsync(string message, string wd);
     Task<Result> StashPopAsync(string name, string wd);
     Task<Result> StashApplyAsync(string name, string wd);
 
     // Git commands
-    Task<Result<IReadOnlyList<string>>> GetFileAsync(string reference, string wd);
+    Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result> FetchAsync(string wd);
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
@@ -77,8 +71,6 @@ interface IServer
     Task<Result<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
     Task<Result> RunDiffToolAsync(string path, string wd);
     Task<Result> RunMergeToolAsync(string path, string wd);
-
-    //Task<Result<string>> GetFileTextAsync(string path, string wd);
 
     Task<Result> PushBranchAsync(string name, string wd);
 
@@ -129,7 +121,7 @@ interface IServer
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
 
-    // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see AugmentedService
+    // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see UndoService
     Task<Result> UndoStepAsync(Repo repo, UndoStep step);
 
     // The lines of work no branch, tag or stash has any more, which the reflogs still mention
@@ -150,13 +142,13 @@ interface IServer
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result> StashDropAsync(string name, string wd);
     Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
-    Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd);
-    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd);
+    Task<Result> AddTagAsync(string name, string commitId, string wd);
+    Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);
     Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd);
     Task<Result<IReadOnlyList<RepoTag>>> GetTagsAsync(string wd);
     Task<Result> PushTagAsync(string name, string wd);
     Task<Result> SwitchToCommitAsync(string commitId, string wd);
-    Task<Result> SquashCommits(Repo repo, string id1, string id2, string msg);
+    Task<Result> SquashCommitsAsync(Repo repo, string id1, string id2, string msg);
 
     // An older commit not pushed yet, given a new message and the changes in the paths, none for a
     // new message alone, or taken out of the branch

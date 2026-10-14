@@ -1,6 +1,8 @@
 using gmd.Cui.Blame;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
+using gmd.Cui.Tags;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -17,7 +19,6 @@ interface ICommitCommands
 {
     void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null);
     Task<Result<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null);
-    void CommitFromMenu(bool isAmend);
 
     void ShowUncommittedDiff(bool isFromCommit = false);
     void ShowCurrentRowDiff();
@@ -55,7 +56,7 @@ class CommitCommands : ICommitCommands
 {
     readonly IProgress progress;
     readonly IStatusLine status;
-    readonly IViewRepo repo;
+    readonly CommandContext context;
     readonly IServer server;
     readonly ICommitDlg commitDlg;
     readonly ISquashDlg squashDlg;
@@ -68,32 +69,28 @@ class CommitCommands : ICommitCommands
     readonly DiffMark diffMark;
 
     public CommitCommands(
-        IProgress progress,
-        IStatusLine status,
-        IViewRepo repo,
-        IServer server,
+        CommandContext context,
         ICommitDlg commitDlg,
         ISquashDlg squashDlg,
         IDiffView diffView,
         IBlameView blameView,
         IAddTagDlg addTagDlg,
         IAddStashDlg addStashDlg,
-        IRepoView repoView,
         ITagsDlg tagsDlg,
         DiffMark diffMark
     )
     {
-        this.progress = progress;
-        this.status = status;
-        this.repo = repo;
-        this.server = server;
+        this.context = context;
+        this.progress = context.Progress;
+        this.status = context.Status;
+        this.server = context.Server;
         this.commitDlg = commitDlg;
         this.squashDlg = squashDlg;
         this.diffView = diffView;
         this.blameView = blameView;
         this.addTagDlg = addTagDlg;
         this.addStashDlg = addStashDlg;
-        this.repoView = repoView;
+        this.repoView = context.View;
         this.tagsDlg = tagsDlg;
         this.diffMark = diffMark;
     }
@@ -106,30 +103,12 @@ class CommitCommands : ICommitCommands
         IReadOnlyList<Server.Commit>? commits = null
     ) => repoView.RefreshAndCommit(addName, commitId, commits);
 
-    public void RefreshAndFetch(string addName = "", string commitId = "") =>
-        repoView.RefreshAndFetch(addName, commitId);
-
-    public bool CanUndoUncommitted() => !repo.Repo.Status.IsOk;
+    public bool CanUndoUncommitted() => !context.ViewRepo.Repo.Status.IsOk;
 
     public void ToggleDetails() => repoView.ToggleDetails();
 
-    public void CommitFromMenu(bool isAmend)
-    {
-        // For some unknown reason, calling commit directly from the menu will
-        // Show the commit dialog, but diff will not work since async/await does not seem to work
-        // However wrapping with a timeout seems to work as desired.
-        UI.AddTimeout(
-            TimeSpan.FromMilliseconds(100),
-            (_) =>
-            {
-                Commit(isAmend);
-                return false;
-            }
-        );
-    }
-
     public void Commit(bool isAmend, IReadOnlyList<Commit>? commits = null) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commitResult = await CommitAsync(isAmend, commits);
             if (commitResult is not CommitResult result)
@@ -151,6 +130,7 @@ class CommitCommands : ICommitCommands
     // switch back off the target branch if the merge it staged there was actually committed.
     public async Task<Result<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null)
     {
+        var repo = context.ViewRepo;
         // Before the detached head check below, which a rebase would otherwise answer with
         // "create/switch to a branch first" — a rebase does leave HEAD detached, so that message is
         // both true and useless: the way out is to continue the rebase, not to make a branch.
@@ -169,13 +149,22 @@ class CommitCommands : ICommitCommands
         }
 
         // Ahead of the dialog, so the user is not asked for a message and then refused
-        if (!await repo.Cmds.ConfirmConflictsResolvedAsync("Commit"))
+        if (!await context.RepoCmds.ConfirmConflictsResolvedAsync("Commit"))
             return CommitResult.Cancelled;
 
         if (!await CheckBinaryOrLargeAddedFilesAsync())
             return CommitResult.Cancelled;
 
-        if (!commitDlg.Show(repo, isAmend, commits, out var message, out var paths))
+        if (
+            !commitDlg.Show(
+                repo.Repo,
+                () => ShowUncommittedDiff(true),
+                isAmend,
+                commits,
+                out var message,
+                out var paths
+            )
+        )
             return CommitResult.Cancelled;
 
         // A pre-commit hook can make a commit take a while, e.g. one that formats the code. The
@@ -194,7 +183,7 @@ class CommitCommands : ICommitCommands
         return CommitResult.Committed;
     }
 
-    string CurrentBranchName() => repo.Repo.CurrentBranch().NiceNameUnique;
+    string CurrentBranchName() => context.ViewRepo.Repo.CurrentBranch().NiceNameUnique;
 
     // A rebase, an 'am', and a cherry pick or revert of several commits are finished by continuing
     // them, not by committing: 'git commit' makes the commit git stopped on but leaves the
@@ -208,10 +197,11 @@ class CommitCommands : ICommitCommands
     // not be opened at all.
     bool OfferContinueInsteadOfCommit()
     {
+        var repo = context.ViewRepo;
         if (repo.Repo.Status.IsFinishedByCommit)
             return true;
 
-        var name = repo.Cmds.OperationName();
+        var name = context.RepoCmds.OperationName();
         var choice = UI.InfoMessage(
             $"{name} In Progress",
             $"A {name.ToLower()} is in progress.\n\n"
@@ -221,7 +211,7 @@ class CommitCommands : ICommitCommands
             [$"Continue {name}", "Cancel"]
         );
         if (choice == 0)
-            repo.Cmds.ContinueOperation();
+            context.RepoCmds.ContinueOperation();
 
         return false;
     }
@@ -230,9 +220,10 @@ class CommitCommands : ICommitCommands
 
     public void ShowCurrentRowDiff()
     {
+        var repo = context.ViewRepo;
         var id1 = repo.RowCommit.Id;
         var id2 = "";
-        var selection = repo.RepoView.Selection;
+        var selection = repoView.Selection;
         var (i1, i2) = (selection.I1, selection.I2);
         if (i2 - i1 > 0)
         { // User has selected multiple commits
@@ -259,40 +250,47 @@ class CommitCommands : ICommitCommands
     }
 
     public void ShowDiff(string commitId, string commitId2, bool isFromCommit = false) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (commitId == Repo.EmptyRepoCommitId)
                 return Result.Ok;
 
-            // How the diff view gets this same diff again, at whatever context it is asked for
-            DiffReload reload;
+            // How the diff view gets this same diff again, at whatever context it is asked for, and
+            // whether it is the uncommitted changes alone, which it can commit and discard
+            DiffSource source;
             if (commitId2 == "")
             {
-                reload = DiffReloads.Single(n => server.GetCommitDiffAsync(commitId, n, repo.Path));
+                source = DiffSource.Single(n => server.GetCommitDiffAsync(commitId, n, repo.Path)) with
+                {
+                    CanCommit = commitId == Repo.UncommittedId,
+                };
             }
             else
             {
-                repo.RepoView.ClearSelection();
+                repoView.ClearSelection();
                 var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
-                reload = DiffReloads.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path));
+                source = DiffSource.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path));
             }
 
-            var diffsResult = await reload(DiffContext.Default);
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
             // Only the uncommitted diff can have conflicts, and reading them here keeps the await
             // off the main loop — see the note on IDiffView.Show
             var conflicts = ConflictState.None;
-            if (commitId == Repo.UncommittedId && !repo.Repo.Status.IsOk)
+            if (source.CanCommit && !repo.Repo.Status.IsOk)
             {
                 if (await server.GetConflictStateAsync(repo.Path) is ConflictState state)
                     conflicts = state;
             }
 
+            // Shown once the command is done, outside Do, as every view of its own is: Do's progress
+            // would be running under it, and the view's own, e.g. the reload of '+', would then only
+            // be counted, with no marquee and with the keys not held while git works
             UI.Post(() =>
             {
-                var rsp = diffView.Show(diffs[0], commitId, repo.Path, reload, conflicts);
+                var rsp = diffView.Show(diffs, source, repo.Path, conflicts);
                 if (rsp == DiffResult.Commit && !isFromCommit)
                 {
                     RefreshAndCommit();
@@ -307,6 +305,7 @@ class CommitCommands : ICommitCommands
 
     public void MarkForDiff(string commitId)
     {
+        var repo = context.ViewRepo;
         diffMark.Set(repo.Path, commitId);
         var sid = commitId.Sid();
         status.Info($"Marked {sid} for a diff: Diff with {sid} in the menu of another commit diffs the two");
@@ -315,7 +314,7 @@ class CommitCommands : ICommitCommands
     // The changes from the older of the two commits to the newer, whichever is marked, i.e. what
     // changed on the way from the one to the other, as 'git diff <older> <newer>'
     public void DiffWithMarked(string commitId) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var markedId = diffMark.IdIn(repo.Path);
             if (markedId == "" || !repo.Repo.CommitById.TryGetValue(markedId, out var marked))
@@ -324,36 +323,29 @@ class CommitCommands : ICommitCommands
 
             var (older, newer) = marked.GitIndex > commit.GitIndex ? (marked, commit) : (commit, marked);
             var message = $"Diff {older.Sid} to {newer.Sid}";
-            var reload = DiffReloads.Single(n =>
+            var source = DiffSource.Single(n =>
                 server.GetPreviewMergeDiffAsync(older.Id, newer.Id, message, n, repo.Path)
             );
-            var diffsResult = await reload(DiffContext.Default);
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
-            diffView.Show(diffs[0], newer.Id, repo.Path, reload, ConflictState.None);
+            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
     public void CherryPick() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var sha = repo.RowCommit.Id;
-            var selection = repo.RepoView.Selection;
+            var selection = repoView.Selection;
             var (i1, i2) = (selection.I1, selection.I2);
             if (i2 - i1 > 0)
             { // User selected range of commits
-                var c1 = repo.Repo.ViewCommits[i1];
-                var c2 = repo.Repo.ViewCommits[i2];
-                var commits = new List<Commit>();
-                var current = c1;
-                while (current != c2)
-                {
-                    commits.Add(current);
-                    current = repo.Repo.CommitById[current.ParentIds[0]];
-                }
-                commits.Add(current);
-                commits.Reverse();
+                if (CommitsToPick(repo.Repo, i1, i2) is not { } commits)
+                    return new Notice(
+                        "The selected commits are not one line of commits: select the commits of a branch"
+                    );
 
                 foreach (var commit in commits)
                 {
@@ -375,13 +367,13 @@ class CommitCommands : ICommitCommands
                 }
             }
 
-            repo.RepoView.ClearSelection();
+            repoView.ClearSelection();
             RefreshAndCommit();
             return Result.Ok;
         });
 
     public void Stash() =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (repo.Repo.Status.IsOk)
                 return Result.Ok;
@@ -401,7 +393,7 @@ class CommitCommands : ICommitCommands
         });
 
     public void StashPop(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (!repo.Repo.Status.IsOk)
                 return Result.Ok;
@@ -417,7 +409,7 @@ class CommitCommands : ICommitCommands
 
     // As Stash Pop, and keeps the stash, which is said, since nothing else shows it
     public void StashApply(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (!repo.Repo.Status.IsOk)
                 return new Notice(Why.Changes);
@@ -432,19 +424,19 @@ class CommitCommands : ICommitCommands
         });
 
     public void StashDiff(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
-            var reload = DiffReloads.Single(n => server.GetStashDiffAsync(name, n, repo.Path));
-            var diffsResult = await reload(DiffContext.Default);
+            var source = DiffSource.Single(n => server.GetStashDiffAsync(name, n, repo.Path));
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to diff stash {name}", diffsResult.Error);
 
-            diffView.Show(diffs[0], name, repo.Path, reload, ConflictState.None);
+            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
     public void StashDrop(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var message = repo.Repo.Stashes.FirstOrDefault(s => s.Name == name)?.Message ?? name;
             if (!Confirm.DropStash(message))
@@ -460,7 +452,7 @@ class CommitCommands : ICommitCommands
         });
 
     public void UndoCommit(string id) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (!CanUndoCommit())
                 return Result.Ok;
@@ -476,10 +468,10 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
-    public bool CanUndoCommit() => repo.Repo.Status.IsOk;
+    public bool CanUndoCommit() => context.ViewRepo.Repo.Status.IsOk;
 
     public void UncommitLastCommit() =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (!CanUncommitLastCommit())
                 return Result.Ok;
@@ -493,12 +485,40 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
+    // The selected rows as commits to pick, oldest first: the newest and the commits down git's first
+    // parents to the oldest, or null when the oldest is not on that line, e.g. rows of two branches,
+    // or the uncommitted changes are among them. The walk used to go on past the first commit and
+    // threw there, ending gmd.
+    internal static IReadOnlyList<Commit>? CommitsToPick(Repo repo, int i1, int i2)
+    {
+        var (newest, oldest) = (repo.ViewCommits[i1], repo.ViewCommits[i2]);
+        if (newest.IsUncommitted || oldest.IsUncommitted)
+            return null;
+
+        List<Commit> commits = [newest];
+        var c = newest;
+        while (c.Id != oldest.Id)
+        {
+            if (c.GitParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.GitParentIds[0], out var parent))
+                return null;
+            c = parent;
+            commits.Add(c);
+        }
+
+        commits.Reverse();
+        return commits;
+    }
+
     public void UncommitUntilCommit(string id) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commit = repo.Repo.CommitById[id];
-            var parentId = repo.Repo.CommitById[commit.ParentIds[0]].Id;
-            if (await server.UncommitUntilCommitAsync(parentId, repo.Path) is Error e)
+            if (CommitRewrite.WhyNotUncommit(repo.Repo, commit) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+
+            // Down git's first parent, the line the branch was made along, which a pull merge whose
+            // parents gmd swaps to draw it does not show first
+            if (await server.UncommitUntilCommitAsync(commit.GitParentIds[0], repo.Path) is Error e)
             {
                 return new Error($"Failed to undo commit", e);
             }
@@ -508,23 +528,12 @@ class CommitCommands : ICommitCommands
         });
 
     public void SquashCommits(string id1, string id2) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var c1 = repo.Repo.CommitById[id1];
             var c2 = repo.Repo.CommitById[id2];
-            if (!c2.ParentIds.Any())
-                return new Error("Last commit does not have a parent");
-            if (c1.BranchName != c2.BranchName)
-                return new Error("Commits are not on the same branch");
-            var branch = repo.Repo.BranchByName[c1.BranchName];
-
-            // Both flags, as 'Uncommit X and Newer' asks it in CommitMenu. IsLocalCurrent is only ever
-            // set on a *remote* branch whose local branch is current (Augmenter.cs), so asking for
-            // it alone refused every commit that had not been pushed yet — the local branch never
-            // carries the flag. Which was the wrong way round: the commits it did allow were the
-            // ones already published.
-            if (!branch.IsCurrent && !branch.IsLocalCurrent)
-                return new Error("Commits not on current branch");
+            if (CommitRewrite.WhyNotSquash(repo.Repo, c1, c2) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
 
             var commits = new List<Commit>();
             var c = c1;
@@ -536,14 +545,14 @@ class CommitCommands : ICommitCommands
                 c = repo.Repo.CommitById[c.ParentIds[0]];
             }
 
-            if (!squashDlg.Show(repo, commits, out var message))
+            if (!squashDlg.Show(commits, out var message))
                 return Result.Ok;
 
-            if (await server.SquashCommits(repo.Repo, id1, id2, message) is Error e)
+            if (await server.SquashCommitsAsync(repo.Repo, id1, id2, message) is Error e)
             {
                 return new Error("Failed to squash commits", e);
             }
-            repo.RepoView.ClearSelection();
+            repoView.ClearSelection();
 
             RefreshAndCommit();
 
@@ -551,24 +560,17 @@ class CommitCommands : ICommitCommands
         });
 
     // An older commit, given a new message, the changes in the files ticked, or both, in the commit
-    // dialog. Opened from the menu as Commit is, with a moment's delay, see CommitFromMenu.
-    public void AmendOlderCommit(string id) =>
-        UI.AddTimeout(
-            TimeSpan.FromMilliseconds(100),
-            (_) =>
-            {
-                Do(() => AmendOlderCommitAsync(id));
-                return false;
-            }
-        );
+    // dialog
+    public void AmendOlderCommit(string id) => Do(repo => AmendOlderCommitAsync(id));
 
     async Task<Result> AmendOlderCommitAsync(string id)
     {
+        var repo = context.ViewRepo;
         var commit = repo.Repo.CommitById[id];
         if (CommitRewrite.WhyNotAmend(repo.Repo, commit) is var whyNot && whyNot != "")
             return new Notice(whyNot);
 
-        if (!commitDlg.ShowAmend(repo, commit, out var message, out var paths))
+        if (!commitDlg.ShowAmend(repo.Repo, () => ShowUncommittedDiff(true), commit, out var message, out var paths))
             return Result.Ok;
 
         using (status.Progress($"Amending {commit.Sid}"))
@@ -584,7 +586,7 @@ class CommitCommands : ICommitCommands
 
     // Takes a commit out of the current branch, asked first, since its changes go with it
     public void DropCommit(string id) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commit = repo.Repo.CommitById[id];
             if (CommitRewrite.WhyNotDrop(repo.Repo, commit) is var whyNot && whyNot != "")
@@ -605,6 +607,7 @@ class CommitCommands : ICommitCommands
 
     public bool CanUncommitLastCommit()
     {
+        var repo = context.ViewRepo;
         if (!repo.Repo.ViewCommits.Any())
             return false;
 
@@ -614,7 +617,7 @@ class CommitCommands : ICommitCommands
     }
 
     public void UndoUncommittedFile(string path) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (!Confirm.UndoFile(path, repo.Repo.Status.AddedFiles.Contains(path)))
                 return Result.Ok;
@@ -629,7 +632,7 @@ class CommitCommands : ICommitCommands
         });
 
     public void UndoUncommittedFiles(IReadOnlyList<string> paths) =>
-        Do(async () =>
+        Do(async repo =>
         {
             if (!Confirm.UndoFiles(paths))
                 return Result.Ok;
@@ -641,6 +644,7 @@ class CommitCommands : ICommitCommands
 
     public async Task UndoUncommittedFilesAsync(IReadOnlyList<string> paths)
     {
+        var repo = context.ViewRepo;
         var failedPath = new List<string>();
         foreach (var path in paths)
         {
@@ -656,7 +660,7 @@ class CommitCommands : ICommitCommands
     }
 
     public void AddTag() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commit = repo.RowCommit;
             var branch = repo.Repo.BranchByName[commit.BranchName];
@@ -670,22 +674,33 @@ class CommitCommands : ICommitCommands
 
             if (tag.message == "")
             {
-                if (await server.AddTagAsync(tag.name, commit.Id, tag.isPush, repo.Path) is Error e)
+                if (await server.AddTagAsync(tag.name, commit.Id, repo.Path) is Error e)
                     return new Error($"Failed to add tag {tag.name}", e);
             }
             else
             {
-                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, tag.isPush, repo.Path);
+                var added = await server.AddAnnotatedTagAsync(tag.name, tag.message, commit.Id, repo.Path);
                 if (added is Error e)
                     return new Error($"Failed to add tag {tag.name} '{tag.message}'", e);
             }
 
             Refresh();
+            if (!tag.isPush)
+                return Result.Ok;
+
+            // Pushed apart from adding it, so a push that fails says the tag was added: it said the
+            // tag had failed, which was there, and which Push in the list of tags then pushes
+            using (status.Progress($"Pushing the tag '{tag.name}'"))
+            {
+                if (await server.PushTagAsync(tag.name, repo.Path) is Error pushError)
+                    return new Error($"Added the tag {tag.name}, but failed to push it", pushError);
+            }
+            status.Info(TagRows.Pushed(tag.name));
             return Result.Ok;
         });
 
     public void DeleteTag(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var tagsResult = await server.GetTagsAsync(repo.Path);
             if (tagsResult is not IReadOnlyList<RepoTag> tags)
@@ -698,7 +713,7 @@ class CommitCommands : ICommitCommands
 
     // Every tag, to show its commit, push it or remove it, see TagsDlg
     public void ShowTags() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var tagsResult = await server.GetTagsAsync(repo.Path);
             if (tagsResult is not IReadOnlyList<RepoTag> tags)
@@ -733,6 +748,7 @@ class CommitCommands : ICommitCommands
     // tags says, rather than whether the branch of its commit has a remote branch, as it used to
     async Task<Result> RemoveTagAsync(RepoTag tag)
     {
+        var repo = context.ViewRepo;
         if (!Confirm.RemoveTag(tag.Name, tag.IsOnOrigin))
             return Result.Ok;
 
@@ -748,7 +764,7 @@ class CommitCommands : ICommitCommands
     }
 
     public void ShowFileHistory() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commit = repo.RowCommit;
             // The files to pick from are the ones the reference has, while the history then shown
@@ -757,7 +773,7 @@ class CommitCommands : ICommitCommands
                 ? (commit.BranchName, $"Select File of Branch {commit.BranchName}")
                 : (commit.Id, $"Select File of Commit {commit.Id.Sid()}");
 
-            var filesResult = await server.GetFileAsync(reference, repo.Path);
+            var filesResult = await server.GetFilePathsAsync(reference, repo.Path);
             if (filesResult is not IReadOnlyList<string> files)
                 return new Error($"Failed to get files", filesResult.Error);
 
@@ -765,17 +781,17 @@ class CommitCommands : ICommitCommands
             if (browser.Show(files, title) is not string path)
                 return Result.Ok;
 
-            DiffReload reload = n => server.GetFileDiffAsync(path, n, repo.Path);
-            var diffsResult = await reload(DiffContext.Default);
+            var source = new DiffSource(n => server.GetFileDiffAsync(path, n, repo.Path));
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to show file history", diffsResult.Error);
 
-            diffView.Show(diffs, repo.Path, reload);
+            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
     public void BlameFile() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commit = repo.RowCommit;
             // The uncommitted row has no tree of its own, so its branch supplies the file list. It
@@ -784,7 +800,7 @@ class CommitCommands : ICommitCommands
                 ? (commit.BranchName, $"Blame File of Branch {commit.BranchName}")
                 : (commit.Id, $"Blame File of Commit {commit.Id.Sid()}");
 
-            var filesResult = await server.GetFileAsync(reference, repo.Path);
+            var filesResult = await server.GetFilePathsAsync(reference, repo.Path);
             if (filesResult is not IReadOnlyList<string> files)
                 return new Error($"Failed to get files", filesResult.Error);
 
@@ -806,14 +822,15 @@ class CommitCommands : ICommitCommands
             if (blameResult is not Server.Blame blame)
                 return new Error($"Failed to blame {path}", blameResult.Error);
 
-            UI.Post(() => blameView.Show(blame, repo.Repo));
+            UI.Post(() => blameView.Show(blame, repo.Repo)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
+    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 
     async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {
+        var repo = context.ViewRepo;
         var addFiles = repo.Repo.Status.AddedFiles.ToList();
         var addAndModified = addFiles
             .Concat(repo.Repo.Status.ModifiedFiles)
@@ -848,7 +865,7 @@ class CommitCommands : ICommitCommands
         var largeFiles = addFiles
             .Where(f => !binaryFiles.Contains(f))
             .Where(f => Files.IsLarger(Path.Join(repo.Path, f), 100 * 1000))
-            .Select(f => $"{f} ({Files.FileSize(f).FileSize()})")
+            .Select(f => $"{f} ({Files.FileSize(Path.Join(repo.Path, f)).FileSize()})")
             .ToList();
 
         if (largeFiles.Any())

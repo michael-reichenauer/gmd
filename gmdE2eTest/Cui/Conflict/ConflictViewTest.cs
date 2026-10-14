@@ -294,7 +294,8 @@ public class ConflictViewTest
         gmd.Send("1");
         gmd.WaitFor("1 still to resolve");
         gmd.Send("S");
-        StringAssert.Contains(gmd.WaitFor("Saved"), "1 of its conflicts still have their markers in it");
+        StringAssert.Contains(gmd.WaitFor("Saved"), "was saved, with 1 of its conflicts still to resolve");
+        Assert.AreEqual("UU long.txt", (await repo.GitAsync("status --porcelain")).Trim(), "And it is not staged");
         gmd.Send("Enter");
 
         // Re-read, so what is left is one conflict rather than the second of two
@@ -330,6 +331,140 @@ public class ConflictViewTest
         var screen = gmd.WaitFor("] [ next, previous");
         StringAssert.Contains(ScreenText.LastLine(screen), "m menu  Esc close  ] [ next, previous  s save");
         StringAssert.Contains(screen, "press 1 for HEAD", "The result pane is still there, above the hints");
+    }
+
+    // A file one side deleted has no text to merge, so it is resolved whole, with no view of the
+    // resolver open. The choice returned before git had run, and the diff, read again at once, could
+    // still list the file as conflicted. It is read once git is done now.
+    [TestMethod]
+    public async Task TestKeepingAFileTheOtherSideDeletedResolvesIt()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAtAsync("file.txt", "one\n", "Initial", TempRepo.BaseTime);
+        await repo.GitAsync("checkout -q -b dev");
+        await repo.GitAsync("rm -q file.txt");
+        repo.GitAt(["commit", "-q", "-m", "Delete the file"], TempRepo.BaseTime.AddMinutes(1));
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("file.txt", "one\ntwo\n", "Change the file", TempRepo.BaseTime.AddMinutes(2));
+        await repo.GitAllowFailAsync("merge dev");
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        // Git's diff has nothing to show of a file one side deleted, so the diff lists no file, and
+        // Enter offers the conflicts to resolve
+        gmd.WaitFor("Enter resolve");
+        gmd.Send("Enter");
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Keep the File"), "file.txt was changed here but deleted on the other side.");
+        gmd.Send("Left"); // From Cancel, the default, past Delete It to Keep the File
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Enter resolve"); // The diff, read again, has no conflict left to resolve
+        Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has it resolved");
+        Assert.AreEqual(
+            "one\ntwo\n",
+            await File.ReadAllTextAsync(Path.Join(repo.Path, "file.txt")),
+            "Kept as changed here"
+        );
+    }
+
+    // A file whose markers were taken out by hand, in an editor, but not marked resolved: the two
+    // sides were the only choices, and either threw the hand merge away. It is marked resolved as it is.
+    [TestMethod]
+    public async Task TestAFileResolvedByHandIsMarkedResolvedAsItIs()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        var merged = string.Join("\n", Enumerable.Range(1, 80).Select(i => $"line {i} merged by hand")) + "\n";
+        await File.WriteAllTextAsync(Path.Join(repo.Path, "long.txt"), merged);
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        gmd.WaitFor("Enter resolve");
+        gmd.Send("Enter");
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Mark Resolved"), "no conflict markers left in it");
+        for (var i = 0; i < 3; i++) // From Cancel, the default, to Mark Resolved
+        {
+            gmd.Send("Left");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Enter resolve");
+        Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has it resolved");
+        Assert.AreEqual(merged, await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt")), "As it was merged");
+    }
+
+    // 'b' shows the common ancestor, which makes a conflict as tall as its longest side. The cursor
+    // stays on the conflict it was on: it stayed at its row, which the taller first conflict had
+    // moved the text above the second one to, so 'b' on conflict 2 left it on conflict 1.
+    [TestMethod]
+    public async Task TestShowingTheAncestorKeepsTheCursorOnItsConflict()
+    {
+        using var repo = await E2eRepo.CreateWithUnevenConflictsAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("]");
+        gmd.WaitFor("conflict 2 of 2");
+
+        gmd.Send("b");
+
+        var screen = gmd.WaitFor("common ancestor");
+        StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "conflict 2 of 2");
+    }
+
+    // A result taller than the pane below is scrolled with Shift-↓ and Shift-↑, since the pane never
+    // takes the focus from the file, or by the mouse wheel over it: it showed its first rows only.
+    // Another conflict's result is shown from its start.
+    [TestMethod]
+    public async Task TestALongResultIsScrolled()
+    {
+        using var repo = await E2eRepo.CreateWithUnevenConflictsAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("]");
+        gmd.WaitFor("conflict 2 of 2");
+        gmd.Send("1");
+        WaitForLastLine(gmd, "line 60 on main, 8 of 12");
+
+        for (int i = 0; i < 4; i++)
+        {
+            gmd.Send("S-Down");
+            gmd.WaitForStable();
+        }
+        WaitForLastLine(gmd, "line 60 on main, 12 of 12");
+
+        var bottom = gmd.Capture().Split('\n').Length - 1;
+        gmd.Wheel(10, bottom, -1);
+        WaitForLastLine(gmd, "line 60 on main, 11 of 12");
+        gmd.Send("S-Up");
+        WaitForLastLine(gmd, "line 60 on main, 10 of 12");
+
+        gmd.Send("[");
+        gmd.WaitFor("conflict 1 of 2");
+        gmd.Send("]");
+        gmd.WaitFor("conflict 2 of 2");
+        WaitForLastLine(gmd, "line 60 on main, 8 of 12");
+    }
+
+    // The bottom row, the result pane's last when the hints are off, read as it settles and without
+    // the pane's scrollbar
+    static void WaitForLastLine(TmuxSession gmd, string expected)
+    {
+        gmd.WaitForMoving(
+            s => ScreenText.LastLine(s).TrimEnd('┃').TrimEnd() == expected,
+            $"the last line to read '{expected}'"
+        );
+        gmd.WaitForStable();
     }
 
     static void OpenTheResolver(TmuxSession gmd)

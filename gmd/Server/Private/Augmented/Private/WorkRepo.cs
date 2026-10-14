@@ -12,11 +12,10 @@ class WorkRepo
     public List<WorkCommit> Commits { get; } = [];
     public Dictionary<string, WorkCommit> CommitsById { get; } = [];
     public Dictionary<string, WorkBranch> Branches { get; } = [];
-    public List<Tag> Tags { get; } = [];
-    public Dictionary<string, Tag> TagById { get; } = [];
     public List<Stash> Stashes { get; } = [];
     public Dictionary<string, Stash> StashById { get; } = [];
     public List<Worktree> Worktrees { get; } = [];
+    public string CurrentAuthor { get; set; } = "";
 
     public WorkRepo(
         DateTime timeStamp,
@@ -74,7 +73,6 @@ class WorkCommit
     public bool IsAmbiguousTip { get; set; }
     public bool IsBranchSetByUser { get; set; }
     public bool IsParentsSwapped { get; set; } // A pull merge, see CommitGraphService
-    public bool IsUncommitted { get; set; }
 
     public List<string> ParentIds { get; }
     public WorkCommit? FirstParent { get; set; }
@@ -132,6 +130,8 @@ internal class WorkBranch
     public bool IsRemoteMissing { get; }
     public bool IsCurrent { get; }
     public bool IsCheckedOutElsewhere { get; } // The '+' of 'git branch': held by another worktree
+    public int AheadCount { get; } // A local branch's commits its remote branch has not, as git counts them
+    public int BehindCount { get; } // Its remote branch's commits it has not
 
     // Augmented properties
     public string WorktreePath { get; set; } = ""; // The other worktree holding this branch, if any
@@ -178,6 +178,8 @@ internal class WorkBranch
         IsGitBranch = true;
         IsCurrent = b.IsCurrent;
         IsCheckedOutElsewhere = b.IsCheckedOutElsewhere;
+        AheadCount = b.AheadCount;
+        BehindCount = b.BehindCount;
         IsRemote = b.IsRemote;
         IsDetached = b.IsDetached;
         RemoteName = b.RemoteName;

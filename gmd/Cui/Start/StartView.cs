@@ -1,6 +1,7 @@
 using gmd.Common;
+using gmd.Cui.App;
 using gmd.Cui.Common;
-using gmd.Cui.RepoView;
+using gmd.Cui.Login;
 using gmd.Installation;
 using gmd.Server;
 using Terminal.Gui;
@@ -41,6 +42,7 @@ class StartView : IStartView
     readonly IServer server;
     readonly IProgress progress;
     readonly IUpdater updater;
+    readonly IUpdateDlg updateDlg;
     readonly IStatusLine status;
     readonly ContentView view;
 
@@ -62,6 +64,7 @@ class StartView : IStartView
         IServer server,
         IProgress progress,
         IUpdater updater,
+        IUpdateDlg updateDlg,
         IStatusLine status
     )
     {
@@ -73,6 +76,7 @@ class StartView : IStartView
         this.server = server;
         this.progress = progress;
         this.updater = updater;
+        this.updateDlg = updateDlg;
         this.status = status;
 
         view = new ContentView(OnGetContent)
@@ -110,7 +114,7 @@ class StartView : IStartView
     {
         var page = Page();
         var numbered = page.Items.Count(i => i.Number > 0);
-        return KeyHints.ForStart(numbered, Selected(page).Repo?.IsRecent == true);
+        return StartHints.For(numbered, Selected(page).Repo?.IsRecent == true);
     }
 
     public void OnBarClicked(ApplicationBarItem item)
@@ -335,7 +339,7 @@ class StartView : IStartView
     // inside a repository, which only '-m' shows the page for, since nesting one is seldom meant.
     IReadOnlyList<string> Folders()
     {
-        var parents = config.ResentParentFolders();
+        var parents = config.RecentParentFolders();
         return repos.IsFolderInRepo || folder == "" ? parents : [folder, .. parents];
     }
 
@@ -354,7 +358,7 @@ class StartView : IStartView
 
         if (cloned is Error e)
         {
-            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{Git.LoginError.Text(e)}");
+            UI.ErrorMessage($"Failed to clone:\n{clone.Uri}:\n{LoginAdvice.Text(e)}");
             view.SetFocus();
             return;
         }
@@ -365,9 +369,10 @@ class StartView : IStartView
     async Task InitAsync()
     {
         var folders = Folders();
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var defaultPath = repos.IsFolderInRepo
-            ? (folders.Any() ? folders[0] + Path.DirectorySeparatorChar : "")
-            : folder;
+            ? (folders.Any() ? InitPath.InFolder(folders[0]) : "")
+            : InitPath.Proposed(folder, home);
         var pathResult = initRepoDlg.Show(defaultPath, folders);
         view.SetFocus();
         if (pathResult is not string path)
@@ -419,43 +424,8 @@ class StartView : IStartView
 
     async Task UpdateAsync()
     {
-        var releases = config.Releases;
-        if (!Version.TryParse(releases.LatestVersion, out var latest))
-            return;
-        var typeText = releases.IsPreview ? "(preview)" : "";
-        string msg =
-            $"A new release is available.\n\n"
-            + $"Current Version: {Build.Version().Txt()}\n"
-            + $"Built:           {Build.Time().ToLocalTime().Iso()}\n\n"
-            + $"New Version:     {latest.Txt()} {typeText}\n"
-            + $"Built:           {Build.GetBuildTime(releases.LatestVersion).ToLocalTime().Iso()}\n\n"
-            + "Do you want to update?";
-
-        if (UI.InfoMessage("New Release", msg, ["Yes", "No"]) != 0)
-        {
-            Log.Info($"Skip update");
-            view.SetFocus();
-            return;
-        }
-
-        Log.Info($"Updating release ...");
-        using (progress.Show())
-        {
-            var updateTask = updater.UpdateAsync();
-            UI.ShowMessageWhile(
-                "Updating",
-                $"Updating to version {latest.Txt()},\nthis might take a while ...",
-                updateTask
-            );
-            if (await updateTask is Error e)
-            {
-                UI.ErrorMessage($"Failed to update:\n{e.AllMessages()}");
-                view.SetFocus();
-                return;
-            }
-        }
-
-        UI.InfoMessage("Restart Required", "A program restart is required,\nplease start Gmd again.");
-        UI.Shutdown();
+        if (await updateDlg.ShowAsync() is Error e)
+            UI.ErrorMessage(e.AllMessages());
+        view.SetFocus();
     }
 }

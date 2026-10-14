@@ -25,9 +25,7 @@ record Repo
         RepoTimeStamp = repoTimeStamp;
         ViewCommits = viewCommits;
         ViewBranches = viewBranches;
-        CommitById = allCommits.ToDictionary(c => c.Id, c => c);
         AllCommits = allCommits;
-        BranchByName = allBranches.ToDictionary(b => b.Name, b => b);
         AllBranches = allBranches;
         Stashes = stashes;
         Status = status;
@@ -39,10 +37,35 @@ record Repo
     public DateTime RepoTimeStamp { get; }
     public IReadOnlyList<Commit> ViewCommits { get; init; }
     public IReadOnlyList<Branch> ViewBranches { get; init; }
-    public IReadOnlyList<Commit> AllCommits { get; init; }
-    public IReadOnlyList<Branch> AllBranches { get; init; }
-    public IReadOnlyDictionary<string, Commit> CommitById { get; init; }
-    public IReadOnlyDictionary<string, Branch> BranchByName { get; init; }
+
+    // The lookups follow the lists, in a copy made with 'with' too, rather than being set beside them,
+    // so that a copy given other commits or branches can never look them up among the old ones
+    public IReadOnlyList<Commit> AllCommits
+    {
+        get => allCommits;
+        init
+        {
+            allCommits = value;
+            CommitById = value.ToDictionary(c => c.Id);
+        }
+    }
+
+    public IReadOnlyList<Branch> AllBranches
+    {
+        get => allBranches;
+        init
+        {
+            allBranches = value;
+            BranchByName = value.ToDictionary(b => b.Name);
+        }
+    }
+
+    public IReadOnlyDictionary<string, Commit> CommitById { get; private init; } = new Dictionary<string, Commit>();
+    public IReadOnlyDictionary<string, Branch> BranchByName { get; private init; } = new Dictionary<string, Branch>();
+
+    readonly IReadOnlyList<Commit> allCommits = [];
+    readonly IReadOnlyList<Branch> allBranches = [];
+
     public IReadOnlyList<Stash> Stashes { get; }
     public Status Status { get; init; }
     public string Filter { get; }
@@ -58,6 +81,9 @@ record Repo
     // local branch's name. Usually none.
     public IReadOnlyDictionary<string, RemoteRewrite> RemoteRewrites { get; init; } =
         new Dictionary<string, RemoteRewrite>();
+
+    // The name commits are made with in the repository, its user.name, or "" when none is set
+    public string CurrentAuthor { get; init; } = "";
 
     public static Repo Empty { get; } =
         new Repo(
@@ -164,7 +190,6 @@ public record Branch(
     bool HasRemoteOnly,
     string AmbiguousTipId,
     IReadOnlyList<string> AmbiguousBranchNames,
-    IReadOnlyList<string> PullMergeBranchNames,
     IReadOnlyList<string> AncestorNames,
     IReadOnlyList<string> RelatedBranchNames,
     bool IsCircularAncestors,
@@ -174,6 +199,11 @@ public record Branch(
     bool IsOut
 )
 {
+    // A local branch's commits its remote branch has not, and the other way round, as git counts
+    // them; both 0 for a branch with no remote branch, and for a remote branch
+    public int AheadCount { get; init; }
+    public int BehindCount { get; init; }
+
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
 
@@ -183,16 +213,11 @@ public record Tag(string Name, string CommitId);
 // last fetch, and the pushes gmd made since (TagService.TrackedRemoteTagsRef)
 public record RepoTag(string Name, string CommitId, bool IsOnOrigin)
 {
-    // The tags git listed, each once, and whether origin has each. An annotated tag is listed twice,
-    // its own object and then the commit it is on, which is the one wanted.
+    // The tags git listed, and whether origin has each
     internal static IReadOnlyList<RepoTag> Of(
         IReadOnlyList<Git.Tag> tags,
         IReadOnlyDictionary<string, string> origin
-    ) =>
-        tags.GroupBy(t => t.Name)
-            .Select(g => g.Last())
-            .Select(t => new RepoTag(t.Name, t.CommitId, origin.ContainsKey(t.Name)))
-            .ToList();
+    ) => tags.Select(t => new RepoTag(t.Name, t.CommitId, origin.ContainsKey(t.Name))).ToList();
 }
 
 public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);

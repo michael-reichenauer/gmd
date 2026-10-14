@@ -9,13 +9,13 @@ class FakeConfigService : IConfigService
 {
     public FakeConfigService(Action<Config>? init = null)
     {
-        Config = new Config(new Lazy<IConfigService>(() => this));
+        Config = new Config(this);
         init?.Invoke(Config);
     }
 
     public Config Config { get; }
 
-    public Config Get() => Config;
+    public void Load(Config config) { }
 
-    public void Set(Action<Config> set) => set(Config);
+    public void Set(Config config, Action<Config> set) => set(config);
 }

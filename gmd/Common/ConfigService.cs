@@ -3,10 +3,16 @@ using gmd.Common.Private;
 
 namespace gmd.Common;
 
+// The user config in '~/.gmdconfig', kept in the single Config instance every class is given, which
+// stays the same object while the values in it are replaced by the stored ones, read afresh
 interface IConfigService
 {
-    Config Get();
-    void Set(Action<Config> setState);
+    // Copies the stored values into the config
+    void Load(Config config);
+
+    // Changes the stored config with 'set', and copies the result into the config, which thereby
+    // also gets what another gmd instance stored since
+    void Set(Config config, Action<Config> set);
 }
 
 // cSpell:ignore gmdconfig
@@ -14,7 +20,6 @@ interface IConfigService
 class ConfigService : IConfigService
 {
     readonly IFileStore store;
-    readonly Config config = new Config(); // The single instance of Config used in DI
 
     // Get all public properties from Config, used when copying properties to single instance
     static readonly PropertyInfo[] properties = typeof(Config).GetProperties(
@@ -26,24 +31,11 @@ class ConfigService : IConfigService
         ".gmdconfig"
     );
 
-    internal ConfigService(IFileStore store, Config config)
-    {
-        this.store = store;
-        this.config = config;
+    internal ConfigService(IFileStore store) => this.store = store;
 
-        // Get Config stored from file and updated the single instance Config
-        Copy(Get(), this.config);
-    }
+    public void Load(Config config) => Copy(store.Get<Config>(FilePath), config);
 
-    public Config Get() => store.Get<Config>(FilePath);
-
-    public void Set(Action<Config> set)
-    {
-        var storedConfig = store.Set(FilePath, set);
-
-        // Update the single instance Config
-        Copy(storedConfig, config);
-    }
+    public void Set(Config config, Action<Config> set) => Copy(store.Set(FilePath, set), config);
 
     // Copy property values to instance to ensure updated values
     static void Copy(Config source, Config target)

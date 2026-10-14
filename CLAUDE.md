@@ -26,6 +26,7 @@ scripts/log            # tail the runtime log with lnav (~/gmd.log)
 scripts/updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
 scripts/installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
 scripts/demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
+scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
 ```
 
 Each script runs at the repository root, wherever it is started from, so `scripts/run` opens this
@@ -53,18 +54,17 @@ wraps the app in a second process, so the pid you measure or kill is the wrong o
 at this working tree; use a throwaway repo, exactly as `TempRepo` does.
 
 **Redirect `HOME` whenever you start gmd yourself.** A gmd run does not merely read the developer's
-home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`),
-**truncates `~/gmd.log`**, and **deletes `~/.gmdstate*`**. None of those paths can be redirected —
-`ConfigService`, `ConfigLogger` and `Upgrader` all anchor on `SpecialFolder.UserProfile` with no
-override — so `HOME` is the only lever, and on Unix it also isolates `~/.gitconfig` from the git
-commands gmd runs. Seed `{"CheckUpdates": false}` into that config as well. The built binary *is* a
-dev instance — `Build.IsDevInstance()` looks for `gmd.dll` on the command line, and .NET puts the
-entry assembly there even when the apphost starts it — so it never starts the regular update check,
-but the start page and saving the Config dialog still call the GitHub releases API
-(`Updater.CheckUpdateAvailableAsync` skips only the `dotnet` host). Being a dev instance also means
-it never reports an update, so ⇓ in the application bar and the release menu items cannot be seen
-with it; a published single-file build (`dotnet publish -r <rid> -p:PublishSingleFile=true`) is
-not one.
+home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`) and
+**truncates `~/gmd.log`**. Neither path can be redirected — `ConfigService` and `LogFile` both
+anchor on `SpecialFolder.UserProfile` with no override — so `HOME` is the only lever, and on Unix
+it also isolates `~/.gitconfig` from the git commands gmd runs. Seed `{"CheckUpdates": false}` into
+that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` looks for
+`gmd.dll` on the command line, and .NET puts the entry assembly there even when the apphost starts
+it — so it never starts the regular update check, but the start page and saving the Config dialog
+still call the GitHub releases API (`Updater.CheckUpdateAvailableAsync` skips only the `dotnet`
+host). Being a dev instance also means it never reports an update, so ⇓ in the application bar and
+the release menu items cannot be seen with it; a published single-file build
+(`dotnet publish -r <rid> -p:PublishSingleFile=true`) is not one.
 
 `script -qfc "stty rows 45 cols 140; <cmd>" /dev/null` is the fallback when tmux is missing: a pty,
 but only the raw byte stream, which is redraw *traffic* rather than a screen and so is poor to
@@ -93,8 +93,8 @@ folder holding the implementation:
 gmd/Cui/           Terminal.Gui views, dialogs, menus, graph rendering
     ↓ IServer
 gmd/Server/        Repo model the UI consumes (view repo = filtered/shown subset)
-    ↓ IAugmentedService
-gmd/Server/Private/Augmented/   Infers commit→branch assignment + branch hierarchy
+    ↓ IAugmentedService (reads), IBranchWriteService, ICommitRewriteService, IUndoService, IDeletedBranchService
+gmd/Server/Private/Augmented/   Infers commit→branch assignment + branch hierarchy; the writes that need it
     ↓ IGit
 gmd/Git/           One service per git area (log, branch, status, diff, blame, conflict, remote…)
     ↓ ICmd
@@ -102,8 +102,11 @@ gmd/Utils/Cmd.cs   Process launcher for the `git` executable
 ```
 
 Beside the layers: `gmd/Common/` holds the config (`Config`, `ConfigService`, `RepoConfig`), the
-command line (`ProgramCommands`), `Upgrader` and `Spelling/`; `gmd/Installation/Updater.cs` is the
-self-updater.
+command line (`ProgramCommands`) and `Spelling/`; `gmd/Installation/` is the self-updater:
+`Updater` decides when, `GitHubReleases` reads the releases, `ReleaseChoice` picks the release and
+the binary for this platform, and `BinaryInstaller` downloads it, checks it and swaps it in.
+`PackageManager` tells a gmd that a package manager installed by where its binary is (Homebrew's
+`Cellar/gmd/<version>/bin`), and the updater then leaves updating it to that, saying the command.
 
 Key types and flow:
 
@@ -111,6 +114,12 @@ Key types and flow:
   `AllBranches` plus the `ViewCommits`/`ViewBranches` subset the user chose to show, and
   `CommitById`/`BranchByName` lookups. `Repo.UncommittedId`, `TruncatedLogCommitId` and
   `EmptyRepoCommitId` are sentinel all-`0`/`f`/`e` SHAs — check for them when touching commit code.
+- `gmd/Server/Private/Server.cs` — the `IServer` facade. Reads go to `AugmentedService` and then
+  `ViewRepoCreater`; writes go to git, or, when they need the inferred model to work out what to
+  run, to the write services of the augmented layer (`BranchWriteService`, `CommitRewriteService`,
+  `UndoService`, `DeletedBranchService`). Every write the user asks for runs in `Server.Paused`,
+  which pauses the file monitor; the background fetch does not. `GitConverter` turns git's records
+  into the server's.
 - `Augmented/Private/BranchStructureService.cs` — the heart of the product, and the most subtle
   code in the repo. `DetermineCommitBranches` is only the pipeline: set branch tips → link
   parents/children → assign branches to commits → build hierarchy → find root branch → compute
@@ -149,6 +158,16 @@ Key types and flow:
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
+- `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,
+  `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
+  details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
+  `Worktrees/` and `Login/`, with `Common/` for the widgets and services they share and `App/` for
+  the parts of the shell the views use (`ApplicationBar`, About, Config, Update, the help page).
+  `MainView`, which puts the views together, is alone in `Cui/` itself. The folders depend on each
+  other one way only, from `RepoView/` down to `Common/`, with no cycle: keep it so, since a type in
+  `gmd.Cui` is in scope in every folder below it without a using, so nothing else goes there. A
+  folder that would be named as a type is named in the plural, `Graphs/`: a namespace
+  `gmd.Cui.Graph` would hide the `Graph` type from every namespace below `gmd.Cui`.
 - `Cui/Start/` — the start page, shown in place of the log until a repo is opened: when gmd is
   started outside one, or with `-m`. `StartRepos` is what it lists, the recent repos and those in the
   start folder, read off the disk with no git process (`GitDir.IsRoot`); `StartRows` lays it out and
@@ -156,25 +175,32 @@ Key types and flow:
   modal dialog: `MainView` hides the log and shows the page, a dialog opens over it, and a repo that
   fails to open leaves it there. Its keys go on the log view's key-hint line
   (`IRepoView.SetStartPage`).
-- `Cui/RepoView/` — `IViewRepo` is the per-view facade the menus and command classes use;
-  `RepoView.cs` is the main log view, i.e. reading and refreshing the shown repo and drawing it.
+- `Cui/RepoView/` — `RepoView.cs` is the main log view, i.e. reading and refreshing the shown repo
+  and drawing it. `IViewRepo` is a snapshot of the shown repo (with its graph and the cursor's row),
+  replaced at every refresh, show and hide; the menus are made with each one.
   What the user does to it is split off: `RepoViewInput.cs` holds every key and mouse button plus
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
   on — what most keys act on — as state and index math with no view, so it is unit testable.
   `KeyHints.cs` decides the key-hint line at the bottom, the keys that do something where the
-  cursor is, again with no view; `KeyHintBar` draws it. The diff, blame and conflict views have a
-  `KeyHintBar` of their own (`KeyHints.ForDiff`, `ForBlame`, `ForConflict`). When a key's behavior
-  changes, check the hint for it.
+  cursor is, again with no view; `KeyHintBar` draws it, with the layout of `KeyHintLine` (both in
+  `Cui/Common/`). The diff, blame and conflict views and the start page have a `KeyHintBar` of their
+  own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). A key
+  whose meaning depends on where the cursor is (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`, `h`, `g`) is decided in
+  `LogKeys`, which says what its hint is or why it does nothing, and the keys and the hints both
+  ask it; for any other key, when its behavior changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
-  `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`,
-  run through `CommandRunner`), menus into `*Menu.cs`.
+  `BranchPushPullCommands`, `CommitCommands`, `UndoCommands`, `WebCommands`, `WorktreeCommands`),
+  made once with the view and sharing a `CommandContext`: the repo shown now, the view, the server,
+  the status line, the other command classes, and `Do`, which runs a command through
+  `CommandRunner` with the snapshot as it starts (`Do(async repo => …)`). A command never keeps a
+  snapshot beyond that, so it acts on what is shown when it runs. Menus are in `*Menu.cs`.
   A menu item that can be greyed out gives the reason with `whyNot:` (`MenuItem.WhyNot`, the shared
   reasons in `Why.cs`), which is said on the status line when it is picked anyway, by a click or
   its key. Keys are written as typed: a menu shortcut is `"c"` for the c key and `"⇧p"` for P, as the
   key-hint line writes it, and so are the keys named in status messages and in the reasons a greyed
   out item gives; the help and the README write `Shift-P` in their text. Item names are
   plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
-- `Cui/GraphCreater.cs` + `Graph.cs` + `GraphWriter.cs` — turn a `Repo` into the drawn
+- `Cui/Graphs/` — `GraphCreater`, `Graph` and `GraphWriter` turn a `Repo` into the drawn
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
@@ -214,12 +240,15 @@ unit testable — `*Rows`, `*Columns`, `ConflictResolution`. Each runs through `
 makes it modal, so a key it does not handle does nothing rather than reaching the log view below;
 register a letter with `RegisterLetterHandler`, which takes both cases, as its menu writes it.
 
-- **`Cui/Diff/`** — `DiffService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
+- **`Cui/Diff/`** — `DiffRowService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
-  context larger than any file, since git has no "all". `DiffReload` is a delegate the view is given
+  context larger than any file, since git has no "all". `DiffSource` is what the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
-- **`Cui/Blame/`** — `BlameService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
+  It holds how to read the diff again (`DiffReload`), and what the view may do with it: step the
+  context (not a line history, `git log -L`), and commit and discard (the log's uncommitted diff
+  alone, not blame's).
+- **`Cui/Blame/`** — `BlameRowService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
   math, and steps detail down as the terminal narrows.
 - **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
@@ -244,6 +273,17 @@ goes through `IMainThread` (`gmd/Utils/IMainThread.cs`): `Post` to raise an even
 is its only user. Keep it that way: if a lower layer needs something else from the UI, widen that
 interface rather than reaching up. The one exception is `Installation/Updater.cs`, outside the
 layers, which calls `UI.Post` / `UI.InfoMessage` itself to say a new version was installed.
+
+`gmd.Git` goes further: it is meant to stay a general git library, one that could be a library of
+its own. It uses nothing of gmd but itself and `gmd.Utils` (`Result`, `Cmd`, `Log` and small
+helpers), and knows nothing of the app: no UI wording or keys (a failed login says what failed, and
+`Cui/Login/LoginAdvice.cs` what to do about it), no server ids (blame gives git's id of an uncommitted line,
+and `GitConverter` gmd's), no state of the app's (the current author is read with the repo).
+`GitNamespaceTest` reads the compiled code and fails if a type of `gmd.Git` names any other type of
+gmd or a package's. Its records are not shared with `gmd/Server/Repo.cs`, though several are copies:
+`Server/Private/GitConverter.cs` is the boundary between git's model and gmd's, every git record
+converted there, so app-shaped members stay out of the git layer and a change in it does not ripple
+up into the UI.
 
 ### Dependency injection
 
@@ -409,7 +449,11 @@ not change the string's value.
 Terminal.Gui has a single main loop thread. Marshal back with `UI.Post(...)`
 (`Cui/Common/UI.cs`), assert with `UI.AssertOnUIThread()` / `Threading.AssertIsMainThread()`.
 Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMessage`.
-`Asserter.FailFast` deliberately kills the process on broken invariants.
+A broken invariant is `throw Asserter.Fail(...)` (or `Asserter.Requires(...)`), reported to
+`ExceptionHandling` before it is thrown, which logs it and stops the main loop, so a catch that takes
+it for a failure cannot hide it; `Result.Catch` and `IsNotFatal` let it through. So does every other
+bug, an exception no one caught on the main loop, in a `RunInBackground` task or on a thread of its
+own, and `Program` says what failed once the terminal is given back.
 
 ### Persistence
 
@@ -431,7 +475,7 @@ The one exception to that layout is the end-to-end tier, which is a project of i
 shares with `gmdTest` (`TempRepo`, `TempHome`, `Proc`, `ResultAssert`) as linked files rather than
 copies, so they stay in `gmdTest/Fixtures/`. `scripts/test` runs both projects. Inside it the same
 rule holds: one class per area of the app, placed as the code it reaches is in `gmd/Cui/` —
-`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/WorktreeTest.cs` and so on. The
+`Cui/Diff/DiffViewTest.cs`, `Cui/RepoView/BranchTest.cs`, `Cui/Worktrees/WorktreeTest.cs` and so on. The
 `Integration` and `E2e` categories are set once for the whole assembly in its `TestSetup.cs`, so a new
 class needs nothing but `[TestClass]` to be kept out of the fast run.
 
@@ -462,8 +506,8 @@ changes the graph under test rather than failing loudly.
 chose to show — by building the real `AugmentedService` and `ViewRepoCreater` with the fakes in
 `gmdTest/Fixtures/` (`FakeGit`, `FakeFileMonitor`, `FakeMetaDataService`, `FakeRepoConfig`).
 `FakeGit` implements only the members the pipeline reaches and throws on the rest, so a test that
-starts depending on git fails loudly. `builder.Config` is the in-memory `IRepoConfig`, for tests
-that set branch colors or branch order. (`FakeMainThread` is separate — it stands in for `UI` in
+starts depending on git fails loudly. `builder.Config` is the in-memory `IRepoConfigService`, for
+tests that set branch colors or branch order. (`FakeMainThread` is separate — it stands in for `UI` in
 `FileMonitorTest`, which drives the timer tick by hand.)
 
 **`GraphText`** (`gmdTest/Fixtures/`) draws the graph of a view repo as plain text, so the
@@ -491,7 +535,8 @@ unaffected by CSharpier re-indenting them. `DiffText` does the same for the rows
 both take their color letters from `TextColors`.
 
 The other fakes in `gmdTest/Fixtures/`: `FakeViewRepo` stands in for `IViewRepo`, for the log
-view's writer and menus; `FakeSpellChecker` has the word list a test gives it; `FakeConfigService`
+view's writer and menus, and `FakeRepoView` for the view, which `FakeRepoView.Context` puts in a
+`CommandContext` for the command classes and menus; `FakeSpellChecker` has the word list a test gives it; `FakeConfigService`
 is a config whose `Set` sticks, for a test of what a class saves rather than reads.
 
 **`FakeCmd`** (`gmdTest/Utils/`) is a double for `ICmd`, the seam between the git services and
@@ -655,7 +700,7 @@ Other things to know:
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
   (`[AssemblyInitialize]`) before anything can log — otherwise `scripts/test` truncates the
   developer's `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
-  `ConfigLogger` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
+  `LogFile` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
   `gmdE2eTest/TestSetup.cs` does the same for its own process, since each test assembly runs its own
   `[AssemblyInitialize]`.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:
@@ -666,7 +711,7 @@ Other things to know:
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
-  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
+  `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
@@ -726,7 +771,16 @@ message.
   it inside `using (Askpass.NeverAsk())` (an AsyncLocal, so it reaches `Cmd` through the awaits),
   as the background fetch and the metadata sync are. What failed is said on stderr, where
   `LoginError` finds it; wrap every remote command's result in `LoginError.ToLogin`, and show
-  remote errors with `LoginError.Text`. docs/CONTRIBUTING.md has how to try the dialog by hand.
+  remote errors with `LoginAdvice.Text`: `LoginError` says what failed, `LoginAdvice` what to do
+  about it, in gmd's words. docs/CONTRIBUTING.md has how to try the dialog by hand.
+- **Git's output is parsed as gmd asks for it, not as the user's config makes it.** Config changes
+  porcelain output in a pipe too (`diff.noprefix`, `color.ui=always`, `log.showSignature`, …), so a
+  command whose output is parsed pins its format, as `DiffService.DiffFormat` and
+  `LogService.CommitFormat` do. A path in the output is read with `-z` where git offers it, and
+  unquoted (`QuotedPath`) where not, since git writes `ä` as `"\303\244"`. `Cmd` reads output whole,
+  a `\r\n` as a `\n` and a lone `\r` kept, but a diff with its `\r\n` (`isKeepCr`), so that the diff
+  view can show a change of line ends; a parser of content lines expects a `\r` in them. A message or a path given
+  to git goes through `Cmd.Quote`, never into plain quotes, which a `\"` in it breaks out of.
 - **`.git` is not always a folder.** In a linked worktree it is a file pointing at the git dir, so
   resolve it rather than join `.git` onto a path: `GitDir.Resolve` (`Git/GitDir.cs`) gives the
   `GitDirPath` (HEAD, the index, a stopped merge) and the `CommonDirPath` (refs, config,
@@ -739,12 +793,25 @@ message.
   CI just uploads the committed file. Rebuilding it requires Windows + `BuildSetup.bat`.
 - **The `gmd_linux` and `gmd_windows` release assets are duplicates** of `gmd_linux_x64` and
   `gmd.exe`, kept under the original names because the built-in updater falls back to the first and
-  updates Windows from the second (`gmd/Installation/Updater.cs`), as the committed installer does
+  updates Windows from the second (`ReleaseChoice.BinaryNames`), as the committed installer does
   (`Setup/gmd.iss`). Do not drop them from the release workflow. `gmd.exe` is the one the README
   offers, since it runs as it is named. The release notes are written by the workflow
   (`Write release notes`): main's are its section of `CHANGELOG.md`, a preview's what is new on dev.
   Only the latest five previews are kept (`Prune old previews`), with their tags, except a tag on
   main's first-parent line, since the change log is made from the version tags there.
+- **The Homebrew tap, `michael-reichenauer/homebrew-tap`, is written by the release workflow**
+  for every release from `main` (`scripts/brewformula`, pushed with the deploy key in the secret
+  `HOMEBREW_TAP_KEY`; docs/CONTRIBUTING.md has the setup). Its formula names the release assets
+  too, and gmd knows a brewed binary by the formula's name in its path, so keep the formula `gmd`.
+- **The updater of one version installs the next**, so a bug in `gmd/Installation/` ships unseen
+  and shows one release later, at users who can then only reinstall by hand. Whatever the gmd
+  versions out there rely on stays: the asset names and `SHA256SUMS`, the `v<a.b.c.d>` tags, the
+  `<binary>.tmp_` files `CleanUp` deletes for them, and the askpass channel, since a gmd left
+  running after an update runs the new binary as its askpass. `BinaryInstaller` checks the new
+  binary before the swap (its checksum, and that it runs and says its version); keep both checks.
+  Its tests run the Windows swap too, but not on Windows, where only renaming the running exe is
+  allowed: try an updater change through two dev previews, with a real update on Linux, macOS and
+  Windows, before it goes to `main`.
 - Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
   GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
 - `Utils/GlobPatterns/` is vendored third-party-style code. CSharpier formats it like
@@ -768,6 +835,6 @@ write there asks for permission.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
   once `scripts/test` passes, so that the git log and its diffs are the review. Push only when asked.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (which `?` opens on
-  GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/HelpPage.cs`) needs updating
+  GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/App/HelpPage.cs`) needs updating
   too, and the known limits under *Is Gmd for You?* in the README when one of them is lifted. The
   development half of the old README is `docs/CONTRIBUTING.md`.

@@ -118,6 +118,19 @@ static class Confirm
             """
         );
 
+    // A rebase of a branch on origin is pushed with force, which replaces origin's copy for everyone,
+    // as Force Push and Restore origin do, and both ask first
+    internal static bool RebaseAndPush(string branchName, string ontoName, string remoteName) =>
+        Ask(
+            "Rebase and Push",
+            $"""
+            Rebase '{branchName}' onto '{ontoName}', and push it with force?
+
+            The rebase rewrites the commits of '{branchName}', and the push
+            replaces {remoteName} with them, for everyone who has it.
+            """
+        );
+
     // Putting a remote branch back as it was before a force push, which is one in turn, for everyone
     internal static bool RestoreOrigin(string remoteName, string question) => Ask($"Restore {remoteName}", question);
 

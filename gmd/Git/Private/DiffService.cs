@@ -6,7 +6,7 @@ interface IDiffService
 {
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
-    Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd);
+    Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetLineHistoryAsync(
         string path,
@@ -24,7 +24,18 @@ interface IDiffService
 // cSpell:ignore uFEFF
 class DiffService : IDiffService
 {
-    private readonly ICmd cmd;
+    // The diff format the parser reads, whatever the user's config says. Config can turn color on in
+    // a pipe as well (color.ui=always), hand the diff to a program of its own (diff.external), and
+    // change or drop the 'a/' and 'b/' that tell the two paths of a file apart (diff.noprefix,
+    // diff.mnemonicPrefix), and each of those broke every diff gmd showed.
+    const string DiffFormat = "--no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/";
+
+    // The same for the header a 'show' or a 'log' writes above the diff of each commit, which config
+    // can follow the id of with the refs on the commit (log.decorate), shorten the id of
+    // (log.abbrevCommit), or put a check of the commit's signature in front of (log.showSignature)
+    const string CommitHeaderFormat = "--no-decorate --no-abbrev-commit --no-show-signature";
+
+    readonly ICmd cmd;
 
     public DiffService(ICmd cmd)
     {
@@ -34,12 +45,12 @@ class DiffService : IDiffService
     public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
     {
         var args =
-            "show --date=iso --first-parent --root --patch --no-color"
+            $"show {CommitHeaderFormat} {DiffFormat} --date=iso --first-parent --root --patch"
             + $" --find-renames --unified={contextLines} {commitId}";
-        var result = await cmd.RunAsync("git", args, wd);
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
-        var commitDiffs = ParseCommitDiffs(output, "", false);
+        var commitDiffs = ParseCommitDiffs(output);
         if (commitDiffs.Count == 0)
             return new Error("Failed to parse diff");
 
@@ -48,17 +59,15 @@ class DiffService : IDiffService
 
     public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
-        var args =
-            "stash show -u --date=iso --first-parent --root --patch --no-color"
-            + $" --find-renames --unified={contextLines} {name}";
-        var result = await cmd.RunAsync("git", args, wd);
+        var args = $"stash show -u {DiffFormat} --patch --find-renames --unified={contextLines} {name}";
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
 
         return ParseDiff(output, $"Diff of stash {name}");
     }
 
-    public async Task<Result<CommitDiff>> GetUncommittedDiff(int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd)
     {
         // A diff of the working tree leaves out the files git does not track yet, and a file moved
         // without 'git mv' shows as one deleted and one new rather than as a rename. Both are there
@@ -93,7 +102,7 @@ class DiffService : IDiffService
         // A copy rather than a new, empty index, so that git's record of which files are unchanged
         // since it last looked carries over, and it need not read every file in the working tree.
         // A repo that has never staged anything has no index to copy, and git creates one.
-        var index = Path.Join(StatusService.GetGitDir(wd), "index");
+        var index = Path.Join(GitDir.GitDirPathOf(wd), "index");
         if (File.Exists(index) && Result.Catch(() => File.Copy(index, tempIndex)) is Error copyError)
             return new Error("Failed to copy the index", copyError);
 
@@ -101,13 +110,12 @@ class DiffService : IDiffService
         if (await cmd.RunAsync("git", "add .", wd, environment: env) is Error addError)
             return addError;
 
-        var args =
-            "diff --date=iso --first-parent --root --patch --no-color"
-            + $" --find-renames --unified={contextLines} HEAD";
-        var diff = await cmd.RunAsync("git", args, wd, environment: env);
+        var args = $"diff {DiffFormat} --find-renames --unified={contextLines} HEAD";
+        var diff = await cmd.RunAsync("git", args, wd, environment: env, isKeepCr: true);
         if (diff is Error e && e.Message.Contains("ambiguous argument 'HEAD': unknown revision"))
         { // No commit yet, so there is no HEAD to diff against; what is staged is the whole diff
-            diff = await cmd.RunAsync("git", $"diff --staged --unified={contextLines}", wd, environment: env);
+            var stagedArgs = $"diff {DiffFormat} --staged --unified={contextLines}";
+            diff = await cmd.RunAsync("git", stagedArgs, wd, environment: env, isKeepCr: true);
         }
         if (diff is not string output)
             return diff.Error;
@@ -115,7 +123,7 @@ class DiffService : IDiffService
         // Add commit prefix text to support parser.
         output = $"commit  \nMerge: \nAuthor: \nDate: \n\n  \n\n" + output;
 
-        var commitDiffs = ParseCommitDiffs(output, "", false);
+        var commitDiffs = ParseCommitDiffs(output);
         if (!commitDiffs.Any())
         {
             return new Error("Failed to parse diff");
@@ -138,12 +146,13 @@ class DiffService : IDiffService
         string wd
     )
     {
-        var args = $"log --date=iso \"-L{firstLine},{lastLine}:{path}\" {reference}".TrimEnd();
-        var result = await cmd.RunAsync("git", args, wd);
+        var args =
+            $"log {CommitHeaderFormat} {DiffFormat} --date=iso {Cmd.Quote($"-L{firstLine},{lastLine}:{path}")} {reference}".TrimEnd();
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
 
-        var commitDiffs = ParseCommitDiffs(output, path, false);
+        var commitDiffs = ParseCommitDiffs(output);
         if (!commitDiffs.Any())
             return new Error("Failed to parse the history of the lines");
         return commitDiffs.ToArray();
@@ -151,12 +160,13 @@ class DiffService : IDiffService
 
     public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
     {
-        var args = $"log --date=iso --patch --follow --unified={contextLines} -- \"{path}\"";
-        var result = await cmd.RunAsync("git", args, wd);
+        var args =
+            $"log {CommitHeaderFormat} {DiffFormat} --date=iso --patch --follow --unified={contextLines} -- {Cmd.Quote(path)}";
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
 
-        var commitDiffs = ParseCommitDiffs(output, path, false);
+        var commitDiffs = ParseCommitDiffs(output);
         if (!commitDiffs.Any())
         {
             return new Error("Failed to parse diff");
@@ -173,15 +183,15 @@ class DiffService : IDiffService
         string wd
     )
     {
-        var options = $"--find-renames --unified={contextLines} --full-index";
-        var result = await cmd.RunAsync("git", $"diff {options} {sha1}~..{sha2}", wd);
+        var options = $"{DiffFormat} --find-renames --unified={contextLines} --full-index";
+        var result = await cmd.RunAsync("git", $"diff {options} {sha1}~..{sha2}", wd, isKeepCr: true);
         if (
             result is Error e
             && e.Message.Contains($"ambiguous argument '{sha1}~..{sha2}': unknown revision")
             && await EmptyTreeIfRootAsync(sha1, wd) is string emptyTree
         )
         { // A root commit has no 'sha1~', so its changes are from nothing, as 'git show' has them
-            result = await cmd.RunAsync("git", $"diff {options} {emptyTree} {sha2}", wd);
+            result = await cmd.RunAsync("git", $"diff {options} {emptyTree} {sha2}", wd, isKeepCr: true);
         }
         if (result is not string output)
             return result.Error;
@@ -209,8 +219,8 @@ class DiffService : IDiffService
         string wd
     )
     {
-        var args = $"diff --find-renames --unified={contextLines} --full-index {sha1} {sha2}";
-        var result = await cmd.RunAsync("git", args, wd);
+        var args = $"diff {DiffFormat} --find-renames --unified={contextLines} --full-index {sha1} {sha2}";
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
 
@@ -219,13 +229,13 @@ class DiffService : IDiffService
 
     public async Task<Result> RunDiffToolAsync(string path, string wd)
     {
-        var args = $"difftool --no-prompt {path}";
+        var args = $"difftool --no-prompt -- {Cmd.Quote(path)}";
         return await cmd.RunAsync("git", args, wd);
     }
 
     public async Task<Result> RunMergeToolAsync(string path, string wd)
     {
-        var args = $"mergetool --no-prompt {path}";
+        var args = $"mergetool --no-prompt -- {Cmd.Quote(path)}";
         return await cmd.RunAsync("git", args, wd);
     }
 
@@ -235,13 +245,13 @@ class DiffService : IDiffService
         // Split string and ignore some lines
         var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
 
-        (var fileDiffs, var i) = ParseFileDiffs(0, lines);
+        var (fileDiffs, _) = ParseFileDiffs(0, lines);
 
         return new CommitDiff("", "", DateTime.UtcNow, message, fileDiffs);
     }
 
     // Parse diff output for possible multiple commits
-    static IReadOnlyList<CommitDiff> ParseCommitDiffs(string output, string _, bool __)
+    static IReadOnlyList<CommitDiff> ParseCommitDiffs(string output)
     {
         // Split string and ignore some lines
         var lines = output.Split('\n').Where(l => l != "\\ No newline at end of file").ToArray();
@@ -286,7 +296,7 @@ class DiffService : IDiffService
         {
             var dateText = lines[i++]["Date: ".Length..].Trim();
             // Parsed culture invariant, the git commands use '--date=iso' (see above), which is
-            // the same regardless of locale. See the comment in GitLog.ParseRow.
+            // the same regardless of locale. See the comment in LogService.ParseRow.
             if (DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
             {
                 time = dt;
@@ -346,20 +356,35 @@ class DiffService : IDiffService
     // it would take to support them.
     static (FileDiff?, int, bool) ParseFileDiff(int i, string[] lines)
     {
-        if (i >= lines.Length || !lines[i].StartsWith("diff --git "))
+        if (i >= lines.Length || !lines[i].StartsWith(DiffGitPrefix))
         {
             return (null, i, false);
         }
 
-        string files = lines[i][11..];
-        var otherIndex = files.IndexOf(" b/");
-        string before = files[2..otherIndex];
-        string after = files[(otherIndex + 3)..];
-        bool isRenamed = before != after;
+        var (before, after) = ParseDiffGitPaths(lines[i][DiffGitPrefix.Length..]);
         i++;
 
-        (DiffMode diffMode, i) = ParseDiffMode(i, lines);
-        (i, var isBinary) = ParsePossibleIndexRows(i, lines);
+        // The extended header, up to the first hunk or the next file, of which only what is said
+        // here matters: whether the file is new, deleted or binary, and the paths of a rename. The
+        // rest ('index', 'old mode', 'new mode', 'similarity index', '---', '+++') is passed over,
+        // whichever there are and in whatever order. They used to be expected in one order, and
+        // the hunks of a file whose mode changed too were lost.
+        var diffMode = DiffMode.DiffModified;
+        var isBinary = false;
+        for (; i < lines.Length && !IsEndOfFileHeader(lines[i]); i++)
+        {
+            var line = lines[i];
+            if (line.StartsWith("new file mode "))
+                diffMode = DiffMode.DiffAdded;
+            else if (line.StartsWith("deleted file mode "))
+                diffMode = DiffMode.DiffRemoved;
+            else if (line.StartsWith("Binary files "))
+                isBinary = true;
+            else if (TryGetPath(line, "rename from ", out var from) || TryGetPath(line, "copy from ", out from))
+                before = from;
+            else if (TryGetPath(line, "rename to ", out var to) || TryGetPath(line, "copy to ", out to))
+                after = to;
+        }
 
         (var sectionDiffs, i) = ParseSectionDiffs(i, lines);
         if (sectionDiffs.Any(sd => sd.LineDiffs.Any(ld => ld.DiffMode == DiffMode.DiffConflictStart)))
@@ -367,64 +392,52 @@ class DiffService : IDiffService
             diffMode = DiffMode.DiffConflicts;
         }
 
-        return (new FileDiff(before, after, isRenamed, isBinary, diffMode, sectionDiffs), i, true);
+        return (new FileDiff(before, after, before != after, isBinary, diffMode, sectionDiffs), i, true);
     }
 
-    static (DiffMode, int) ParseDiffMode(int i, string[] lines)
-    {
-        if (lines[i].StartsWith("new file mode"))
-        {
-            i++;
-            return (DiffMode.DiffAdded, i);
-        }
-        if (lines[i].StartsWith("deleted file mode"))
-        {
-            i++;
-            return (DiffMode.DiffRemoved, i);
-        }
-        if (lines[i].StartsWith("similarity "))
-        { // 3 lines with rename info
-            i += 3;
-            return (DiffMode.DiffModified, i);
-        }
-        if (lines[i].StartsWith("rename "))
-        { // 2 lines with rename info
-            i += 2;
-            return (DiffMode.DiffModified, i);
-        }
+    const string DiffGitPrefix = "diff --git ";
 
-        return (DiffMode.DiffModified, i);
+    static bool IsEndOfFileHeader(string line) =>
+        line.StartsWith("@@ ") || line.StartsWith("diff --") || line.StartsWith("commit ");
+
+    static bool TryGetPath(string line, string prefix, out string path)
+    {
+        path = line.StartsWith(prefix) ? QuotedPath.Unquote(line[prefix.Length..]) : "";
+        return path != "";
     }
 
-    static (int, bool) ParsePossibleIndexRows(int i, string[] lines)
+    // The two paths of a 'diff --git a/<path> b/<path>' line, without their 'a/' and 'b/'. Git
+    // quotes either of them that has a character that needs it (QuotedPath), but not one with a
+    // space, which makes the line ambiguous unless both are the same path. They are for every diff
+    // of a file but a rename's or a copy's, and those say both paths again on lines of their own.
+    // The paths used to be split at the first ' b/', so a quoted one threw, and one with ' b/' in
+    // it was split in the wrong place.
+    static (string Before, string After) ParseDiffGitPaths(string text)
     {
-        bool isBinary = false;
-        if (i >= lines.Length)
-            return (i, isBinary);
-        if (lines[i].StartsWith("index "))
+        var (before, after) = SplitDiffGitPaths(text);
+        return (before.TrimPrefix("a/"), after.TrimPrefix("b/"));
+    }
+
+    static (string, string) SplitDiffGitPaths(string text)
+    {
+        if (text.StartsWith('"'))
         {
-            i++;
+            var end = QuotedPath.EndOfQuoted(text);
+            return (QuotedPath.Unquote(text[..end]), QuotedPath.Unquote(text[Math.Min(end + 1, text.Length)..]));
         }
-        if (i >= lines.Length)
-            return (i, isBinary);
-        if (lines[i].StartsWith("Binary "))
-        {
-            isBinary = true;
-            i++;
-        }
-        if (i >= lines.Length)
-            return (i, isBinary);
-        if (lines[i].StartsWith("--- "))
-        {
-            i++;
-        }
-        if (i >= lines.Length)
-            return (i, isBinary);
-        if (lines[i].StartsWith("+++ "))
-        {
-            i++;
-        }
-        return (i, isBinary);
+
+        // Only the second is quoted, and the first then has no '"' of its own, or it would be too
+        var quoted = text.IndexOf(" \"");
+        if (quoted > 0 && text.EndsWith('"'))
+            return (text[..quoted], QuotedPath.Unquote(text[(quoted + 1)..]));
+
+        // The same path twice, 'a/<path> b/<path>', is split in the middle
+        var middle = text.Length / 2;
+        if (text.Length % 2 == 1 && text[middle] == ' ' && text[2..middle] == text[(middle + 3)..])
+            return (text[..middle], text[(middle + 1)..]);
+
+        var other = text.IndexOf(" b/");
+        return other > 0 ? (text[..other], text[(other + 1)..]) : (text, text);
     }
 
     static (IReadOnlyList<SectionDiff>, int) ParseSectionDiffs(int i, string[] lines)
@@ -518,15 +531,15 @@ class DiffService : IDiffService
         }
         if (lines[i].StartsWith("+"))
         {
-            return (new LineDiff(DiffMode.DiffAdded, AsLine(lines[i++])), i++, true);
+            return (new LineDiff(DiffMode.DiffAdded, AsLine(lines[i++])), i, true);
         }
         if (lines[i].StartsWith("-"))
         {
-            return (new LineDiff(DiffMode.DiffRemoved, AsLine(lines[i++])), i++, true);
+            return (new LineDiff(DiffMode.DiffRemoved, AsLine(lines[i++])), i, true);
         }
         if (lines[i].StartsWith(" "))
         {
-            return (new LineDiff(DiffMode.DiffSame, AsLine(lines[i++])), i++, true);
+            return (new LineDiff(DiffMode.DiffSame, AsLine(lines[i++])), i, true);
         }
 
         return (null, i, false);

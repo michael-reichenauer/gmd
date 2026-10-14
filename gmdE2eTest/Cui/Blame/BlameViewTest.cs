@@ -219,6 +219,64 @@ public class BlameViewTest
         Assert.IsFalse(history.Contains("Initial"), "The commit that made the file did not make this line");
     }
 
+    // A line history is 'git log -L', which takes no context: '+' and '-' are not offered, and '+'
+    // does nothing. It read the same lines again, and headed the file '(context 15)'.
+    [TestMethod]
+    public async Task TestTheHistoryOfALineHasNoContextToStep()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "alpha\ntwo\n", "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "alpha\nTWO\n", "Change a line", t.AddMinutes(8));
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("TWO");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("l");
+        var history = gmd.WaitFor("Change a line");
+        var reads = gmd.LogCount("-L2,2:alpha.txt");
+
+        StringAssert.Contains(ScreenText.LastLine(history), "s to file", "The diff's own hints");
+        Assert.IsFalse(ScreenText.LastLine(history).Contains("context"), "No '+ -' hint");
+
+        gmd.Send("+");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        var menu = gmd.WaitFor("Diff Menu");
+        Assert.IsFalse(menu.Contains("(context"), "The file is not said to have more context");
+        Assert.AreEqual(reads, gmd.LogCount("-L2,2:alpha.txt"), "The history is not read again");
+    }
+
+    // The diff of an uncommitted line, from the blame of the working tree, is read only: 'c' closed it
+    // and opened no commit dialog, the blame being two dialogs deep, and a discard left the blame
+    // showing the lines it had changed
+    [TestMethod]
+    public async Task TestTheDiffOfAnUncommittedLineIsReadOnly()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("changed");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("d");
+        var diff = gmd.WaitFor("s to file");
+
+        Assert.IsFalse(ScreenText.LastLine(diff).Contains("commit"), "No 'c commit' hint");
+        Assert.IsFalse(ScreenText.LastLine(diff).Contains("discard"), "No 'u discard' hint");
+        gmd.Send("c");
+        gmd.WaitForStable();
+        gmd.Send("u");
+        var screen = gmd.WaitForStable();
+        StringAssert.Contains(ScreenText.LastLine(screen), "s to file", "The diff is still open");
+        Assert.IsFalse(screen.Contains("Discard Changes"), "Nothing to discard");
+        Assert.AreEqual("alpha\nchanged\n", File.ReadAllText(Path.Join(repo.Path, "alpha.txt")));
+    }
+
     static void OpenBlameOf(TmuxSession gmd, string path)
     {
         gmd.Send("m");

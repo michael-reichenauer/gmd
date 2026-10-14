@@ -1,7 +1,8 @@
 using gmd.Common;
+using gmd.Cui.App;
+using gmd.Cui.Commits;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
-using gmd.Cui.RepoView;
 using gmd.Server;
 using Terminal.Gui;
 
@@ -17,7 +18,7 @@ interface IBlameView
 // this readable where the console 'git blame' is not.
 class BlameView : IBlameView
 {
-    readonly IBlameService blameService;
+    readonly IBlameRowService blameRowService;
     readonly IServer server;
     readonly IProgress progress;
     readonly IDiffView diffView;
@@ -51,7 +52,7 @@ class BlameView : IBlameView
     int HintsHeight => hintBar != null ? 1 : 0;
 
     public BlameView(
-        IBlameService blameService,
+        IBlameRowService blameRowService,
         IServer server,
         IProgress progress,
         IDiffView diffView,
@@ -63,7 +64,7 @@ class BlameView : IBlameView
     {
         this.helpPage = helpPage;
         this.config = config;
-        this.blameService = blameService;
+        this.blameRowService = blameRowService;
         this.server = server;
         this.progress = progress;
         this.diffView = diffView;
@@ -81,7 +82,7 @@ class BlameView : IBlameView
     public void Show(Server.Blame blame, Repo repo)
     {
         this.blame = blame;
-        this.blameRows = blameService.ToBlameRows(blame);
+        this.blameRows = blameRowService.ToBlameRows(blame);
         this.repo = repo;
         this.rowStartX = 0;
         this.isShowDetails = false;
@@ -109,7 +110,7 @@ class BlameView : IBlameView
         hintBar = config.ShowKeyHints
             ? new KeyHintBar(
                 () =>
-                    KeyHints.ForBlame(
+                    BlameHints.For(
                         isShowDetails,
                         CurrentRow?.Commit.PreviousId is not (null or ""),
                         backStack.Count > 0
@@ -126,7 +127,6 @@ class BlameView : IBlameView
             Height = Dim.Fill(HintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
-            IsCursorMargin = false,
             IsCustomShowSelection = true,
         };
 
@@ -189,7 +189,8 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.I, CopyLineMessage);
 
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
-        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
+        // At the screen row above the click, so the first item is beside it: the view is two rows down
+        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y + 1));
     }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
@@ -201,7 +202,7 @@ class BlameView : IBlameView
             .Take(rowCount)
             .Select(
                 (r, i) =>
-                    blameService.ToRowText(
+                    blameRowService.ToRowText(
                         r,
                         cw,
                         rowStartX,
@@ -333,22 +334,23 @@ class BlameView : IBlameView
             return;
         }
 
-        detailsView.SetRows(blameService.ToDetailsRows(row.Commit));
+        detailsView.SetRows(blameRowService.ToDetailsRows(row.Commit));
     }
 
     // Shows the commit that last changed the current line. The uncommitted lines carry the all '0'
-    // sha, which the server routes to the uncommitted diff, so they need no special case here.
+    // sha, which the server routes to the uncommitted diff, shown read only: a view two dialogs deep
+    // cannot act on a commit, and a discard would change the lines this blame shows.
     async void ShowLineCommitDiff()
     {
         var row = CurrentRow;
         if (row == null)
             return;
 
-        var reload = DiffReloads.Single(n => server.GetCommitDiffAsync(row.Commit.Id, n, repo.Path));
+        var source = DiffSource.Single(n => server.GetCommitDiffAsync(row.Commit.Id, n, repo.Path));
         Server.CommitDiff[] diffs;
         using (progress.Show())
         {
-            var diffsResult = await reload(DiffContext.Default);
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not Server.CommitDiff[] loaded)
             {
                 UI.ErrorMessage($"Failed to get diff\n{diffsResult.Error.AllMessages()}");
@@ -357,8 +359,7 @@ class BlameView : IBlameView
             diffs = loaded;
         }
 
-        // A read only view two dialogs deep cannot usefully act on the result, so it is ignored
-        diffView.Show(diffs[0], row.Commit.Id, repo.Path, reload, ConflictState.None);
+        diffView.Show(diffs, source, repo.Path);
         contentView.SetNeedsDisplay();
     }
 
@@ -397,11 +398,15 @@ class BlameView : IBlameView
         var (first, last) = HistoryLines;
         var (firstLine, lastLine) = (blame.Lines[first].LineNbr, blame.Lines[last].LineNbr);
         var reference = blame.Reference;
-        DiffReload reload = _ => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, repo.Path);
+        // 'git log -L' takes no context, so there is none to step
+        var source = new DiffSource(_ => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, repo.Path))
+        {
+            HasContext = false,
+        };
         Server.CommitDiff[] diffs;
         using (progress.Show())
         {
-            var diffsResult = await reload(DiffContext.Default);
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not Server.CommitDiff[] loaded)
             {
                 UI.ErrorMessage($"Failed to get the history of the lines\n{diffsResult.Error.AllMessages()}");
@@ -410,7 +415,7 @@ class BlameView : IBlameView
             diffs = loaded;
         }
 
-        diffView.Show(diffs, repo.Path, reload);
+        diffView.Show(diffs, source, repo.Path);
         contentView.SetNeedsDisplay();
     }
 
@@ -465,10 +470,11 @@ class BlameView : IBlameView
         }
 
         blame = newBlame;
-        blameRows = blameService.ToBlameRows(blame);
+        blameRows = blameRowService.ToBlameRows(blame);
         rowStartX = startX;
+        // Scrolled to the line too: Back put the cursor on it with the view at the top of the file
         contentView.MoveToTop();
-        contentView.SetCurrentIndex(Math.Min(index, Math.Max(0, blameRows.Rows.Count - 1)));
+        contentView.ShowCurrentIndex(Math.Min(index, Math.Max(0, blameRows.Rows.Count - 1)));
         SetHeader();
         contentView.SetNeedsDisplay();
         return true;
@@ -575,8 +581,7 @@ class BlameView : IBlameView
         if (index == -1)
             return;
 
-        contentView.SetCurrentIndex(index);
-        contentView.ScrollToShowIndex(index);
+        contentView.ShowCurrentIndex(index);
     }
 
     void ResetScroll()

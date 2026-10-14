@@ -15,7 +15,9 @@ namespace gmdTest.Server.Private.Augmented.Private;
 public class ForcePushIntegrationTest
 {
     TempRepo repo = null!;
+    readonly FakeRepoConfig config = new();
     AugmentedService service = null!;
+    UndoService undo = null!;
     string other = "";
     int minute = 0;
 
@@ -23,7 +25,13 @@ public class ForcePushIntegrationTest
     public async Task Init()
     {
         repo = await TempRepo.CreateAsync();
-        service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        service = RepoBuilder.NewAugmentedService(
+            repo.Git,
+            new FakeMetaDataService(new MetaData()),
+            new FakeFileMonitor(),
+            config
+        );
+        undo = new UndoService(repo.Git, config);
     }
 
     [TestCleanup]
@@ -152,7 +160,7 @@ public class ForcePushIntegrationTest
         var (_, _, own, newTip) = await ForcePushedAsync();
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        AssertOk(await service.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
+        AssertOk(await undo.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
 
         Assert.AreEqual("Own work\nKept\nTheirs\nInitial", (await repo.GitAsync("log --format=%s dev")).Trim());
         Assert.AreEqual(newTip, (await repo.GitAsync("rev-parse dev~1")).Trim());
@@ -184,7 +192,7 @@ public class ForcePushIntegrationTest
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
         var rewrite = augmented.RemoteRewrites["dev"];
 
-        AssertOk(await service.PullRewrittenAsync(augmented, rewrite));
+        AssertOk(await undo.PullRewrittenAsync(augmented, rewrite));
 
         Assert.AreEqual(
             (dropped, kept, 1, 0, false, true),
@@ -215,7 +223,7 @@ public class ForcePushIntegrationTest
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
         var rewrite = augmented.RemoteRewrites["dev"];
 
-        AssertOk(await service.PullRewrittenAsync(augmented, rewrite));
+        AssertOk(await undo.PullRewrittenAsync(augmented, rewrite));
 
         Assert.AreEqual(2, rewrite.OwnCount);
         Assert.AreEqual(mainWork, (await repo.GitAsync("rev-parse dev^2")).Trim());
@@ -230,7 +238,7 @@ public class ForcePushIntegrationTest
         await repo.GitAsync("checkout main");
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        AssertOk(await service.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
+        AssertOk(await undo.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
 
         Assert.AreEqual(newTip, (await repo.GitAsync("rev-parse dev")).Trim());
         Assert.AreEqual(StepKind.Pull, AssertOk(await service.GetRepoAsync(repo.Path)).UndoSteps["dev"].Kind);
@@ -244,7 +252,7 @@ public class ForcePushIntegrationTest
         await repo.GitAsync("checkout main");
         var augmented = AssertOk(await service.GetRepoAsync(repo.Path));
 
-        AssertError(await service.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
+        AssertError(await undo.PullRewrittenAsync(augmented, augmented.RemoteRewrites["dev"]));
 
         Assert.AreEqual(own, (await repo.GitAsync("rev-parse dev")).Trim());
     }

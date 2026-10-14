@@ -1,7 +1,4 @@
-using System.Net;
-using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using gmd.Common;
 using gmd.Cui.Common;
 
@@ -14,61 +11,113 @@ interface IUpdater
 {
     Task CheckUpdateAvailableAsync();
     Task<Result<Version>> UpdateAsync();
+
+    // Cancels the update in progress, which stops before the new version is put in place, with an
+    // UpdateCancelledError, or finishes when it is too late to stop
+    void CancelUpdate();
     Task<Result<UpdateAvailability>> IsUpdateAvailableAsync();
     Task StartCheckUpdatesRegularly();
+
+    // The package manager gmd was installed with, which updates it rather than gmd itself, null when
+    // gmd updates itself
+    PackageManager? PackageManager { get; }
 }
 
-public class GitRelease
+// The gmd that is running, as far as updating it goes: its version, the path of its binary, which
+// an update replaces, whether it is a dev instance, which is never offered an update, and the names
+// of the release assets that run here. Handed to the Updater rather than read by it, so that the
+// tests can be any gmd, the test process being a dotnet host.
+record RunningGmd(Version Version, string? Path, bool IsDevInstance, IReadOnlyList<string> BinaryNames)
 {
-    public string tag_name { get; set; } = "";
-    public bool draft { get; set; } = true;
-    public bool prerelease { get; set; } = true;
-    public string published_at { get; set; } = "";
-    public string body { get; set; } = "";
-    public GitAsset[] assets { get; set; } = [];
+    public static RunningGmd Current { get; } =
+        new(
+            Build.Version(),
+            BinaryPath(Environment.ProcessPath),
+            Build.IsDevInstance(),
+            ReleaseChoice.BinaryNames(CurrentOs, RuntimeInformation.OSArchitecture)
+        );
+
+    // Run by 'dotnet gmd.dll', as the debugger does
+    public bool IsDotNetHost => System.IO.Path.GetFileNameWithoutExtension(Path ?? "") == "dotnet";
+
+    // Null when gmd updates itself
+    public PackageManager? PackageManager => PackageManager.Of(Path);
+
+    // The binary itself, rather than a link to it that started it, which is what the path of the
+    // process can be on some systems: an update would replace the link with a file, and a package
+    // manager is told by where the binary is, not by the link it puts on the PATH
+    internal static string? BinaryPath(string? processPath)
+    {
+        if (processPath == null)
+            return null;
+        try
+        {
+            return File.ResolveLinkTarget(processPath, returnFinalTarget: true)?.FullName ?? processPath;
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            Log.Warn($"Failed to resolve {processPath}, {e.Message}");
+            return processPath;
+        }
+    }
+
+    static OSPlatform CurrentOs =>
+        Build.IsWindows ? OSPlatform.Windows
+        : Build.IsMacOS ? OSPlatform.OSX
+        : Build.IsLinux ? OSPlatform.Linux
+        : OSPlatform.Create("other");
 }
 
-public class GitAsset
-{
-    public string name { get; set; } = "";
-    public int download_count { get; set; } = 0;
-    public string browser_download_url { get; set; } = "";
-}
-
-// cSpell:ignore RTXZERT
+// Keeps gmd up to date with its releases on GitHub. Which release there is to update to is read
+// from GitHub (GitHubReleases) and chosen (ReleaseChoice); updating replaces the binary of the
+// running gmd (BinaryInstaller), which goes on running, and the new version runs once gmd is
+// started again.
 [SingleInstance]
 class Updater : IUpdater
 {
     static readonly TimeSpan checkUpdateInterval = TimeSpan.FromHours(1);
-    const string releasesUri = "https://api.github.com/repos/michael-reichenauer/gmd/releases";
-    const string UserAgent = "gmd";
-    const string tmpRandomSuffix = "RTXZERT";
-    readonly Version MinVersion = new Version("0.0.0.0");
 
     readonly Config config;
-    readonly ICmd cmd;
-    readonly Version buildVersion;
+    readonly IGitHubReleases gitHubReleases;
+    readonly IBinaryInstaller installer;
 
+    readonly object updateLock = new();
+    Task<Result<Version>>? update; // The update in progress, which a second one waits for
+    CancellationTokenSource cancelUpdate = new(); // What cancels it, a new one for each
+    Version? installedVersion; // Installed by this gmd, and run once gmd is started again
     bool isUpdateCheckerRunning = false;
 
-    // Data for download binary tasks to avoid multiple parallel tasks
-    static string requestingUri = "";
-    static Task<byte[]>? getBytesTask = null;
-
-    internal Updater(Config config, ICmd cmd)
+    internal Updater(Config config, IGitHubReleases gitHubReleases, IBinaryInstaller installer)
     {
         this.config = config;
-        this.cmd = cmd;
-        buildVersion = Build.Version();
+        this.gitHubReleases = gitHubReleases;
+        this.installer = installer;
     }
 
-    public async Task CheckUpdateAvailableAsync()
+    public Task CheckUpdateAvailableAsync() => CheckUpdateAvailableAsync(RunningGmd.Current);
+
+    public Task<Result<Version>> UpdateAsync() => UpdateAsync(RunningGmd.Current);
+
+    public Task StartCheckUpdatesRegularly() => StartCheckUpdatesRegularly(RunningGmd.Current);
+
+    public Task<Result<UpdateAvailability>> IsUpdateAvailableAsync() => IsUpdateAvailableAsync(RunningGmd.Current);
+
+    public PackageManager? PackageManager => RunningGmd.Current.PackageManager;
+
+    internal async Task CheckUpdateAvailableAsync(RunningGmd self)
     {
-        if (IsDotNet())
+        if (self.IsDotNetHost)
             return;
 
-        CleanTempFiles();
-        if (await IsUpdateAvailableAsync() is Error e)
+        // A dev instance never installs anything to clean up after
+        if (!self.IsDevInstance && self.Path is string path)
+            installer.CleanUp(path);
+        if (!config.CheckUpdates)
+        {
+            Log.Info("Check for updates is disabled");
+            return;
+        }
+        if (await IsUpdateAvailableAsync(self) is Error e)
         {
             Log.Warn($"Failed to check remote version, {e}");
             return;
@@ -78,48 +127,105 @@ class Updater : IUpdater
         var allowPreview = config.AllowPreview;
 
         Log.Info(
-            $"Running: {buildVersion}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})"
+            $"Running: {self.Version}, Remote; Stable: {releases.StableRelease.Version}, Preview: {releases.PreRelease.Version}, allow preview: {allowPreview})"
         );
     }
 
-    public async Task<Result<Version>> UpdateAsync()
+    // One at a time: the update dialog and the regular check can both start one, and a second one
+    // waits for the first rather than download and install the same binary again beside it
+    internal Task<Result<Version>> UpdateAsync(RunningGmd self)
     {
-        if (IsDotNet())
-            return buildVersion;
+        lock (updateLock)
+        {
+            if (update is not { IsCompleted: false })
+            {
+                cancelUpdate = new CancellationTokenSource();
+                update = UpdateOnceAsync(self, cancelUpdate.Token);
+            }
+            return update;
+        }
+    }
 
-        var availableResult = await IsUpdateAvailableAsync();
+    // The one in progress, whichever started it, the update dialog or the regular check, since the
+    // dialog waits for one the check started too
+    public void CancelUpdate()
+    {
+        lock (updateLock)
+        {
+            if (update is { IsCompleted: false })
+                cancelUpdate.Cancel();
+        }
+    }
+
+    async Task<Result<Version>> UpdateOnceAsync(RunningGmd self, CancellationToken cancel)
+    {
+        // The binary of a dev instance is a build, e.g. gmd/bin/Debug, which is never replaced by a
+        // release. It is never offered one either, but a guard there was all that stood between an
+        // update and a build of gmd that a developer runs.
+        if (self.IsDevInstance)
+            return new Error("A dev instance of gmd is not updated");
+
+        // Unknown is rare, but taken to be 'gmd', it was a file in the current folder, a repository
+        if (self.Path is not string path)
+            return new Error("The path of the gmd binary is not known, so it cannot be replaced");
+
+        if (self.PackageManager is PackageManager manager)
+            return new Error($"Gmd was installed with {manager.Name}, so update it with '{manager.UpdateCommand}'");
+
+        // Before anything is downloaded, with an error that says what is wrong rather than the
+        // download's 'access denied': a gmd installed by root, e.g. in /usr/local/bin, is updated the
+        // way it was installed
+        if (installer.CanInstall(path) is Error writeError)
+            return new Error(
+                $"Gmd cannot update itself, since you cannot write to {Path.GetDirectoryName(path)}."
+                    + " Update it the way it was installed.",
+                writeError
+            );
+
+        var availableResult = await IsUpdateAvailableAsync(self);
         if (availableResult is not UpdateAvailability available)
         {
             Log.Warn($"Failed to check remote version, {availableResult.Error}");
             return availableResult.Error;
         }
 
+        // An error rather than the running version, which the update dialog took for the version it
+        // had updated to, and so said gmd was updated and quit
         if (!available.IsAvailable)
         {
             Log.Info("Already at latest release");
-            return buildVersion;
+            return new Error("There is no newer version of gmd to update to");
         }
 
-        var downloadedPathResult = await DownloadBinaryAsync();
-        if (downloadedPathResult is not string downloadedPath)
+        // The running gmd is still the old version, so the new one is still newer, but it is in place
+        if (installedVersion != null && installedVersion >= available.Version)
         {
-            Log.Warn($"Failed to download new version, {downloadedPathResult.Error}");
-            return downloadedPathResult.Error;
+            Log.Info($"Already installed {installedVersion}, which runs once gmd is started again");
+            return installedVersion;
         }
 
-        if (Install(downloadedPath) is Error installError)
+        var release = SelectRelease(self);
+        var binary = ReleaseChoice.Binary(release, self.BinaryNames);
+        if (binary == null || !Version.TryParse(release.Version, out var version))
         {
-            Log.Warn($"Failed to install new version, {installError}");
+            Log.Warn($"Failed to download new version, no binary for this platform in {release.Version}");
+            return new Error("No binary available");
+        }
+
+        var checksums = ReleaseChoice.Checksums(release);
+        var releaseBinary = new ReleaseBinary(version, binary.Name, binary.Url, checksums?.Url ?? "");
+        if (cancel.IsCancellationRequested)
+            return new UpdateCancelledError();
+        if (await installer.InstallAsync(releaseBinary, path, cancel) is Error installError)
             return installError;
-        }
 
-        var release = SelectRelease();
-        return new Version(release.Version);
+        installedVersion = version;
+        return version;
     }
 
-    public async Task StartCheckUpdatesRegularly()
+    async Task StartCheckUpdatesRegularly(RunningGmd self)
     {
-        if (Build.IsDevInstance())
+        if (self.IsDevInstance)
         {
             Log.Info("Dev instance, no update check");
             return;
@@ -131,24 +237,21 @@ class Updater : IUpdater
 
         while (true)
         {
-            await CheckUpdateAvailableAsync();
+            await CheckUpdateAvailableAsync(self);
 
-            if (config.AutoUpdate)
+            if (config.CheckUpdates && config.AutoUpdate && IsToInstall(self))
             {
-                if (await IsUpdateAvailableAsync() is UpdateAvailability { IsAvailable: true })
+                if (await UpdateAsync(self) is Version updatedVersion)
                 {
-                    if (await UpdateAsync() is Version updatedVersion)
+                    UI.Post(() =>
                     {
-                        UI.Post(() =>
-                        {
-                            UI.InfoMessage(
-                                "Restart for New Version ",
-                                $"Gmd has been updated to: {updatedVersion}\n"
-                                    + "and the new version will run at next starts.\n\n"
-                                    + "Restart gmd if you want to run the updated version now."
-                            );
-                        });
-                    }
+                        UI.InfoMessage(
+                            "Restart for New Version ",
+                            $"Gmd has been updated to: {updatedVersion}\n"
+                                + "and the new version will run at next starts.\n\n"
+                                + "Restart gmd if you want to run the updated version now."
+                        );
+                    });
                 }
             }
 
@@ -156,32 +259,28 @@ class Updater : IUpdater
         }
     }
 
-    public async Task<Result<UpdateAvailability>> IsUpdateAvailableAsync()
+    // Checks even when CheckUpdates is off, which turns off only the checks gmd makes by itself: an
+    // update the user asks for, by --update or in the update dialog, is looked for
+    internal async Task<Result<UpdateAvailability>> IsUpdateAvailableAsync(RunningGmd self)
     {
-        if (!config.CheckUpdates)
+        if (await gitHubReleases.FetchAsync() is Error fetchError)
         {
-            Log.Info("Check for updates is disabled");
-            return new UpdateAvailability(false, buildVersion);
+            Log.Info($"Failed to get remote info, {fetchError}");
+            return new Error($"Failed to get remote info, {fetchError}");
         }
 
-        var releaseResult = await GetRemoteInfoAsync();
-        if (releaseResult is not Release release)
-        {
-            var e = releaseResult.Error;
-            Log.Info($"Failed to get remote info, {e}");
-            return new Error($"Failed to get remote info, {e}");
-        }
-
+        var release = SelectRelease(self);
         if (release.Version == "")
         {
             Log.Info("No remote release available");
-            return new UpdateAvailability(false, buildVersion);
+            return new UpdateAvailability(false, self.Version);
         }
 
-        if (!release.Assets.Any())
+        // Not an update to offer when it has no binary for this platform, which failed once taken
+        if (ReleaseChoice.Binary(release, self.BinaryNames) == null)
         {
-            Log.Warn($"No remote binaries for {release.Version}");
-            return new UpdateAvailability(false, buildVersion);
+            Log.Warn($"No remote binary for this platform in {release.Version}");
+            return new UpdateAvailability(false, self.Version);
         }
         config.Set(s =>
         {
@@ -189,318 +288,27 @@ class Updater : IUpdater
             s.Releases.IsPreview = release.IsPreview;
         });
 
-        if (!config.Releases.IsUpdateAvailable())
+        // As Releases.IsUpdateAvailable(), which the UI asks, but of the gmd handed in
+        if (self.IsDevInstance || !Version.TryParse(release.Version, out var latest) || latest <= self.Version)
         {
             Log.Debug("No new remote release available");
-            return new UpdateAvailability(false, buildVersion);
+            return new UpdateAvailability(false, self.Version);
         }
-        Log.Info($"Update available, local {buildVersion} < {release.Version} remote (preview={release.IsPreview})");
+        Log.Info($"Update available, local {self.Version} < {release.Version} remote (preview={release.IsPreview})");
 
-        return new UpdateAvailability(true, new Version(release.Version));
+        return new UpdateAvailability(true, latest);
     }
 
-    Result Install(string downloadedPath)
-    {
-        if (IsDotNet())
-            return Result.Ok;
+    // Whether the release the last check found is newer than the running gmd, and than the version
+    // it installed already, which it would otherwise install again at every check until restarted.
+    // Never when a package manager installed gmd, which updates it.
+    internal bool IsToInstall(RunningGmd self) =>
+        self.PackageManager == null
+        && Version.TryParse(config.Releases.LatestVersion, out var latest)
+        && latest > self.Version
+        && (installedVersion == null || latest > installedVersion);
 
-        try
-        {
-            // Move downloaded file next to this process file (replace must be on same volume)
-            var newPath = GetTempPath();
-            if (!File.Exists(downloadedPath))
-            {
-                Log.Info($"No new file to install {downloadedPath}");
-                return Result.Ok; // No new file to install, some other thread already installed it
-            }
-
-            File.Move(downloadedPath, newPath);
-            Log.Info($"Move {downloadedPath} => {newPath} ...");
-            if (MakeBinaryExecutable(newPath) is Error e)
-                return e;
-
-            var thisPath = Environment.ProcessPath ?? "gmd";
-            var newThisPath = GetTempPath();
-
-            File.Move(thisPath, newThisPath);
-            Log.Info($"Moved {thisPath} => {newThisPath}");
-            File.Move(newPath, thisPath);
-            Log.Info($"Installed {newPath}");
-            return Result.Ok;
-        }
-        catch (Exception e) when (e.IsNotFatal())
-        {
-            Log.Exception(e, "Failed install new file");
-            return new Error("Failed to install new file", e);
-        }
-    }
-
-    async Task<Result<string>> DownloadBinaryAsync()
-    {
-        try
-        {
-            using HttpClient httpClient = GetHttpClient();
-            (string downloadUrl, string version) = SelectBinaryPath();
-            if (downloadUrl == "")
-            {
-                return new Error("No binary available");
-            }
-
-            var targetPath = GetDownloadFilePath(version);
-            if (File.Exists(targetPath))
-            {
-                Log.Info($"Already downloaded {targetPath}");
-                return targetPath;
-            }
-
-            byte[] remoteFileData = await GetByteArrayAsync(httpClient, downloadUrl);
-
-            File.WriteAllBytes(targetPath, remoteFileData);
-
-            Log.Info($"Downloaded to    {targetPath}");
-            return targetPath;
-        }
-        catch (Exception e) when (e.IsNotFatal())
-        {
-            Log.Exception(e, "Failed to download latest binary");
-            return new Error("Failed to download latest binary", e);
-        }
-    }
-
-    static Task<byte[]> GetByteArrayAsync(HttpClient httpClient, string requestUri)
-    {
-        if (requestingUri == requestUri && getBytesTask != null)
-        { // A request for this uri has already been started, lets reuse task
-            Log.Info($"Download already started for {requestUri}");
-            return getBytesTask;
-        }
-
-        // Start download task and remember task in case multiple requests for same request
-        Log.Info($"Downloading from {requestUri} ...");
-        requestingUri = requestUri;
-        getBytesTask = httpClient.GetByteArrayAsync(requestUri);
-        return getBytesTask;
-    }
-
-    static string GetDownloadFilePath(string version)
-    {
-        var name = $"gmd.{version}.{tmpRandomSuffix}";
-        var tmpFolderPath = Path.GetTempPath();
-        return Path.Combine(tmpFolderPath, name);
-    }
-
-    string GetTempPath()
-    {
-        var thisPath = Environment.ProcessPath ?? "gmd";
-
-        return $"{thisPath}.tmp_{RandomString(5)}";
-    }
-
-    static void CleanTempFiles()
-    {
-        if (IsDotNet())
-            return;
-        try
-        {
-            var thisPath = Environment.ProcessPath ?? "gmd";
-            var tmpPathPrefix = thisPath + ".tmp";
-
-            foreach (var path in Directory.GetFiles(Path.GetDirectoryName(thisPath) ?? ""))
-            {
-                if (path.StartsWith(tmpPathPrefix))
-                {
-                    Log.Info($"Deleting {path}");
-                    if (Result.Catch(() => File.Delete(path)) is Error e)
-                        Log.Info($"Failed to delete {e}");
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Log.Info($"Failed to clean {e.Message}");
-        }
-    }
-
-    (string, string) SelectBinaryPath()
-    {
-        string[] names;
-        if (Build.IsMacOS)
-        {
-            names = ["gmd_osx_arm64"];
-        }
-        else if (Build.IsLinux)
-        {
-            names = RuntimeInformation.OSArchitecture switch
-            {
-                Architecture.Arm64 => ["gmd_linux_arm64", "gmd_linux"],
-                Architecture.X64 => ["gmd_linux_x64", "gmd_linux"],
-                _ => ["gmd_linux"],
-            };
-        }
-        else if (Build.IsWindows)
-        {
-            names = ["gmd_windows"];
-        }
-        else
-        {
-            return ("", "");
-        }
-
-        var release = SelectRelease();
-        var name = names.FirstOrDefault(n => release.Assets.Any(a => a.Name == n)) ?? "";
-        var binaryPath = release.Assets.FirstOrDefault(a => a.Name == name)?.Url ?? "";
-        Log.Debug($"{release.Version} Preview: {release.IsPreview}, {binaryPath}");
-
-        return (binaryPath, release.Version);
-    }
-
-    Release SelectRelease()
-    {
-        var releases = config.Releases;
-        var allowPreview = config.AllowPreview;
-
-        if (
-            allowPreview
-            && releases.PreRelease.Assets.Any()
-            && IsLeftNewer(releases.PreRelease.Version, releases.StableRelease.Version)
-        )
-        { // user allow preview versions, and the preview version is newer
-            return releases.PreRelease;
-        }
-        return releases.StableRelease;
-    }
-
-    async Task<Result<Release>> GetRemoteInfoAsync()
-    {
-        try
-        {
-            using HttpClient httpClient = GetHttpClient();
-            // Try get cached information about latest remote version
-            string eTag = GetCachedLatestVersionInfoEtag();
-
-            if (eTag != "")
-            {
-                // There is cached information, lets use the ETag when checking to follow
-                // GitHub Rate Limiting method.
-                httpClient.DefaultRequestHeaders.IfNoneMatch.Clear();
-                httpClient.DefaultRequestHeaders.IfNoneMatch.Add(new EntityTagHeaderValue(eTag));
-            }
-
-            HttpResponseMessage response = await httpClient.GetAsync(releasesUri);
-
-            if (response.StatusCode == HttpStatusCode.NotModified || response.Content == null)
-            {
-                Log.Debug("Remote latest version info same as cached info");
-                return SelectRelease();
-            }
-
-            string latestInfoText = await response.Content.ReadAsStringAsync();
-            Log.Debug("New version info");
-
-            if (response.Headers.ETag != null)
-            {
-                eTag = response.Headers.ETag.Tag;
-                CacheLatestVersionInfo(eTag, latestInfoText);
-            }
-
-            return SelectRelease();
-        }
-        catch (Exception e) when (e.IsNotFatal())
-        {
-            Log.Exception(e, "Failed to download latest setup");
-            return new Error("Failed to download latest setup", e);
-        }
-    }
-
-    string GetCachedLatestVersionInfoEtag() => config.Releases.Etag;
-
-    void CacheLatestVersionInfo(string eTag, string latestInfoText)
-    {
-        if (eTag == "")
-            return;
-
-        var gitReleases = JsonSerializer.Deserialize<GitRelease[]>(latestInfoText);
-        var releases = gitReleases?.OrderByDescending(rr => TagToVersion(rr.tag_name))?.ToList() ?? [];
-        var stable = releases.FirstOrDefault(rr => !rr.prerelease);
-        var preview = releases.FirstOrDefault(rr => rr.prerelease);
-
-        Releases latestReleases = new Releases()
-        {
-            Etag = eTag,
-            StableRelease = ToRelease(stable),
-            PreRelease = ToRelease(preview),
-        };
-
-        // Cache the latest version info
-        config.Set(s => s.Releases = latestReleases);
-    }
-
-    Version TagToVersion(string tag)
-    {
-        if (Version.TryParse(tag?.TrimPrefix("v") ?? "", out var v))
-        {
-            return v;
-        }
-        return MinVersion;
-    }
-
-    static Release ToRelease(GitRelease? gr)
-    {
-        if (gr == null)
-        {
-            return new Release();
-        }
-
-        return new Release()
-        {
-            Version = gr.tag_name.TrimPrefix("v"),
-            IsPreview = gr.prerelease,
-            Assets = ToAssets(gr.assets),
-        };
-    }
-
-    static Asset[] ToAssets(GitAsset[] gas) =>
-        gas.Select(ga => new Asset() { Name = ga.name, Url = ga.browser_download_url }).ToArray();
-
-    private static HttpClient GetHttpClient()
-    {
-        HttpClient httpClient = new HttpClient();
-        httpClient.DefaultRequestHeaders.Add("user-agent", UserAgent);
-        return httpClient;
-    }
-
-    static bool IsLeftNewer(string v1Text, string v2Text)
-    {
-        if (!Version.TryParse(v1Text, out var v1))
-        {
-            return false;
-        }
-        if (!Version.TryParse(v2Text, out var v2))
-        {
-            return true;
-        }
-        return v1 > v2;
-    }
-
-    private readonly Random random = new Random();
-
-    private string RandomString(int length)
-    {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
-    }
-
-    Result MakeBinaryExecutable(string path)
-    {
-        if (Build.IsWindows)
-            return Result.Ok; // Not needed on windows
-
-        return cmd.Command("chmod", $"+x {path}", "");
-    }
-
-    private static bool IsDotNet()
-    {
-        var thisPath = Environment.ProcessPath ?? "gmd";
-        return Path.GetFileNameWithoutExtension(thisPath) == "dotnet";
-    }
+    // A package manager installs no previews, so with one, a preview is not offered
+    Release SelectRelease(RunningGmd self) =>
+        ReleaseChoice.Select(config.Releases, config.AllowPreview && self.PackageManager == null);
 }

@@ -2,6 +2,7 @@
 using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
+using gmd.Installation;
 using Terminal.Gui;
 
 namespace gmd;
@@ -28,32 +29,26 @@ class Program
             return Askpass.Answer(args);
 
         var t = Timing.Start();
-        ExceptionHandling.HandleUnhandledExceptions(UI.Shutdown);
-
-        // Upgrade data if needed
-        Upgrader.UpgradeData();
+        ExceptionHandling.HandleUnhandledExceptions(UI.ShutdownFromAnyThread);
 
         // Setup dependency injection by registering all types in this assembly
         dependencyInjection.RegisterAllAssemblyTypes();
 
         // Handle commands like show version, upgrade, ...
         var programCommands = dependencyInjection.Resolve<IProgramCommands>();
-        var commandResult = await programCommands.HandleCommands(args);
-        if (commandResult.IsCommand)
-        {
-            return commandResult.ExitCode;
-        }
+        if (await programCommands.HandleCommandsAsync(args) is int exitCode)
+            return exitCode;
 
         Log.Info($"Starting gmd ...");
         Program program = dependencyInjection.Resolve<Program>();
         program.Run();
 
         Log.Info($"Done, running for {t}");
-        ConfigLogger.CloseAsync().Wait();
+        LogFile.CloseAsync().Wait();
 
         if (ExceptionHandling.Failure is string failure)
         {
-            Console.Error.WriteLine(CrashMessage(failure, ConfigLogger.FilePath));
+            Console.Error.WriteLine(CrashMessage(failure, LogFile.FilePath));
             return 1;
         }
         return 0;
@@ -80,9 +75,15 @@ class Program
 
     void Run()
     {
-        LogProgramInfoAsync().RunInBackground();
+        LogProgramInfo();
 
+        // No program is started before Terminal.Gui has started, git's version included: curses sets
+        // the locale as it starts (setlocale), and on macOS a fork in another thread meanwhile hangs
+        // both, the fork waiting for setlocale's lock, and setlocale for malloc, which the fork has
+        // locked. gmd hung so at two starts in three, with nothing drawn (macOS 27, 2026-10-14).
         Application.Init();
+        LogGitVersionAsync().RunInBackground();
+
         // Only reached when no view above handles Esc, e.g. before a repo is shown. The log view
         // takes Esc itself and asks before quitting (RepoViewInput.QuitAfterAsking).
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
@@ -101,23 +102,30 @@ class Program
     bool HandleUIMainLoopError(Exception e)
     {
         ExceptionHandling.OnMainLoopException(e);
-        ConfigLogger.CloseAsync().Wait();
         return false; // End loop after error
     }
 
-    async Task LogProgramInfoAsync()
+    // The package manager that updates gmd, which a user report may need to know
+    static string InstalledBy(PackageManager? manager) =>
+        manager == null ? "" : $", installed with {manager.Name}, which updates it";
+
+    static void LogProgramInfo()
     {
         Log.Info($"Version: {Build.Version()}");
         Log.Info($"Build    {Build.Time().ToLocalTime().IsoZone()}");
         Log.Info($"Sha:     {Build.Sha()}");
         Log.Info($"Cmd:     {Environment.CommandLine}");
         Log.Info($"Process: {Environment.ProcessPath}");
+        Log.Info($"Binary:  {RunningGmd.Current.Path}{InstalledBy(RunningGmd.Current.PackageManager)}");
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
         Log.Info($"Time:    {DateTime.Now.IsoZone()}");
+    }
 
-        var gitVersionResult = await git.Version();
+    async Task LogGitVersionAsync()
+    {
+        var gitVersionResult = await git.GetVersionAsync();
         if (gitVersionResult is Error e)
             Log.Error($"No git command detected, {e}");
         var gitVersion = gitVersionResult is string version ? version : "";

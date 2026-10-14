@@ -36,10 +36,7 @@ public class MetaDataServiceTest
     [TestMethod]
     public async Task TestSetAndGetRoundTrip()
     {
-        var metaData = new MetaData();
-        metaData.SetCommitBranch("abc123", "dev");
-
-        AssertOk(await service.SetMetaDataAsync(Path, metaData));
+        AssertOk(await service.UpdateMetaDataAsync(Path, m => m.SetCommitBranch("abc123", "dev")));
         var read = AssertOk(await service.GetMetaDataAsync(Path));
 
         Assert.IsTrue(read.TryGetCommitBranch("abc123", out var name, out var isSetByUser));
@@ -140,7 +137,7 @@ public class MetaDataServiceTest
 
         AssertOk(await service.FetchMetaDataAsync(Path));
 
-        CollectionAssert.AreEqual(new[] { "get data", "pull data" }, git.ValueCalls);
+        CollectionAssert.AreEqual(new[] { "get data", "get origin data", "fetch data" }, git.ValueCalls);
     }
 
     // Another user's choices are taken over, and since the merge changed the local data it is
@@ -173,7 +170,8 @@ public class MetaDataServiceTest
         CollectionAssert.AreEquivalent(new[] { "local1", "remote1" }, metaData.CommitBranchBySid.Keys.ToArray());
     }
 
-    // When the same commit was assigned differently by two users, the remote value wins
+    // When the same commit was assigned differently here and on origin, with no record of origin's
+    // value from before to say which side changed it, e.g. at the first fetch, the remote value wins
     [TestMethod]
     public async Task TestFetchPrefersTheRemoteValueOnConflict()
     {
@@ -207,10 +205,16 @@ public class MetaDataServiceTest
     public async Task TestFetchKeepsARemovedChoiceRemoved()
     {
         EnableSync();
-        var local = new MetaData();
-        local.SetCommitBranch("abc123", "dev");
-        local.RemoveCommitBranch("abc123");
-        AssertOk(await service.SetMetaDataAsync(Path, local));
+        AssertOk(
+            await service.UpdateMetaDataAsync(
+                Path,
+                m =>
+                {
+                    m.SetCommitBranch("abc123", "dev");
+                    m.RemoveCommitBranch("abc123");
+                }
+            )
+        );
         git.RemoteValues[Key] = git.Values[Key];
 
         AssertOk(await service.FetchMetaDataAsync(Path));
@@ -218,5 +222,70 @@ public class MetaDataServiceTest
 
         Assert.IsFalse(metaData.TryGetCommitBranch("abc123", out _, out _));
         Assert.IsTrue(metaData.CommitBranchBySid.ContainsKey("abc123"), "The removal is still shareable");
+    }
+
+    // A value changed here since the last fetch, which origin still has as it was, is kept: the fetch
+    // took origin's over it, so a branch set by hand, an ambiguity resolved again or a branch renamed
+    // was undone by the next background fetch until it was pushed
+    [TestMethod]
+    public async Task TestFetchKeepsAValueChangedHereSinceTheLastFetch()
+    {
+        EnableSync();
+        git.Values[Key] = Json(("abc123", "*main"));
+        git.OriginValues[Key] = Json(("abc123", "*dev"));
+        git.RemoteValues[Key] = Json(("abc123", "*dev"));
+
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));
+        Assert.AreEqual("main", name);
+    }
+
+    // ... while one changed on origin since, and not here, is taken over
+    [TestMethod]
+    public async Task TestFetchTakesAValueChangedOnOriginSinceTheLastFetch()
+    {
+        EnableSync();
+        git.Values[Key] = Json(("abc123", "*dev"));
+        git.OriginValues[Key] = Json(("abc123", "*dev"));
+        git.RemoteValues[Key] = Json(("abc123", "*main"));
+
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));
+        Assert.AreEqual("main", name);
+    }
+
+    // ... and one changed on both sides takes origin's, as before, so that every clone agrees
+    [TestMethod]
+    public async Task TestFetchPrefersOriginsValueWhenBothChangedIt()
+    {
+        EnableSync();
+        git.Values[Key] = Json(("abc123", "*main"));
+        git.OriginValues[Key] = Json(("abc123", "*dev"));
+        git.RemoteValues[Key] = Json(("abc123", "*feature"));
+
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));
+        Assert.AreEqual("feature", name);
+    }
+
+    // The fetch leaves the local value alone, and the merge writes it only when it changed
+    [TestMethod]
+    public async Task TestFetchNeverWritesOverTheLocalValue()
+    {
+        EnableSync();
+        git.Values[Key] = Json(("abc123", "*main"));
+        git.OriginValues[Key] = Json(("abc123", "*dev"));
+        git.RemoteValues[Key] = Json(("abc123", "*dev"));
+
+        AssertOk(await service.FetchMetaDataAsync(Path));
+
+        CollectionAssert.DoesNotContain(git.ValueCalls, "set data");
+        Assert.AreEqual(Json(("abc123", "*main")), git.Values[Key]);
     }
 }

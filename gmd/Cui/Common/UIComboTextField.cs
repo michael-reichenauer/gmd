@@ -6,8 +6,9 @@ namespace gmd.Cui.Common;
 // clicking the '▼' marker that UIDialog.AddComboTextField adds next to the field. While the list
 // is open it has the focus, so the arrow keys move in it, Enter (or a click) picks the item and
 // Esc closes it; the field gets the focus back either way. A pick raises ItemSelected, since it
-// changes the text without a key reaching the field.
-class UIComboTextField : TextField
+// changes the text without a key reaching the field. A UITextField otherwise, so a right click
+// opens gmd's context menu, not Terminal.Gui's.
+class UIComboTextField : UITextField
 {
     private readonly int w;
 
@@ -26,7 +27,6 @@ class UIComboTextField : TextField
     internal UIComboTextField(int x, int y, int w, int h, Func<IReadOnlyList<string>> getItems, string text = "")
         : base(x, y, w, text)
     {
-        ColorScheme = ColorSchemes.TextField;
         this.w = w;
         this.getItems = getItems;
 
@@ -36,7 +36,16 @@ class UIComboTextField : TextField
             Y = y + 2,
             Width = w + 2,
             Height = h - 1,
+            IsShowCursor = false,
+            IsScrollMode = false,
+            ColorScheme = ColorSchemes.TextField,
         };
+        // Once, here: they were added at every open, and Leave is an event, so each open added one
+        listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
+        listView.RegisterKeyHandler(Key.Enter, () => SelectItem(listView.CurrentIndex));
+        listView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => SelectItem(y + listView.FirstIndex));
+        // Tabbing away from the open list would otherwise leave it lying on the dialog
+        listView.Leave += _ => CloseListView();
 
         // For some reason the list view will not show border using the Border property, lets just draw it manually
         borderTop = new Label(x - 1, y + 1, "├" + new string('─', w + 2) + "┤")
@@ -79,12 +88,6 @@ class UIComboTextField : TextField
         return base.ProcessKey(keyEvent);
     }
 
-    public new string Text
-    {
-        get => base.Text?.ToString()?.Trim() ?? "";
-        set => base.Text = value;
-    }
-
     void ShowListView()
     {
         isShowList = true;
@@ -97,17 +100,6 @@ class UIComboTextField : TextField
             )
             .ToList();
 
-        listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
-        listView.RegisterKeyHandler(Key.Enter, () => SelectItem(listView.CurrentIndex));
-        listView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => SelectItem(y + listView.FirstIndex));
-
-        // Tabbing away from the open list would otherwise leave it lying on the dialog
-        listView.Leave += _ => CloseListView();
-
-        listView.IsShowCursor = false;
-        listView.IsScrollMode = false;
-        listView.IsCursorMargin = false;
-        listView.ColorScheme = ColorSchemes.TextField;
         listView.SetNeedsDisplay();
 
         Dialog dlg = (Dialog)this.SuperView.SuperView;

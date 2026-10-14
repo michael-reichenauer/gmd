@@ -1,5 +1,7 @@
 using gmd.Common;
+using gmd.Cui.Branches;
 using gmd.Cui.Common;
+using gmd.Cui.Recovery;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -8,7 +10,6 @@ namespace gmd.Cui.RepoView;
 // what to delete first, and then run the git command for them.
 interface IBranchCreateCommands
 {
-    void CreateBranch();
     void CreateBranchFromBranch(string name);
     void CreateBranchFromCommit();
     void CreateBranchFromLostCommit(string commitId, string madeOnName);
@@ -18,70 +19,41 @@ interface IBranchCreateCommands
 
 class BranchCreateCommands : IBranchCreateCommands
 {
-    readonly IViewRepo repo;
+    readonly CommandContext context;
     readonly IProgress progress;
     readonly IStatusLine status;
     readonly IRepoView repoView;
     readonly IServer server;
-    readonly IRepoConfig repoConfig;
+    readonly IRepoConfigService repoConfig;
     readonly ICreateBranchDlg createBranchDlg;
     readonly IRenameBranchDlg renameBranchDlg;
     readonly IDeleteBranchDlg deleteBranchDlg;
 
     public BranchCreateCommands(
-        IViewRepo repo,
-        IProgress progress,
-        IStatusLine status,
-        IRepoView repoView,
-        IServer server,
-        IRepoConfig repoConfig,
+        CommandContext context,
+        IRepoConfigService repoConfig,
         ICreateBranchDlg createBranchDlg,
         IRenameBranchDlg renameBranchDlg,
         IDeleteBranchDlg deleteBranchDlg
     )
     {
-        this.repo = repo;
-        this.progress = progress;
-        this.status = status;
-        this.repoView = repoView;
-        this.server = server;
+        this.context = context;
+        this.progress = context.Progress;
+        this.status = context.Status;
+        this.repoView = context.View;
+        this.server = context.Server;
         this.repoConfig = repoConfig;
         this.createBranchDlg = createBranchDlg;
         this.renameBranchDlg = renameBranchDlg;
         this.deleteBranchDlg = deleteBranchDlg;
     }
 
-    public void CreateBranch() =>
-        Do(async () =>
-        {
-            var branchName = "";
-            try
-            {
-                var currentBranchName = repo.Repo.CurrentBranch().Name;
-                if (createBranchDlg.Show(currentBranchName, "") is not CreateBranchResult rsp)
-                    return Result.Ok;
-
-                if (await server.CreateBranchAsync(repo.Repo, rsp.Name, rsp.IsCheckout, repo.Path) is Error e)
-                {
-                    return new Error($"Failed to create branch {rsp.Name}", e);
-                }
-                branchName = rsp.Name;
-
-                return rsp.IsPush ? await PushNewBranchAsync(branchName) : Result.Ok;
-            }
-            finally
-            {
-                Refresh(branchName);
-            }
-        });
-
     public void CreateBranchFromBranch(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var branchName = "";
             try
             {
-                //var currentBranchName = repo.GetCurrentBranch().Name;
                 var branch = repo.Repo.BranchByName[name];
                 if (branch.LocalName != "")
                     name = branch.LocalName;
@@ -89,13 +61,7 @@ class BranchCreateCommands : IBranchCreateCommands
                 if (createBranchDlg.Show(name, "") is not CreateBranchResult rsp)
                     return Result.Ok;
 
-                var created = await server.CreateBranchFromBranchAsync(
-                    repo.Repo,
-                    rsp.Name,
-                    name,
-                    rsp.IsCheckout,
-                    repo.Path
-                );
+                var created = await server.CreateBranchFromBranchAsync(repo.Repo, rsp.Name, name, rsp.IsCheckout);
                 if (created is Error e)
                 {
                     return new Error($"Failed to create branch {rsp.Name}", e);
@@ -106,14 +72,20 @@ class BranchCreateCommands : IBranchCreateCommands
             }
             finally
             {
-                Refresh(branchName);
+                RefreshIfMade(branchName);
             }
         });
 
+    // The uncommitted row is no commit to start a branch at, which the menu and the hints say, and
+    // 'b' asked for a name and then failed in git
+    public const string NoCommitToStartAt = "A branch starts at a commit: move to one first";
+
     public void CreateBranchFromCommit() =>
-        Do(async () =>
+        Do(async repo =>
         {
             var commit = repo.RowCommit;
+            if (commit.IsUncommitted)
+                return new Notice(NoCommitToStartAt);
             return await CreateBranchAtAsync(commit.BranchName, commit.Id, "", true);
         });
 
@@ -121,7 +93,7 @@ class BranchCreateCommands : IBranchCreateCommands
     // the branch it was made on when that name is free, since that is most often what is being
     // brought back, and not published by default, since what was lost was never more than local
     public void CreateBranchFromLostCommit(string commitId, string madeOnName) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var isNameFree =
                 madeOnName != ""
@@ -133,19 +105,14 @@ class BranchCreateCommands : IBranchCreateCommands
 
     async Task<Result> CreateBranchAtAsync(string fromName, string commitId, string name, bool isPublish)
     {
+        var repo = context.ViewRepo;
         var branchName = "";
         try
         {
             if (createBranchDlg.Show(fromName, commitId.Sid(), name, isPublish) is not CreateBranchResult rsp)
                 return Result.Ok;
 
-            var created = await server.CreateBranchFromCommitAsync(
-                repo.Repo,
-                rsp.Name,
-                commitId,
-                rsp.IsCheckout,
-                repo.Path
-            );
+            var created = await server.CreateBranchFromCommitAsync(repo.Repo, rsp.Name, commitId, rsp.IsCheckout);
             if (created is Error e)
             {
                 return new Error($"Failed to create branch {rsp.Name}", e);
@@ -156,15 +123,23 @@ class BranchCreateCommands : IBranchCreateCommands
         }
         finally
         {
-            Refresh(branchName);
+            RefreshIfMade(branchName);
         }
+    }
+
+    // Once the branch is made, whatever happened after, e.g. a push that failed: a dialog cancelled
+    // or a git refusal changed nothing, and refreshed, which also fetched, for nothing
+    void RefreshIfMade(string branchName)
+    {
+        if (branchName != "")
+            Refresh(branchName);
     }
 
     // Renames both the local and the remote branch, since renaming only the local branch would
     // hardly be visible: the local branch would still track the old remote branch, and gmd shows
     // the remote branch of a pair, i.e. the branch would still be shown with its old name.
     public void RenameBranch(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var newName = "";
             try
@@ -210,15 +185,15 @@ class BranchCreateCommands : IBranchCreateCommands
             }
             finally
             {
-                Refresh(newName);
+                RefreshIfMade(newName);
             }
         });
 
     // Deletes the branch here, on origin or both, as the dialog says, and says how to bring it back,
-    // since gmd records what it deleted (see AugmentedService.DeleteBranchAsync). Both sides are
+    // since gmd records what it deleted (see DeletedBranchService.DeleteBranchAsync). Both sides are
     // checked for unmerged commits before either is deleted.
     public void DeleteBranch(string name) =>
-        Do(async () =>
+        Do(async repo =>
         {
             var (localBranch, remoteBranch) = LocalAndRemoteBranch(name);
 
@@ -257,6 +232,7 @@ class BranchCreateCommands : IBranchCreateCommands
     // needs both of them, so resolve the name to the pair it is part of (either one can be missing)
     (Server.Branch? local, Server.Branch? remote) LocalAndRemoteBranch(string name)
     {
+        var repo = context.ViewRepo;
         var allBranches = repo.Repo.AllBranches;
         var branch = allBranches.First(b => b.Name == name);
 
@@ -277,6 +253,7 @@ class BranchCreateCommands : IBranchCreateCommands
     // of them is the key depends on whether the branch has a remote branch.
     void MigrateRepoConfigNames(string oldNiceName, string newNiceName)
     {
+        var repo = context.ViewRepo;
         var newNameByOldName = new Dictionary<string, string>
         {
             { oldNiceName, newNiceName },
@@ -318,6 +295,7 @@ class BranchCreateCommands : IBranchCreateCommands
     // push to, which is no failure to create the branch, so that push error is ignored.
     async Task<Result> PushNewBranchAsync(string branchName)
     {
+        var repo = context.ViewRepo;
         if (await server.PushBranchAsync(branchName, repo.Path) is not Error e)
             return Result.Ok;
         if (e.Message.Contains("'origin' does not appear to be a git repository"))
@@ -325,5 +303,5 @@ class BranchCreateCommands : IBranchCreateCommands
         return new Error($"Failed to push branch {branchName} to remote server", e);
     }
 
-    void Do(Func<Task<Result>> action) => CommandRunner.Do(progress, status, repo, action);
+    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 }

@@ -192,9 +192,10 @@ jobs:
 
       # 'gmd_linux' and 'gmd_windows' are copies of 'gmd_linux_x64' and 'gmd.exe' kept under the
       # original asset names: the built-in updater falls back to the first and updates Windows from
-      # the second (see gmd/Installation/Updater.cs), and so does the installer (Setup/gmd.iss).
+      # the second (see gmd/Installation/ReleaseChoice.cs), and so does the installer (Setup/gmd.iss).
       # 'gmd.exe' is the one to download by hand, since it runs as it is named. SHA256SUMS is the
-      # checksums of all of them, which install.sh checks its download against. All of them are in
+      # checksums of all of them, which install.sh and the updater check their downloads against
+      # (gmd/Installation/BinaryInstaller.cs), so keep its name and its format. All of them are in
       # artifacts/, where scripts/build publishes, and SHA256SUMS is made there so that it names them
       # by the bare asset names install.sh looks for.
       - name: Prepare release assets
@@ -273,7 +274,7 @@ jobs:
             artifacts/SHA256SUMS
 
       # Every push to dev makes a preview, and the updater only ever uses the newest stable release
-      # and the newest preview (gmd/Installation/Updater.cs), so the Releases page keeps the stable
+      # and the newest preview (gmd/Installation/GitHubReleases.cs), so the Releases page keeps the stable
       # releases and the latest five previews. A preview's tag goes with it, unless it is on main's
       # own line, where the change log reads the version tags from (Server/Private/ChangeLog.cs), or
       # unknown here. Tidying only, so it never fails the run.
@@ -297,3 +298,43 @@ jobs:
                 gh release delete "$TAG" --yes --cleanup-tag || true
               fi
             done
+
+      # The Homebrew formula of a release from main, pushed to the tap, from where
+      # 'brew install michael-reichenauer/tap/gmd' installs it (see scripts/brewformula). Not of a
+      # preview: the tap has the stable releases only, and a gmd installed from it is offered no
+      # others (gmd/Installation/PackageManager.cs). Pushed with a deploy key of the tap, the secret
+      # HOMEBREW_TAP_KEY, since the GITHUB_TOKEN reaches this repository only; with no such secret
+      # the step warns and does nothing. Last, since the release is out by now: a failure here leaves
+      # the formula at the release before, and the run red, and nothing else undone.
+      - name: Update the Homebrew tap (main)
+        if: steps.build.outputs.isRelease == 'true'
+        shell: bash
+        env:
+          TAP_KEY: ${{ secrets.HOMEBREW_TAP_KEY }}
+        run: |
+          VERSION="${{ steps.build.outputs.version }}"
+          if [ -z "$TAP_KEY" ]; then
+            echo "::warning::There is no HOMEBREW_TAP_KEY secret, so the Homebrew formula was not updated to $VERSION"
+            exit 0
+          fi
+          printf '%s\n' "$TAP_KEY" > "$RUNNER_TEMP/tap_key"
+          chmod 600 "$RUNNER_TEMP/tap_key"
+          # GitHub's own host key (api.github.com/meta), rather than whatever answers as github.com
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > "$RUNNER_TEMP/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/tap_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
+
+          git clone --depth 1 git@github.com:michael-reichenauer/homebrew-tap.git "$RUNNER_TEMP/tap"
+          mkdir -p "$RUNNER_TEMP/tap/Formula"
+          scripts/brewformula "$VERSION" artifacts/SHA256SUMS > "$RUNNER_TEMP/tap/Formula/gmd.rb"
+          cat "$RUNNER_TEMP/tap/Formula/gmd.rb"
+
+          cd "$RUNNER_TEMP/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/gmd.rb
+          if git diff --cached --quiet; then
+            echo "The formula is at $VERSION already"
+            exit 0
+          fi
+          git commit -m "gmd $VERSION"
+          git push origin HEAD

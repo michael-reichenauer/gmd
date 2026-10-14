@@ -1,9 +1,10 @@
 using System.Diagnostics;
 using System.Text;
 using gmd.Common;
-using gmd.Cui;
 using gmd.Cui.Common;
+using gmd.Cui.Graphs;
 using gmd.Git;
+using gmd.Git.Private;
 using gmd.Server;
 using gmd.Server.Private;
 using gmd.Server.Private.Augmented.Private;
@@ -50,7 +51,7 @@ public class RefreshTimingTest
         var metaDataService = new MetaDataService(git, new FakeRepoConfig());
 
         // The git reads, the log on its own and with the parse, and the rest the way the service reads them
-        var logArgs = $"log --all --date-order -z --pretty=\"%H|%ai|%ci|%an|%P|%B\" --max-count={MaxCommitCount}";
+        var logArgs = $"log --all --date-order {LogService.CommitFormat} --max-count={MaxCommitCount}";
         await TimeAsync("git log, read", async () => AssertOk(await cmd.RunAsync("git", logArgs, RepoPath)));
         var log = await TimeAsync(
             "git log, read + parse",

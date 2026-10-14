@@ -1,0 +1,290 @@
+using gmd.Common;
+using gmd.Cui.Common;
+using gmd.Cui.Worktrees;
+using gmd.Server;
+using Terminal.Gui;
+
+namespace gmd.Cui.App;
+
+enum ApplicationBarItem
+{
+    Update,
+    Gmd,
+    Operation,
+    Repo,
+    CurrentBranch,
+    Status,
+    Behind,
+    Ahead,
+    HiddenNews,
+    Stash,
+    Worktrees,
+    Space,
+    Row,
+    Search,
+    Help,
+    Close,
+}
+
+interface IApplicationBar
+{
+    View View { get; }
+    event Action<int, int, ApplicationBarItem> ItemClicked;
+
+    // The commit on the row and its branch ('commit on dev'), at the right, or nothing, since the
+    // key-hint line names it while it is shown
+    void SetRow(Text name);
+
+    // The repo, and how many hidden branches have something the user has not seen
+    void SetRepo(Server.Repo repo, int hiddenNewsCount);
+}
+
+class ApplicationBar : View, IApplicationBar
+{
+    const int maxRepoLength = 30;
+    readonly IBranchColorService branchColorService;
+    readonly Config config;
+
+    readonly UILabel label;
+    readonly List<Text> items = [];
+    Text rowName = Common.Text.Empty;
+    Rect bounds = Rect.Empty;
+    bool isUpdateShown;
+
+    public View View => this;
+
+    public event Action<int, int, ApplicationBarItem>? ItemClicked = null;
+
+    public ApplicationBar(IBranchColorService branchColorService, Config config)
+    {
+        this.branchColorService = branchColorService;
+        this.config = config;
+        X = 0;
+        Y = 0;
+        Height = 2;
+        Width = Dim.Fill();
+
+        label = new UILabel(0, 0);
+        var border = new HorizontalLine()
+        {
+            X = 0,
+            Y = 1,
+            ColorScheme = ColorSchemes.Border,
+        };
+
+        Add(label, border);
+
+        label.MouseClick += OnLabelMouseClicked;
+        bounds = Frame;
+
+        // Initialize some text values
+        Enumerable
+            .Range(0, Enum.GetNames(typeof(ApplicationBarItem)).Length)
+            .ForEach(i => items.Add(Common.Text.Empty));
+        items[(int)ApplicationBarItem.Gmd] = Common.Text.BrightMagenta(" Gmd ");
+        items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
+        // The search only once there is a repo to search, i.e. not on the start page, see SetRepo
+        items[(int)ApplicationBarItem.Search] = Common.Text.Empty;
+        items[(int)ApplicationBarItem.Help] = Common.Text.BrightCyan(" ? ");
+        items[(int)ApplicationBarItem.Close] = Common.Text.White("X");
+
+        UpdateView();
+
+        // Not here: the constructor runs before there is a main loop to add a timer to, since
+        // Program.Main builds the DI graph before Application.Init, and a timer added then is
+        // silently never run. Initialized is raised when the application is run.
+        Initialized += (_, _) => StartUpdateTimer();
+    }
+
+    // Repeating, so the update available indicator appears on an idle repo as well. The other
+    // callers of UpdateView() are all driven by activity (SetRepo, SetBranch, a resize), and an
+    // idle gmd left open is exactly when a new release turns up. Even at startup the update check
+    // often ends after the repo is shown, and then ⇓ waited for whatever redrew the bar next, while
+    // the menu said so at once. Redrawn only when the indicator changes, not every five seconds.
+    void StartUpdateTimer() =>
+        UI.AddTimeout(
+            TimeSpan.FromSeconds(5),
+            (_) =>
+            {
+                if (config.Releases.IsUpdateAvailable() != isUpdateShown)
+                    UpdateView();
+                return true;
+            }
+        );
+
+    // Called when clicking on the label
+    void OnLabelMouseClicked(MouseEventArgs e)
+    {
+        if (e.MouseEvent.Flags == MouseFlags.Button1Clicked)
+            OnClicked(e.MouseEvent.X, e.MouseEvent.Y);
+        e.Handled = false;
+    }
+
+    // Mouse events from the view not handled by the label mouse clicks
+    public override bool MouseEvent(MouseEvent e)
+    {
+        if (e.Flags == MouseFlags.Button1Clicked)
+            OnClicked(e.X, e.Y);
+        return false;
+    }
+
+    // Search for the item that contains the clicked position
+    void OnClicked(int x, int y)
+    {
+        int s = 0;
+        for (int i = 0; i < items.Count; i++)
+        {
+            var p = x + 1;
+            var e = s + items[i].Length;
+            if (e > s && p >= s && p <= e) // Skipping empty texts and check if the click is within the text bounds
+            {
+                UI.Post(() => ItemClicked?.Invoke(x, y, (ApplicationBarItem)i));
+                break;
+            }
+            s = e;
+        }
+    }
+
+    // Monitors if the view has been resized
+    public override void Redraw(Rect bounds)
+    {
+        if (bounds != this.bounds)
+        {
+            this.bounds = bounds;
+            UpdateView();
+        }
+
+        base.Redraw(bounds);
+    }
+
+    public void SetRepo(Server.Repo repo, int hiddenNewsCount)
+    {
+        var behindCount = repo.ViewCommits.Where(c => c.IsBehind).Count();
+        var aheadCount = repo.ViewCommits.Where(c => c.IsAhead).Count();
+        var stashCount = repo.Stashes.Count;
+
+        items[(int)ApplicationBarItem.Operation] = GetOperation(repo.Status);
+        items[(int)ApplicationBarItem.Repo] = GetRepoPath(repo);
+        SetCurrentBranch(repo);
+        items[(int)ApplicationBarItem.Status] = !repo.Status.IsOk
+            ? Common.Text.Dark(", ").Yellow("©").Dark($"{repo.Status.ChangesCount}")
+            : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Behind] =
+            behindCount > 0 ? Common.Text.Dark(", ").BrightBlue("▼").Dark($"{behindCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Ahead] =
+            aheadCount > 0 ? Common.Text.Dark(", ").Green("▲").Dark($"{aheadCount}") : Common.Text.Empty;
+        // The hidden branches with something new. A star rather than the hollow ▼ it was, which was
+        // easily taken for ▼, the commits to pull on the shown branches.
+        items[(int)ApplicationBarItem.HiddenNews] =
+            hiddenNewsCount > 0 ? Common.Text.Dark(", ").BrightBlue("✦").Dark($"{hiddenNewsCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Stash] =
+            stashCount > 0 ? Common.Text.Dark(", ").White("ß").Dark($"{stashCount}") : Common.Text.Empty;
+        items[(int)ApplicationBarItem.Worktrees] = GetWorktrees(repo);
+        items[(int)ApplicationBarItem.Search] = Common.Text.Dark("[Ϙ Search]");
+        UpdateView();
+    }
+
+    // What git stopped part way through, for as long as it is: red while there are conflicts to
+    // resolve, and yellow once there are none, until a commit or a continue finishes it. Right after
+    // ' Gmd ', the first thing on the line, since nothing else can be done the usual way meanwhile.
+    // A click opens what resolves, finishes or aborts it.
+    internal static Text GetOperation(Server.Status status)
+    {
+        if (!status.IsMerging)
+            return Common.Text.Empty;
+
+        var doing = status.Operation switch
+        {
+            GitOperation.Merge => "Merging",
+            GitOperation.CherryPick => "Cherry picking",
+            GitOperation.Revert => "Reverting",
+            GitOperation.Rebase => "Rebasing",
+            GitOperation.Am => "Applying patches",
+            _ => "In progress",
+        };
+        if (status.OperationTotal > 0)
+            doing += $" {status.OperationStep}/{status.OperationTotal}";
+
+        if (status.Conflicted > 0)
+        {
+            var conflicts = $"{status.Conflicted} conflict{(status.Conflicted == 1 ? "" : "s")}";
+            return Common.Text.BrightRed($"{doing}: {conflicts}").Dark(" ");
+        }
+
+        return Common
+            .Text.Yellow($"{doing}: {(status.IsFinishedByCommit ? "commit" : "continue")} to finish")
+            .Dark(" ");
+    }
+
+    // The other worktrees of the repository, i.e. the other folders with a checkout of it. Yellow
+    // when one of them has uncommitted changes, like the status marker is for this one.
+    static Text GetWorktrees(Server.Repo repo)
+    {
+        var others = repo.OtherWorktrees();
+        if (others.Count == 0)
+            return Common.Text.Empty;
+
+        var text = Common.Text.Dark(", ");
+        text = others.Any(w => w.HasChanges)
+            ? text.Yellow(WorktreeRows.WorktreeMarker)
+            : text.White(WorktreeRows.WorktreeMarker);
+        return text.Dark($"{others.Count}");
+    }
+
+    // Not in parentheses, which in the log mark a branch tip, and only ever the row's: a branch
+    // highlighted with ← → or the mouse is named on the key-hint line, as what the keys act on
+    public void SetRow(Text name)
+    {
+        Text item = name.Length > 0 ? Common.Text.Add(name).Dark(" ") : Common.Text.Empty;
+        if (item.Fragments.SequenceEqual(rowName.Fragments))
+            return;
+
+        rowName = item;
+        UpdateView();
+    }
+
+    void UpdateView()
+    {
+        isUpdateShown = config.Releases.IsUpdateAvailable();
+        items[(int)ApplicationBarItem.Update] = isUpdateShown ? Common.Text.BrightGreen("⇓ ") : Common.Text.Empty;
+
+        // The row's name is the one item left out when the bar is too narrow for it, rather than the
+        // search, the help and the close at the end being cut off; the commit details name it too
+        items[(int)ApplicationBarItem.Row] = rowName;
+        items[(int)ApplicationBarItem.Space] = Common.Text.Empty;
+        if (items.Sum(t => t.Length) > bounds.Width - 1)
+            items[(int)ApplicationBarItem.Row] = Common.Text.Empty;
+        items[(int)ApplicationBarItem.Space] = GetSpace();
+
+        label.Text = Common.Text.Add(items);
+    }
+
+    Text GetSpace()
+    {
+        var count = items.Sum(t => t.Length);
+        var space = new string(' ', Math.Max(0, bounds.Width - count - 1));
+        return Common.Text.White(space);
+    }
+
+    static Text GetRepoPath(Server.Repo repo)
+    {
+        var path = repo.Path.Length <= maxRepoLength ? repo.Path : $"┅{repo.Path[^maxRepoLength..]}";
+        return Common.Text.Dark($"{path}, ");
+    }
+
+    void SetCurrentBranch(Server.Repo repo)
+    {
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
+        if (currentBranch != null)
+        { // Current branch is shown
+            var color = branchColorService.GetColor(repo, currentBranch);
+            items[(int)ApplicationBarItem.CurrentBranch] = Common
+                .Text.White("●")
+                .Color(color, currentBranch.NiceNameUnique);
+        }
+        else
+        { // No Current branch
+            items[(int)ApplicationBarItem.CurrentBranch] = Common.Text.Empty;
+        }
+    }
+}

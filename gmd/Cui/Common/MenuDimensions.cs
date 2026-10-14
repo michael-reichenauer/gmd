@@ -79,6 +79,19 @@ record MenuDimensions(int X, int Y, int Width, int Height, int TitleWidth, int S
         );
     }
 
+    // The item on a row of the menu, counted from its top border and scrolled to firstIndex, or -1
+    // for a border or a row below the last item. A click on the frame picks nothing: it used to run
+    // the item next to it, or the one scrolled out of view beyond it, and in an empty menu it threw.
+    public int ItemAt(int y, int firstIndex, int itemCount)
+    {
+        var row = y - 1;
+        if (row < 0 || row >= Height - 2)
+            return -1;
+
+        var index = firstIndex + row;
+        return index < itemCount ? index : -1;
+    }
+
     // Where the details start: after the longest text of the items that have one, and a gap
     public static int DetailColumn(IReadOnlyList<MenuItem> items) =>
         items.Where(i => i.Detail != "").Select(i => i.Text.Length + 2).DefaultIfEmpty(0).Max();

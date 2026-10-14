@@ -1,4 +1,5 @@
 using gmd.Cui.Common;
+using gmd.Cui.Login;
 
 namespace gmd.Cui.RepoView;
 
@@ -10,23 +11,22 @@ namespace gmd.Cui.RepoView;
 // git's output.
 static class CommandRunner
 {
-    public static void Do(IProgress progress, IStatusLine status, IViewRepo repo, Func<Task<Result>> action)
+    public static void Do(CommandContext context, Func<IViewRepo, Task<Result>> action)
     {
+        var (progress, status) = (context.Progress, context.Status);
         UI.RunInBackground(async () =>
         {
             using (progress.Show())
             {
-                var result = await action();
+                var result = await action(context.ViewRepo);
                 if (result is Notice notice)
                 {
                     status.Notice(notice.Message);
                 }
                 else if (result is Error e && Git.ConflictError.IsIn(e))
                 {
-                    // The view repo of the refreshed view, since the refresh replaces the snapshot
-                    var repoView = repo.RepoView;
-                    await repoView.RefreshAsync();
-                    repoView.ViewRepo.Cmds.ShowConflicts();
+                    await context.View.RefreshAsync();
+                    context.RepoCmds.ShowConflicts();
                 }
                 else if (
                     result is Error cancelled
@@ -37,7 +37,7 @@ static class CommandRunner
                 }
                 else if (result is Error error)
                 {
-                    UI.ErrorMessage(Git.LoginError.Text(error));
+                    UI.ErrorMessage(LoginAdvice.Text(error));
                 }
             }
         });

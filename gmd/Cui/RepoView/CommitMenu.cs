@@ -14,16 +14,24 @@ class CommitMenu : ICommitMenu
     readonly IRepoMenu repoMenu;
     readonly IBranchMenu branchMenu;
     readonly IViewRepo repo;
+    readonly CommandContext commands;
     readonly ICommitCommands cmds;
     readonly DiffMark diffMark;
 
-    public CommitMenu(IRepoMenu repoMenu, IBranchMenu branchMenu, IViewRepo repo, DiffMark diffMark)
+    public CommitMenu(
+        IRepoMenu repoMenu,
+        IBranchMenu branchMenu,
+        IViewRepo repo,
+        CommandContext commands,
+        DiffMark diffMark
+    )
     {
         this.repoMenu = repoMenu;
         this.branchMenu = branchMenu;
         this.repo = repo;
+        this.commands = commands;
         this.diffMark = diffMark;
-        this.cmds = repo.CommitCmds;
+        this.cmds = commands.CommitCmds;
     }
 
     public void Show(int x, int y, int index)
@@ -48,13 +56,13 @@ class CommitMenu : ICommitMenu
 
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
-            .Item("Commit ...", "c", () => cmds.CommitFromMenu(false), () => !isStatusOK, () => "Nothing to commit")
+            .Item("Commit ...", "c", () => cmds.Commit(false), () => !isStatusOK, () => "Nothing to commit")
             // Enabled as the 'a' key is: a commit not yet pushed can be amended with no changes too,
             // to reword its message
             .Item(
                 "Amend ...",
                 "a",
-                () => cmds.CommitFromMenu(true),
+                () => cmds.Commit(true),
                 () => CommitRewrite.IsNotPushed(repo.Repo, cc),
                 () => "Only a commit not yet pushed can be amended"
             )
@@ -73,14 +81,14 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Create Branch from Commit ...",
                 "b",
-                () => repo.BranchCmds.CreateBranchFromCommit(),
+                () => commands.CreateCmds.CreateBranchFromCommit(),
                 () => !c.IsUncommitted,
-                () => "A branch starts at a commit: move to one first"
+                () => BranchCreateCommands.NoCommitToStartAt
             )
             .Item(
                 $"Merge Commit into {cb?.ShortNiceUniqueName()}",
                 "",
-                () => repo.BranchCmds.MergeBranch(c.Id),
+                () => commands.BranchCmds.MergeBranch(c.Id),
                 () => isStatusOK && rb != cb,
                 () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
             )
@@ -94,7 +102,7 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Switch to Commit",
                 "",
-                () => repo.BranchCmds.SwitchToCommit(),
+                () => commands.BranchCmds.SwitchToCommit(),
                 () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id,
                 () => !isStatusOK ? Why.Changes : "Already on this commit"
             )
@@ -102,14 +110,14 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Copy Commit Id",
                 "i",
-                () => repo.Cmds.CopyCommitId(),
+                () => commands.RepoCmds.CopyCommitId(),
                 () => !c.IsUncommitted,
                 () => RepoCommands.WhyNoCopy
             )
             .Item(
                 "Copy Commit Message",
                 "⇧i",
-                () => repo.Cmds.CopyCommitMessage(),
+                () => commands.RepoCmds.CopyCommitMessage(),
                 () => !c.IsUncommitted,
                 () => RepoCommands.WhyNoCopy
             )
@@ -117,7 +125,7 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Open Commit in Browser",
                 "",
-                () => repo.Cmds.OpenCommitInBrowser(c.Id),
+                () => commands.RepoCmds.OpenCommitInBrowser(c.Id),
                 () => WebCommands.CanOpenCommit(repo.Repo, c),
                 () => WebCommands.WhyNoOpenCommit(repo.Repo, c)
             )
@@ -147,19 +155,20 @@ class CommitMenu : ICommitMenu
         var current = repo.Repo.CurrentBranch();
         var step = BranchUndo.StepOf(repo.Repo, current);
         var whyNotDrop = CommitRewrite.WhyNotDrop(repo.Repo, repo.RowCommit);
+        var whyNotUncommit = CommitRewrite.WhyNotUncommit(repo.Repo, repo.RowCommit);
 
         return Menu
             .Items.Item(
                 BranchUndo.Label(step),
                 "",
-                () => repo.BranchCmds.UndoLastChange(current.Name),
+                () => commands.UndoCmds.UndoLastChange(current.Name),
                 () => BranchUndo.WhyNot(repo.Repo, current, step) == "",
                 () => BranchUndo.WhyNot(repo.Repo, current, step)
             )
             // The work no branch has any more, which the reflogs still know of
-            .Item("Recover Lost Commits ...", "", () => repo.BranchCmds.RecoverLostCommits())
+            .Item("Recover Lost Commits ...", "", () => commands.UndoCmds.RecoverLostCommits())
             // The branches gmd deleted, whose reflogs git deleted with them
-            .Item("Restore Deleted Branch ...", "", () => repo.BranchCmds.RestoreDeletedBranch())
+            .Item("Restore Deleted Branch ...", "", () => commands.UndoCmds.RestoreDeletedBranch())
             .Separator()
             .SubMenu(
                 "Discard Changes in a File",
@@ -186,11 +195,11 @@ class CommitMenu : ICommitMenu
                 () => !repo.Repo.Status.IsOk ? Why.Changes : "Only a commit not yet pushed can be uncommitted"
             )
             .Item(
-                $"Uncommit {id.Sid()} and Newer",
+                repo.RowCommit.IsUncommitted ? "Uncommit Commits" : $"Uncommit {id.Sid()} and Newer",
                 "",
                 () => cmds.UncommitUntilCommit(id),
-                () => repo.Repo.Status.IsOk && (repo.RowBranch.IsCurrent || repo.RowBranch.IsLocalCurrent),
-                () => !repo.Repo.Status.IsOk ? Why.Changes : "Only commits on the current branch can be uncommitted"
+                () => whyNotUncommit == "",
+                () => whyNotUncommit
             )
             .Separator()
             .Item(
@@ -203,13 +212,13 @@ class CommitMenu : ICommitMenu
             .Item(
                 "Discard All Changes",
                 "",
-                () => repo.Cmds.UndoAllUncommittedChanged(),
+                () => commands.RepoCmds.UndoAllUncommittedChanged(),
                 () => cmds.CanUndoUncommitted(),
                 () => "There are no uncommitted changes to undo"
             )
             // The same and the ignored files too, i.e. the folder as a fresh clone would have it.
             // Enabled with no changes as well, since deleting what git ignores is reason enough.
-            .Item("Discard All Changes and Ignored Files", "", () => repo.Cmds.CleanWorkingFolder());
+            .Item("Discard All Changes and Ignored Files", "", () => commands.RepoCmds.CleanWorkingFolder());
     }
 
     // The amend of the commit the menu is for, when that is an older one than the last, whose own
@@ -251,15 +260,17 @@ class CommitMenu : ICommitMenu
     // Squashes the commits selected with Shift-↑↓, which the item names once there are some
     IEnumerable<MenuItem> GetSquashItems()
     {
-        var selection = repo.RepoView.Selection;
+        var selection = commands.View.Selection;
         var (i1, i2) = (selection.I1, selection.I2);
         var selected = "";
+        var whyNot = "Select the commits to squash with ⇧↑↓ first";
         Commit? c1 = null;
         Commit? c2 = null;
-        if (!selection.IsEmpty && i2 - i1 > 0)
+        if (selection.IsRows)
         { // User selected range of commits
             c1 = repo.Repo.ViewCommits[i1];
             c2 = repo.Repo.ViewCommits[i2];
+            whyNot = CommitRewrite.WhyNotSquash(repo.Repo, c1, c2);
             if (!c1.IsUncommitted && !c2.IsUncommitted)
             {
                 selected = $"{Sid(c1.Id)}...{Sid(c2.Id)}";
@@ -270,8 +281,8 @@ class CommitMenu : ICommitMenu
             selected == "" ? "Squash ..." : $"Squash {selected} ...",
             "",
             () => cmds.SquashCommits(c1!.Id, c2!.Id),
-            () => !selection.IsEmpty && selected != "" && repo.Status.IsOk,
-            () => selected == "" ? "Select the commits to squash with ⇧↑↓ first" : Why.Changes
+            () => c1 != null && whyNot == "",
+            () => whyNot
         );
     }
 

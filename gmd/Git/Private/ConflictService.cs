@@ -45,10 +45,11 @@ class ConflictService : IConflictService
         // all — and it is a squash merge too. 'reset --merge' is what git's own advice points at
         // for backing out of one: it drops the conflicted merge from the index and the working
         // tree and clears the message, while keeping changes that are not part of it.
-        if (StatusService.IsMergeWithoutHead(wd))
+        var state = OperationState.Read(wd);
+        if (state.IsMergeWithoutHead)
             return await cmd.RunAsync("git", "reset --merge", wd);
 
-        var verbResult = OperationVerb(wd);
+        var verbResult = OperationVerb(state.Operation);
         if (verbResult is not string verb)
             return verbResult.Error;
 
@@ -61,11 +62,11 @@ class ConflictService : IConflictService
         // and gmd's own Cherry Pick and Undo/Revert Commit run '--no-commit', which leaves one
         // change staged for the commit dialog — continuing one would commit it with git's own
         // message instead. The UI offers Commit for all of these rather than this.
-        var operation = StatusService.GetOperation(wd);
-        if (operation != GitOperation.None && StatusService.IsFinishedByCommit(wd))
-            return new Error($"A {ToName(operation).ToLower()} is finished by committing it, not by continuing.");
+        var state = OperationState.Read(wd);
+        if (state.IsInProgress && state.IsFinishedByCommit)
+            return new Error($"A {ToName(state.Operation).ToLower()} is finished by committing it, not by continuing.");
 
-        var verbResult = OperationVerb(wd);
+        var verbResult = OperationVerb(state.Operation);
         if (verbResult is not string verb)
             return verbResult.Error;
 
@@ -74,13 +75,13 @@ class ConflictService : IConflictService
 
     public async Task<Result> SkipOperationAsync(string wd)
     {
-        var operation = StatusService.GetOperation(wd);
+        var operation = OperationState.Read(wd).Operation;
 
         // Only the two that replay a series of commits have anything to skip
         if (operation != GitOperation.Rebase && operation != GitOperation.Am)
             return new Error($"{ToName(operation)} has no commit to skip.");
 
-        var verbResult = OperationVerb(wd);
+        var verbResult = OperationVerb(operation);
         if (verbResult is not string verb)
             return verbResult.Error;
 
@@ -90,7 +91,7 @@ class ConflictService : IConflictService
     // A pathspec, not a bare path: '--' stops options being parsed but does *not* stop globbing, so
     // a file really named 'a[1].txt' would otherwise match 'a1.txt' instead of itself. Note that
     // 'git checkout-index' is the one command that will not take this — it wants a plain path.
-    static string Spec(string path) => $"-- \":(literal){path}\"";
+    static string Spec(string path) => $"-- {Cmd.Quote($":(literal){path}")}";
 
     // Reads the working tree file and parses it. The working tree file rather than the index
     // stages, because it is the only artifact that holds the text *between* the conflicts, and it
@@ -160,7 +161,7 @@ class ConflictService : IConflictService
         if (!stages.TryGetValue(1, out var baseSha) || !stages.ContainsKey(2) || !stages.ContainsKey(3))
             return file;
 
-        var tempDir = System.IO.Path.Join(StatusService.GetGitDir(wd), $"gmd-conflict-{Guid.NewGuid():N}");
+        var tempDir = System.IO.Path.Join(GitDir.GitDirPathOf(wd), $"gmd-conflict-{Guid.NewGuid():N}");
         if (Result.Catch(() => Directory.CreateDirectory(tempDir)) is Error e)
             return new Error("Failed to create a scratch folder", e);
 
@@ -246,7 +247,8 @@ class ConflictService : IConflictService
         // merge-file writes its result into the *first* file, which is why 'ours' is unpacked to a
         // temp of its own. A non-zero exit is the conflict count, i.e. the normal case, so the
         // result is judged by what it produced rather than by the exit code.
-        var args = $"merge-file --diff3 -L ours -L base -L theirs \"{oursFile}\" \"{baseFile}\" \"{theirsFile}\"";
+        var args =
+            $"merge-file --diff3 -L ours -L base -L theirs {Cmd.Quote(oursFile)} {Cmd.Quote(baseFile)} {Cmd.Quote(theirsFile)}";
         await cmd.RunAsync("git", args, tempDir, skipLogError: true);
 
         var mergedPath = System.IO.Path.Join(tempDir, oursFile);
@@ -267,7 +269,8 @@ class ConflictService : IConflictService
         return name.Trim();
     }
 
-    // Applies one decision per conflict, in order, and writes the file back.
+    // Applies one decision per conflict, in order, and writes the file back, marked resolved once
+    // every conflict in it is decided.
     //
     // The file is re-read rather than passed back down, which is what makes the layer above able to
     // hold a narrowed model with no markers in it. It also makes a file that changed on disk while
@@ -312,13 +315,29 @@ class ConflictService : IConflictService
             file = ConflictParser.SetChoice(file, choice.Index, choice.Choice, manual);
         }
 
-        return await WriteAsync(file, wd);
+        if (WriteText(file, wd) is Error writeError)
+            return writeError;
+
+        // Marked resolved only once no conflict is left in it. Staging is what 'resolved' means to
+        // git, so a file staged with markers left in it is no longer among the conflicts git lists,
+        // and the stages the rest is resolved from are gone: the ancestor, and the two sides a whole
+        // file choice checks out.
+        return file.UnresolvedCount == 0 ? await MarkResolvedAsync(path, wd) : Result.Ok;
     }
 
-    // Writes the resolved text back and marks the path resolved. Nothing about line endings is
-    // done here: every line carries the terminator it was read with, so what comes out is what went
-    // in, and git's own check-in conversion then applies exactly as it would to a hand edit.
+    // Writes the resolved text back and marks the path resolved
     public async Task<Result> WriteAsync(ConflictFile file, string wd)
+    {
+        if (WriteText(file, wd) is Error e)
+            return e;
+
+        return await MarkResolvedAsync(file.Path, wd);
+    }
+
+    // Nothing about line endings is done here: every line carries the terminator it was read with,
+    // so what comes out is what went in, and git's own check-in conversion then applies exactly as
+    // it would to a hand edit.
+    static Result WriteText(ConflictFile file, string wd)
     {
         if (file.IsBinary)
             return new Error($"{file.Path} is binary, so there is no text to write");
@@ -330,7 +349,7 @@ class ConflictService : IConflictService
         if (Result.Catch(() => File.WriteAllText(fullPath, text, new UTF8Encoding(file.HasBom))) is Error e)
             return new Error($"Failed to write {file.Path}", e);
 
-        return await MarkResolvedAsync(file.Path, wd);
+        return Result.Ok;
     }
 
     // Staging a path is what 'resolved' means to git, for a file it merged and for one it deleted
@@ -394,10 +413,8 @@ class ConflictService : IConflictService
     }
 
     // The git sub command of whatever is in progress, i.e. what '--abort' and friends attach to
-    static Result<string> OperationVerb(string wd)
-    {
-        var operation = StatusService.GetOperation(wd);
-        return operation switch
+    static Result<string> OperationVerb(GitOperation operation) =>
+        operation switch
         {
             GitOperation.Merge => "merge",
             GitOperation.CherryPick => "cherry-pick",
@@ -406,7 +423,6 @@ class ConflictService : IConflictService
             GitOperation.Am => "am",
             _ => new Error("No merge, rebase, cherry pick or revert is in progress."),
         };
-    }
 
     internal static string ToName(GitOperation operation) =>
         operation switch
@@ -422,7 +438,9 @@ class ConflictService : IConflictService
     // Carrying on can stop again on the next commit, which is not a failure of the command but the
     // normal shape of a rebase over several commits, and it can be refused because the conflict the
     // operation stopped on has not been resolved. Both come back as a non-zero exit, so they are
-    // told apart by what git printed — the same sniffing BranchService does when starting one.
+    // told apart by what git printed — the same sniffing BranchService does when starting one. A
+    // stop is a ConflictError, as any command's that stops on conflicts, so it is shown as one
+    // (RepoCommands.ShowConflicts) rather than as git's output in an error box.
     static Result ToResult(Result<string> result, string verb)
     {
         if (result is not CmdError e)
@@ -430,7 +448,7 @@ class ConflictService : IConflictService
 
         var output = $"{e.Output}\n{e.ErrorOutput}";
         if (output.Contains("CONFLICT"))
-            return new Error($"The {verb} stopped on more conflicts.\nResolve them and continue again.", e);
+            return new ConflictError($"The {verb} stopped on more conflicts", e);
 
         if (output.Contains("needs merge") || output.Contains("edit all merge conflicts"))
             return new Error(

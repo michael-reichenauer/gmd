@@ -8,7 +8,7 @@ namespace gmd.Cui.RepoView;
 static class Why
 {
     // What most commands that change branches need first: git refuses to switch, merge, pull or
-    // rebase over changes it would have to overwrite, and gmd asks for a clean tree before a push
+    // rebase over changes it would have to overwrite
     public const string Changes = "Commit or stash the changes first";
 
     // What a push waits for: not changes, which a push leaves where they are, but a merge or rebase
@@ -17,6 +17,14 @@ static class Why
 
     // A branch gmd knows only from the message of the merge that brought it in, drawn '~'
     public static string Deleted(Branch b) => $"'{b.NiceNameUnique}' was deleted: gmd knows it from a merge message";
+
+    // The main branch is the line every other branch is drawn off, so it cannot be hidden
+    public static string AlwaysShown(Branch b) => $"'{b.NiceNameUnique}' is the main branch, which is always shown";
+
+    // The colors no one picks: main is drawn in magenta, the line every other branch is drawn off,
+    // and a deleted branch in gray, which says it is gone
+    public const string AlwaysMagenta = "The main branch is always magenta";
+    public const string AlwaysGray = "A deleted branch is always gray";
 
     // Git lets a branch be checked out in one worktree only, and moves it only there
     public static string InWorktree(Branch b) => $"'{b.NiceNameUnique}' is checked out in another worktree";

@@ -79,19 +79,19 @@ public class BranchOrder
             .ToList();
 }
 
-interface IRepoConfig
+interface IRepoConfigService
 {
     RepoConfig Get(string rootPath);
     void Set(string rootPath, Action<RepoConfig> set);
 }
 
 // cSpell:ignore gmdconfig
-class RepoConfigImpl : IRepoConfig
+class RepoConfigService : IRepoConfigService
 {
-    static readonly string FileName = ".gmdconfig";
-    private readonly IFileStore store;
+    const string FileName = ".gmdconfig";
+    readonly IFileStore store;
 
-    public RepoConfigImpl(IFileStore store) => this.store = store;
+    public RepoConfigService(IFileStore store) => this.store = store;
 
     public RepoConfig Get(string path) => store.Get<RepoConfig>(RepoPath(path));
 

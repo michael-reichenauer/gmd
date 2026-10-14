@@ -10,18 +10,19 @@ interface ICommitService
     Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
     Task<Result> AutosquashAsync(string baseId, string wd);
     Task<Result> DropCommitAsync(string id, string wd);
+    Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd);
+    Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
-    Task<Result> ResetHardUntilCommitAsync(string id, string wd);
     Task<Result> ResetBranchAsync(string name, string toId, string fromId, bool isKeep, string wd);
 }
 
 // cSpell:ignore pathspec
 class CommitService : ICommitService
 {
-    private readonly ICmd cmd;
+    readonly ICmd cmd;
 
     public CommitService(ICmd cmd)
     {
@@ -30,9 +31,6 @@ class CommitService : ICommitService
 
     public async Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd)
     {
-        // Encode '"' chars
-        message = message.Replace("\"", "\\\"");
-
         // While an operation is in progress its result is already staged, and both of the ways of
         // staging here would stage an unmerged path with the conflict markers as its content —
         // 'git commit -am' on a conflicted merge succeeds and commits '<<<<<<<' into history. So
@@ -40,7 +38,7 @@ class CommitService : ICommitService
         //
         // The test used to be for .git/MERGE_MSG, which a rebase with the --apply backend and
         // 'git am' do not write, so those went down the staging path.
-        var isOperationInProgress = StatusService.IsOperationInProgress(wd);
+        var isOperationInProgress = OperationState.Read(wd).IsInProgress;
         if (!isOperationInProgress)
         {
             if (await cmd.RunAsync("git", "add .", wd) is Error e)
@@ -49,7 +47,7 @@ class CommitService : ICommitService
 
         var amendText = isAmend ? " --amend" : "";
         var allText = isOperationInProgress ? "" : "a";
-        var result = await cmd.RunAsync("git", $"commit{amendText} -{allText}m \"{message}\"", wd);
+        var result = await cmd.RunAsync("git", $"commit{amendText} -{allText}m {Cmd.Quote(message)}", wd);
 
         // Staging nothing means git now refuses a commit that it used to make, so say what to do
         // about it in gmd's own words rather than passing on 'error: Committing is not possible
@@ -77,11 +75,10 @@ class CommitService : ICommitService
     // empty pathspec file is no pathspec at all to git, which would stage and commit everything.
     public async Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd)
     {
-        message = message.Replace("\"", "\\\"");
         if (paths.Count == 0)
         {
             var amend = isAmend ? " --amend" : "";
-            return await cmd.RunAsync("git", $"commit{amend} --only --allow-empty -m \"{message}\"", wd);
+            return await cmd.RunAsync("git", $"commit{amend} --only --allow-empty -m {Cmd.Quote(message)}", wd);
         }
 
         var pathsFile = Path.GetTempFileName();
@@ -90,7 +87,7 @@ class CommitService : ICommitService
             if (Result.Catch(() => File.WriteAllText(pathsFile, string.Join('\0', paths))) is Error writeError)
                 return writeError;
 
-            var pathspec = $"--pathspec-from-file=\"{pathsFile}\" --pathspec-file-nul";
+            var pathspec = $"--pathspec-from-file={Cmd.Quote(pathsFile)} --pathspec-file-nul";
             var literal = new Dictionary<string, string> { ["GIT_LITERAL_PATHSPECS"] = "1" };
             if (await cmd.RunAsync("git", $"add -A {pathspec}", wd, environment: literal) is Error addError)
                 return addError;
@@ -98,7 +95,7 @@ class CommitService : ICommitService
             var amendText = isAmend ? " --amend" : "";
             return await cmd.RunAsync(
                 "git",
-                $"commit{amendText} -m \"{message}\" {pathspec}",
+                $"commit{amendText} -m {Cmd.Quote(message)} {pathspec}",
                 wd,
                 environment: literal
             );
@@ -123,17 +120,17 @@ class CommitService : ICommitService
     // Back to the last commit, in the index as well as in the working tree, which is what the
     // question before it says. From the index alone, as this used to, a change staged with another
     // tool stayed, and a new file staged there was not deleted: the diff used to unstage everything
-    // before this was picked, but no longer touches the index (DiffService.GetUncommittedDiff).
+    // before this was picked, but no longer touches the index (DiffService.GetUncommittedDiffAsync).
     public async Task<Result> UndoUncommittedFileAsync(string path, string wd)
     {
-        if (await cmd.RunAsync("git", $"checkout --force HEAD -- \"{path}\"", wd) is not Error e)
+        if (await cmd.RunAsync("git", $"checkout --force HEAD -- {Cmd.Quote(path)}", wd) is not Error e)
             return Result.Ok;
         if (!IsFileUnknown(e, path) && !e.Message.Contains("invalid reference: HEAD"))
             return new Error("Failed to reset", e);
 
         // Not in the last commit, or there is no commit yet, so a new file: out of the index, if it
         // was staged, and deleted
-        if (await cmd.RunAsync("git", $"rm --cached --ignore-unmatch -q -- \"{path}\"", wd) is Error rmError)
+        if (await cmd.RunAsync("git", $"rm --cached --ignore-unmatch -q -- {Cmd.Quote(path)}", wd) is Error rmError)
             return new Error("Failed to reset", rmError);
         var fullPath = Path.Combine(wd, path);
         if (Result.Catch(() => File.Delete(fullPath)) is Error deleteError)
@@ -151,7 +148,8 @@ class CommitService : ICommitService
     }
 
     // What CleanWorkingFolderAsync would delete, as git's dry run of the same clean lists it: every
-    // file git does not track, the ignored ones too, a folder named once rather than its files
+    // file git does not track, the ignored ones too, a folder named once rather than its files. A
+    // path is quoted when it needs it (QuotedPath).
     public async Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd)
     {
         var result = await cmd.RunAsync("git", "clean -n -x -d", wd);
@@ -162,7 +160,7 @@ class CommitService : ICommitService
         return output
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Where(l => l.StartsWith(Prefix))
-            .Select(l => l[Prefix.Length..])
+            .Select(l => QuotedPath.Unquote(l[Prefix.Length..]))
             .ToList();
     }
 
@@ -188,6 +186,26 @@ class CommitService : ICommitService
             "The drop stopped on conflicts"
         );
 
+    // A new commit with the files of a commit on the given parent, made without moving a branch or
+    // touching the index or the working tree, e.g. the commits from that parent up to that commit
+    // made one; its id. No hook runs, as for the commits a rebase replays.
+    public async Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd)
+    {
+        var args = $"commit-tree {filesOfId}^{{tree}} -p {parentId} -m {Cmd.Quote(message)}";
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
+        return output.Trim();
+    }
+
+    // Moves the commits of the current branch after 'upstream' onto 'onto', keeping the merges among
+    // them, which a plain rebase leaves out, putting the commits they merged in on the line instead
+    public async Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
+        ConflictError.ToConflict(
+            await cmd.RunAsync("git", $"rebase --rebase-merges --onto {onto} {upstream}", wd),
+            "The rebase stopped on conflicts"
+        );
+
     // The branches, remote branches and tags that have the commit, i.e. are on it or after it, as
     // full ref names, e.g. 'refs/heads/main', 'refs/remotes/origin/main' and 'refs/tags/v1'
     public async Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd)
@@ -209,20 +227,10 @@ class CommitService : ICommitService
         );
     }
 
-    public async Task<Result> UncommitLastCommitAsync(string wd)
-    {
-        return await cmd.RunAsync("git", "reset HEAD~1", wd);
-    }
+    public async Task<Result> UncommitLastCommitAsync(string wd) => await cmd.RunAsync("git", "reset HEAD~1", wd);
 
-    public async Task<Result> UncommitUntilCommitAsync(string id, string wd)
-    {
-        return await cmd.RunAsync("git", $"reset --soft {id}", wd);
-    }
-
-    public async Task<Result> ResetHardUntilCommitAsync(string id, string wd)
-    {
-        return await cmd.RunAsync("git", $"reset --hard {id}", wd);
-    }
+    public async Task<Result> UncommitUntilCommitAsync(string id, string wd) =>
+        await cmd.RunAsync("git", $"reset --soft {id}", wd);
 
     // Moves the current branch back to where it was, as Undo does: '--keep' moves the files too,
     // and refuses rather than overwrite a file with uncommitted changes, while '--mixed' leaves the

@@ -1,5 +1,5 @@
-using gmd.Cui;
 using gmd.Cui.Common;
+using gmd.Cui.Graphs;
 using gmd.Cui.RepoView;
 using gmd.Server;
 using gmdTest.Fixtures;
@@ -80,6 +80,22 @@ public class RepoWriterTest
             .ViewRepoAsync();
 
         StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 120), "x┅(^)(● main)");
+    }
+
+    // A subject too long for the column is cut to leave the tips and tags up to 20 columns, half
+    // each when both need more. It left them 6, as it took their widths before they were set, so at
+    // 80 columns the branch and its tag read '(^┅[r┅'.
+    [TestMethod]
+    public async Task TestALongSubjectLeavesRoomForTheTipsAndTags()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c1", new string('x', 200))
+            .BranchWithRemote("main", "c1")
+            .BranchWithRemote("feature/a-long-branch-name", "c1", isCurrent: true)
+            .Tag("release-2024-10-15", "c1")
+            .ViewRepoAsync();
+
+        StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 80), "x┅(^)(main)┅[release-┅");
     }
 
     // Characterization, and a wart: the sid, author and time columns are cut by Txt

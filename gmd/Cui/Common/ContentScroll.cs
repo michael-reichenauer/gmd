@@ -13,8 +13,6 @@ class ContentScroll
 {
     readonly Func<int> getContentHeight;
 
-    readonly bool isMoveUpDownWrap = false; // Not used yet
-
     int currentIndex = 0;
 
     internal ContentScroll(Func<int> getContentHeight)
@@ -117,12 +115,12 @@ class ContentScroll
 
         if (newCurrent < 0)
         { // Reached top, wrap or stay
-            newCurrent = isMoveUpDownWrap ? TotalCount - 1 : 0;
+            newCurrent = 0;
         }
 
         if (newCurrent >= TotalCount)
         { // Reached bottom, wrap or stay
-            newCurrent = isMoveUpDownWrap ? 0 : TotalCount - 1;
+            newCurrent = TotalCount - 1;
         }
 
         if (newCurrent == CurrentIndex)
@@ -147,10 +145,11 @@ class ContentScroll
     }
 
     // Called when the content has shrunk to fewer rows than the first shown row, i.e. when the
-    // view would show nothing: move to the end of the rows that are left.
+    // view would show nothing: move to the end of the rows that are left, as many as fill the view,
+    // where it showed the last three at its top
     public void MoveToEndOfContent()
     {
-        FirstIndex = Math.Max(0, TotalCount - 3);
+        FirstIndex = Math.Max(0, TotalCount - ContentHeight);
         CurrentIndex = TotalCount - 1;
     }
 
