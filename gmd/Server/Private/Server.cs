@@ -613,22 +613,14 @@ class Server : IServer
         return ChangeLog.Create(repo, newRelease, DateTime.UtcNow);
     }
 
-    public Task<Result> AddTagAsync(string name, string commitId, bool isPush, string wd) =>
-        Paused(() => ThenPushTagAsync(git.AddTagAsync(name, commitId, wd), isPush, name, wd));
+    public Task<Result> AddTagAsync(string name, string commitId, string wd) =>
+        Paused(() => git.AddTagAsync(name, commitId, wd));
 
-    public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, bool isPush, string wd) =>
-        Paused(() => ThenPushTagAsync(git.AddAnnotatedTagAsync(name, message, commitId, wd), isPush, name, wd));
+    public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd) =>
+        Paused(() => git.AddAnnotatedTagAsync(name, message, commitId, wd));
 
     public Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd) =>
         Paused(() => RemoveTagHereAndOnOriginAsync(name, isOnOrigin, wd));
-
-    // A tag made, and pushed when asked for, once it is made
-    async Task<Result> ThenPushTagAsync(Task<Result> adding, bool isPush, string name, string wd)
-    {
-        if (await adding is Error e)
-            return e;
-        return isPush ? await git.PushTagAsync(name, wd) : Result.Ok;
-    }
 
     async Task<Result> RemoveTagHereAndOnOriginAsync(string name, bool isOnOrigin, string wd)
     {

@@ -211,7 +211,7 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | Shift-E    | Merge the current branch into the highlighted branch       |
 | h          | Hide the highlighted branch                                |
 | Backspace  | Undo the last show or hide of branches                     |
-| g          | Change the color of the highlighted branch                 |
+| g          | Change the color of the highlighted branch (not main's)    |
 | p          | Push the highlighted branch, or the current one            |
 | u          | Pull the highlighted branch, or the current one            |
 | Shift-P    | Push all shown branches                                    |
@@ -466,7 +466,10 @@ Find more commands in the menus (the `m` key).
 
 ## Diff and Blame
 
-**Commit Diff** (`d`) shows the changes of a commit side by side. `+` shows
+**Commit Diff** (`d`) shows the changes of a commit side by side, after a
+list of its files, headed by how many were added, modified, renamed and
+removed, and the lines added and removed, e.g.
+`3 Files:  1 added, 2 modified   +25 -7 lines`. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
 stepping from the 6 lines of context it starts with to 15, and then to the
 whole file (and `=` does what `+` does, without the shift). It applies to
@@ -500,9 +503,11 @@ and marked `©`.
 Within the blame: `Enter` toggles the commit details of the current line,
 the same pane the log view shows, which follows the cursor as you move down
 the lines (`Tab` moves into it to scroll a long message). `d` shows the
-diff of the current line's commit, `l` the history of the lines selected
-with `Shift-↑↓`, or of the current one: every commit that changed them,
-with the diff of those lines alone, `p` blames the version before it (so a
+diff of the current line's commit, or for a line not committed yet the
+uncommitted changes, to read (they are committed and discarded from the
+log), `l` the history of the lines selected with `Shift-↑↓`, or of the
+current one: every commit that changed them, with the diff of those lines
+alone (and no more context, which git does not give it), `p` blames the version before it (so a
 reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column
@@ -553,6 +558,7 @@ next and previous one from wherever the cursor is.
 | s          | Save and mark the file resolved                            |
 | m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
+| Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 
 Nothing is written until `s`, so closing without saving leaves the file as

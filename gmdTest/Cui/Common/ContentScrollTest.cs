@@ -160,16 +160,32 @@ public class ContentScrollTest
         Assert.AreEqual(45, scroll.CurrentIndex);
     }
 
+    // Content that shrank to before the first row shown is shown to its end as a full view, with the
+    // cursor on its last row: it showed the three last rows at the top of an empty view
     [TestMethod]
-    public void TestMoveToEndOfContentShowsTheThreeLastRows()
+    public void TestMoveToEndOfContentFillsTheView()
     {
-        var scroll = NewScroll(7);
-        scroll.Scroll(5);
+        var scroll = NewScroll(100);
+        scroll.Scroll(80);
+        scroll.SetTotalCount(50);
 
         scroll.MoveToEndOfContent();
 
-        Assert.AreEqual(4, scroll.FirstIndex);
-        Assert.AreEqual(6, scroll.CurrentIndex);
+        Assert.AreEqual(40, scroll.FirstIndex);
+        Assert.AreEqual(49, scroll.CurrentIndex);
+    }
+
+    [TestMethod]
+    public void TestMoveToEndOfContentShorterThanTheViewShowsItAll()
+    {
+        var scroll = NewScroll(100);
+        scroll.Scroll(80);
+        scroll.SetTotalCount(5);
+
+        scroll.MoveToEndOfContent();
+
+        Assert.AreEqual(0, scroll.FirstIndex);
+        Assert.AreEqual(4, scroll.CurrentIndex);
     }
 
     [TestMethod]

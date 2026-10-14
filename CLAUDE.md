@@ -182,7 +182,7 @@ Key types and flow:
   cursor is, again with no view; `KeyHintBar` draws it, with the layout of `KeyHintLine` (both in
   `Cui/Common/`). The diff, blame and conflict views and the start page have a `KeyHintBar` of their
   own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). A key
-  whose meaning depends on where the cursor is (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`) is decided in
+  whose meaning depends on where the cursor is (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`, `h`, `g`) is decided in
   `LogKeys`, which says what its hint is or why it does nothing, and the keys and the hints both
   ask it; for any other key, when its behavior changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
@@ -239,9 +239,12 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
 
 - **`Cui/Diff/`** — `DiffRowService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
-  context larger than any file, since git has no "all". `DiffReload` is a delegate the view is given
+  context larger than any file, since git has no "all". `DiffSource` is what the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
+  It holds how to read the diff again (`DiffReload`), and what the view may do with it: step the
+  context (not a line history, `git log -L`), and commit and discard (the log's uncommitted diff
+  alone, not blame's).
 - **`Cui/Blame/`** — `BlameRowService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
   math, and steps detail down as the terminal narrows.

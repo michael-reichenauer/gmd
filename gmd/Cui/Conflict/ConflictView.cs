@@ -43,6 +43,7 @@ class ConflictView : IConflictView
     bool isShowBase;
     bool isResolved;
     bool isMovedToFirstHunk;
+    int resultHunk = -1;
     Action onChanged = () => { };
 
     readonly Config config;
@@ -88,6 +89,8 @@ class ConflictView : IConflictView
         this.isShowBase = false;
         this.isResolved = false;
         this.isMovedToFirstHunk = false;
+        this.resultHunk = -1;
+        this.rows = new ConflictRows();
         this.resolution = new ConflictResolution(file);
 
         // A file with nothing to merge as text is a whole file choice, not a three pane view: a
@@ -199,14 +202,25 @@ class ConflictView : IConflictView
         view.RegisterKeyHandler(Key.CursorLeft, () => Scroll(-1));
         view.RegisterKeyHandler(Key.CursorRight, () => Scroll(1));
 
+        // The result pane never has the focus (see where it is made), so it is scrolled from here,
+        // and by the mouse wheel over it: a result longer than the pane showed its first rows only
+        view.RegisterKeyHandler(Key.CursorDown | Key.ShiftMask, () => resultView.Scroll(1));
+        view.RegisterKeyHandler(Key.CursorUp | Key.ShiftMask, () => resultView.Scroll(-1));
+
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         // At the screen row above the click, so the first item is beside it: the view is two rows down
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y + 1));
     }
 
+    // The cursor stays on the line it was on: with the common ancestor shown or hidden, a conflict is
+    // as tall as its longest side, so the row it was at could be in another conflict
     void SetRows()
     {
+        var anchor = rows.Count > 0 ? rows.AnchorAt(contentView.CurrentIndex) : null;
         rows = rowService.ToRows(file, resolution, isShowBase);
+        if (anchor != null && rows.IndexOf(anchor) is var index and not -1 && index != contentView.CurrentIndex)
+            contentView.ShowCurrentIndex(index);
+
         SetHeader();
         contentView.SetNeedsDisplay();
         resultView.SetNeedsDisplay();
@@ -222,6 +236,12 @@ class ConflictView : IConflictView
     void OnCurrentIndexChange()
     {
         SetHeader();
+        // Another conflict's result is read from its start
+        if (CurrentHunk != resultHunk)
+        {
+            resultHunk = CurrentHunk;
+            resultView.Scroll(-resultView.FirstIndex);
+        }
         resultView.SetNeedsDisplay();
     }
 
@@ -250,7 +270,7 @@ class ConflictView : IConflictView
         if (lines.Count == 0)
             return ([Text.Dark("(nothing — the whole region is removed)")], 1);
 
-        var texts = lines.Skip(firstRow).Take(rowCount).Select(l => (Text)Text.White(l.Text));
+        var texts = lines.Skip(firstRow).Take(rowCount).Select(l => (Text)Text.White(ConflictRowService.Shown(l)));
         return (texts, lines.Count);
     }
 

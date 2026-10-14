@@ -203,6 +203,19 @@ class ContentView : View
     public override bool MouseEvent(MouseEvent ev)
     {
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
+        // A view that never takes the focus, the resolver's result pane, is scrolled by the wheel
+        // over it, the one way the mouse has to it
+        if (!HasFocus && !CanFocus && ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        {
+            Scroll(1);
+            return true;
+        }
+        if (!HasFocus && !CanFocus && ev.Flags.HasFlag(MouseFlags.WheeledUp))
+        {
+            Scroll(-1);
+            return true;
+        }
+
         if (!HasFocus)
             return base.MouseEvent(ev);
 
@@ -231,6 +244,7 @@ class ContentView : View
         else if (ev.Flags.HasFlag(MouseFlags.Button1Pressed))
         {
             ClearSelection();
+            selection.Press(ev.X, IndexAtY(ev.Y));
             return true;
         }
 
@@ -373,11 +387,12 @@ class ContentView : View
         SetNeedsDisplay();
     }
 
+    // The row index of a view row, below the top border if there is one
+    int IndexAtY(int y) => y + FirstIndex + (IsTopBorder ? -1 : 0);
+
     void MouseDrag(MouseEvent ev)
     {
-        var i = ev.Y + FirstIndex + (IsTopBorder ? -1 : 0);
-
-        var direction = selection.Drag(ev.X, i, TotalCount);
+        var direction = selection.Drag(ev.X, IndexAtY(ev.Y), TotalCount);
         if (direction < 0 && ev.Y <= 2)
         { // Dragging up at the top of the view, scroll to show the rows above
             Scroll(-1);

@@ -309,7 +309,7 @@ public class CommitDlgTest
             """
             Message: Uncommitted changes
 
-            2 Files:
+            2 Files:  1 added, 1 modified   +2 -0 lines
               Modified:    alpha.txt
               Added:       epsilon.txt
 
@@ -334,6 +334,27 @@ public class CommitDlgTest
         // Escape leaves the diff and lands back on the commit dialog rather than on the log view,
         // which is a modal over a modal over the log view
         gmd.Send("Escape");
+        StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "Commit 2 changes on 'main':");
+    }
+
+    // The same from the commit menu's Commit, which was opened a moment late, by a 100 ms timeout,
+    // since in a dialog opened from a menu Ctrl-D once showed no diff. A menu runs an item only once
+    // it has closed now, and the dialog opens at once.
+    [TestMethod]
+    public async Task TestTheCommitDialogOfTheMenuShowsTheUncommittedDiff()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        gmd.Send("Enter");
+        gmd.WaitFor("Commit 2 changes");
+
+        gmd.Send("C-d");
+        gmd.WaitFor("Added: epsilon.txt");
+        gmd.Send("Escape");
+
         StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "Commit 2 changes on 'main':");
     }
 

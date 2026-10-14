@@ -355,15 +355,9 @@ class RepoWriter : IRepoWriter
         text.Dark(txt);
     }
 
-    static string Txt(string text, int width)
-    {
-        if (text.Length <= width)
-        {
-            return text + new string(' ', width - text.Length);
-        }
-
-        return text[..width];
-    }
+    // A column of the row, cut or padded to its width in terminal columns, so that an author named
+    // in Chinese or Japanese does not move the time column after it
+    static string Txt(string text, int width) => TextWidth.Fit(text, width);
 
     IReadOnlyDictionary<string, TextBuilder> GetBranchTips(IViewRepo repo)
     {

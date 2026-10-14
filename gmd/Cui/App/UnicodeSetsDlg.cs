@@ -47,7 +47,7 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
 
     // Returns a list of texts of all the characters in each set in batches
     // Not all sets are included, only those most likely to be useful
-    IReadOnlyList<Text> GetContent()
+    internal static IReadOnlyList<Text> GetContent()
     {
         var sets = new List<Set>()
         {
@@ -68,7 +68,6 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
             new Set("CJK Compatibility Forms", 0xFE30, 0xFE4F),
             new Set("CJK Symbols and Punctuation", 0x3000, 0x303F),
             new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
-            new Set("Alphabetic Presentation Forms", 0xFB00, 0xFB4F),
             new Set("Alchemical Symbols", 0x1F700, 0x1F77F),
             new Set("Latin Extended-A", 0x0100, 0x017F),
             new Set("Latin Extended-B", 0x0180, 0x024F),
@@ -76,8 +75,8 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
             new Set("Latin Extended-C", 0x2C60, 0x2C7F),
             new Set("Latin Extended-D", 0xA720, 0xA7FF),
             new Set("Latin Extended-E", 0xAB30, 0xAB6F),
-            new Set("Latin Extended-F", 0x2DE0, 0x2DFF),
-            new Set("Latin Extended-G", 0xA7F2, 0xA7FF),
+            new Set("Latin Extended-F", 0x10780, 0x107BF),
+            new Set("Latin Extended-G", 0x1DF00, 0x1DFFF),
             new Set("IPA Extensions", 0x0250, 0x02AF),
             new Set("Spacing Modifier Letters", 0x02B0, 0x02FF),
             new Set("Greek and Coptic", 0x0370, 0x03FF),
@@ -181,18 +180,18 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
             // Add all rows in the set
             for (int i = set.start; i <= set.end; i += charsPerRow)
             {
-                // Add a row of characters
-                var rowChars = new List<char>();
+                // Add a row of characters, each as a string: one above U+FFFF is two chars, a
+                // surrogate pair, and was cut to its low 16 bits, i.e. another character
+                var rowChars = new List<string>();
                 for (int j = i; j < i + charsPerRow; j++)
                 {
-                    var c = j <= set.end ? (char)j : ' '; // Fill out the end of the row with spaces
-                    rowChars.Add(c);
-                    rowChars.Add(' ');
+                    rowChars.Add(j <= set.end ? char.ConvertFromUtf32(j) : " "); // Spaces fill out the end of the row
+                    rowChars.Add(" ");
                 }
 
                 // Add the row of characters with border sides
                 var codeText = Text.Dark($"{i:X4}").Dark("│ ");
-                allRows.Add(Text.Dark(" │").Add(codeText).White(string.Join("", rowChars.ToArray())).Dark("│"));
+                allRows.Add(Text.Dark(" │").Add(codeText).White(string.Concat(rowChars)).Dark("│"));
                 if (i + charsPerRow <= set.end)
                     allRows.Add(Text.Dark(" ├─").Dark(borderLine).Dark("┤"));
             }

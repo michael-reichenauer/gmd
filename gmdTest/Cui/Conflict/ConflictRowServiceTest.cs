@@ -194,6 +194,34 @@ public class ConflictRowServiceTest
         );
     }
 
+    // A tab is drawn as three spaces, as in the diff and blame: drawn as it is, the terminal moved it
+    // to its next tab stop and pushed the pane after it out of line
+    [TestMethod]
+    public void TestTabsAreExpandedSoThePanesLineUp()
+    {
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [
+                new ConflictSegment(Lines("\tabove"), null),
+                new ConflictSegment([], new ConflictHunk(0, "HEAD", "", "topic", Lines("\to1"), [], Lines("t1\tx"))),
+            ],
+            true,
+            true
+        );
+
+        Assert.AreEqual(
+            """
+               above
+            ─── Conflict 1 ── unr
+            HEAD      │topic
+               o1     │t1   x
+            """,
+            Draw(file, new ConflictResolution(file), 22)
+        );
+    }
+
     [TestMethod]
     public void TestHeaderCountsTheConflictsLeft()
     {

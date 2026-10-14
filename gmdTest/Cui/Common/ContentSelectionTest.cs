@@ -173,6 +173,33 @@ public class ContentSelectionTest
         Assert.IsTrue(selection.Selection.IsEmpty); // Nothing between the two ends yet
     }
 
+    // A drag's first event is the first move, a row or a column on from the press, where the
+    // selection started: the cell pressed was left out. It starts where the button was pressed now.
+    [TestMethod]
+    public void TestDragStartsWhereTheButtonWasPressed()
+    {
+        var selection = new ContentSelection();
+        selection.Press(3, 10);
+
+        Assert.AreEqual(1, selection.Drag(4, 11, 100), "Dragged down from the press");
+
+        Assert.AreEqual(new Selection(3, 10, 4, 11, 10), selection.Selection);
+    }
+
+    // A press is the start of the next drag only, not of one after a selection was cleared
+    [TestMethod]
+    public void TestAPressStartsOneDragOnly()
+    {
+        var selection = new ContentSelection();
+        selection.Press(3, 10);
+        selection.Drag(4, 11, 100);
+        selection.Clear();
+
+        selection.Drag(6, 20, 100);
+
+        Assert.AreEqual(new Selection(6, 20, 6, 20, 20), selection.Selection);
+    }
+
     [TestMethod]
     public void TestDragRightExpandsTheSelectedColumns()
     {

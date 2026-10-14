@@ -145,10 +145,11 @@ class ContentScroll
     }
 
     // Called when the content has shrunk to fewer rows than the first shown row, i.e. when the
-    // view would show nothing: move to the end of the rows that are left.
+    // view would show nothing: move to the end of the rows that are left, as many as fill the view,
+    // where it showed the last three at its top
     public void MoveToEndOfContent()
     {
-        FirstIndex = Math.Max(0, TotalCount - 3);
+        FirstIndex = Math.Max(0, TotalCount - ContentHeight);
         CurrentIndex = TotalCount - 1;
     }
 

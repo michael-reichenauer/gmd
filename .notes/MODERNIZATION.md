@@ -533,11 +533,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - `Cmd` reads output by lines (`BeginOutputReadLine`), which also break at a lone `\r`, and drops
     every `\r`, so the diff of a file with a bare CR in a line is split there, and a change of line
     endings alone shows nothing. Not tried end to end.
-  - The timers of `Progress` and `MessageDlg` are `System.Threading.Timer`s that pulse a view and
-    dereference `Application.MainLoop` on a thread pool thread. An exception there ends the process
-    from `AppDomain.UnhandledException`, with no `Application.Shutdown`, so the terminal is left as
-    Terminal.Gui set it. Posting the pulse with `UI.AddTimeout` would keep it on the main loop. (`Progress`'s read the marquee
-    field twice after its null check, against a `Stop` on the main loop; it reads it once now.)
+  - *Done 2026-10-14:* the timers of `Progress` and `MessageDlg` were `System.Threading.Timer`s
+    that pulsed a view and dereferenced `Application.MainLoop` on a thread pool thread, where an
+    exception ended the process with the terminal left as Terminal.Gui set it. They are main loop
+    timeouts now (`UI.AddTimeout`), which also need no `Wakeup`. `MessageDlg.ShowWhile` is only
+    reached by an update, which a dev build never offers, so its marquee was not seen running.
   - A failure stops gmd with `Application.RequestStop()`, posted to the main loop
     (`UI.ShutdownFromAnyThread`), which ends the current toplevel: with a modal dialog open, maybe
     only the dialog. Not verified.
@@ -594,24 +594,31 @@ Add new open issues and findings here as work lands; keep them short and drop th
     are decided in `LogKeys`, which `RepoViewInput` and `KeyHints` both ask. Left: the menus decide
     apart from both, through the shared rules (`CanPushBranch`, `CommitRewrite`, …) where there are
     some.
-  - `IDiffView` cannot be told what its source supports: line history (`git log -L`, which takes no
-    context) offers `+` / `-` and says the context changed; the diff of an uncommitted line from blame
-    offers commit and discard, and a discard leaves the blame stale. A `DiffSource` record (reload,
-    has context, can commit) in place of `DiffReload` would carry it.
-  - `Text` measures columns in UTF-16 units, so a CJK character or an emoji in a subject moves the
-    sid, author and time columns, and a cut can split a surrogate pair.
+  - *Done 2026-10-14:* `IDiffView` could not be told what its source supports: line history (`git
+    log -L`, which takes no context) offered `+` / `-` and said the context changed; the diff of an
+    uncommitted line from blame offered commit and discard, and a discard left the blame stale; a
+    range ending in the uncommitted changes offered them too. It is given a `DiffSource` now, the
+    reload and whether the diff has context and can be committed.
+  - *Done 2026-10-14:* `Text` measured columns in UTF-16 units, so a CJK character in a subject moved
+    the sid, author and time columns, a cut could split a surrogate pair, and an emoji was drawn as
+    `~I`, since Terminal.Gui 1.x's curses driver cannot draw a character outside the basic plane.
+    `TextWidth` measures in columns, with Terminal.Gui's own table, slices without splitting a
+    character, and draws one outside the basic plane as `�`, one column. Left: strings measured in
+    chars outside `Text` (`Max`, which is `gmd.Utils`', and the menu widths), so a menu item in CJK
+    is cut short rather than drawn wider.
   - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every
     branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
     the colors already. Not measured.
-  - Smaller: the diff's right-side line numbers after conflict markers are 3 low; the resolver's
-    result pane cannot be scrolled and its panes do not expand tabs; `b` there can move the cursor
-    to another conflict; a drag starts a row and a column after the press;
-    `g` on main says nothing; Merge says nothing when already merged; Add Tag says the tag
-    failed when only its push did; the commit diff and blame are opened outside the command's `Do`;
-    `CommitFromMenu` and `AmendOlderCommit` keep a 100 ms `UI.AddTimeout` whose reason is unknown;
-    Init proposes the start folder, `~` when gmd is started there; `UIComboTextField` adds a `Leave`
-    handler per open and shows Terminal.Gui's context menu; `MoveToEndOfContent` leaves the view
-    3 rows full; `UnicodeSetsDlg` (dev only) shows wrong characters above U+FFFF and lists a set twice.
+  - *Done 2026-10-14:* the smaller ones, each with a test: the diff's right side numbered 3 low
+    after conflict markers; the resolver's result not scrollable, its tabs not expanded, and `b`
+    moving its cursor to another conflict; `g` on main silent; Merge silent with nothing to merge;
+    Add Tag saying the tag failed when its push did; a drag starting a cell late; the 100 ms timeouts
+    of Commit and Amend from the menu, which a menu closing before its item runs made needless; Init
+    proposing the home folder; the combo field's context menu and handlers; `MoveToEndOfContent`
+    showing 3 rows; `UnicodeSetsDlg`. The commit diff and blame were opened outside the command's
+    `Do`, and the other diffs inside it: outside is right, since a view run under `Do`'s progress
+    has none of its own, no marquee and no keys held while git works, so they all are, but the diff
+    of lost commits, which its list comes back after.
 - Left by the review of `gmd/Installation` (2026-10-13):
   - The Windows swap (rename the running exe aside, the new one in, back on failure, each rename
     tried five times) runs in the tests on Linux only, where any file can be renamed. Windows allows

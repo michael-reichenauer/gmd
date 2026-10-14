@@ -28,7 +28,7 @@ class ConflictRowService : IConflictRowService
         {
             if (segment.Hunk == null)
             {
-                segment.Lines.ForEach(l => rows.Add(ConflictRow.Span(Text.White(l.Text))));
+                segment.Lines.ForEach(l => rows.Add(ConflictRow.Span(Text.White(Shown(l)))));
                 continue;
             }
 
@@ -72,11 +72,15 @@ class ConflictRowService : IConflictRowService
         for (int i = 0; i < height; i++)
         {
             var panes = sides
-                .Select((s, p) => (Text)(i < s.Count ? Text.Color(colors[p], s[i].Text) : Text.Dark("")))
+                .Select((s, p) => (Text)(i < s.Count ? Text.Color(colors[p], Shown(s[i])) : Text.Dark("")))
                 .ToList();
             rows.Add(new ConflictRow(panes, ConflictRowMode.Panes, hunk.Index));
         }
     }
+
+    // A line as drawn, with a tab as three spaces, as the diff and blame draw it: a tab is one
+    // character, which the terminal moves to its next tab stop, pushing the panes after it out of line
+    public static string Shown(FileLine line) => line.Text.Replace("\t", "   ");
 
     static string BaseLabelOf(ConflictHunk hunk)
     {

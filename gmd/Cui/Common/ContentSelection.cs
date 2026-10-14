@@ -23,6 +23,11 @@ class ContentSelection
     int lastMouseX = 0;
     int lastMouseIndex = 0;
 
+    // Where the button was last pressed, which the drag that follows starts from: its first event
+    // is the first move, a row or a column on, where the selection started, leaving out the cell
+    // pressed
+    (int X, int I)? pressed;
+
     public Selection Selection => selection;
     public bool IsSelected => isSelected;
     public int StartIndex => selection.I1;
@@ -99,8 +104,11 @@ class ContentSelection
         return true;
     }
 
+    // The button was pressed at the column x of the row index i, which a drag then starts from
+    public void Press(int x, int i) => pressed = (x, i);
+
     // Extends the selection to the column x of the row index i the mouse was dragged to, starting
-    // a selection if there is none. Returns which way the drag moved vertically (-1, 0 or 1), so
+    // a selection if there is none, where the button was pressed. Returns which way the drag moved vertically (-1, 0 or 1), so
     // the view can scroll when the drag reaches its top or bottom edge. A drag in the empty rows
     // below the content selects up to its last row: past it, a copy of the selected rows threw.
     public int Drag(int x, int i, int totalCount)
@@ -111,10 +119,13 @@ class ContentSelection
 
         if (!isSelected)
         { // Start mouse dragging
+            var (startX, startI) = pressed ?? (x, i);
+            startI = Math.Clamp(startI, 0, totalCount - 1);
+            pressed = null;
             isSelected = true;
-            selection = new Selection(x, i, x, i, i);
-            lastMouseX = x;
-            lastMouseIndex = i;
+            selection = new Selection(startX, startI, startX, startI, startI);
+            lastMouseX = startX;
+            lastMouseIndex = startI;
         }
 
         var x1 = selection.X1;

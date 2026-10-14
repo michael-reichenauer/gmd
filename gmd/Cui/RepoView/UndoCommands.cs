@@ -157,10 +157,10 @@ class UndoCommands : IUndoCommands
     {
         var repo = context.ViewRepo;
         var count = work.CommitIds.Count;
-        var reload =
+        var source =
             count == 1
-                ? DiffReloads.Single(n => server.GetCommitDiffAsync(work.TipId, n, repo.Path))
-                : DiffReloads.Single(n =>
+                ? DiffSource.Single(n => server.GetCommitDiffAsync(work.TipId, n, repo.Path))
+                : DiffSource.Single(n =>
                     server.GetDiffRangeAsync(
                         work.OldestId,
                         work.TipId,
@@ -170,11 +170,11 @@ class UndoCommands : IUndoCommands
                     )
                 );
 
-        var diffsResult = await reload(DiffContext.Default);
+        var diffsResult = await source.Reload(DiffContext.Default);
         if (diffsResult is not CommitDiff[] diffs)
             return new Error("Failed to diff the lost commits", diffsResult.Error);
 
-        diffView.Show(diffs[0], work.TipId, repo.Path, reload, ConflictState.None);
+        diffView.Show(diffs, source, repo.Path);
         return Result.Ok;
     }
 

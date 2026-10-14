@@ -290,9 +290,21 @@ class BranchCommands : IBranchCommands
             if (commitsResult is not IReadOnlyList<Commit> commits)
                 return new Error($"Failed to merge branch {branchName}", commitsResult.Error);
 
+            // Git merged nothing, so there is nothing to commit either: it did nothing and said nothing
+            if (commits.Count == 0)
+            {
+                var name = repo.Repo.BranchByName.TryGetValue(branchName, out var b)
+                    ? b.NiceNameUnique
+                    : branchName.Sid();
+                return NothingToMerge(repo.Repo.CurrentBranch().ShortNiceUniqueName(), name);
+            }
+
             RefreshAndCommit("", "", commits);
             return Result.Ok;
         });
+
+    static Notice NothingToMerge(string target, string source) =>
+        new($"Nothing to merge: '{target}' is already up to date with '{source}'");
 
     // Merges the current branch into some other branch, the opposite direction of MergeBranch.
     // Git can only merge into the checked out branch, so this switches to the target, merges,
@@ -336,10 +348,7 @@ class BranchCommands : IBranchCommands
             await repoView.RefreshAsync(sourceName);
 
             // Nothing was staged, so the target already had everything the source has
-            if (result == CommitResult.NothingToCommit)
-                UI.InfoMessage("Merge", $"'{targetName}' is already up to date with '{source}'.");
-
-            return Result.Ok;
+            return result == CommitResult.NothingToCommit ? NothingToMerge(targetName, source) : Result.Ok;
         });
 
     public void RebaseBranchOnto(string onto) =>
@@ -381,12 +390,12 @@ class BranchCommands : IBranchCommands
 
             message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
-            var reload = DiffReloads.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
-            var diffsResult = await reload(DiffContext.Default);
+            var source = DiffSource.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
+            var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
-            diffView.Show(diffs[0], sha1, repo.Path, reload, ConflictState.None);
+            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see CommitCommands.ShowDiff
             return Result.Ok;
         });
 

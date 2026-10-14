@@ -56,13 +56,13 @@ class CommitMenu : ICommitMenu
 
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
-            .Item("Commit ...", "c", () => cmds.CommitFromMenu(false), () => !isStatusOK, () => "Nothing to commit")
+            .Item("Commit ...", "c", () => cmds.Commit(false), () => !isStatusOK, () => "Nothing to commit")
             // Enabled as the 'a' key is: a commit not yet pushed can be amended with no changes too,
             // to reword its message
             .Item(
                 "Amend ...",
                 "a",
-                () => cmds.CommitFromMenu(true),
+                () => cmds.Commit(true),
                 () => CommitRewrite.IsNotPushed(repo.Repo, cc),
                 () => "Only a commit not yet pushed can be amended"
             )

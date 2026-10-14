@@ -369,9 +369,10 @@ class StartView : IStartView
     async Task InitAsync()
     {
         var folders = Folders();
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var defaultPath = repos.IsFolderInRepo
-            ? (folders.Any() ? folders[0] + Path.DirectorySeparatorChar : "")
-            : folder;
+            ? (folders.Any() ? InitPath.InFolder(folders[0]) : "")
+            : InitPath.Proposed(folder, home);
         var pathResult = initRepoDlg.Show(defaultPath, folders);
         view.SetFocus();
         if (pathResult is not string path)

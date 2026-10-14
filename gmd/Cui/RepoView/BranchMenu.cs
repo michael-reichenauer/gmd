@@ -327,7 +327,7 @@ class BranchMenu : IBranchMenu
                 // Main is always magenta and a deleted branch always gray, so neither can be changed
                 () =>
                     !repo.Repo.BranchByName[branchName].IsMainBranch && repo.Repo.BranchByName[branchName].IsGitBranch,
-                () => b.IsMainBranch ? "The main branch is always magenta" : "A deleted branch is always gray"
+                () => b.IsMainBranch ? Why.AlwaysMagenta : Why.AlwaysGray
             )
             // The pages of the service hosting the remote, see WebCommands
             .Item(

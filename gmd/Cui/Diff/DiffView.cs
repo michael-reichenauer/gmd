@@ -16,11 +16,11 @@ enum DiffResult
 
 interface IDiffView
 {
-    // conflicts is what git reports as unmerged, read by the caller — only the uncommitted diff can
-    // have any. Passed in rather than read here so it is awaited off the main loop: a Terminal.Gui
-    // SynchronizationContext posts an await's continuation to that loop, so blocking it deadlocks.
-    DiffResult Show(CommitDiff diff, string commitId, string repoPath, DiffReload reload, ConflictState conflicts);
-    void Show(CommitDiff[] diffs, string repoPath, DiffReload reload);
+    // diffs is what source read at the default context. conflicts is what git reports as unmerged,
+    // read by the caller — only the uncommitted diff can have any. Passed in rather than read here
+    // so it is awaited off the main loop: a Terminal.Gui SynchronizationContext posts an await's
+    // continuation to that loop, so blocking it deadlocks.
+    DiffResult Show(CommitDiff[] diffs, DiffSource source, string repoPath, ConflictState? conflicts = null);
 }
 
 class DiffView : IDiffView
@@ -37,14 +37,13 @@ class DiffView : IDiffView
     KeyHintBar? hintBar;
     CommitDiff[] diffs = null!;
     DiffRows diffRows = new DiffRows();
-    DiffReload reload = null!;
+    DiffSource source = null!;
 
     // The context lines of each file that is not at the default, keyed on path. Only the file the
     // cursor is on is ever stepped, so the others keep whatever they were last shown with.
     readonly Dictionary<string, int> fileContext = [];
     readonly IHelpPage helpPage;
     int rowStartX = 0;
-    string commitId = "";
     string repoPath = "";
     bool isFocusLeft = true;
     bool isCommitTriggered = false;
@@ -76,29 +75,17 @@ class DiffView : IDiffView
         this.conflictView = conflictView;
     }
 
-    public DiffResult Show(
-        CommitDiff diff,
-        string commitId,
-        string repoPath,
-        DiffReload reload,
-        ConflictState conflicts
-    ) => Show([diff], commitId, repoPath, reload, conflicts);
-
-    public void Show(CommitDiff[] diffs, string repoPath, DiffReload reload) =>
-        Show(diffs, "", repoPath, reload, ConflictState.None);
-
-    DiffResult Show(CommitDiff[] diffs, string commitId, string repoPath, DiffReload reload, ConflictState conflicts)
+    public DiffResult Show(CommitDiff[] diffs, DiffSource source, string repoPath, ConflictState? conflicts = null)
     {
         this.diffs = diffs;
-        this.reload = reload;
+        this.source = source;
         this.rowStartX = 0;
-        this.commitId = commitId;
         this.repoPath = repoPath;
         this.isFocusLeft = true;
         this.isCommitTriggered = false;
         this.isRefreshNeeded = false;
         this.fileContext.Clear();
-        this.conflictState = conflicts;
+        this.conflictState = conflicts ?? ConflictState.None;
         this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
 
         Toplevel diffView = new Toplevel()
@@ -124,7 +111,7 @@ class DiffView : IDiffView
         diffView.Add(contentView);
         hintBar = config.ShowKeyHints
             ? new KeyHintBar(
-                () => DiffHints.For(this.commitId == Repo.UncommittedId, conflictState.Files.Count > 0),
+                () => DiffHints.For(this.source.CanCommit, this.source.HasContext, conflictState.Files.Count > 0),
                 () => null
             )
             : null;
@@ -239,7 +226,7 @@ class DiffView : IDiffView
     // commit or a range closed it and opened the commit dialog for the working tree
     void TriggerCommit()
     {
-        if (commitId != Repo.UncommittedId)
+        if (!source.CanCommit)
             return;
         isCommitTriggered = true;
         Application.RequestStop();
@@ -377,7 +364,7 @@ class DiffView : IDiffView
     IEnumerable<Common.MenuItem> GetUndoItems()
     {
         var paths = diffRowService.GetDiffFilePaths(diffs[0]);
-        if (commitId != Repo.UncommittedId || paths.Count == 0)
+        if (!source.CanCommit || paths.Count == 0)
             return new List<Common.MenuItem>();
 
         var binaryPaths = diffRowService.GetDiffBinaryFilePaths(diffs[0]);
@@ -462,7 +449,7 @@ class DiffView : IDiffView
 
         using (progress.Show())
         {
-            var fetchedResult = await reload(wanted);
+            var fetchedResult = await source.Reload(wanted);
             if (fetchedResult is not CommitDiff[] fetched)
             {
                 UI.ErrorMessage($"Failed to get diff\n{fetchedResult.Error.AllMessages()}");
@@ -474,11 +461,13 @@ class DiffView : IDiffView
         }
     }
 
-    // The context the file would then be shown with, or 0 if the step would do nothing: there is
-    // no file under the cursor, or that file is already at the widest or the narrowest. Also what
-    // the menu asks to know whether to offer the item.
+    // The context the file would then be shown with, or 0 if the step would do nothing: the diff has
+    // no context to step, there is no file under the cursor, or that file is already at the widest or
+    // the narrowest. Also what the menu asks to know whether to offer the item.
     int WantedContext(string filePath, int step)
     {
+        if (!source.HasContext)
+            return 0;
         if (filePath == "")
             return 0; // The cursor is above the first file, so there is nothing to step
 
@@ -511,7 +500,7 @@ class DiffView : IDiffView
 
         using (progress.Show())
         {
-            var refreshedResult = await reload(DiffContext.Default);
+            var refreshedResult = await source.Reload(DiffContext.Default);
             if (refreshedResult is not CommitDiff[] refreshed)
             {
                 UI.ErrorMessage($"Failed to get diff\n{refreshedResult.Error.AllMessages()}");
@@ -520,7 +509,7 @@ class DiffView : IDiffView
 
             // What is still conflicted may have changed, e.g. a file was just resolved, and a stale
             // list would keep heading it 'Conflicts:' and keep offering it in the resolve menu
-            if (commitId == Repo.UncommittedId)
+            if (source.CanCommit)
             {
                 if (await server.GetConflictStateAsync(repoPath) is ConflictState state)
                     conflictState = state;

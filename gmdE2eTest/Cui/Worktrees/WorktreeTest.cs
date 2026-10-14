@@ -160,26 +160,7 @@ public class WorktreeTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
 
-        gmd.Send("Down");
-        gmd.WaitFor("Merge branch");
-        gmd.Send("Left");
-        gmd.WaitForStable();
-        gmd.Send("Enter");
-        gmd.WaitFor("More dev work");
-        gmd.Send("Right");
-        gmd.WaitForStable();
-
-        gmd.Send("m");
-        gmd.WaitFor("Branch: dev");
-        // Down to 'Create Worktree ...', past the disabled 'Rebase and Push onto' and 'Pull'
-        for (var i = 0; i < 6; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
-        gmd.Send("Enter");
-
-        var dialog = gmd.WaitFor("Create Worktree");
+        var dialog = OpenCreateWorktreeOfDev(gmd);
         var lines = ScreenText.Of(dialog, repo.Path).Split('\n');
         var first = Array.FindIndex(lines, l => l.Contains("╭ Create Worktree"));
         Assert.IsTrue(first > 0, "The dialog is on the screen");
@@ -305,5 +286,46 @@ public class WorktreeTest
         Assert.IsTrue(column >= 0, "The marker is in the top bar");
         var colors = ScreenText.ColorRows(gmd.CaptureColors(), 0, 1);
         return colors[column];
+    }
+
+    // The branch field offers the branches in a list, and is a text field otherwise: Shift-F10 opens
+    // gmd's context menu, as in every other text field, not Terminal.Gui's
+    [TestMethod]
+    public async Task TestTheBranchFieldHasTheContextMenuOfEveryTextField()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenCreateWorktreeOfDev(gmd);
+
+        gmd.Send("S-F10");
+
+        StringAssert.Contains(gmd.WaitFor("Select All"), "╭ Edit");
+    }
+
+    // Shows dev and opens its Create Worktree: down to the merge commit, left to hoover main, Enter
+    // to show dev, right to hoover it, and down the branch menu past the disabled 'Rebase and Push
+    // onto' and 'Pull'
+    static string OpenCreateWorktreeOfDev(TmuxSession gmd)
+    {
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("More dev work");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor("Branch: dev");
+        for (var i = 0; i < 6; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        return gmd.WaitFor("Create Worktree");
     }
 }

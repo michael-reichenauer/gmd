@@ -124,6 +124,19 @@ static class LogKeys
         return new(hoover.IsBranch ? "hide" : "");
     }
 
+    // 'g' gives the highlighted branch another color, else the row's branch; not hinted, being rare.
+    // The main branch and a deleted one keep theirs: 'g' on them did nothing and said nothing.
+    public static KeyAction Color(IViewRepo repo, Hoover hoover)
+    {
+        var branch = Hoovered(repo, hoover) ?? repo.RowBranch;
+        if (branch.IsMainBranch)
+            return KeyAction.No(Why.AlwaysMagenta);
+        if (!branch.IsGitBranch)
+            return KeyAction.No(Why.AlwaysGray);
+
+        return new("");
+    }
+
     // 'b' makes a branch from the highlighted branch, else at the row's commit
     public static KeyAction NewBranch(IViewRepo repo, Hoover hoover) =>
         !hoover.IsBranch && repo.RowCommit.IsUncommitted
