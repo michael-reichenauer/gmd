@@ -190,3 +190,28 @@ brew info --json=v2 --variations michael-reichenauer/tap/gmd   # the download on
 ```
 
 Then untap it the same way and `brew tap michael-reichenauer/tap` with no path, to be back on GitHub's.
+
+## The dev container feature
+
+`ghcr.io/michael-reichenauer/gmd/gmd`, which a `devcontainer.json` names in its `"features"`, is
+`devcontainer-feature/src/gmd/`: `devcontainer-feature.json`, its metadata and version, and
+`install.sh`, which installs the latest release when the container is built. It puts the binary in
+the container user's `~/.local/share/gmd` and links `/usr/local/bin/gmd` to it, so that gmd can
+update itself there: in the home, since on a Linux host the user's id is changed to the host user's
+as the container starts, and only the home is given the new id. On Debian and Ubuntu it installs what
+gmd needs that the image lacks.
+
+The workflow *Dev container feature* (`.github/workflows/devcontainer-feature.yml`) runs on every
+push that changes the feature. It builds a container with the feature on a full and a bare image,
+x64 and arm64, and runs `devcontainer-feature/test/gmd/test.sh` in each. From `main` it then
+publishes the feature, at the version in `devcontainer-feature.json`, so a change of the feature is
+published only with a new version there.
+
+The package is private when it is first published. Make it public once: on GitHub, *Packages* →
+*gmd/gmd* → *Package settings* → *Change visibility* → *Public*.
+
+To try a change before it is pushed, with Docker:
+
+```bash
+npx @devcontainers/cli@0.89.0 features test --project-folder devcontainer-feature --features gmd --base-image debian:bookworm-slim
+```

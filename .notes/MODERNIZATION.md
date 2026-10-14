@@ -73,6 +73,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
   folder the user cannot write to is said before the download. Tried with a real Homebrew on Linux
   arm64 from a local tap, and on macOS 27 from a local tap of a preview: installed, known as Homebrew's,
   and ⇓ says the brew command.
+- Two more ways to install (2026-10-14): `install.ps1`, `irm … | iex` on Windows, to
+  `%LOCALAPPDATA%\Programs\gmd` and the user's PATH, kept as written in the registry; and the dev
+  container feature `gmd` (`devcontainer-feature/`), whose binary is in the container user's
+  `~/.local/share/gmd` with a link on the PATH, so gmd updates itself there too. The feature is
+  tested by CI in containers built with it, on a full and a bare image, x64 and arm64. Its first
+  test failed: on a Linux host the devcontainer CLI changes the container user's id to the host
+  user's as the container starts (vscode was 1000 as the feature ran, 1001 in the container), and
+  gives only the home the new id, so a folder the feature gave the user elsewhere was no one's.
 - `gmd/Cui` reviewed (2026-10-13), by five reviewers in parallel and every finding checked against
   the code before it was acted on: 32 commits, the bugs under Bugs fixed. Structure: the key-hint
   line is `Cui/Common`'s (`KeyHint`, `KeyHintBar`, `KeyHintLine`) and each view's hints are beside
