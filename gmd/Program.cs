@@ -75,9 +75,15 @@ class Program
 
     void Run()
     {
-        LogProgramInfoAsync().RunInBackground();
+        LogProgramInfo();
 
+        // No program is started before Terminal.Gui has started, git's version included: curses sets
+        // the locale as it starts (setlocale), and on macOS a fork in another thread meanwhile hangs
+        // both, the fork waiting for setlocale's lock, and setlocale for malloc, which the fork has
+        // locked. gmd hung so at two starts in three, with nothing drawn (macOS 27, 2026-10-14).
         Application.Init();
+        LogGitVersionAsync().RunInBackground();
+
         // Only reached when no view above handles Esc, e.g. before a repo is shown. The log view
         // takes Esc itself and asks before quitting (RepoViewInput.QuitAfterAsking).
         Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
@@ -103,7 +109,7 @@ class Program
     static string InstalledBy(PackageManager? manager) =>
         manager == null ? "" : $", installed with {manager.Name}, which updates it";
 
-    async Task LogProgramInfoAsync()
+    static void LogProgramInfo()
     {
         Log.Info($"Version: {Build.Version()}");
         Log.Info($"Build    {Build.Time().ToLocalTime().IsoZone()}");
@@ -115,7 +121,10 @@ class Program
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");
         Log.Info($"Time:    {DateTime.Now.IsoZone()}");
+    }
 
+    async Task LogGitVersionAsync()
+    {
         var gitVersionResult = await git.GetVersionAsync();
         if (gitVersionResult is Error e)
             Log.Error($"No git command detected, {e}");
