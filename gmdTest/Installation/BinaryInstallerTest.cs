@@ -215,6 +215,48 @@ public class BinaryInstallerTest
         StringAssert.Contains(e.Message, "nothing came for");
     }
 
+    // A download cancelled by the user, from the box shown while updating, stops, and leaves gmd as
+    // it was, with nothing beside it
+    [TestMethod]
+    public async Task TestACancelledDownloadLeavesTheBinaryAndNoFile()
+    {
+        var http = new FakeHttp(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new NeverEndingStream()),
+        });
+        using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        var e = AssertError(
+            await new BinaryInstaller(Runs("1.6.1444.870"), http).InstallAsync(Binary, binaryPath, cancel.Token)
+        );
+
+        Assert.IsInstanceOfType<UpdateCancelledError>(e);
+        AssertNotInstalled();
+    }
+
+    // Cancelled while the new binary is checked, it is not put in place: the last moment it can be
+    // cancelled is right before, since on Windows that is two renames, and stopped between them there
+    // is no gmd at all
+    [TestMethod]
+    public async Task TestACancelBeforeTheBinaryIsPutInPlaceStopsIt()
+    {
+        using var cancel = new CancellationTokenSource();
+        var cmd = new FakeCmd(
+            (_, _, _) =>
+            {
+                cancel.Cancel(); // While the new binary runs to say its version
+                return FakeCmd.Ok("1.6.1444.870");
+            }
+        );
+
+        var e = AssertError(
+            await new BinaryInstaller(cmd, Release("new gmd")).InstallAsync(Binary, binaryPath, cancel.Token)
+        );
+
+        Assert.IsInstanceOfType<UpdateCancelledError>(e);
+        AssertNotInstalled();
+    }
+
     // A slow link: the whole download takes longer than the client's timeout, which is a limit on
     // getting the headers only, since there is no telling how long some 100 MB takes. With the body
     // read at once under that timeout, as before, this failed.
