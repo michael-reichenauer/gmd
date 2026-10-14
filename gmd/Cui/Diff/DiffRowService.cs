@@ -206,7 +206,7 @@ class DiffRowService : IDiffRowService
     // Add a summery of the files in the commit
     static void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows)
     {
-        rows.Add(Text.White($"{commitDiff.FileDiffs.Count} Files:"));
+        rows.Add(FilesRow(commitDiff));
 
         commitDiff.FileDiffs.ForEach(fd =>
         {
@@ -224,6 +224,55 @@ class DiffRowService : IDiffRowService
             rows.Add(text);
         });
     }
+
+    // "3 Files:  1 added, 2 modified   +25 -7 lines": how many files of each kind, worded and
+    // colored as the list below it, and the lines added and removed. Every changed line is in the
+    // hunks whatever their context, so the lines are counted as 'git diff --stat' counts them; a
+    // binary file has none, and a conflict's markers are not counted.
+    static Text FilesRow(CommitDiff diff)
+    {
+        var files = diff.FileDiffs;
+        var text = Text.White(files.Count == 1 ? "1 File:" : $"{files.Count} Files:");
+
+        var kinds = files.GroupBy(KindOf).ToDictionary(g => g.Key, g => g.Count());
+        var separator = "  ";
+        foreach (var (kind, color) in Kinds)
+        {
+            if (kinds.GetValueOrDefault(kind) is var count and > 0)
+            {
+                text.Dark(separator).Color(color, $"{count} {kind}");
+                separator = ", ";
+            }
+        }
+
+        var lines = files.SelectMany(f => f.SectionDiffs).SelectMany(s => s.LineDiffs).ToList();
+        var added = lines.Count(l => l.DiffMode == DiffMode.DiffAdded);
+        var removed = lines.Count(l => l.DiffMode == DiffMode.DiffRemoved);
+        if (added + removed > 0)
+            text.Dark("   ").Green($"+{added}").Dark(" ").Red($"-{removed}").Dark(" lines");
+
+        return text;
+    }
+
+    // The kinds of files the summery counts, in the order and the colors of ToColorText
+    static readonly (string Kind, Color Color)[] Kinds =
+    [
+        ("added", Color.Green),
+        ("modified", Color.White),
+        ("renamed", Color.Cyan),
+        ("removed", Color.Red),
+        ("conflicted", Color.BrightYellow),
+    ];
+
+    // A file renamed and modified is counted as renamed, which the list says it is too
+    static string KindOf(FileDiff fd) =>
+        fd.DiffMode switch
+        {
+            DiffMode.DiffAdded => "added",
+            DiffMode.DiffRemoved => "removed",
+            DiffMode.DiffConflicts => "conflicted",
+            _ => fd.IsRenamed ? "renamed" : "modified",
+        };
 
     // Add a diff for the file, which consists of several file section diffs
     static void AddFileDiff(FileDiff fileDiff, DiffRows rows, IReadOnlyDictionary<string, int> fileContext)

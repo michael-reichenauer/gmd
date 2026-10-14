@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using gmd.Cui.Diff;
 using gmd.Server;
 using gmdTest.Fixtures;
@@ -79,14 +80,17 @@ public class DiffRowServiceTest
 
     // The rows above the file list, i.e. the diff's own header
     static string SummeryOf(DiffRows rows) =>
-        string.Join("\n", DiffText.Of(rows).Split('\n').TakeWhile(l => !l.EndsWith("Files:"))).TrimEnd();
+        string.Join("\n", DiffText.Of(rows).Split('\n').TakeWhile(l => !IsFilesRow(l))).TrimEnd();
+
+    // '3 Files:' and what is counted after it, or '1 File:'
+    static bool IsFilesRow(string line) => Regex.IsMatch(line, @"^\d+ Files?:");
 
     // The 'N Files:' row and the one row per file below it. Sliced by where they sit in the text
     // picture, so the color picture lines up with it.
     static string FileListOf(DiffRows rows, bool colors = false)
     {
         var text = DiffText.Of(rows).Split('\n');
-        var first = text.FindIndexBy(l => l.EndsWith("Files:"));
+        var first = text.FindIndexBy(IsFilesRow);
         var count = text.Skip(first).TakeWhile(l => l != "").Count();
         var picture = (colors ? DiffText.ColorsOf(rows) : DiffText.Of(rows)).Split('\n');
 
@@ -380,7 +384,7 @@ public class DiffRowServiceTest
             Date:    2025-01-01 00:00:00
             Message: A commit
 
-            1 Files:
+            1 File:  1 modified
               Modified:    a.txt
 
             ━
@@ -436,7 +440,7 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            4 Files:
+            4 Files:  1 added, 1 modified, 1 removed, 1 conflicted   +1 -1 lines
               Modified:    m.txt
               Added:       a.txt
               Removed:     r.txt
@@ -462,7 +466,7 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            W WWWWWW
+            W WWWWWW  G GGGGGD W WWWWWWWWD R RRRRRRRD y yyyyyyyyyy   GG RR DDDDD
               WWWWWWWWW    WWWWW
               GGGGGG       GGGGG
               RRRRRRRR     RRRRR
@@ -470,6 +474,33 @@ public class DiffRowServiceTest
             """,
             FileListOf(rows, colors: true)
         );
+    }
+
+    // The files row counts the files of each kind, as the list below it names them, and the lines
+    // added and removed, which context lines do not count in
+    [TestMethod]
+    public void TestTheFilesRowCountsTheFilesAndTheLines()
+    {
+        var rows = new DiffRowService().ToDiffRows(
+            CommitDiffOf(
+                FileOf(
+                    "m.txt",
+                    lines:
+                    [
+                        (DiffMode.DiffSame, "m1"),
+                        (DiffMode.DiffRemoved, "m2"),
+                        (DiffMode.DiffAdded, "m2 changed"),
+                        (DiffMode.DiffAdded, "m3"),
+                        (DiffMode.DiffSame, "m4"),
+                    ]
+                ),
+                FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "a1"), (DiffMode.DiffAdded, "a2")]),
+                FileOf("b.txt", lines: [(DiffMode.DiffRemoved, "b"), (DiffMode.DiffAdded, "B")], pathBefore: "old.txt"),
+                FileOf("c.bin", isBinary: true)
+            )
+        );
+
+        Assert.AreEqual("4 Files:  1 added, 2 modified, 1 renamed   +5 -2 lines", FileListOf(rows).Split('\n')[0]);
     }
 
     // A rename git found no content change in names both paths and is called a rename rather than
@@ -481,7 +512,7 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            1 Files:
+            1 File:  1 renamed
               Renamed:     a.txt => b.txt (Renamed)
             """,
             FileListOf(rows)
@@ -498,14 +529,14 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            1 Files:
+            1 File:  1 modified
               Modified:    a.bin (Binary)
             """,
             FileListOf(rows)
         );
         Assert.AreEqual(
             """
-            W WWWWWW
+            W WWWWW  W WWWWWWWW
               DDDDDDDDD    DDDDD DDDDDDDD
             """,
             FileListOf(rows, colors: true)

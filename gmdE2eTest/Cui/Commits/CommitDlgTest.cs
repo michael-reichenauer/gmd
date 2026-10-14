@@ -309,7 +309,7 @@ public class CommitDlgTest
             """
             Message: Uncommitted changes
 
-            2 Files:
+            2 Files:  1 added, 1 modified   +2 -0 lines
               Modified:    alpha.txt
               Added:       epsilon.txt
 
