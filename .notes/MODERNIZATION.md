@@ -65,6 +65,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
   through (`FakeHttp`, and `LoopbackServer` for what HttpClient does with a slow or broken
   connection) and `RunningGmd` handing in the gmd to update, since the test process is a dotnet host.
   From no tests to 49. A real update of a running gmd was tried by hand on Linux arm64.
+- A Homebrew tap (2026-10-14), `michael-reichenauer/homebrew-tap`, which the release workflow
+  writes for every release from main (`scripts/brewformula`, a deploy key as `HOMEBREW_TAP_KEY`).
+  A gmd installed from it is known by its binary's folder in the Cellar (`PackageManager`) and
+  leaves updating to Homebrew: no install, no auto update, no previews, and ⇓ and `--update` say
+  `brew update && brew upgrade gmd`. The path is the binary's, not a link's that started it. A
+  folder the user cannot write to is said before the download. Tried with a real Homebrew on Linux
+  arm64 from a local tap; macOS is untried.
 - `gmd/Cui` reviewed (2026-10-13), by five reviewers in parallel and every finding checked against
   the code before it was acted on: 32 commits, the bugs under Bugs fixed. Structure: the key-hint
   line is `Cui/Common`'s (`KeyHint`, `KeyHintBar`, `KeyHintLine`) and each view's hints are beside
@@ -1201,3 +1208,21 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - The gmd versions out there update with their own code, so what they rely on outlives any change
   here: the asset names, the `v<a.b.c.d>` tags, the `<binary>.tmp_` files they leave for the next
   version to delete, `~/.gmdconfig`'s `Releases`, and the askpass channel.
+
+**Homebrew** (tried on Linux arm64, 2026-10-14)
+
+- A formula's download that is a plain file, not an archive, is staged under its URL's name
+  (`gmd_linux_arm64`), as a file downloaded is, 0644, so the formula renames it and sets its mode.
+  Homebrew then left the binary byte for byte as released (the .NET single-file bundle intact), and
+  its cleaner made it 0555, read only, in a folder the user can write to.
+- Homebrew's own build sandbox on Linux lets the build write to `/tmp`, and refuses to run when
+  Homebrew itself is under it ("Inherited sandbox permits writes to …/bin/brew"), so a Homebrew to
+  try things with goes elsewhere: `git clone --depth 1 https://github.com/Homebrew/brew` into
+  `~/.cache/…`, with its own `HOME` and `HOMEBREW_CACHE`, works in a custom prefix with a warning.
+- `brew upgrade` looks for new versions of a tap once a day (`HOMEBREW_AUTO_UPDATE_SECS`), so a
+  release of today needs `brew update` first. `brew untap` refuses while a formula of the tap is
+  installed (`--force`). `brew info --json=v2 --variations` evaluates the formula on every OS and
+  CPU, so the macOS half is checked from Linux too.
+- A formula, not a cask: Homebrew stopped supporting casks that fail Gatekeeper on 2026-09-01, and
+  a formula's download is never quarantined, so neither notarization nor a Developer ID is needed.
+  homebrew-core builds from source, which the C# 15 compiler of a .NET 11 preview rules out for now.

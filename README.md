@@ -16,7 +16,13 @@ commit, a push and an update of every shown branch.*
 
 ## Quick Install
 
-On Linux and macOS:
+On macOS and Linux, with [Homebrew](https://brew.sh):
+
+```bash
+brew install michael-reichenauer/tap/gmd
+```
+
+Or without Homebrew:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
@@ -268,7 +274,17 @@ There is no release for Intel Macs. You don't need admin rights or `sudo` on any
 
 ### Linux and macOS
 
-This one command picks the right file for your OS and CPU:
+With [Homebrew](https://brew.sh), on an Apple Silicon Mac or on Linux:
+
+```bash
+brew install michael-reichenauer/tap/gmd
+```
+
+Homebrew then updates gmd too, with `brew update && brew upgrade gmd`: gmd still shows ⇓ when
+there is a new version, and the command to run. The tap has the stable releases only, not the
+previews.
+
+Without Homebrew, this one command picks the right file for your OS and CPU:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
@@ -315,7 +331,8 @@ gmd --update
 ```
 
 The update replaces the executable where it is, so the folder must be writable by you. That is
-why it needs no `sudo` when gmd is in your home folder. Before it replaces anything, the new version
+why it needs no `sudo` when gmd is in your home folder. Installed with Homebrew, gmd is updated by
+Homebrew instead, as said above. Before it replaces anything, the new version
 is checked against the release's checksums and run once, so a download that would not start is
 never installed. The **Config ...** dialog can turn the
 update check off, update automatically, or allow preview releases, which are built from the

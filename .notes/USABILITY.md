@@ -418,7 +418,12 @@ Reach:
   the symbols new since the summer (`⇧`, `✦`, `⌂`, `·`) and the keys and features that depend on the
   system; the rest waits for reports.
 - [ ] 24. **Packages** (D.2): Homebrew, Scoop or winget, AUR, and an Intel Mac build. Needs the
-  author's accounts. M *Postponed (2026-10-08).*
+  author's accounts. M *Postponed (2026-10-08).* *Homebrew done (2026-10-14):* a tap the release
+  workflow writes, and a gmd installed from it updated by Homebrew (MODERNIZATION.md). Planned
+  next, in this order: winget and an `install.ps1` (`irm … | iex`) for Windows, which should
+  meet no SmartScreen warning since no browser downloads anything (to be tried on Windows), with
+  `gmdSetup.exe` out of the README; a dev container feature; then maybe Scoop, a dotnet tool, an
+  Intel Mac build.
 
 Waiting for the Terminal.Gui 2.x port:
 

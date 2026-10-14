@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# Writes the Homebrew formula of a release of gmd to stdout, made from the release's SHA256SUMS:
+#   scripts/brewformula <version> [<SHA256SUMS file>]
+# With no file, the release's SHA256SUMS is downloaded from GitHub. The release workflow runs it for
+# every release from main and pushes the formula to the tap, michael-reichenauer/homebrew-tap, as
+# Formula/gmd.rb, from where 'brew install michael-reichenauer/tap/gmd' installs it. Run by hand, it
+# makes the formula of a release made before that, e.g. the tap's first.
+#
+# The formula installs the release's binaries as they are, the same files install.sh downloads,
+# rather than building gmd, which Homebrew does only for a formula of its own repository. gmd knows
+# a binary Homebrew installed by its folder in the Cellar, and leaves updating it to Homebrew
+# (gmd/Installation/PackageManager.cs), so keep the formula's name gmd.
+
+# At the repository root, wherever it is started from
+cd "$(dirname "$0")/.." || exit 1
+
+VERSION="${1#v}"
+SUMS_FILE="$2"
+if [ -z "$VERSION" ]; then
+  echo "usage: scripts/brewformula <version> [<SHA256SUMS file>]" >&2
+  exit 1
+fi
+
+URL="https://github.com/michael-reichenauer/gmd/releases/download/v$VERSION"
+if [ -n "$SUMS_FILE" ]; then
+  SUMS="$(cat "$SUMS_FILE")" || exit 1
+elif ! SUMS="$(curl -fsSL "$URL/SHA256SUMS")"; then
+  echo "Error: failed to download $URL/SHA256SUMS" >&2
+  exit 1
+fi
+
+# The checksum of an asset, or a failure when the release has none for it
+sum() {
+  local SUM
+  SUM="$(awk -v f="$1" '$2 == f || $2 == "*" f { print $1 }' <<< "$SUMS")"
+  if ! [[ "$SUM" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "Error: no checksum of $1 in the SHA256SUMS of $VERSION" >&2
+    return 1
+  fi
+  echo "$SUM"
+}
+
+OSX_ARM64="$(sum gmd_osx_arm64)" || exit 1
+LINUX_ARM64="$(sum gmd_linux_arm64)" || exit 1
+LINUX_X64="$(sum gmd_linux_x64)" || exit 1
+
+# There is no release for Intel Macs, see scripts/build. A binary is a plain file, not an archive,
+# so Homebrew stages it under its asset name, and as a file it downloaded, not as executable.
+cat << EOF
+# The Homebrew formula of gmd, written by scripts/brewformula in michael-reichenauer/gmd for every
+# release, so a change made here is overwritten by the next one
+class Gmd < Formula
+  desc "Git client for the terminal that shows only the branches you choose"
+  homepage "https://github.com/michael-reichenauer/gmd"
+  version "$VERSION"
+  license "MIT"
+
+  on_macos do
+    depends_on arch: :arm64
+
+    url "$URL/gmd_osx_arm64"
+    sha256 "$OSX_ARM64"
+  end
+
+  on_linux do
+    on_arm do
+      url "$URL/gmd_linux_arm64"
+      sha256 "$LINUX_ARM64"
+    end
+    on_intel do
+      url "$URL/gmd_linux_x64"
+      sha256 "$LINUX_X64"
+    end
+  end
+
+  def install
+    binary = Dir["gmd_*"].first
+    chmod 0755, binary
+    bin.install binary => "gmd"
+  end
+
+  test do
+    assert_equal version.to_s, shell_output("#{bin}/gmd --version").strip
+  end
+end
+EOF

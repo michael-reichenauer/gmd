@@ -26,6 +26,7 @@ scripts/log            # tail the runtime log with lnav (~/gmd.log)
 scripts/updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
 scripts/installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
 scripts/demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
+scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
 ```
 
 Each script runs at the repository root, wherever it is started from, so `scripts/run` opens this
@@ -104,6 +105,8 @@ Beside the layers: `gmd/Common/` holds the config (`Config`, `ConfigService`, `R
 command line (`ProgramCommands`) and `Spelling/`; `gmd/Installation/` is the self-updater:
 `Updater` decides when, `GitHubReleases` reads the releases, `ReleaseChoice` picks the release and
 the binary for this platform, and `BinaryInstaller` downloads it, checks it and swaps it in.
+`PackageManager` tells a gmd that a package manager installed by where its binary is (Homebrew's
+`Cellar/gmd/<version>/bin`), and the updater then leaves updating it to that, saying the command.
 
 Key types and flow:
 
@@ -796,6 +799,10 @@ message.
   (`Write release notes`): main's are its section of `CHANGELOG.md`, a preview's what is new on dev.
   Only the latest five previews are kept (`Prune old previews`), with their tags, except a tag on
   main's first-parent line, since the change log is made from the version tags there.
+- **The Homebrew tap, `michael-reichenauer/homebrew-tap`, is written by the release workflow**
+  for every release from `main` (`scripts/brewformula`, pushed with the deploy key in the secret
+  `HOMEBREW_TAP_KEY`; docs/CONTRIBUTING.md has the setup). Its formula names the release assets
+  too, and gmd knows a brewed binary by the formula's name in its path, so keep the formula `gmd`.
 - **The updater of one version installs the next**, so a bug in `gmd/Installation/` ships unseen
   and shows one release later, at users who can then only reinstall by hand. Whatever the gmd
   versions out there rely on stays: the asset names and `SHA256SUMS`, the `v<a.b.c.d>` tags, the
