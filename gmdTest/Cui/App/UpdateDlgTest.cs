@@ -71,6 +71,30 @@ public class UpdateDlgTest
         );
     }
 
+    // Windows cannot replace a program that runs, so winget updates gmd once it is closed
+    [TestMethod]
+    public void TestAGmdInstalledWithWingetIsToldToCloseItFirst()
+    {
+        var message = UpdateDlg.Message(
+            new Version(1, 5, 1444, 48),
+            Running,
+            new Version(1, 6, 1444, 518),
+            Latest,
+            false,
+            PackageManager.Winget
+        );
+
+        StringAssert.EndsWith(
+            message,
+            """
+            Gmd was installed with winget, so it is
+            updated, once gmd is closed, with:
+
+              winget upgrade --id MichaelReichenauer.gmd
+            """
+        );
+    }
+
     // A release's changes are in the change log, with those of every release skipped since this one,
     // and a preview's in its release notes, since the change log only has them once released
     [TestMethod]

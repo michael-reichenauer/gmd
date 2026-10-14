@@ -90,7 +90,9 @@ class ProgramCommands : IProgramCommands
         if (updater.PackageManager is PackageManager manager)
         {
             Console.WriteLine($"{available.Version} is available, and gmd was installed with {manager.Name},");
-            Console.WriteLine($"so update it with: {manager.UpdateCommand}");
+            Console.WriteLine(
+                $"so update it{(manager.IsClosedFirst ? ", once gmd is closed," : "")} with: {manager.UpdateCommand}"
+            );
             return -1;
         }
 

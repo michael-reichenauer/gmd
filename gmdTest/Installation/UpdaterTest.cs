@@ -240,6 +240,26 @@ public class UpdaterTest
         Assert.AreEqual(0, installer.Calls.Count);
     }
 
+    [TestMethod]
+    public async Task TestAGmdInstalledWithWingetIsNotUpdatedByGmd()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+        var winget = Running with
+        {
+            Path =
+                @"C:\Users\anna\AppData\Local\Microsoft\WinGet\Packages\MichaelReichenauer.gmd_Microsoft.Winget.Source_8wekyb3d8bbwe\gmd.exe",
+        };
+
+        var e = AssertError(await updater.UpdateAsync(winget));
+
+        StringAssert.Contains(
+            e.Message,
+            "installed with winget, so update it, once gmd is closed, with 'winget upgrade"
+        );
+        Assert.AreEqual(0, installer.Calls.Count);
+        Assert.IsFalse(updater.IsToInstall(winget));
+    }
+
     // The update is still offered, as the command that makes it, but not installed by the regular check
     [TestMethod]
     public async Task TestAGmdInstalledWithHomebrewIsOfferedAnUpdateButNotAutoUpdated()
