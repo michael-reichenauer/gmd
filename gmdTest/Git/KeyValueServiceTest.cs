@@ -125,24 +125,60 @@ public class KeyValueServiceTest
     }
 
     // Push is forced, since the value is a merge of the local and remote data rather than a
-    // fast forward of it. It pushes the object the value is when the push starts, and records that
-    // one as origin's, so that a value set meanwhile is not taken for origin's.
+    // fast forward of it, but leased on origin's value as last fetched or pushed. It pushes the object
+    // the value is when the push starts, and records that one as origin's, so that a value set
+    // meanwhile is not taken for origin's.
     [TestMethod]
     public async Task TestPushValue()
     {
-        var cmd = new FakeCmd("objectid123\n");
+        var cmd = new FakeCmd(
+            (_, args, _) => FakeCmd.Ok(args.Contains("--quiet") ? "lastorigin456\n" : "objectid123\n")
+        );
 
-        AssertOk(await new KeyValueService(cmd).PushValueAsync("data", wd));
+        Assert.IsTrue(AssertOk(await new KeyValueService(cmd).PushValueAsync("data", wd)));
 
         CollectionAssert.AreEqual(
             new[]
             {
                 $"rev-parse --verify {KeyRef}",
-                $"push --porcelain origin --force objectid123:{KeyRef}",
+                $"rev-parse --verify --quiet {OriginRef}",
+                $"push --porcelain origin --force-with-lease={KeyRef}:lastorigin456 objectid123:{KeyRef}",
                 $"update-ref {OriginRef} objectid123",
             },
             cmd.Calls.Select(c => c.Args).ToArray()
         );
+    }
+
+    // With no record of origin's value, the lease is on origin having none
+    [TestMethod]
+    public async Task TestAFirstPushIsLeasedOnOriginHavingNone()
+    {
+        var cmd = new FakeCmd(
+            (_, args, _) => args.Contains("--quiet") ? FakeCmd.Fail("") : FakeCmd.Ok("objectid123\n")
+        );
+
+        AssertOk(await new KeyValueService(cmd).PushValueAsync("data", wd));
+
+        Assert.AreEqual(
+            $"push --porcelain origin --force-with-lease={KeyRef}: objectid123:{KeyRef}",
+            cmd.Calls[2].Args
+        );
+    }
+
+    // Another clone pushed since the last fetch: the push is refused, says so, and records nothing
+    [TestMethod]
+    public async Task TestAPushOverAValuePushedSinceIsRefused()
+    {
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.StartsWith("push")
+                    ? new CmdResult("git push", 1, $"!\tobjectid123:{KeyRef}\t[rejected] (stale info)\nDone", "")
+                    : FakeCmd.Ok("objectid123\n")
+        );
+
+        Assert.IsFalse(AssertOk(await new KeyValueService(cmd).PushValueAsync("data", wd)));
+
+        Assert.IsFalse(cmd.Calls.Any(c => c.Args.StartsWith("update-ref")));
     }
 
     // A push that fails is not recorded as origin's value

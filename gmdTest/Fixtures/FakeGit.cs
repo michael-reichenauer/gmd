@@ -130,15 +130,18 @@ class FakeGit : IGit
         );
     }
 
-    public Task<Result> PushValueAsync(string key, string wd)
+    // Leased on origin's value as last fetched or pushed, as git's push is
+    public Task<Result<bool>> PushValueAsync(string key, string wd)
     {
         ValueCalls.Add($"push {key}");
         if (!Values.TryGetValue(key, out var value))
-            return Task.FromResult<Result>(new Error("fatal: Needed a single revision"));
+            return Task.FromResult<Result<bool>>(new Error("fatal: Needed a single revision"));
+        if (RemoteValues.GetValueOrDefault(key) != OriginValues.GetValueOrDefault(key))
+            return Task.FromResult<Result<bool>>(false);
 
         RemoteValues[key] = value;
         OriginValues[key] = value;
-        return Task.FromResult(Result.Ok);
+        return Task.FromResult<Result<bool>>(true);
     }
 
     public Task<Result> FetchValueAsync(string key, string wd)

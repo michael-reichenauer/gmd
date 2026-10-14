@@ -553,9 +553,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - `Repo` is three things in one type, the augmented repo, the view and the filtered view, told apart
     by whether `ViewCommits` is filled, and with the view state in `Commit` and `Branch` (roadmap C)
     every Show and Hide copies every commit of the log, up to 30,000.
-  - The metadata is pushed with `--force` over origin's, so a choice someone pushed since the last
-    fetch here is lost. A lease on the recorded value of origin's
-    (`--force-with-lease=<ref>:<recorded id>`) and a fetch and merge on refusal would keep it.
+  - *Done 2026-10-14:* the metadata was pushed with `--force` over origin's, so a choice someone
+    pushed since the last fetch here was lost. The push is leased on the record of origin's value
+    (`--force-with-lease=<ref>:<recorded id>`, or on there being none), and refused, origin's is
+    fetched and merged and the merge pushed, three goes at most.
   - A diverged branch pair is still merged or rebased onto by the younger tip (`MergeTipName`).
   - An empty repo's branch is shown as `main` whatever its unborn HEAD is named
     (`AugmentedService.EmptyGitRepo`).
