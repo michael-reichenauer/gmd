@@ -34,6 +34,8 @@ On Windows, in PowerShell:
 irm https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.ps1 | iex
 ```
 
+In a dev container, add the feature `ghcr.io/michael-reichenauer/gmd/gmd:1` to its `devcontainer.json`.
+
 Then run `gmd` in a Git repository. [Installation](#installation) has the details, and the files to
 install by hand.
 
@@ -327,6 +329,21 @@ To install by hand instead, download `gmd.exe` from the releases page and put it
 is not: **More info** and **Run anyway** start it. The installer on the releases page,
 `gmdSetup.exe`, works too, with the same warning: it puts gmd in `C:\ProgramData\gmd` with Start
 menu and desktop shortcuts, and **Config ...** in the repo menu can then add it to the `PATH`.
+
+### In a dev container
+
+The gmd feature installs gmd in a [dev container](https://containers.dev), in VS Code or GitHub
+Codespaces. Add it to the project's `devcontainer.json`:
+
+```json
+"features": {
+    "ghcr.io/michael-reichenauer/gmd/gmd:1": {}
+}
+```
+
+The container then has the latest release each time it is built, and gmd updates itself in it in
+between. On a Debian or Ubuntu image the feature also installs what gmd needs and the image lacks:
+git, ncurses and ICU. There is no gmd for Alpine images.
 
 ### Updating
 

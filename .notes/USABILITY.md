@@ -427,7 +427,8 @@ Reach:
   Intel Mac build. *`install.ps1` on dev (2026-10-14):* `irm … | iex` installs gmd.exe to
   `%LOCALAPPDATA%\Programs\gmd` and the user's PATH, and the README leads with it on Windows; tried
   on Linux PowerShell as far as it goes there (the download, the checksum, the replace), untried on
-  Windows.
+  Windows. *Dev container feature on dev (2026-10-14):* `ghcr.io/michael-reichenauer/gmd/gmd:1`,
+  tested by CI in containers and published from main; its package is to be made public once.
 
 Waiting for the Terminal.Gui 2.x port:
 

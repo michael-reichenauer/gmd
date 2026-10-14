@@ -807,6 +807,9 @@ message.
   for every release from `main` (`scripts/brewformula`, pushed with the deploy key in the secret
   `HOMEBREW_TAP_KEY`; docs/CONTRIBUTING.md has the setup). Its formula names the release assets
   too, and gmd knows a brewed binary by the formula's name in its path, so keep the formula `gmd`.
+- **`devcontainer-feature/` is the dev container feature `gmd`**, tested on every change and
+  published from `main` by `.github/workflows/devcontainer-feature.yml`, at the version in its
+  `devcontainer-feature.json`: bump that version, or the change is not published.
 - **The updater of one version installs the next**, so a bug in `gmd/Installation/` ships unseen
   and shows one release later, at users who can then only reinstall by hand. Whatever the gmd
   versions out there rely on stays: the asset names and `SHA256SUMS`, the `v<a.b.c.d>` tags, the
