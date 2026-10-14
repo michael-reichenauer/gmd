@@ -196,8 +196,10 @@ Then untap it the same way and `brew tap michael-reichenauer/tap` with no path, 
 `ghcr.io/michael-reichenauer/gmd/gmd`, which a `devcontainer.json` names in its `"features"`, is
 `devcontainer-feature/src/gmd/`: `devcontainer-feature.json`, its metadata and version, and
 `install.sh`, which installs the latest release when the container is built. It puts the binary in
-`/usr/local/share/gmd`, which is the container user's, and links `/usr/local/bin/gmd` to it, so that
-gmd can update itself there. On Debian and Ubuntu it installs what gmd needs that the image lacks.
+the container user's `~/.local/share/gmd` and links `/usr/local/bin/gmd` to it, so that gmd can
+update itself there: in the home, since on a Linux host the user's id is changed to the host user's
+as the container starts, and only the home is given the new id. On Debian and Ubuntu it installs what
+gmd needs that the image lacks.
 
 The workflow *Dev container feature* (`.github/workflows/devcontainer-feature.yml`) runs on every
 push that changes the feature. It builds a container with the feature on a full and a bare image,
