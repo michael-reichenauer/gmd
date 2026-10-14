@@ -1,7 +1,13 @@
 # Change Log for Gmd
 --------------------
 
-146 releases:
+147 releases:
+
+## [v1.8.1445.1141] - 2026-10-14
+- Install gmd on Windows with one PowerShell command, into a folder and a PATH of your own, with no admin rights needed
+- Install gmd in a dev container with the feature ghcr.io/michael-reichenauer/gmd/gmd:1
+- Leave updating a gmd installed with winget to winget, whose command ⇓ says, once gmd is closed
+- Leave the Co-Authored-By lines of merges out of the change log and the release notes
 
 ## [v1.7.1445.1049] - 2026-10-14
 - Install gmd with Homebrew on macOS and Linux, 'brew install michael-reichenauer/tap/gmd', and leave updating it to Homebrew, whose command ⇓ says
@@ -63,8 +69,6 @@
 - Give the branch field of Create Worktree the context menu of the other text fields
 - Fill a view whose content shrank past the rows shown
 - Say in the help how to make macOS Terminal send Shift-Up and Shift-Down
-
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 
 ## [v1.6.1444.518] - 2026-10-13
 - Improve notification about new available update
