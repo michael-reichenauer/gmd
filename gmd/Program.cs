@@ -14,7 +14,7 @@ class Program
     // is already above the latest release, i.e. raised by hand, as to 1.0. It finds both with sed,
     // so keep them written as 'public const int MajorVersion = <n>;' and 'MinorVersion = <n>;'.
     public const int MajorVersion = 1;
-    public const int MinorVersion = 6;
+    public const int MinorVersion = 7;
 
     static readonly DependencyInjection dependencyInjection = new DependencyInjection();
     readonly IMainView mainView;
