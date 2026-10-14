@@ -759,7 +759,9 @@ message.
   minor they have. So pull
   `main` before merging `dev` into it, and merge `main` into `dev` after a release: until then dev's
   pre-releases are numbered below the stable release, and the updater offers a preview only when it
-  is newer.
+  is newer. Both merges are `git merge --no-ff`: after a release `main` holds all of `dev`, so a plain
+  merge fast-forwards `dev` onto main's line, and gmd, which follows first-parent lines, then shows
+  `dev` as deleted at its old tip and made anew from the release commit.
 - **A Debug build rewrites source files** (CSharpier formatting — see above). Do not be
   surprised by a dirty working tree after `dotnet build`.
 - **No git process gmd starts can open an editor.** `Cmd.NeverOpenAnEditor` forces `GIT_EDITOR`
