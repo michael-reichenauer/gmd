@@ -282,7 +282,8 @@ brew install michael-reichenauer/tap/gmd
 
 Homebrew then updates gmd too, with `brew update && brew upgrade gmd`: gmd still shows ⇓ when
 there is a new version, and the command to run. The tap has the stable releases only, not the
-previews.
+previews. If gmd was installed with the script below before, delete `~/gmd` and open a new
+terminal, or the shell may go on starting that copy rather than Homebrew's.
 
 Without Homebrew, this one command picks the right file for your OS and CPU:
 
