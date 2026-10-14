@@ -1,7 +1,70 @@
 # Change Log for Gmd
 --------------------
 
-145 releases:
+146 releases:
+
+## [v1.7.1445.1049] - 2026-10-14
+- Install gmd with Homebrew on macOS and Linux, 'brew install michael-reichenauer/tap/gmd', and leave updating it to Homebrew, whose command ⇓ says
+- Fixed gmd hanging at its start on macOS, now and then, before anything was drawn
+- Show the change log before an update, with a Change Log button in the question, and say before updating that gmd quits once updated
+- Let an update be cancelled, with Cancel or Esc in the box shown while it runs, after asking, up to the moment gmd is replaced
+- Download updates over a slow connection, which failed below about 8 Mbit/s
+- Check a new version against its checksum, and that it runs, before it replaces gmd
+- Never leave gmd missing when an update fails, and replace it in one step on Linux and macOS
+- Try a failed update again without restarting gmd
+- Install an automatic update once, not again every hour until gmd is restarted
+- Install updates in a folder with a space in its path
+- Offer only a release that has a binary for this platform
+- Say that gmd's folder cannot be written to before an update downloads anything, rather than failing in the download
+- Ask before Rebase and Push onto pushes with force, and refuse it while origin has commits the branch has not
+- Squash whole or not at all, keeping a merge among the commits after the squashed ones, and their authors and dates
+- Push the shared branch choices without wiping out ones another clone pushed meanwhile
+- Never hide the main branch: h says it is always shown, and Hide Branch is greyed out for it
+- Refuse branch and tag names with a space, which git took as two names
+- Keep a file conflicted until all its conflicts are resolved, and mark one resolved by hand as it is
+- Show diffs whatever the git config says (diff.noprefix, color.ui, log.showSignature, ...)
+- Show, commit, discard and blame files with non-ASCII names
+- Show the changes of a file whose mode changed as well
+- Show a change of line ends alone in the diff, as a ␍ on the side with the CR, and keep a line with a lone CR whole
+- Tell text files from binary ones as git does, by their bytes
+- Commit, tag and stash messages with \" or a trailing \ in them
+- Show a rebase that stops again on conflicts as a conflict, not an error
+- Keep a stash's message whole when it has a colon
+- Read authors with a '|' in their name
+- Open a working tree in a folder named like 'project.git'
+- Blame and track origin's tags in SHA-256 repositories
+- Open a repo in the middle of merging a commit no branch has, e.g. after 'git pull <url> <branch>' stopped on a conflict
+- Keep a branch set by hand, an ambiguity resolved or a branch renamed when a fetch brings origin's older choice
+- Merge and rebase onto the side of a branch that has the commits, not the one with the newer time
+- Fixed a refresh putting back the repo from before a newer read, and undoing a branch shown or hidden while it read
+- Fixed gmd stopping on a click in an empty menu, on m after a branch was hidden, when a fetch pruned a highlighted branch's remote copy, on Uncommit of the first commit, on a cherry pick of rows of two branches, and on a copy after a drag below the log
+- Never let the log stop gmd: a read-only gmd.log hung it on a blank screen
+- Fixed a click on a menu's border running the item next to it, and Esc on a question answering Yes
+- Fixed the keyboard staying dead after a menu opened by mouse during a refresh
+- Make Push and Pull in the menus do what p, u and Shift-U do, and offer Pull All with uncommitted changes
+- Make b, d, m and Shift-E do what their key hints and menu items say
+- Let Amend give the last commit a new message alone, with changes there too, and name the right branch in the commit dialog
+- Offer Uncommit, Squash and a range Cherry Pick only where they work, and say why not
+- Fixed the diff: c only for the uncommitted changes, a copy of an added file without line numbers, Scroll to a file, and + and - in a file history
+- Count the files of each kind and the lines added and removed above a diff's file list
+- Number the diff's right side correctly after conflict markers
+- Offer no + and - in a line history, and show an uncommitted line's diff from blame read only
+- Fixed where clicks and the cursor land in the conflict resolver and in blame, and scrolling sideways past the text
+- Scroll the resolver's result with Shift-Up and Shift-Down or the mouse wheel, expand its tabs, and keep its cursor on its conflict when b shows the ancestor
+- Keep the columns of the log, the diff, blame and the resolver in place with Chinese, Japanese and emoji text
+- Show branch tips, tags and the graph whole on a narrow terminal
+- Lay out the graph faster with many branches shown
+- Clone into the folder browsed to, read -d as the other options are read, and give a large file's size when committing
+- Say why g leaves main and a deleted branch their colors, and that there is nothing to merge
+- Say that a new tag was added when only its push failed
+- Start a mouse drag's selection where the button was pressed
+- Never propose making the home folder, or the folder of the recent repos, a repo with Init
+- Open the commit and amend dialogs from the menu at once
+- Give the branch field of Create Worktree the context menu of the other text fields
+- Fill a view whose content shrank past the rows shown
+- Say in the help how to make macOS Terminal send Shift-Up and Shift-Down
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 
 ## [v1.6.1444.518] - 2026-10-13
 - Improve notification about new available update
