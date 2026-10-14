@@ -141,6 +141,9 @@ class UpdateDlg : IUpdateDlg
     //   updated with:
     //
     //     brew update && brew upgrade gmd
+    //
+    // which for winget is 'updated, once gmd is closed, with:', since Windows cannot replace a
+    // program that runs
     internal static string Message(
         Version running,
         DateTime runningBuilt,
@@ -155,7 +158,7 @@ class UpdateDlg : IUpdateDlg
         var how =
             manager == null
                 ? "Gmd quits once it is updated, and the new\nversion runs when gmd is started again."
-                : $"Gmd was installed with {manager.Name}, so it is\nupdated with:\n\n  {manager.UpdateCommand}";
+                : $"Gmd was installed with {manager.Name}, so it is\nupdated{(manager.IsClosedFirst ? ", once gmd is closed," : "")} with:\n\n  {manager.UpdateCommand}";
         return $"Gmd {latest.Txt()} is available{(isPreview ? ", a preview" : "")}.\n\n"
             + $"This version:  {running.Txt().PadRight(width)}   built {runningBuilt.IsoDate()} \n"
             + $"New version:   {latest.Txt().PadRight(width)}   built {latestBuilt.IsoDate()} \n\n"

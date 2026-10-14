@@ -338,3 +338,33 @@ jobs:
           fi
           git commit -m "gmd $VERSION"
           git push origin HEAD
+
+      # The winget package of a release from main, MichaelReichenauer.gmd in microsoft/winget-pkgs,
+      # from where 'winget install MichaelReichenauer.gmd' installs it. Komac makes the new version's
+      # manifests from the package's last ones and the new gmd.exe, and opens a pull request for them
+      # there, from a fork in the account of the token, the secret WINGET_TOKEN (a classic token with
+      # the public_repo scope); Microsoft's checks and moderators merge it. Not of a preview, as for
+      # Homebrew. 'update' needs the package in winget-pkgs, so its first version is submitted by
+      # hand and the secret added after (docs/CONTRIBUTING.md); with no secret the step warns and does
+      # nothing. Last, since the release is out by now.
+      - name: Update the winget package (main)
+        if: steps.build.outputs.isRelease == 'true'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          VERSION="${{ steps.build.outputs.version }}"
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "::warning::There is no WINGET_TOKEN secret, so no winget update to $VERSION was proposed"
+            exit 0
+          fi
+          # Pinned and checked, since it runs with the token
+          KOMAC_VERSION="2.16.0"
+          KOMAC_SHA256="7d2707fa6210f2789a3702de49fbd150b736dbf426ee0b9bc8e098736f9fd82d"
+          curl -fsSL -o "$RUNNER_TEMP/komac.tar.gz" "https://github.com/russellbanks/Komac/releases/download/v$KOMAC_VERSION/komac-$KOMAC_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+          echo "$KOMAC_SHA256  $RUNNER_TEMP/komac.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/komac.tar.gz" -C "$RUNNER_TEMP" komac
+          "$RUNNER_TEMP/komac" update MichaelReichenauer.gmd --version "$VERSION" \
+            --urls "https://github.com/michael-reichenauer/gmd/releases/download/v$VERSION/gmd.exe" \
+            --release-notes-url "https://github.com/michael-reichenauer/gmd/releases/tag/v$VERSION" \
+            --submit

@@ -2,7 +2,8 @@
 
 What changed in gmd this year, grouped by theme, the larger and the noticeable changes only. Work
 resumed on 2026-07-25, after nothing since 2025-11-22, and this overview covers up to 2026-10-14.
-The sections include what is on `dev` and not released yet, which is listed on its own at the end.
+All of it is released. The last release, 1.7 (2026-10-14), brought a review of every layer, which is
+listed on its own at the end, and installing with Homebrew.
 
 The detailed records are elsewhere, and this file points to them rather than repeating them:
 
@@ -16,11 +17,11 @@ The detailed records are elsewhere, and this file points to them rather than rep
 
 | | Start of the year | 2026-10-14 |
 | --- | --- | --- |
-| Version | 0.91 | 1.6 (1.0 released 2026-10-08) |
-| Releases from `main` this year | | 20 |
-| Commits this year (not counting merges) | | about 475 |
-| C# lines in `gmd/` | about 20,500 | about 40,800 |
-| Test methods | 2 | about 1,800 (about 1,580 in `gmdTest`, about 220 end to end) |
+| Version | 0.91 | 1.7 (1.0 released 2026-10-08) |
+| Releases from `main` this year | | 21 |
+| Commits this year (not counting merges) | | about 485 |
+| C# lines in `gmd/` | about 20,500 | about 40,900 |
+| Test methods | 2 | about 1,810 (about 1,590 in `gmdTest`, about 220 end to end) |
 | .NET | 8 | 10 (built with the .NET 11 SDK for C# 15) |
 
 ---
@@ -38,7 +39,7 @@ The detailed records are elsewhere, and this file points to them rather than rep
 | 10-07 to 10-08 | 0.96, 0.97 | **Product review**: help and README rewritten, file checklist in the commit dialog, amend and drop of older commits, the login dialog, stash apply, the tag list, diff of any two commits, line history; the GitHub page tidied |
 | 10-08 | **1.0** | Help on GitHub, force push leased on what was shown, a broken config no longer stops gmd; scripts moved into `scripts/` |
 | 10-13 | 1.5, 1.6 | **Start page** in place of the start menu; the update offer shown the same way everywhere |
-| 10-13 to 10-14 | on `dev` | **A review of every layer** (Common, Git, Utils, Server, Installation, Cui), cancelling an update, a safer squash (see "Not released yet" at the end) |
+| 10-13 to 10-14 | **1.7** | **A review of every layer** (Common, Git, Utils, Server, Installation, Cui), cancelling an update, a safer squash, **Homebrew**, the hang at start on macOS fixed (see "1.7" at the end) |
 
 ---
 
@@ -83,7 +84,7 @@ coding agents, which work in worktrees and branches of their own.
 
 **Rewriting commits not pushed yet** (October). **Amend** and **Drop** of any commit not pushed yet,
 from its commit menu, done with git's own `rebase --autosquash` and recorded for Undo. Squash was
-rewritten on `dev` (2026-10-14), see the end.
+rewritten in 1.7 (2026-10-14), see the end.
 
 **The commit dialog** (September and October). Spell checking of the message, with suggestions, a
 dictionary of the user's own words, and a hint on the frame edge counting the misspelled words.
@@ -216,8 +217,12 @@ before and after comparison over real repositories (`InferenceDumpTest`), not on
 
 ## Updates and releases
 
-**The updater** was split into four classes and tested (from no tests to 49). This is on `dev`,
-apart from the last item. It now:
+**Installing**: with Homebrew on macOS and Linux, `brew install michael-reichenauer/tap/gmd` (1.7),
+from a tap that the release workflow writes the formula into at every release. Without it,
+`install.sh` downloads the binary for the OS and CPU and checks it against the release's checksums.
+
+**The updater** was split into four classes and tested (from no tests to 49), in 1.7 apart from the
+last item. It now:
 
 - Downloads over a slow connection. Below about 8 Mbit/s every update used to fail.
 - Checks the new binary against the release's `SHA256SUMS`, and that it runs, before it replaces
@@ -227,13 +232,16 @@ apart from the last item. It now:
 - Installs an automatic update once, rather than again every hour.
 - Can be cancelled, after asking, up to the moment gmd is replaced.
 - Shows the change log before an update.
+- Leaves updating to Homebrew when Homebrew installed gmd, and says the command, `brew update &&
+  brew upgrade gmd`.
 - Offers a new version the same way on the start page, in the menus and in the top bar (⇓), which
   now appears when a release is found after gmd started (1.1 and 1.6).
 
 **Releases**: a push to `main` makes a release commit that raises the minor version and regenerates
 `CHANGELOG.md` from the merge commit messages. Each release has notes, checksums and `gmd.exe`, and
 only the latest five previews are kept. The version is computed from the build time in UTC, so the
-update check is right in every time zone. The release action is pinned to a commit.
+update check is right in every time zone. The release action is pinned to a commit. A release from
+`main` also writes the Homebrew formula into the tap, with a deploy key of the tap's (1.7).
 
 **The GitHub page**: badges and a quick install in the README, a security policy, a pull request
 template, issue forms (also linked from the crash message), Dependabot, and a social preview image.
@@ -272,10 +280,18 @@ template, issue forms (also linked from the crash message), Dependabot, and a so
 
 ---
 
-## Not released yet: on `dev` since v1.6.1444.518 (2026-10-13)
+## 1.7 (2026-10-14): a review of every layer, and Homebrew
 
-A review of every layer (2026-10-13), each finding checked against the code before it was acted
-on, and the work after it:
+Released as v1.7.1445.1049, everything on `dev` since v1.6.1444.518: a review of every layer
+(2026-10-13), each finding checked against the code before it was acted on, and the work after it.
+
+- **Homebrew**: `brew install michael-reichenauer/tap/gmd` on macOS and Linux, from a tap the
+  release workflow writes. A gmd that Homebrew installed leaves updating it to Homebrew, and ⇓ says
+  the command. Tried on Linux and on macOS 27 before the release.
+- **gmd hung at its start on macOS 27**, now and then, with nothing drawn: a deadlock in macOS's C
+  library between curses setting the locale and git started for its version at the same moment.
+  Found by sampling the hung process (`sample`), and fixed by starting no program until
+  Terminal.Gui has started.
 
 - **Git**: the output gmd parses no longer changes with the user's git config (`diff.noprefix`,
   `color.ui`, `log.showSignature`, …). Files with names that are not ASCII can be shown, committed,
@@ -312,6 +328,8 @@ Each is in `.notes/MODERNIZATION.md` (under Deferred) or `.notes/USABILITY.md`, 
 - **A second remote** (an `upstream` for a fork), until the need is understood from use.
 - **Measuring the inference** on public repositories and publishing the numbers, to go with the
   next work on the inference.
-- **Packages** (Homebrew, Scoop, winget, AUR), which need the author's accounts.
+- **More packages**: Homebrew came in 1.7. Next are winget and a PowerShell install for Windows,
+  which should meet no SmartScreen warning since no browser downloads them, then a dev container
+  feature; Scoop, AUR and an Intel Mac build maybe after (`.notes/USABILITY.md`, item 24).
 - **Staging of single lines or hunks**, left out: the file checklist in the commit dialog was judged
   the right size for gmd.

@@ -1,0 +1,12 @@
+{
+    "id": "gmd",
+    "version": "1.0.0",
+    "name": "gmd",
+    "description": "Installs gmd, a Git client for the terminal that shows only the branches you choose.",
+    "documentationURL": "https://github.com/michael-reichenauer/gmd#in-a-dev-container",
+    "licenseURL": "https://github.com/michael-reichenauer/gmd/blob/main/LICENSE",
+    "installsAfter": [
+        "ghcr.io/devcontainers/features/common-utils",
+        "ghcr.io/devcontainers/features/git"
+    ]
+}

@@ -1,0 +1,65 @@
+name: Dev container feature
+
+# The dev container feature 'gmd' (devcontainer-feature/), which installs gmd in a dev container:
+# tested on every push that changes it, and published from main to the GitHub container registry
+# as ghcr.io/michael-reichenauer/gmd/gmd, which a devcontainer.json names in its "features".
+on:
+  push:
+    branches: ['**']
+    paths: ['devcontainer-feature/**', '.github/workflows/devcontainer-feature.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # A container built with the feature, on an image that has all gmd needs and one that has not,
+  # and on both CPUs, each running devcontainer-feature/test/gmd/test.sh. Docker is needed, which
+  # the runners have.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            image: mcr.microsoft.com/devcontainers/base:ubuntu
+          - runner: ubuntu-latest
+            image: debian:bookworm-slim
+          - runner: ubuntu-24.04-arm
+            image: mcr.microsoft.com/devcontainers/base:ubuntu
+    runs-on: ${{ matrix.runner }}
+    name: Test on ${{ matrix.image }} (${{ matrix.runner }})
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Test the feature
+        run: |
+          npm install -g @devcontainers/cli@0.89.0
+          devcontainer features test --project-folder devcontainer-feature --features gmd --base-image "${{ matrix.image }}"
+
+  # Publishes the version in devcontainer-feature.json, and the tags its major and minor make, so a
+  # change of the feature is published only with a new version there. A package is private when it
+  # is first published; it is made public by hand once (docs/CONTRIBUTING.md).
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Pinned by commit, not by tag, as the release action is: a third party's, run with the
+      # write permission for packages
+      - name: Publish the feature
+        uses: devcontainers/action@bef2cf2d1a019b00b45e184f83035e01bd1972f3 # v1.4.4
+        with:
+          publish-features: 'true'
+          base-path-to-features: ./devcontainer-feature/src
+          # No tag of its own in this repository, where the version tags are gmd's releases
+          disable-repo-tagging: 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

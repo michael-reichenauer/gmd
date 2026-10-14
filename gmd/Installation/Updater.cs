@@ -170,7 +170,10 @@ class Updater : IUpdater
             return new Error("The path of the gmd binary is not known, so it cannot be replaced");
 
         if (self.PackageManager is PackageManager manager)
-            return new Error($"Gmd was installed with {manager.Name}, so update it with '{manager.UpdateCommand}'");
+            return new Error(
+                $"Gmd was installed with {manager.Name}, so update it"
+                    + $"{(manager.IsClosedFirst ? ", once gmd is closed," : "")} with '{manager.UpdateCommand}'"
+            );
 
         // Before anything is downloaded, with an error that says what is wrong rather than the
         // download's 'access denied': a gmd installed by root, e.g. in /usr/local/bin, is updated the

@@ -28,8 +28,13 @@ Or without Homebrew:
 curl -fsSL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
 ```
 
-On Windows, download and run
-[gmdSetup.exe](https://github.com/michael-reichenauer/gmd/releases/latest/download/gmdSetup.exe).
+On Windows, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.ps1 | iex
+```
+
+In a dev container, add the feature `ghcr.io/michael-reichenauer/gmd/gmd:1` to its `devcontainer.json`.
 
 Then run `gmd` in a Git repository. [Installation](#installation) has the details, and the files to
 install by hand.
@@ -267,7 +272,7 @@ has these files:
 | Linux x64             | `gmd_linux_x64`                                           |
 | Linux arm64           | `gmd_linux_arm64`                                         |
 | macOS (Apple Silicon) | `gmd_osx_arm64`                                           |
-| Windows x64           | `gmdSetup.exe` (installer), or `gmd.exe` (the executable) |
+| Windows x64           | `gmd.exe` (the executable), or `gmdSetup.exe` (installer) |
 
 There is no release for Intel Macs. You don't need admin rights or `sudo` on any platform.
 `SHA256SUMS` in each release has the checksums of its files.
@@ -309,17 +314,36 @@ On macOS, a file downloaded with a browser rather than `curl` is quarantined and
 
 ### Windows
 
-Download and run `gmdSetup.exe` from the releases page, or from a terminal:
+This command, in PowerShell, installs gmd for you alone, so it needs no admin rights:
 
 ```powershell
-curl.exe -L -o gmdSetup.exe https://github.com/michael-reichenauer/gmd/releases/latest/download/gmdSetup.exe
-.\gmdSetup.exe
+irm https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.ps1 | iex
 ```
 
-The installer downloads the latest gmd to `C:\ProgramData\gmd` and adds Start menu and desktop
-shortcuts. To also start gmd from a terminal, open **Config ...** in the repo menu and tick **Add
-gmd to PATH environment variable**. Without the installer, download `gmd.exe` and put it in a
-folder on your `PATH`.
+It downloads `gmd.exe` to `%LOCALAPPDATA%\Programs\gmd`, checks it against the release's checksums,
+and adds that folder to your `PATH`. Then open a new terminal (restart Windows Terminal if `gmd` is
+not found yet) and run `gmd` in a Git repository.
+
+To install by hand instead, download `gmd.exe` from the releases page and put it in a folder on your
+`PATH`. Windows warns before it runs a program downloaded with a browser that is not signed, as gmd
+is not: **More info** and **Run anyway** start it. The installer on the releases page,
+`gmdSetup.exe`, works too, with the same warning: it puts gmd in `C:\ProgramData\gmd` with Start
+menu and desktop shortcuts, and **Config ...** in the repo menu can then add it to the `PATH`.
+
+### In a dev container
+
+The gmd feature installs gmd in a [dev container](https://containers.dev), in VS Code or GitHub
+Codespaces. Add it to the project's `devcontainer.json`:
+
+```json
+"features": {
+    "ghcr.io/michael-reichenauer/gmd/gmd:1": {}
+}
+```
+
+The container then has the latest release each time it is built, and gmd updates itself in it in
+between. On a Debian or Ubuntu image the feature also installs what gmd needs and the image lacks:
+git, ncurses and ICU. There is no gmd for Alpine images.
 
 ### Updating
 
