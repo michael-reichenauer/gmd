@@ -69,9 +69,11 @@ mv -f "$SHARE/gmd.download" "$SHARE/gmd"
 ln -sf "$SHARE/gmd" "$BIN/gmd"
 
 # The user's, so that gmd can update itself, see above
+echo "The container user: '${_REMOTE_USER}' (the container's: '${_CONTAINER_USER}')"
 if [ -n "$_REMOTE_USER" ] && [ "$_REMOTE_USER" != "root" ] && id "$_REMOTE_USER" > /dev/null 2>&1; then
   chown -R "$_REMOTE_USER:" "$SHARE"
 fi
+ls -ld "$SHARE"
 
 # With a home of its own, since gmd writes its config and log there, which root's would keep
 TEMP_HOME="$(mktemp -d)"
