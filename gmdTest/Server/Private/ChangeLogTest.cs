@@ -61,6 +61,40 @@ public class ChangeLogTest
 
     // Without a new release, e.g. 'gmd --changelog', the unreleased commits are "Current", which
     // is no release and not counted.
+    // A trailer of a merge's message, as the Co-Authored-By of a merge made with Claude Code, is
+    // no note, and nor is the blank line before it: the release of 1.7 had one at its end, and so
+    // had its notes on GitHub and in the winget manifest made from them
+    [TestMethod]
+    public async Task TestTheTrailersOfAMergeAreNoNotes()
+    {
+        var repo = await new RepoBuilder()
+            .Commit(
+                "a2",
+                "Merge branch 'dev'\n\n- Add worktree support\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n"
+                    + "Signed-off-by: Anna <anna@example.com>",
+                "a1",
+                "d1"
+            )
+            .Commit("d1", "Worktree work", "a1")
+            .Commit("a1", "Initial")
+            .Tag("v0.94.1431.496", "a1")
+            .BranchWithRemote("main", "a2", isCurrent: true)
+            .LocalBranch("dev", "d1")
+            .ViewRepoAsync("main");
+
+        Assert.AreEqual(
+            """
+
+            2 releases:
+
+            ## [v0.95.1440.123] - 2026-10-06
+            - Added worktree support
+
+            """,
+            ChangeLog.Create(repo, "v0.95.1440.123", Now)
+        );
+    }
+
     [TestMethod]
     public async Task TestUnreleasedCommitsAreCurrent()
     {

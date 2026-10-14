@@ -67,9 +67,11 @@ static class ChangeLog
             message = $"- {parts[0]}";
         }
 
-        // Adjust some message lines
+        // Adjust some message lines, and leave out git's trailers, as the Co-Authored-By of a merge
+        // made with Claude Code, with the blank line before them
         return message
             .Split('\n')
+            .Where(l => !IsTrailer(l))
             .Select(l =>
             {
                 if (l.StartsWith("- Fix "))
@@ -80,6 +82,11 @@ static class ChangeLog
                     l = $"- Updated {l[9..]}";
                 return l;
             })
-            .Join("\n");
+            .Join("\n")
+            .TrimEnd('\n');
     }
+
+    static bool IsTrailer(string line) =>
+        line.StartsWith("Co-Authored-By:", StringComparison.OrdinalIgnoreCase)
+        || line.StartsWith("Signed-off-by:", StringComparison.OrdinalIgnoreCase);
 }
