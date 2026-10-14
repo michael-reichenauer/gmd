@@ -811,6 +811,36 @@ public class DiffRowServiceTest
         );
     }
 
+    // A change of line ends alone, '\n' to '\r\n', is a '␍' on the side that has the '\r', where the
+    // two sides were the same text when every '\r' was dropped; a file with '\r\n' line ends that
+    // changed otherwise looks as any other
+    [TestMethod]
+    public void TestAChangeOfLineEndsIsShown()
+    {
+        var rows = RowsOf(
+            FileOf(
+                "a.txt",
+                lines:
+                [
+                    (DiffMode.DiffSame, "same\r"),
+                    (DiffMode.DiffRemoved, "one"),
+                    (DiffMode.DiffRemoved, "two\r"),
+                    (DiffMode.DiffAdded, "one\r"),
+                    (DiffMode.DiffAdded, "TWO\r"),
+                ]
+            )
+        );
+
+        Assert.AreEqual(
+            """
+               1 same │    1 same
+               2┃one  │    2┃one␍
+               3┃two  │    3┃TWO
+            """,
+            DiffText.BodyOf(rows)
+        );
+    }
+
     // The common ancestor of a diff3 conflict belongs to neither side, so it is drawn dark across
     // both columns rather than folded into ours, which is where it used to end up
     [TestMethod]

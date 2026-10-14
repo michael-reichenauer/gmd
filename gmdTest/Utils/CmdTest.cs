@@ -135,20 +135,34 @@ public class CmdTest
         }
     }
 
-    // What a command printed, as the line reader of Process gives it: every line break, '\r\n', '\r'
-    // or '\n', is a '\n', and the end is trimmed. A byte order mark is kept, and an incomplete
-    // character at the very end is dropped. Pinned since a read of the bytes in bulk, which was
-    // measured and not worth it (.notes/MODERNIZATION.md), would have to keep all of them.
+    // What a command printed: a '\r\n' is a '\n', and the end is trimmed, but a lone '\r' is kept,
+    // which the line reader of Process took for a line break, splitting a line of a file with one in
+    // it, and every '\r\n' is kept when asked for, as the diffs are, whose line ends matter. A byte
+    // order mark is kept, and an incomplete character at the very end is dropped, as they were.
     [TestMethod]
-    public void TestOutputIsTheLinesJoinedAndTrimmed()
+    public void TestOutputIsTrimmedWithItsLoneCarriageReturnsKept()
     {
         if (OperatingSystem.IsWindows())
             Assert.Inconclusive("Uses sh");
-        string Printed(string format) => AssertOk(new Cmd().Command("sh", $"-c \"printf '{format}'\"", ""));
+        string Printed(string format, bool isKeepCr = false) =>
+            AssertOk(new Cmd().Command("sh", $"-c \"printf '{format}'\"", "", isKeepCr: isKeepCr));
 
-        Assert.AreEqual("a\nb\nc\n\nd", Printed(@"a\rb\r\nc\r\r\nd  \r\n"));
+        Assert.AreEqual("a\rb\nc\r\nd", Printed(@"a\rb\r\nc\r\r\nd  \r\n"));
+        Assert.AreEqual("a\rb\r\nc\r\r\nd", Printed(@"a\rb\r\nc\r\r\nd  \r\n", isKeepCr: true));
         Assert.AreEqual("﻿abc", Printed(@"\357\273\277abc"));
         Assert.AreEqual("abc", Printed(@"abc\342\202"));
+    }
+
+    // Git's progress on stderr rewrites its line with a lone '\r', and each is a line of its own
+    [TestMethod]
+    public void TestAnErrorsCarriageReturnsAreLineBreaks()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("Uses sh");
+
+        var e = AssertError(new Cmd().Command("sh", "-c \"printf '10%%\\r20%%\\r\\nfatal: no' >&2; exit 1\"", ""));
+
+        Assert.AreEqual("10%\n20%\nfatal: no", ((CmdError)e).ErrorOutput);
     }
 
     // StartAsync is for a program that may go on running, a browser: one that fails at once is an

@@ -533,9 +533,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - A failure before the UI runs, e.g. a `~/.gmdconfig` that cannot be written, ends gmd with the
     runtime's "Unhandled exception" and a stack trace rather than `Program.CrashMessage`, which only
     follows the main loop.
-  - `Cmd` reads output by lines (`BeginOutputReadLine`), which also break at a lone `\r`, and drops
-    every `\r`, so the diff of a file with a bare CR in a line is split there, and a change of line
-    endings alone shows nothing. Not tried end to end.
+  - *Done 2026-10-14:* `Cmd` read output by lines (`BeginOutputReadLine`), which also broke at a lone
+    `\r`, and dropped every `\r`, so a diff line with a lone `\r` was split there and its rest lost,
+    and a change of line ends alone showed lines the same on both sides. It reads the bytes whole now:
+    a `\r\n` is a `\n`, a lone `\r` is kept (stderr's are line breaks, git's progress), and a diff is
+    read with its `\r\n` (`isKeepCr`), whose `\r` the diff view shows as `␍` where it is the change.
+    `TextWidth.Drawn` draws a control character as its picture, `␍` for a lone `\r`.
   - *Done 2026-10-14:* the timers of `Progress` and `MessageDlg` were `System.Threading.Timer`s
     that pulsed a view and dereferenced `Application.MainLoop` on a thread pool thread, where an
     exception ended the process with the terminal left as Terminal.Gui set it. They are main loop

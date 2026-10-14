@@ -3,13 +3,15 @@ using System.Runtime.CompilerServices;
 namespace gmdTest.Utils;
 
 // Records one call made to the fake command runner. Stdin is what was piped to it, which is
-// empty for everything but CommandWithStdin, and Environment the variables it was given.
+// empty for everything but CommandWithStdin, Environment the variables it was given, and IsKeepCr
+// whether the '\r' of its '\r\n' line ends was asked for.
 record CmdCall(
     string Path,
     string Args,
     string WorkingDirectory,
     string Stdin = "",
-    IReadOnlyDictionary<string, string>? Environment = null
+    IReadOnlyDictionary<string, string>? Environment = null,
+    bool IsKeepCr = false
 );
 
 // FakeCmd is a test double for ICmd, the seam between the git services and the git
@@ -49,10 +51,13 @@ class FakeCmd : ICmd
         bool skipLogError = false,
         bool skipLog = false,
         IReadOnlyDictionary<string, string>? environment = null,
+        bool isKeepCr = false,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
-    ) => CommandRaw(path, args, workingDirectory, environment).ToResult(memberName, sourceFilePath, sourceLineNumber);
+    ) =>
+        CommandRaw(path, args, workingDirectory, environment, isKeepCr)
+            .ToResult(memberName, sourceFilePath, sourceLineNumber);
 
     public Task<Result<string>> RunAsync(
         string path,
@@ -61,6 +66,7 @@ class FakeCmd : ICmd
         bool skipLogError = false,
         bool skipLog = false,
         IReadOnlyDictionary<string, string>? environment = null,
+        bool isKeepCr = false,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
         [CallerLineNumber] int sourceLineNumber = 0
@@ -73,6 +79,7 @@ class FakeCmd : ICmd
                 skipLogError,
                 skipLog,
                 environment,
+                isKeepCr,
                 memberName,
                 sourceFilePath,
                 sourceLineNumber
@@ -118,10 +125,11 @@ class FakeCmd : ICmd
         string path,
         string args,
         string workingDirectory,
-        IReadOnlyDictionary<string, string>? env = null
+        IReadOnlyDictionary<string, string>? env = null,
+        bool isKeepCr = false
     )
     {
-        Calls.Add(new CmdCall(path, args, workingDirectory, "", env));
+        Calls.Add(new CmdCall(path, args, workingDirectory, "", env, isKeepCr));
         return respond(path, args, workingDirectory);
     }
 }

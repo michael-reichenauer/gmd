@@ -47,7 +47,7 @@ class DiffService : IDiffService
         var args =
             $"show {CommitHeaderFormat} {DiffFormat} --date=iso --first-parent --root --patch"
             + $" --find-renames --unified={contextLines} {commitId}";
-        var result = await cmd.RunAsync("git", args, wd);
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
         var commitDiffs = ParseCommitDiffs(output);
@@ -60,7 +60,7 @@ class DiffService : IDiffService
     public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
     {
         var args = $"stash show -u {DiffFormat} --patch --find-renames --unified={contextLines} {name}";
-        var result = await cmd.RunAsync("git", args, wd);
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
 
@@ -111,11 +111,11 @@ class DiffService : IDiffService
             return addError;
 
         var args = $"diff {DiffFormat} --find-renames --unified={contextLines} HEAD";
-        var diff = await cmd.RunAsync("git", args, wd, environment: env);
+        var diff = await cmd.RunAsync("git", args, wd, environment: env, isKeepCr: true);
         if (diff is Error e && e.Message.Contains("ambiguous argument 'HEAD': unknown revision"))
         { // No commit yet, so there is no HEAD to diff against; what is staged is the whole diff
             var stagedArgs = $"diff {DiffFormat} --staged --unified={contextLines}";
-            diff = await cmd.RunAsync("git", stagedArgs, wd, environment: env);
+            diff = await cmd.RunAsync("git", stagedArgs, wd, environment: env, isKeepCr: true);
         }
         if (diff is not string output)
             return diff.Error;
@@ -148,7 +148,7 @@ class DiffService : IDiffService
     {
         var args =
             $"log {CommitHeaderFormat} {DiffFormat} --date=iso {Cmd.Quote($"-L{firstLine},{lastLine}:{path}")} {reference}".TrimEnd();
-        var result = await cmd.RunAsync("git", args, wd);
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
 
@@ -162,7 +162,7 @@ class DiffService : IDiffService
     {
         var args =
             $"log {CommitHeaderFormat} {DiffFormat} --date=iso --patch --follow --unified={contextLines} -- {Cmd.Quote(path)}";
-        var result = await cmd.RunAsync("git", args, wd);
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
 
@@ -184,14 +184,14 @@ class DiffService : IDiffService
     )
     {
         var options = $"{DiffFormat} --find-renames --unified={contextLines} --full-index";
-        var result = await cmd.RunAsync("git", $"diff {options} {sha1}~..{sha2}", wd);
+        var result = await cmd.RunAsync("git", $"diff {options} {sha1}~..{sha2}", wd, isKeepCr: true);
         if (
             result is Error e
             && e.Message.Contains($"ambiguous argument '{sha1}~..{sha2}': unknown revision")
             && await EmptyTreeIfRootAsync(sha1, wd) is string emptyTree
         )
         { // A root commit has no 'sha1~', so its changes are from nothing, as 'git show' has them
-            result = await cmd.RunAsync("git", $"diff {options} {emptyTree} {sha2}", wd);
+            result = await cmd.RunAsync("git", $"diff {options} {emptyTree} {sha2}", wd, isKeepCr: true);
         }
         if (result is not string output)
             return result.Error;
@@ -220,7 +220,7 @@ class DiffService : IDiffService
     )
     {
         var args = $"diff {DiffFormat} --find-renames --unified={contextLines} --full-index {sha1} {sha2}";
-        var result = await cmd.RunAsync("git", args, wd);
+        var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
 

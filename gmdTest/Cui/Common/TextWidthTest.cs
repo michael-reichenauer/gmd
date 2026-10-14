@@ -25,6 +25,16 @@ public class TextWidthTest
         Assert.AreEqual("Party � time", TextWidth.Drawn("Party 🎉 time"));
     }
 
+    // A control character, e.g. a '\r' kept from a file, is drawn as its picture, one column, rather
+    // than moving the terminal's cursor
+    [TestMethod]
+    public void TestAControlCharacterIsDrawnAsItsPicture()
+    {
+        Assert.AreEqual("be␍ta", TextWidth.Drawn("be\rta"));
+        Assert.AreEqual("␛[1m␡", TextWidth.Drawn("\u001b[1m\u007f"));
+        Assert.AreEqual(5, TextWidth.Of("be\rta"));
+    }
+
     // A wide character cut by either end of a slice is spaces for its columns that are in it
     [TestMethod]
     public void TestASliceNeverSplitsACharacter()

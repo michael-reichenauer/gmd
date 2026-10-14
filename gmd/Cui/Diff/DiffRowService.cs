@@ -359,7 +359,7 @@ class DiffRowService : IDiffRowService
                 case DiffMode.DiffRemoved:
                     if (diffMode == DiffMode.DiffConflictBase)
                     {
-                        rows.Add(Text.Dark(dl.Line));
+                        rows.Add(Text.Dark(WithoutCr(dl.Line)));
                     }
                     else if (diffMode == DiffMode.DiffConflictStart)
                     {
@@ -371,7 +371,7 @@ class DiffRowService : IDiffRowService
                     }
                     else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
                     { // Whole file removed, use one column
-                        Text removeTxt = Text.Dark($"{leftNr, 4}").Red(diffMargin).RedBg(dl.Line);
+                        Text removeTxt = Text.Dark($"{leftNr, 4}").Red(diffMargin).RedBg(WithoutCr(dl.Line));
                         rows.Add(removeTxt, leftLineNbr: leftNr);
                     }
                     else
@@ -385,7 +385,7 @@ class DiffRowService : IDiffRowService
                 case DiffMode.DiffAdded:
                     if (diffMode == DiffMode.DiffConflictBase)
                     {
-                        rows.Add(Text.Dark(dl.Line));
+                        rows.Add(Text.Dark(WithoutCr(dl.Line)));
                     }
                     else if (diffMode == DiffMode.DiffConflictStart)
                     {
@@ -397,7 +397,7 @@ class DiffRowService : IDiffRowService
                     }
                     else if (fileDiff.DiffMode == DiffMode.DiffAdded)
                     { // Whole file added, use one column
-                        Text addTxt = Text.Dark($"{rightNr, 4}").Green(diffMargin).GreenBg(dl.Line);
+                        Text addTxt = Text.Dark($"{rightNr, 4}").Green(diffMargin).GreenBg(WithoutCr(dl.Line));
                         rows.Add(addTxt, rightLineNbr: rightNr);
                     }
                     else
@@ -411,7 +411,7 @@ class DiffRowService : IDiffRowService
                 case DiffMode.DiffSame:
                     if (diffMode == DiffMode.DiffConflictBase)
                     {
-                        rows.Add(Text.Dark(dl.Line));
+                        rows.Add(Text.Dark(WithoutCr(dl.Line)));
                     }
                     else if (diffMode == DiffMode.DiffConflictStart)
                     {
@@ -444,8 +444,9 @@ class DiffRowService : IDiffRowService
         var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
         for (int i = 0; i < minCount; i++)
         {
-            var (lT, rT) = GetDiffSides(leftBlock.Lines[i], rightBlock.Lines[i]);
-            rows.Add(lT, rT, leftBlock.Lines[i].LineNbr, rightBlock.Lines[i].LineNbr);
+            var (left, right) = WithCrShown(leftBlock.Lines[i], rightBlock.Lines[i]);
+            var (lT, rT) = GetDiffSides(left, right);
+            rows.Add(lT, rT, left.LineNbr, right.LineNbr);
         }
 
         // Add left lines where no corresponding on right
@@ -454,7 +455,7 @@ class DiffRowService : IDiffRowService
             for (int i = rightBlock.Lines.Count; i < leftBlock.Lines.Count; i++)
             {
                 var lL = leftBlock.Lines[i];
-                Text lT = Text.Dark($"{lL.LineNbr, 4}").Red(diffMargin).Color(lL.Color, lL.Text);
+                Text lT = Text.Dark($"{lL.LineNbr, 4}").Red(diffMargin).Color(lL.Color, WithoutCr(lL.Text));
                 rows.Add(lT, NoLine, lL.LineNbr, 0);
             }
         }
@@ -465,7 +466,7 @@ class DiffRowService : IDiffRowService
             for (int i = leftBlock.Lines.Count; i < rightBlock.Lines.Count; i++)
             {
                 var rL = rightBlock.Lines[i];
-                Text rT = Text.Dark($"{rL.LineNbr, 4}").Green(diffMargin).Color(rL.Color, rL.Text);
+                Text rT = Text.Dark($"{rL.LineNbr, 4}").Green(diffMargin).Color(rL.Color, WithoutCr(rL.Text));
                 rows.Add(NoLine, rT, 0, rL.LineNbr);
             }
         }
@@ -473,6 +474,21 @@ class DiffRowService : IDiffRowService
         leftBlock.Lines.Clear();
         rightBlock.Lines.Clear();
     }
+
+    // A line's '\r', kept of a file's '\r\n' line ends (DiffService reads the diff with them), is shown
+    // only where it is the change, a change of line ends: as '␍' on the side of a changed pair that
+    // has it when the other has not, which was the same text on both sides when every '\r' was
+    // dropped. Elsewhere it is left out, so a file with '\r\n' line ends looks as any other.
+    const string CrMark = "␍";
+
+    static (Line, Line) WithCrShown(Line left, Line right) =>
+        left.Text.EndsWith('\r') == right.Text.EndsWith('\r')
+            ? (left with { Text = WithoutCr(left.Text) }, right with { Text = WithoutCr(right.Text) })
+            : (left with { Text = CrMarked(left.Text) }, right with { Text = CrMarked(right.Text) });
+
+    static string WithoutCr(string text) => text.EndsWith('\r') ? text[..^1] : text;
+
+    static string CrMarked(string text) => text.EndsWith('\r') ? text[..^1] + CrMark : text;
 
     static (Text, Text) GetDiffSides(Line lL, Line rL)
     {

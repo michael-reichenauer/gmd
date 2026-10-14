@@ -471,7 +471,8 @@ Find more commands in the menus (the `m` key).
 **Commit Diff** (`d`) shows the changes of a commit side by side, after a
 list of its files, headed by how many were added, modified, renamed and
 removed, and the lines added and removed, e.g.
-`3 Files:  1 added, 2 modified   +25 -7 lines`. `+` shows
+`3 Files:  1 added, 2 modified   +25 -7 lines`. A line whose line end
+alone changed, e.g. from LF to CRLF, has a `␍` on the side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
 stepping from the 6 lines of context it starts with to 15, and then to the
 whole file (and `=` does what `+` does, without the shift). It applies to
