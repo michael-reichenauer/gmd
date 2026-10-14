@@ -45,6 +45,7 @@ They are in `scripts/`, and each runs at the repository root wherever it is star
 | `scripts/updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
 | `scripts/installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
 | `scripts/demo`           | Re-record the README's animation, by running a scripted session in tmux    |
+| `scripts/brewformula <version>` | Write the Homebrew formula of a release, which the release workflow pushes to the tap |
 
 On Windows, `scripts\run.bat`, `scripts\build.bat` (`-w` builds Windows only) and `scripts\log.bat`
 do the same.
@@ -153,3 +154,37 @@ Keys and features that depend on the terminal or the system:
 11. A terminal of 80 by 24: the log, the commit dialog and the menus are whole on the screen.
 
 What this list does not cover waits for reports.
+
+## The Homebrew tap
+
+`brew install michael-reichenauer/tap/gmd` installs gmd from the tap, the repository
+[michael-reichenauer/homebrew-tap](https://github.com/michael-reichenauer/homebrew-tap), whose
+`Formula/gmd.rb` installs the release's binaries as they are. For every release from `main`, the
+release workflow writes the formula with `scripts/brewformula` and pushes it there (*Update the
+Homebrew tap*), with a deploy key of the tap that this repository holds as the secret
+`HOMEBREW_TAP_KEY`. Previews are not put there. A gmd installed from the tap is updated by
+Homebrew rather than by itself (`gmd/Installation/PackageManager.cs`).
+
+To set up the key, or to replace it:
+
+1. Make a key pair with no passphrase: `ssh-keygen -t ed25519 -N "" -C "gmd release workflow" -f tap_key`.
+2. In the tap, *Settings → Deploy keys → Add deploy key*: paste `tap_key.pub` and tick *Allow
+   write access*.
+3. In this repository, *Settings → Secrets and variables → Actions → New repository secret*: name
+   it `HOMEBREW_TAP_KEY` and paste the whole of `tap_key`. Then delete both files.
+
+Without the secret, the step warns and the release goes on. To put a release in the tap by hand,
+e.g. the first, run `scripts/brewformula <version> > Formula/gmd.rb` in a clone of the tap, then
+commit and push.
+
+To try a change to the formula before a release puts it there, install from a clone of the tap with
+the change committed:
+
+```bash
+brew untap --force michael-reichenauer/tap   # --force: with gmd installed from it, untap refuses
+brew tap michael-reichenauer/tap ~/src/homebrew-tap
+brew reinstall michael-reichenauer/tap/gmd && brew test gmd
+brew info --json=v2 --variations michael-reichenauer/tap/gmd   # the download on every OS and CPU
+```
+
+Then untap it the same way and `brew tap michael-reichenauer/tap` with no path, to be back on GitHub's.

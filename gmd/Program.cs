@@ -2,6 +2,7 @@
 using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
+using gmd.Installation;
 using Terminal.Gui;
 
 namespace gmd;
@@ -98,6 +99,10 @@ class Program
         return false; // End loop after error
     }
 
+    // The package manager that updates gmd, which a user report may need to know
+    static string InstalledBy(PackageManager? manager) =>
+        manager == null ? "" : $", installed with {manager.Name}, which updates it";
+
     async Task LogProgramInfoAsync()
     {
         Log.Info($"Version: {Build.Version()}");
@@ -105,6 +110,7 @@ class Program
         Log.Info($"Sha:     {Build.Sha()}");
         Log.Info($"Cmd:     {Environment.CommandLine}");
         Log.Info($"Process: {Environment.ProcessPath}");
+        Log.Info($"Binary:  {RunningGmd.Current.Path}{InstalledBy(RunningGmd.Current.PackageManager)}");
         Log.Info($"Dir:     {Environment.CurrentDirectory}");
         Log.Info($".NET:    {Environment.Version}");
         Log.Info($"OS:      {Environment.OSVersion}");

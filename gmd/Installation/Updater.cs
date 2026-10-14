@@ -17,6 +17,10 @@ interface IUpdater
     void CancelUpdate();
     Task<Result<UpdateAvailability>> IsUpdateAvailableAsync();
     Task StartCheckUpdatesRegularly();
+
+    // The package manager gmd was installed with, which updates it rather than gmd itself, null when
+    // gmd updates itself
+    PackageManager? PackageManager { get; }
 }
 
 // The gmd that is running, as far as updating it goes: its version, the path of its binary, which
@@ -28,13 +32,34 @@ record RunningGmd(Version Version, string? Path, bool IsDevInstance, IReadOnlyLi
     public static RunningGmd Current { get; } =
         new(
             Build.Version(),
-            Environment.ProcessPath,
+            BinaryPath(Environment.ProcessPath),
             Build.IsDevInstance(),
             ReleaseChoice.BinaryNames(CurrentOs, RuntimeInformation.OSArchitecture)
         );
 
     // Run by 'dotnet gmd.dll', as the debugger does
     public bool IsDotNetHost => System.IO.Path.GetFileNameWithoutExtension(Path ?? "") == "dotnet";
+
+    // Null when gmd updates itself
+    public PackageManager? PackageManager => PackageManager.Of(Path);
+
+    // The binary itself, rather than a link to it that started it, which is what the path of the
+    // process can be on some systems: an update would replace the link with a file, and a package
+    // manager is told by where the binary is, not by the link it puts on the PATH
+    internal static string? BinaryPath(string? processPath)
+    {
+        if (processPath == null)
+            return null;
+        try
+        {
+            return File.ResolveLinkTarget(processPath, returnFinalTarget: true)?.FullName ?? processPath;
+        }
+        catch (Exception e) when (e.IsNotFatal())
+        {
+            Log.Warn($"Failed to resolve {processPath}, {e.Message}");
+            return processPath;
+        }
+    }
 
     static OSPlatform CurrentOs =>
         Build.IsWindows ? OSPlatform.Windows
@@ -76,6 +101,8 @@ class Updater : IUpdater
     public Task StartCheckUpdatesRegularly() => StartCheckUpdatesRegularly(RunningGmd.Current);
 
     public Task<Result<UpdateAvailability>> IsUpdateAvailableAsync() => IsUpdateAvailableAsync(RunningGmd.Current);
+
+    public PackageManager? PackageManager => RunningGmd.Current.PackageManager;
 
     internal async Task CheckUpdateAvailableAsync(RunningGmd self)
     {
@@ -142,6 +169,19 @@ class Updater : IUpdater
         if (self.Path is not string path)
             return new Error("The path of the gmd binary is not known, so it cannot be replaced");
 
+        if (self.PackageManager is PackageManager manager)
+            return new Error($"Gmd was installed with {manager.Name}, so update it with '{manager.UpdateCommand}'");
+
+        // Before anything is downloaded, with an error that says what is wrong rather than the
+        // download's 'access denied': a gmd installed by root, e.g. in /usr/local/bin, is updated the
+        // way it was installed
+        if (installer.CanInstall(path) is Error writeError)
+            return new Error(
+                $"Gmd cannot update itself, since you cannot write to {Path.GetDirectoryName(path)}."
+                    + " Update it the way it was installed.",
+                writeError
+            );
+
         var availableResult = await IsUpdateAvailableAsync(self);
         if (availableResult is not UpdateAvailability available)
         {
@@ -164,7 +204,7 @@ class Updater : IUpdater
             return installedVersion;
         }
 
-        var release = SelectRelease();
+        var release = SelectRelease(self);
         var binary = ReleaseChoice.Binary(release, self.BinaryNames);
         if (binary == null || !Version.TryParse(release.Version, out var version))
         {
@@ -229,7 +269,7 @@ class Updater : IUpdater
             return new Error($"Failed to get remote info, {fetchError}");
         }
 
-        var release = SelectRelease();
+        var release = SelectRelease(self);
         if (release.Version == "")
         {
             Log.Info("No remote release available");
@@ -260,11 +300,15 @@ class Updater : IUpdater
     }
 
     // Whether the release the last check found is newer than the running gmd, and than the version
-    // it installed already, which it would otherwise install again at every check until restarted
-    bool IsToInstall(RunningGmd self) =>
-        Version.TryParse(config.Releases.LatestVersion, out var latest)
+    // it installed already, which it would otherwise install again at every check until restarted.
+    // Never when a package manager installed gmd, which updates it.
+    internal bool IsToInstall(RunningGmd self) =>
+        self.PackageManager == null
+        && Version.TryParse(config.Releases.LatestVersion, out var latest)
         && latest > self.Version
         && (installedVersion == null || latest > installedVersion);
 
-    Release SelectRelease() => ReleaseChoice.Select(config.Releases, config.AllowPreview);
+    // A package manager installs no previews, so with one, a preview is not offered
+    Release SelectRelease(RunningGmd self) =>
+        ReleaseChoice.Select(config.Releases, config.AllowPreview && self.PackageManager == null);
 }

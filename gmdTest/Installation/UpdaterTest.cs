@@ -13,6 +13,9 @@ public class UpdaterTest
     const string BinaryPath = "/home/anna/gmd/gmd";
     static readonly RunningGmd Running = new(new Version("1.6.1444.518"), BinaryPath, false, ["gmd_linux_x64"]);
 
+    // Installed with Homebrew, which links /opt/homebrew/bin/gmd, on the PATH, to the binary
+    static readonly RunningGmd Brewed = Running with { Path = "/opt/homebrew/Cellar/gmd/1.6.1444.518/bin/gmd" };
+
     [TestMethod]
     public async Task TestANewerReleaseIsAnUpdate()
     {
@@ -223,6 +226,95 @@ public class UpdaterTest
         Assert.AreEqual(2, installer.Calls.Count);
     }
 
+    // Homebrew updates it, and gmd replacing its binary would leave Homebrew taking the old version for
+    // the one installed
+    [TestMethod]
+    public async Task TestAGmdInstalledWithHomebrewIsNotUpdatedByGmd()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+
+        var e = AssertError(await updater.UpdateAsync(Brewed));
+
+        StringAssert.Contains(e.Message, "installed with Homebrew");
+        StringAssert.Contains(e.Message, "'brew update && brew upgrade gmd'");
+        Assert.AreEqual(0, installer.Calls.Count);
+    }
+
+    // The update is still offered, as the command that makes it, but not installed by the regular check
+    [TestMethod]
+    public async Task TestAGmdInstalledWithHomebrewIsOfferedAnUpdateButNotAutoUpdated()
+    {
+        var (updater, _, _, _) = NewUpdater(stable: "1.6.1444.870");
+
+        Assert.IsTrue(AssertOk(await updater.IsUpdateAvailableAsync(Brewed)).IsAvailable);
+
+        Assert.IsFalse(updater.IsToInstall(Brewed));
+        Assert.IsTrue(updater.IsToInstall(Running));
+    }
+
+    // The tap has only the stable releases, so a preview would be offered and never come
+    [TestMethod]
+    public async Task TestAGmdInstalledWithHomebrewIsOfferedNoPreview()
+    {
+        var (updater, config, releases, _) = NewUpdater(stable: "1.6.1444.870");
+        releases.Preview = ReleaseChoiceTest.NewRelease("1.6.1445.10", true, "gmd_linux_x64", "SHA256SUMS");
+        config.Set(c => c.AllowPreview = true);
+
+        Assert.AreEqual(new Version("1.6.1445.10"), AssertOk(await updater.IsUpdateAvailableAsync(Running)).Version);
+        Assert.AreEqual(new Version("1.6.1444.870"), AssertOk(await updater.IsUpdateAvailableAsync(Brewed)).Version);
+        Assert.IsFalse(config.Releases.IsPreview);
+    }
+
+    // Said before anything is downloaded, rather than as the 'access denied' of the download
+    [TestMethod]
+    public async Task TestAGmdInAFolderItCannotWriteToIsNotUpdated()
+    {
+        var (updater, _, _, installer) = NewUpdater(stable: "1.6.1444.870");
+        installer.CanInstallResult = new Error("Access to the path is denied");
+
+        var e = AssertError(await updater.UpdateAsync(Running));
+
+        StringAssert.Contains(e.Message, "you cannot write to /home/anna/gmd");
+        Assert.AreEqual(0, installer.Calls.Count);
+    }
+
+    // The binary, rather than the link on the PATH that started it: an update would replace the link
+    // with a file, and Homebrew is told by where the binary is, in its Cellar
+    [TestMethod]
+    public void TestTheBinaryPathIsWhereALinkToItLeads()
+    {
+        if (OperatingSystem.IsWindows())
+            return; // Making a link takes developer mode there
+        var root = Directory.CreateTempSubdirectory("gmdTest-brew-").FullName;
+        try
+        {
+            var keg = Directory.CreateDirectory(Path.Join(root, "Cellar", "gmd", "1.6.1444.518", "bin")).FullName;
+            var binary = Path.Join(keg, "gmd");
+            File.WriteAllText(binary, "gmd");
+            var bin = Directory.CreateDirectory(Path.Join(root, "bin")).FullName;
+            var link = Path.Join(bin, "gmd");
+            File.CreateSymbolicLink(link, "../Cellar/gmd/1.6.1444.518/bin/gmd");
+
+            Assert.AreEqual(binary, RunningGmd.BinaryPath(link));
+            Assert.AreEqual(
+                PackageManager.Homebrew,
+                (Running with { Path = RunningGmd.BinaryPath(link) }).PackageManager
+            );
+            Assert.AreEqual(binary, RunningGmd.BinaryPath(binary));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [TestMethod]
+    public void TestTheBinaryPathOfNoFileIsThePathGiven()
+    {
+        Assert.AreEqual("/no/such/folder/gmd", RunningGmd.BinaryPath("/no/such/folder/gmd"));
+        Assert.IsNull(RunningGmd.BinaryPath(null));
+    }
+
     static (Updater, Config, FakeGitHubReleases, FakeInstaller) NewUpdater(string stable)
     {
         var config = new FakeConfigService().Config;
@@ -263,6 +355,7 @@ public class UpdaterTest
     {
         public List<string> Calls { get; } = [];
         public Func<Task<Result>> InstallTask { get; set; } = () => Task.FromResult(Result.Ok);
+        public Result CanInstallResult { get; set; } = Result.Ok;
 
         public Task<Result> InstallAsync(ReleaseBinary binary, string targetPath, CancellationToken cancel = default)
         {
@@ -273,6 +366,8 @@ public class UpdaterTest
 
         // What the install was given to cancel it
         public CancellationToken Cancel { get; private set; }
+
+        public Result CanInstall(string targetPath) => CanInstallResult;
 
         public void CleanUp(string targetPath) { }
     }

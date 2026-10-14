@@ -1,5 +1,6 @@
 using gmd.Common;
 using gmd.Cui.App;
+using gmd.Installation;
 
 namespace gmdTest.Cui.App;
 
@@ -41,6 +42,33 @@ public class UpdateDlgTest
         );
 
         StringAssert.StartsWith(message, "Gmd 1.6 (1444.518) is available, a preview.\n");
+    }
+
+    // Installed with Homebrew, gmd is updated by it, so the message says how rather than asking
+    [TestMethod]
+    public void TestAGmdInstalledWithHomebrewIsToldTheCommandThatUpdatesIt()
+    {
+        Assert.AreEqual(
+            $$"""
+            Gmd 1.6 (1444.518) is available.
+
+            This version:  1.5 (1444.48)    built 2026-10-13{{" "}}
+            New version:   1.6 (1444.518)   built 2026-10-19{{" "}}
+
+            Gmd was installed with Homebrew, so it is
+            updated with:
+
+              brew update && brew upgrade gmd
+            """,
+            UpdateDlg.Message(
+                new Version(1, 5, 1444, 48),
+                Running,
+                new Version(1, 6, 1444, 518),
+                Latest,
+                false,
+                PackageManager.Homebrew
+            )
+        );
     }
 
     // A release's changes are in the change log, with those of every release skipped since this one,

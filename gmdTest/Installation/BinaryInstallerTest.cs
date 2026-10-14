@@ -412,6 +412,35 @@ public class BinaryInstallerTest
         AssertNotInstalled();
     }
 
+    // Tried before an update downloads anything, and nothing is left of the try
+    [TestMethod]
+    public void TestAWritableFolderCanBeInstalledIn()
+    {
+        AssertOk(NewInstaller().CanInstall(binaryPath));
+
+        Assert.AreEqual("gmd", FilesNamed(""));
+    }
+
+    // As gmd installed by root in /usr/local/bin is, which the download failed in, after the headers
+    [TestMethod]
+    public void TestAFolderThatCannotBeWrittenToCannotBeInstalledIn()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+            return; // root writes to any folder
+        var mode = File.GetUnixFileMode(folder);
+        File.SetUnixFileMode(folder, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        try
+        {
+            AssertError(NewInstaller().CanInstall(binaryPath));
+        }
+        finally
+        {
+            File.SetUnixFileMode(folder, mode);
+        }
+
+        Assert.AreEqual("gmd", FilesNamed(""));
+    }
+
     // What an update left: the binary replaced on Windows, deleted at a later start, a download a gmd
     // ended during, but not one another gmd is downloading right now, and what older versions left,
     // a download beside the binary named as one replaced, and one in the temp folder
