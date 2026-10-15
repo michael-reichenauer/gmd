@@ -12,6 +12,7 @@ interface IBranchNameService
     bool IsPullRequest(WorkCommit c);
     bool IsMergeOfInto(WorkCommit c, string from);
     bool IsWeakName(string commitId);
+    bool IsOwnName(string commitId);
     void ParentsSwapped(WorkCommit c);
 }
 
@@ -35,6 +36,7 @@ class BranchNameService : IBranchNameService
     readonly Dictionary<string, FromInto> parsedCommits = [];
     readonly Dictionary<string, string> branchNames = [];
     readonly HashSet<string> weakNamed = [];
+    readonly HashSet<string> ownNamed = [];
 
     readonly FromInto noNames = new FromInto("", "", false, false);
 
@@ -83,6 +85,7 @@ class BranchNameService : IBranchNameService
         parsedCommits.Clear();
         branchNames.Clear();
         weakNamed.Clear();
+        ownNamed.Clear();
         hasBothTrunks =
             repo.Branches.Values.Any(b => b.NiceName == "main")
             && repo.Branches.Values.Any(b => b.NiceName == "master");
@@ -128,6 +131,8 @@ class BranchNameService : IBranchNameService
         branchNames[c.ParentIds[1]] = swapped.From;
         weakNamed.Remove(c.Id);
         weakNamed.Remove(c.ParentIds[1]);
+        ownNamed.Add(c.Id);
+        ownNamed.Remove(c.ParentIds[1]);
     }
 
     // Whether the name of a commit is only a weak one, which names the line merged in when nothing else
@@ -135,6 +140,10 @@ class BranchNameService : IBranchNameService
     // or a word of a subject that is no branch's as often as it is, e.g. "Merged conflicts with dev"
     // or "Merge latest dev into x". Git, GitHub and GitLab all quote a branch or name it after a keyword.
     public bool IsWeakName(string commitId) => weakNamed.Contains(commitId);
+
+    // Whether the name of a commit is from its own subject, "Merge branch 'a' into b", rather than
+    // from a merge child's, of which it was the tip
+    public bool IsOwnName(string commitId) => ownNamed.Contains(commitId);
 
     // Whether a merge commit's subject is a pull request's, e.g. 'Merge pull request #1 from x/y'
     public bool IsPullRequest(WorkCommit c) => ParseCommit(c).IsPullRequest;
@@ -191,6 +200,7 @@ class BranchNameService : IBranchNameService
         if (isOwnName)
         {
             weakNamed.Remove(c.Id);
+            ownNamed.Add(c.Id);
         }
 
         if (IsPullMergeCommit(fi))

@@ -13,6 +13,7 @@ interface ICommitBranchRules
     bool TryIsPublishedTipOfLocalBranches(WorkCommit commit, out WorkBranch? branch);
     bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
+    bool TryIsDeletedBranchNamedInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch);
     bool TrySameChildrenBranches(WorkCommit commit, out WorkBranch? branch);
@@ -274,6 +275,74 @@ class CommitBranchRules : ICommitBranchRules
         return false;
     }
 
+    // A subject names the branch the commit is on, and no branch the commit can be on has that name,
+    // while all of them were recovered from merge subjects too: the commit is on a deleted branch of
+    // that name, which the branches above it were started from. The name is a merge child's, whose
+    // merge says the commit was the branch's tip then ("Merge branch 'b1'"), e.g. a topic started at
+    // the tip of another merged before it, which ran down over the other's commits, since its own merge
+    // named only its own tip. Or it is the commit's own ("Merge branch 'fix' into maint-2.51") where
+    // branches meet, e.g. a maintenance line the topics were started from, which was ambiguous between
+    // them. A stretch of commits made ambiguous by the branches above goes to it too, as the line it
+    // continues. An unnamed branch (BranchFactory.UnnamedName) is given the name instead.
+    //
+    // Never where a live branch is a candidate, which a name from before it was renamed would cut in
+    // two, so never on the trunk either. Not a commit's own name on a line of one candidate, which a
+    // branch fast-forwarded into another leaves there, and which says nothing of where it started. Not
+    // a trunk's name: a deleted branch named main or master is as often an imported project's as an old
+    // trunk. Not an integration branch's name at one, which was renamed rather than started from it,
+    // e.g. develop to v1_develop. Not a weak name (BranchNameService.IsWeakName), and not HEAD. A name
+    // is the candidate's also with an owner in front of either, as a pull request's branch has one and
+    // the merges made on it before do not.
+    public bool TryIsDeletedBranchNamedInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    {
+        branch = null;
+        if (
+            commit.Branches.Count == 0
+            || commit.Branches.Any(b => b.IsGitBranch)
+            || !branchNameService.TryGetBranchName(commit.Id, out var name)
+            || branchNameService.IsWeakName(commit.Id)
+            || name == "HEAD"
+            || WellKnownBranches.IsTrunkName(name)
+            || name is "origin" or "upstream"
+            || commit.Branches.Any(b => IsSameName(b.NiceName, name))
+            || (
+                WellKnownBranches.IsIntegrationName(name, repo.IntegrationNames)
+                && commit.Branches.Any(b => WellKnownBranches.IsIntegrationName(b.NiceName, repo.IntegrationNames))
+            )
+        )
+            return false;
+
+        if (commit.Branches.Count == 1 && commit.Branches[0].NiceName == BranchFactory.UnnamedName)
+        {
+            branch = commit.Branches[0];
+            branch.NiceName = name;
+            return true;
+        }
+        if (branchNameService.IsOwnName(commit.Id) && commit.Branches.Select(b => b.PrimaryName).Distinct().Count() < 2)
+        { // A merge on a line of one candidate, as a branch fast-forwarded into another leaves it
+            return false;
+        }
+
+        // The ambiguous stretch above, of one ambiguous branch up to its ambiguous tip, if any
+        List<WorkCommit> stretch = [];
+        var ambiguous = commit.FirstChildren.FirstOrDefault(c => c.IsAmbiguous)?.Branch;
+        for (
+            var c = commit.FirstChildren.FirstOrDefault(c => c.IsAmbiguous && c.Branch == ambiguous);
+            c != null;
+            c = c.FirstChildren.FirstOrDefault(c => c.IsAmbiguous && c.Branch == ambiguous)
+        )
+        {
+            stretch.Add(c);
+            if (ambiguous!.AmbiguousTip == c)
+                break;
+        }
+
+        var deleted = BranchFactory.AddNamedBranch(repo, stretch.LastOrDefault() ?? commit, name);
+        stretch.ForEach(c => c.Branches.TryAdd(deleted)); // Lets TrySetBranch walk up through the stretch
+        branch = deleted;
+        return BranchAmbiguity.TrySetBranch(repo, commit, deleted);
+    }
+
     // A branch name could be parsed form the commit subject or a child subject.
     // The commit will be set to that branch and also if above (first child) commits have
     // ambiguous branches, the will be reset to same branch as well. This will 'repair' branch
@@ -321,6 +390,9 @@ class CommitBranchRules : ICommitBranchRules
         // ends with, as a whole part of it, so that 'hotfix-dev' is not taken for 'dev'
         return RemoteFirst(commit.Branches.Where(b => name.EndsWith("/" + b.NiceName)));
     }
+
+    // Whether two names are one branch's, also with an owner in front of either, e.g. 'owner/dev'
+    static bool IsSameName(string a, string b) => a == b || a.EndsWith("/" + b) || b.EndsWith("/" + a);
 
     // A nice name is shared by a local branch and its remote branch, and the remote branch is the
     // one a commit belongs to whenever it is a candidate, since it is the primary of the two. Taking

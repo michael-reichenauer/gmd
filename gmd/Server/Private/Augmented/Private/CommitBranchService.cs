@@ -85,6 +85,10 @@ class CommitBranchService : ICommitBranchService
         { // Commit branch was set/determined by user,
             return Decided(commit, nameof(rules.TryIsBranchSetByUser), branch!);
         }
+        else if (rules.TryIsDeletedBranchNamedInSubject(repo, commit, out branch))
+        { // A subject names the branch of the commit, a deleted one, which the branches above were started from
+            return Decided(commit, nameof(rules.TryIsDeletedBranchNamedInSubject), branch!);
+        }
         else if (rules.TryHasOnlyOneBranch(commit, out branch))
         { // Commit only has one branch, use that
             return Decided(commit, nameof(rules.TryHasOnlyOneBranch), branch!);
