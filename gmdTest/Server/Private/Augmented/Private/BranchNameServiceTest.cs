@@ -164,11 +164,16 @@ public class BranchNameServiceTest
     }
 
     // Merging a tag is not merging a branch, but the merged commits still need a name to be shown
-    // under, and the subject still says which branch they were merged into
+    // under, and the subject still says which branch they were merged into. Pulled from another
+    // repository it reads as a pull merge, but a tag is no branch merged into itself.
     [TestMethod]
     public void TestMergeOfATag()
     {
         Assert.AreEqual(new FromInto("v1.2.3", "main", false, false), Parse("Merge tag 'v1.2.3' into main"));
+        Assert.AreEqual(
+            new FromInto("v1.2.3", "", false, false),
+            Parse("Merge tag 'v1.2.3' of https://github.com/x/y")
+        );
     }
 
     // An octopus merge has more than two parents. Only the first merged branch gets a name, since

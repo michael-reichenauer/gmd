@@ -348,6 +348,33 @@ public class AugmenterTest
         Assert.AreEqual($"gitk/master:{RepoBuilder.Sid("b2")}", BranchOf(repo, "b1"));
     }
 
+    // A tag pulled from another repository, "Merge tag 'v2.0' of <url>", which git's maintainer writes
+    // for every translation round. It reads as a pull merge too, by its 'of <url>' with no target, but
+    // a tag is no branch, merged into itself or not, so the merge is left in git's order and the tagged
+    // line is the branch merged in, here one started from main.
+    //
+    //   m1        main, "Merge tag 'v2.0' of https://github.com/x/y"
+    //   |\
+    //   c2 t1     main, and the tagged commit
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestPullOfATagIsNoPullMerge()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m1", "Merge tag 'v2.0' of https://github.com/x/y", "c2", "a1")
+            .Commit("a1", "Translation", "c1")
+            .Commit("c2", "Main work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "m1", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.IsFalse(CommitOf(repo, "m1").IsParentsSwapped);
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+        Assert.AreEqual($"v2.0:{RepoBuilder.Sid("a1")}", BranchOf(repo, "a1"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
+    }
+
     // But git leaves 'into' out for both trunks, so in a repo that has both, e.g. moving from master to
     // main, the subject cannot tell a pull merge from one trunk merged into the other: here master
     // merged into main. Taken for a pull merge of master, its parents were swapped and main's line ran

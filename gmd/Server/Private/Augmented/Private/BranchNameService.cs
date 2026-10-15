@@ -210,6 +210,18 @@ class BranchNameService : IBranchNameService
             return new FromInto(From: "", Into: TrimBranchName(match.Groups[indexes.into].Value), false, false);
         }
 
+        if (IsMatchMergeTag(match))
+        { // 'git pull <url> tag <tag>' writes "Merge tag 'v1.0' of <url>", which reads as a pull merge,
+            // but a tag is no branch, merged into itself or not, so a tag's merge is never one. Swapped
+            // as one, it ran git's master into the history of the repository the tag was pulled from.
+            return new FromInto(
+                From: TrimBranchName(match.Groups[indexes.from].Value),
+                Into: TrimBranchName(match.Groups[indexes.into].Value),
+                false,
+                false
+            );
+        }
+
         if (IsMatchPullMerge(match) || (!hasBothTrunks && IsMatchPullMergeOfTrunk(match)))
         {
             if (!isOneLine())
@@ -363,6 +375,10 @@ class BranchNameService : IBranchNameService
     // commit is merged by id
     static bool IsMatchMergeCommit(Match match) =>
         match.Groups["keyword"].Value.Equals("commit", StringComparison.OrdinalIgnoreCase);
+
+    // "Merge tag 'v1.0'" names a tag rather than a branch
+    static bool IsMatchMergeTag(Match match) =>
+        match.Groups["keyword"].Value.Equals("tag", StringComparison.OrdinalIgnoreCase);
 
     bool IsMatchPullRequest(Match match)
     {
