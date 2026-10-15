@@ -714,7 +714,7 @@ Other things to know:
 - Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
-  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy` and `ConflictResolution` exist. `Text.ToString()`

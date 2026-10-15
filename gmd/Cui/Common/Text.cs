@@ -94,6 +94,12 @@ class Text
         // and make sure foreground color is readable on new background
         foreach (var fragment in fragments)
         {
+            if (fragment.Color == Common.Color.Match)
+            { // A search match stays marked on the row the cursor is put on to show it
+                newText.Color(fragment.Color, fragment.Text);
+                continue;
+            }
+
             var fg = fragment.Color.Foreground;
 
             // Make sure foreground color is readable on new background
@@ -152,6 +158,37 @@ class Text
         if (isFillRest && newText.Length < length)
         {
             newText.Black(new string(' ', length - newText.Length));
+        }
+
+        return newText;
+    }
+
+    // The text with each place the query is found in it marked in Color.Match, as RowSearch finds it,
+    // from char index 'from' on, so that a line number gutter before it, which is not searched, is
+    // not marked either. The marks go around the very chars that matched, whatever their colors were.
+    public Text WithMatches(string query, int from = 0)
+    {
+        var ranges = RowSearch.MatchRanges(ToString(), query, from);
+        if (ranges.Count == 0)
+            return this;
+
+        var newText = new TextBuilder();
+        int start = 0; // Where the fragment starts in the whole text, as a char index
+        foreach (var fragment in fragments)
+        {
+            var end = start + fragment.Text.Length;
+            var at = start; // How far into the text the fragment has been added
+            foreach (var (matchStart, matchEnd) in ranges.Where(r => r.End > start && r.Start < end))
+            {
+                var (markStart, markEnd) = (Math.Max(matchStart, at), Math.Min(matchEnd, end));
+                if (markStart > at)
+                    newText.Color(fragment.Color, fragment.Text[(at - start)..(markStart - start)]);
+                newText.Color(Common.Color.Match, fragment.Text[(markStart - start)..(markEnd - start)]);
+                at = markEnd;
+            }
+            if (at < end)
+                newText.Color(fragment.Color, fragment.Text[(at - start)..]);
+            start = end;
         }
 
         return newText;
@@ -285,6 +322,8 @@ class TextBuilder
         for (int i = 0; i < fragments.Count; i++)
         {
             var fragment = fragments[i];
+            if (fragment.Color == Common.Color.Match)
+                continue; // A search match stays marked, as in Text.ToHighlight
             var fg = fragment.Color.Foreground;
 
             // Make sure foreground color is readable on new background

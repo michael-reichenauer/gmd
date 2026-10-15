@@ -11,12 +11,22 @@ public class BlameHintsTest
     public void TestBlameOffersPreviousAndBackWhereTheyAct()
     {
         Assert.AreEqual(
-            "m menu  Esc close  Enter details  d diff  l line history  i copy id  g gutter",
-            Line(BlameHints.For(isDetailsShown: false, hasPrevious: false, canGoBack: false))
+            "m menu  Esc close  Enter details  d diff  l line history  f search  i copy id  g gutter",
+            Line(BlameHints.For(isDetailsShown: false, hasPrevious: false, canGoBack: false, hasSearch: false))
         );
         Assert.AreEqual(
-            "m menu  Esc close  Enter hide details  d diff  l line history  p previous  Backspace back  i copy id  g gutter",
-            Line(BlameHints.For(isDetailsShown: true, hasPrevious: true, canGoBack: true))
+            "m menu  Esc close  Enter hide details  d diff  l line history  p previous  Backspace back  f search  i copy id  g gutter",
+            Line(BlameHints.For(isDetailsShown: true, hasPrevious: true, canGoBack: true, hasSearch: false))
+        );
+    }
+
+    // n goes on to the next match once a search found any, as in the diff
+    [TestMethod]
+    public void TestASearchWithMatchesOffersTheNextOne()
+    {
+        Assert.AreEqual(
+            "m menu  Esc close  Enter details  d diff  l line history  n next match  f search  i copy id  g gutter",
+            Line(BlameHints.For(isDetailsShown: false, hasPrevious: false, canGoBack: false, hasSearch: true))
         );
     }
 

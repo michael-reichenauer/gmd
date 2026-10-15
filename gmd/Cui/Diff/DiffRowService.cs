@@ -51,12 +51,26 @@ class DiffRowService : IDiffRowService
 
     public static string WithoutLineNbr(string rowText, int lineNbr)
     {
-        if (lineNbr == 0)
-            return rowText;
-
-        var width = Math.Max(4, lineNbr.ToString().Length) + 1;
+        var width = LineNbrWidth(lineNbr);
         return rowText.Length > width ? rowText[width..] : "";
     }
+
+    // How wide the line number is at the start of a row's text, which a copy and a search leave out;
+    // 0 for a row that is not a source line
+    public static int LineNbrWidth(int lineNbr) => lineNbr == 0 ? 0 : Math.Max(4, lineNbr.ToString().Length) + 1;
+
+    // The text of each side of a row that a search looks in: its line without the line number, and
+    // nothing of a divider or of the filler of a side with no line, which are no text of the diff. A
+    // header row, e.g. 'Modified: <path>', spans both sides and is the left one.
+    public static (string Left, string Right) SearchText(DiffRow row) =>
+        row.Mode switch
+        {
+            DiffRowMode.DividerLine => ("", ""),
+            DiffRowMode.SpanBoth => (WithoutLineNbr(row.Left.ToString(), row.LineNbr), ""),
+            _ => (SideText(row.Left, row.LeftLineNbr), SideText(row.Right, row.RightLineNbr)),
+        };
+
+    static string SideText(Text side, int lineNbr) => side == NoLine ? "" : WithoutLineNbr(side.ToString(), lineNbr);
 
     public DiffRows ToDiffRows(CommitDiff commitDiff)
     {

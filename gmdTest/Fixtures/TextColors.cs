@@ -8,7 +8,8 @@ namespace gmdTest.Fixtures;
 // Uppercase is a normal color and lowercase its bright variant, the same convention ScreenText
 // uses for a captured screen: 'M' magenta, 'm' bright magenta, 'W' white, 'D' dark, '.' black.
 // The two background colors a diff marks its changes with are '-' (red background, i.e. removed)
-// and '+' (green background, i.e. added), chosen so a diff's colors read as a diff. ScreenText
+// and '+' (green background, i.e. added), chosen so a diff's colors read as a diff, and a search
+// match is '*' (black on yellow, see Color.Match). ScreenText
 // spells '-' as the terminal default instead — these are separate alphabets for separate
 // fixtures, since one reads a Text and the other a terminal capture.
 static class TextColors
@@ -32,6 +33,7 @@ static class TextColors
         (Color.BrightMagenta, 'm'),
         (Color.RedBg, '-'),
         (Color.GreenBg, '+'),
+        (Color.Match, '*'),
     ];
 
     // A blank rune keeps its space, so the letters line up below the runes they belong to — but
@@ -48,7 +50,7 @@ static class TextColors
 
     static bool HasBackground(Color color) => color.Background != Terminal.Gui.Color.Black;
 
-    // The exact pair first, so the two background colors keep their own letters, then the
+    // The exact pair first, so the background colors keep their own letters, then the
     // foreground alone. The fallback is what makes a highlighted or selected row readable: those
     // keep their foreground and only swap the background, which is not a pair listed above and
     // would otherwise render as a row of '?'. Assert the background itself to see the highlight.
