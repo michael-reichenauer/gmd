@@ -12,12 +12,28 @@ public class DiffHintsTest
     public void TestTheDiffOffersCommitAndDiscardForTheUncommittedChanges()
     {
         Assert.AreEqual(
-            "m menu  Esc close  + - context  s to file  f search  ←→ columns",
-            Line(DiffHints.For(canCommit: false, hasContext: true, hasConflicts: false, hasSearch: false))
+            "m menu  Esc close  + - context  s to file  f search  w hide whitespace  ←→ columns",
+            Line(
+                DiffHints.For(
+                    canCommit: false,
+                    hasContext: true,
+                    hasConflicts: false,
+                    hasSearch: false,
+                    isWhitespaceHidden: false
+                )
+            )
         );
         Assert.AreEqual(
-            "m menu  Esc close  Enter resolve  c commit  + - context  s to file  f search  u discard  ←→ columns",
-            Line(DiffHints.For(canCommit: true, hasContext: true, hasConflicts: true, hasSearch: false))
+            "m menu  Esc close  Enter resolve  c commit  + - context  s to file  f search  u discard  w hide whitespace  ←→ columns",
+            Line(
+                DiffHints.For(
+                    canCommit: true,
+                    hasContext: true,
+                    hasConflicts: true,
+                    hasSearch: false,
+                    isWhitespaceHidden: false
+                )
+            )
         );
     }
 
@@ -26,8 +42,16 @@ public class DiffHintsTest
     public void TestALineHistoryHasNoContextToStep()
     {
         Assert.AreEqual(
-            "m menu  Esc close  s to file  f search  ←→ columns",
-            Line(DiffHints.For(canCommit: false, hasContext: false, hasConflicts: false, hasSearch: false))
+            "m menu  Esc close  s to file  f search  w hide whitespace  ←→ columns",
+            Line(
+                DiffHints.For(
+                    canCommit: false,
+                    hasContext: false,
+                    hasConflicts: false,
+                    hasSearch: false,
+                    isWhitespaceHidden: false
+                )
+            )
         );
     }
 
@@ -36,8 +60,34 @@ public class DiffHintsTest
     public void TestASearchWithMatchesOffersTheNextOne()
     {
         Assert.AreEqual(
-            "m menu  Esc close  + - context  s to file  n next match  f search  ←→ columns",
-            Line(DiffHints.For(canCommit: false, hasContext: true, hasConflicts: false, hasSearch: true))
+            "m menu  Esc close  + - context  s to file  n next match  f search  w hide whitespace  ←→ columns",
+            Line(
+                DiffHints.For(
+                    canCommit: false,
+                    hasContext: true,
+                    hasConflicts: false,
+                    hasSearch: true,
+                    isWhitespaceHidden: false
+                )
+            )
+        );
+    }
+
+    // w says what it would do: hide the changes of whitespace alone, or show them again
+    [TestMethod]
+    public void TestWhitespaceIsShownAgainOnceHidden()
+    {
+        Assert.AreEqual(
+            "m menu  Esc close  + - context  s to file  f search  w show whitespace  ←→ columns",
+            Line(
+                DiffHints.For(
+                    canCommit: false,
+                    hasContext: true,
+                    hasConflicts: false,
+                    hasSearch: false,
+                    isWhitespaceHidden: true
+                )
+            )
         );
     }
 

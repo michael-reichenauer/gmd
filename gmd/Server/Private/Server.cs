@@ -275,12 +275,12 @@ class Server : IServer
     public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
         Paused(() => git.CommitFilesAsync(message, isAmend, paths, wd));
 
-    public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, DiffOptions options, string wd)
     {
         var diffTask =
             commitId == Repo.UncommittedId
-                ? git.GetUncommittedDiffAsync(contextLines, wd)
-                : git.GetCommitDiffAsync(commitId, contextLines, wd);
+                ? git.GetUncommittedDiffAsync(options, wd)
+                : git.GetCommitDiffAsync(commitId, options, wd);
 
         var diff = await diffTask;
         if (diff is not Git.CommitDiff gitCommitDiff)
@@ -302,11 +302,11 @@ class Server : IServer
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     )
     {
-        var diff = await git.GetPreviewMergeDiffAsync(sha1, sha2, message, contextLines, wd);
+        var diff = await git.GetPreviewMergeDiffAsync(sha1, sha2, message, options, wd);
         if (diff is not Git.CommitDiff gitCommitDiff)
             return diff.Error;
 
@@ -317,11 +317,11 @@ class Server : IServer
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     )
     {
-        var diff = await git.GetDiffRangeAsync(sha1, sha2, message, contextLines, wd);
+        var diff = await git.GetDiffRangeAsync(sha1, sha2, message, options, wd);
         if (diff is not Git.CommitDiff gitCommitDiff)
             return diff.Error;
 
@@ -332,9 +332,9 @@ class Server : IServer
 
     public Task<Result> RunMergeToolAsync(string path, string wd) => Paused(() => git.RunMergeToolAsync(path, wd));
 
-    public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
+    public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, DiffOptions options, string wd)
     {
-        var diffs = await git.GetFileDiffAsync(path, contextLines, wd);
+        var diffs = await git.GetFileDiffAsync(path, options, wd);
         if (diffs is not Git.CommitDiff[] gitCommitDiffs)
             return diffs.Error;
         return GitConverter.ToCommitDiffs(gitCommitDiffs);
@@ -345,10 +345,11 @@ class Server : IServer
         int firstLine,
         int lastLine,
         string reference,
+        DiffOptions options,
         string wd
     )
     {
-        var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, wd);
+        var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, options, wd);
         if (diffs is not Git.CommitDiff[] gitCommitDiffs)
             return diffs.Error;
         return GitConverter.ToCommitDiffs(gitCommitDiffs);
@@ -603,9 +604,9 @@ class Server : IServer
 
     public Task<Result> StashApplyAsync(string name, string wd) => Paused(() => git.StashApplyAsync(name, wd));
 
-    public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd)
     {
-        var diffResult = await git.GetStashDiffAsync(name, contextLines, wd);
+        var diffResult = await git.GetStashDiffAsync(name, options, wd);
         if (diffResult is not Git.CommitDiff diff)
             return diffResult.Error;
         return GitConverter.ToCommitDiff(diff);

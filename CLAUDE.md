@@ -252,7 +252,9 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
   It holds how to read the diff again (`DiffReload`), and what the view may do with it: step the
   context (not a line history, `git log -L`), and commit and discard (the log's uncommitted diff
-  alone, not blame's).
+  alone, not blame's). What a diff is read with is `Git.DiffOptions`, the context and whether
+  whitespace is left out (`w`); git then leaves out a file of whitespace changes alone, which
+  `DiffWhitespace` puts back, listed with no lines.
 - **`Cui/Blame/`** — `BlameRowService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
   math, and steps detail down as the terminal narrows.

@@ -127,12 +127,17 @@ Ranked by how soon someone new meets the gap.
    - A squash left unsigned where git's config signs commits. *Fixed (2026-10-15)*, see
      `MODERNIZATION.md`. Few sign (about one commit in ten on GitHub), but a branch that requires
      signed commits refused the push.
+   - Ignoring whitespace in a diff. *Done (2026-10-15):* `w` in the diff view, git's
+     `--ignore-all-space` through `DiffOptions`, for the diff it is pressed in only. A file whose
+     changes are all whitespace, which git then leaves out, is listed as such, as GitHub lists it
+     (`DiffWhitespace`), so it is still in the file list, Scroll to and Discard; and no change of the
+     spaces around a line, nor of its line end, is marked.
    - Open, in the order they would be met: committing or discarding single hunks (the known limit in
      the README; ticks per hunk in the diff of the uncommitted changes, applied to a copy of the
      index, would keep the checklist's model); a cherry-pick of the selected commits, whose range the
-     copy menu offers for the command line; ignoring whitespace in a diff (`-w`); opening a file in
-     the editor at a line of the diff or the blame; a rebase of a published branch without its force
-     push; and a reset of a branch to any commit, which takes Uncommit and then Discard today.
+     copy menu offers for the command line; opening a file in the editor at a line of the diff or the
+     blame; a rebase of a published branch without its force push; and a reset of a branch to any
+     commit, which takes Uncommit and then Discard today.
 
 Not needed by the audiences above: submodule and LFS commands, bisect, patches, and pull requests
 through the services' APIs.

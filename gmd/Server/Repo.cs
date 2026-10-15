@@ -407,7 +407,12 @@ record FileDiff(
     bool IsBinary,
     DiffMode DiffMode,
     IReadOnlyList<SectionDiff> SectionDiffs
-);
+)
+{
+    // A file whose changes are all whitespace, in a diff read with whitespace left out, where git has
+    // no diff of it: it is listed with no lines rather than left out, see DiffWhitespace
+    public bool IsWhitespaceOnly { get; init; }
+}
 
 record SectionDiff(
     string ChangedIndexes,

@@ -54,6 +54,10 @@ class DiffView : IDiffView
     RowSearch search = RowSearch.None;
     IStatusLine status = new StatusLine();
 
+    // Whether changes of whitespace alone are hidden, 'w', for this diff: a diff opened later shows
+    // them again, rather than hide a change where it was not asked for
+    bool isIgnoreWhitespace;
+
     bool IsSelected => contentView.SelectCount > 0;
 
     // How wide each of the two columns is, as OnGetContent lays them out
@@ -97,6 +101,7 @@ class DiffView : IDiffView
         this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
         this.search = RowSearch.None;
         this.status = new StatusLine();
+        this.isIgnoreWhitespace = false;
 
         Toplevel diffView = new Toplevel()
         {
@@ -126,7 +131,8 @@ class DiffView : IDiffView
                     this.source.CanCommit,
                     this.source.HasContext,
                     conflictState.Files.Count > 0,
-                    search.IsActive
+                    search.IsActive,
+                    isIgnoreWhitespace
                 ),
             () => status.Current
         );
@@ -167,6 +173,7 @@ class DiffView : IDiffView
         view.RegisterKeyHandler((Key)'/', Search);
         view.RegisterKeyHandler(Key.n, () => StepMatch(1));
         view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
+        view.RegisterLetterHandler(Key.w, ToggleWhitespace);
 
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
         // was bound to it in this view before.
@@ -224,6 +231,7 @@ class DiffView : IDiffView
                 // obvious, and disabled when the cursor is on no file or that file is at an end
                 .Item(ContextItemText("More Context", 1), "+", () => StepContext(1), () => CanStepContext(1))
                 .Item(ContextItemText("Less Context", -1), "-", () => StepContext(-1), () => CanStepContext(-1))
+                .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected)
                 .Item("Close", "Esc", () => Application.RequestStop())
@@ -537,13 +545,13 @@ class DiffView : IDiffView
     async void StepContext(int step)
     {
         var anchor = CurrentAnchor();
-        var wanted = WantedContext(anchor.FilePath, step);
+        var wanted = WantedContext(anchor, step);
         if (wanted == 0)
             return;
 
         using (progress.Show())
         {
-            var fetchedResult = await source.Reload(wanted);
+            var fetchedResult = await source.ReadAsync(Options(wanted));
             if (fetchedResult is not CommitDiff[] fetched)
             {
                 UI.ErrorMessage($"Failed to get diff\n{fetchedResult.Error.AllMessages()}");
@@ -556,14 +564,18 @@ class DiffView : IDiffView
     }
 
     // The context the file would then be shown with, or 0 if the step would do nothing: the diff has
-    // no context to step, there is no file under the cursor, or that file is already at the widest or
-    // the narrowest. Also what the menu asks to know whether to offer the item.
-    int WantedContext(string filePath, int step)
+    // no context to step, there is no file under the cursor, that file has no lines shown, its changes
+    // being whitespace that is hidden, or it is already at the widest or the narrowest. Also what the
+    // menu asks to know whether to offer the item.
+    int WantedContext(DiffAnchor anchor, int step)
     {
+        var filePath = anchor.FilePath;
         if (!source.HasContext)
             return 0;
         if (filePath == "")
             return 0; // The cursor is above the first file, so there is nothing to step
+        if (IsWhitespaceOnly(anchor))
+            return 0;
 
         var current = fileContext.GetValueOrDefault(filePath, DiffContext.Default);
         var wanted = DiffContext.Step(current, step);
@@ -571,15 +583,22 @@ class DiffView : IDiffView
         return wanted == current ? 0 : wanted;
     }
 
-    bool CanStepContext(int step) => WantedContext(CurrentAnchor().FilePath, step) != 0;
+    bool CanStepContext(int step) => WantedContext(CurrentAnchor(), step) != 0;
+
+    // Whether the file the anchor is in, in the commit it is in, has whitespace changes alone, which
+    // it is listed with no lines for while whitespace is hidden
+    bool IsWhitespaceOnly(DiffAnchor anchor) =>
+        diffs.FirstOrDefault(d => anchor.CommitId == "" || d.Id == anchor.CommitId) is CommitDiff diff
+        && diff.FileDiffs.Any(f => f.PathAfter == anchor.FilePath && f.IsWhitespaceOnly);
 
     // Names the file the item would act on and what it would then show, since 'the file the cursor
     // is on' is the part of these two commands that the name alone does not give away. Falls back
     // to the bare name when there is nothing to step, where the item is disabled anyway.
     string ContextItemText(string name, int step)
     {
-        var path = CurrentAnchor().FilePath;
-        var wanted = WantedContext(path, step);
+        var anchor = CurrentAnchor();
+        var path = anchor.FilePath;
+        var wanted = WantedContext(anchor, step);
         if (wanted == 0)
             return name;
 
@@ -594,7 +613,7 @@ class DiffView : IDiffView
 
         using (progress.Show())
         {
-            var refreshedResult = await source.Reload(DiffContext.Default);
+            var refreshedResult = await source.ReadAsync(Options(DiffContext.Default));
             if (refreshedResult is not CommitDiff[] refreshed)
             {
                 UI.ErrorMessage($"Failed to get diff\n{refreshedResult.Error.AllMessages()}");
@@ -616,12 +635,40 @@ class DiffView : IDiffView
         isRefreshNeeded = true;
     }
 
+    // Hides the changes of whitespace alone, or shows them again, as GitHub's 'Hide whitespace' does:
+    // the diff is read again with or without them, every file at the default context as after a
+    // refresh, and a file whose changes are all whitespace is listed with no lines (DiffWhitespace)
+    async void ToggleWhitespace()
+    {
+        var anchor = CurrentAnchor();
+        var options = new Git.DiffOptions(DiffContext.Default, !isIgnoreWhitespace);
+
+        using (progress.Show())
+        {
+            var readResult = await source.ReadAsync(options);
+            if (readResult is not CommitDiff[] read)
+            {
+                UI.ErrorMessage($"Failed to get diff\n{readResult.Error.AllMessages()}");
+                return;
+            }
+
+            isIgnoreWhitespace = options.IsIgnoreWhitespace;
+            fileContext.Clear();
+            SetDiffs(read, anchor);
+        }
+
+        status.Info(isIgnoreWhitespace ? "Whitespace changes hidden: w shows them" : "Whitespace changes shown");
+    }
+
+    // The options the diff is read with, at a context
+    Git.DiffOptions Options(int contextLines) => new(contextLines, isIgnoreWhitespace);
+
     // Replaces the shown diffs and redraws, keeping the cursor on the content it was on rather
     // than on the row index it was at, which means nothing once the rows are rebuilt.
     void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
     {
         diffs = newDiffs;
-        diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
+        diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), isIgnoreWhitespace);
         search = FindInRows(search.Text); // The rows the search found are other rows now
         hintBar.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
 

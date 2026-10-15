@@ -34,12 +34,12 @@ interface IGit
     Task<Result<Status>> GetStatusWithoutLocksAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
-    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, DiffOptions options, string wd);
 
     // The files the commit changed, as its diff has them, with no diff read
     Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd);
-    Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd);
-    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetUncommittedDiffAsync(DiffOptions options, string wd);
+    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, DiffOptions options, string wd);
 
     // The commits that changed the lines of the file at the reference, or HEAD for "", newest first
     Task<Result<CommitDiff[]>> GetLineHistoryAsync(
@@ -47,6 +47,7 @@ interface IGit
         int firstLine,
         int lastLine,
         string reference,
+        DiffOptions options,
         string wd
     );
     Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);
@@ -54,10 +55,16 @@ interface IGit
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     );
-    Task<Result<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetDiffRangeAsync(
+        string sha1,
+        string sha2,
+        string message,
+        DiffOptions options,
+        string wd
+    );
     Task<Result> RunDiffToolAsync(string path, string wd);
     Task<Result> RunMergeToolAsync(string path, string wd);
     Task<Result> FetchAsync(string wd);
@@ -154,7 +161,7 @@ interface IGit
     Task<Result> StashPopAsync(string name, string wd);
     Task<Result> StashApplyAsync(string name, string wd);
     Task<Result> StashDropAsync(string name, string wd);
-    Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd);
     Task<Result> AddTagAsync(string name, string commitId, string wd);
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);
     Task<Result> RemoveTagAsync(string name, string wd);
