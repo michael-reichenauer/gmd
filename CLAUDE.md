@@ -110,8 +110,8 @@ command line (`ProgramCommands`) and `Spelling/`; `gmd/Installation/` is the sel
 `Updater` decides when, `GitHubReleases` reads the releases, `ReleaseChoice` picks the release and
 the binary for this platform, and `BinaryInstaller` downloads it, checks it and swaps it in.
 `PackageManager` tells a gmd that a package manager installed by where its binary is (Homebrew's
-`Cellar/gmd/<version>/bin`, winget's `WinGet\Packages\MichaelReichenauer.gmd_…`), and the updater
-then leaves updating it to that, saying the command.
+`Cellar/gmd/<version>/bin`), and the updater then leaves updating it to that, saying the command. It
+knows winget's folder too, from a winget package that was submitted once and left out.
 
 Key types and flow:
 
@@ -810,9 +810,6 @@ message.
   for every release from `main` (`scripts/brewformula`, pushed with the deploy key in the secret
   `HOMEBREW_TAP_KEY`; docs/CONTRIBUTING.md has the setup). Its formula names the release assets
   too, and gmd knows a brewed binary by the formula's name in its path, so keep the formula `gmd`.
-  Likewise the winget package, `MichaelReichenauer.gmd` in microsoft/winget-pkgs: the release
-  workflow proposes each release from `main` with Komac (secret `WINGET_TOKEN`), and gmd knows a
-  winget install by the package id in its folder's name, so keep the id.
 - **`devcontainer-feature/` is the dev container feature `gmd`**, tested on every change and
   published from `main` by `.github/workflows/devcontainer-feature.yml`, at the version in its
   `devcontainer-feature.json`: bump that version, or the change is not published.

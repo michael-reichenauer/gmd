@@ -103,9 +103,8 @@ An update downloads the new version and checks it before it replaces gmd,
 which quits then; the new version runs when gmd is started again. **Cancel**
 in the box shown meanwhile stops it, after asking, and leaves gmd as it is,
 up to the moment the new version is put in place. A gmd installed with
-Homebrew or winget is updated by them instead, so ⇓ then says the command to
-run, `brew update && brew upgrade gmd`, or, once gmd is closed,
-`winget upgrade --id MichaelReichenauer.gmd`.
+Homebrew is updated by Homebrew instead, so ⇓ then says the command to run,
+`brew update && brew upgrade gmd`.
 
 The line at the bottom shows the keys that do something where the cursor
 is, and changes as it moves; the diff, blame and conflict views have one of

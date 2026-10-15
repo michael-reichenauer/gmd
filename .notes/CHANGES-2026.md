@@ -328,8 +328,9 @@ Each is in `.notes/MODERNIZATION.md` (under Deferred) or `.notes/USABILITY.md`, 
 - **A second remote** (an `upstream` for a fork), until the need is understood from use.
 - **Measuring the inference** on public repositories and publishing the numbers, to go with the
   next work on the inference.
-- **More packages**: Homebrew came in 1.7. Next are winget and a PowerShell install for Windows,
-  which should meet no SmartScreen warning since no browser downloads them, then a dev container
-  feature; Scoop, AUR and an Intel Mac build maybe after (`.notes/USABILITY.md`, item 24).
+- **More packages**: Homebrew came in 1.7, and in 1.8 a PowerShell install for Windows, which meets
+  no SmartScreen warning since no browser downloads it, and a dev container feature. winget was left
+  out: Defender in its validation blocks an unsigned program few have run, and gmd is not signed.
+  Scoop, AUR and an Intel Mac build maybe later (`.notes/USABILITY.md`, item 24).
 - **Staging of single lines or hunks**, left out: the file checklist in the commit dialog was judged
   the right size for gmd.
