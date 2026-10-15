@@ -132,9 +132,21 @@ Ranked by how soon someone new meets the gap.
      changes are all whitespace, which git then leaves out, is listed as such, as GitHub lists it
      (`DiffWhitespace`), so it is still in the file list, Scroll to and Discard; and no change of the
      spaces around a line, nor of its line end, is marked.
-   - Open, in the order they would be met: committing or discarding single hunks (the known limit in
-     the README; ticks per hunk in the diff of the uncommitted changes, applied to a copy of the
-     index, would keep the checklist's model); a cherry-pick of the selected commits, whose range the
+   - Committing or discarding part of a file (the known limit in the README). *Planned
+     (2026-10-15)*, as ticks rather than a staging area, which keeps the checklist's model: in the
+     diff of the uncommitted changes `x` leaves a change out, or the selected lines, and the commit
+     takes the rest, made with `git commit` on a temporary index of HEAD with the chosen lines
+     applied to it (`GIT_INDEX_FILE`), the real index then caught up for the committed paths, the
+     working tree never written; a discard is the same patch applied in reverse to the working tree.
+     A choice is of a line by its side, number and text, and a left-out line not found exactly when
+     the commit is made stops that file ("changed since its changes were chosen"). Not while
+     whitespace is hidden, nor during a merge, nor for binary, renamed or deleted files, at first.
+     In phases: 1. the patch model and applying it; 2. discarding a change or the selected lines
+     (`u`); 3. choosing what to commit (`x`, the drawing, partly ticked files in the commit dialog,
+     the commit and amend); 4. later, a way back from discards (`git stash create` first, recorded as
+     Restore Deleted Branch records), and renamed and deleted files in part. *Phase 1 done
+     (2026-10-15):* `FilePatch`, `PatchParser` and `PatchService` in the git layer, see `CLAUDE.md`.
+   - Open, in the order they would be met: a cherry-pick of the selected commits, whose range the
      copy menu offers for the command line; opening a file in the editor at a line of the diff or the
      blame; a rebase of a published branch without its force push; and a reset of a branch to any
      commit, which takes Uncommit and then Discard today.

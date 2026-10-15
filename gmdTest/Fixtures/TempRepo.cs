@@ -110,6 +110,7 @@ sealed class TempRepo : IDisposable
             new ConflictService(cmd),
             new WorktreeService(cmd),
             new ReflogService(cmd),
+            new PatchService(cmd),
             cmd
         );
     }

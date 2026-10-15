@@ -19,6 +19,7 @@ internal class Git : IGit
     readonly IConflictService conflictService;
     readonly IWorktreeService worktreeService;
     readonly IReflogService reflogService;
+    readonly IPatchService patchService;
     readonly ICmd cmd;
 
     public Git(
@@ -36,11 +37,13 @@ internal class Git : IGit
         IConflictService conflictService,
         IWorktreeService worktreeService,
         IReflogService reflogService,
+        IPatchService patchService,
         ICmd cmd
     )
     {
         this.worktreeService = worktreeService;
         this.reflogService = reflogService;
+        this.patchService = patchService;
         this.logService = logService;
         this.branchService = branchService;
         this.statusService = statusService;
@@ -136,6 +139,15 @@ internal class Git : IGit
         DiffOptions options,
         string wd
     ) => diffService.GetDiffRangeAsync(sha1, sha2, message, options, wd);
+
+    public Task<Result<FilePatch>> GetUncommittedPatchAsync(string path, string wd) =>
+        patchService.GetUncommittedPatchAsync(path, wd);
+
+    public Task<Result> ApplyPatchToIndexAsync(FilePatch patch, string indexPath, string wd) =>
+        patchService.ApplyToIndexAsync(patch, indexPath, wd);
+
+    public Task<Result> ApplyPatchReversedAsync(FilePatch patch, string wd) =>
+        patchService.ApplyReversedAsync(patch, wd);
 
     public Task<Result> RunDiffToolAsync(string path, string wd) => diffService.RunDiffToolAsync(path, wd);
 

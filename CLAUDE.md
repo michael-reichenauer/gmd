@@ -272,6 +272,16 @@ can have (mixed line endings, no final newline, a BOM, all three conflict styles
 resolver writes goes through it, so that identity is what stops resolving one conflict from
 rewriting the rest of the file.
 
+Committing or discarding part of a file rests on the same idea. `Git/FilePatch.cs` is the patch of
+one file, which `PatchParser` reads and writes back byte for byte (the same invariant), and of which
+`ForApply` and `ForReverseApply` make the patch of the chosen lines alone, a change's removed and
+added lines paired as the diff view pairs them. `PatchService` reads a file's uncommitted patch
+(written by git to a file, `--output`, since `Cmd` trims and decodes; anything not UTF-8 is refused)
+and applies a patch with `git apply`, to an index or in reverse to the working tree. The diff the
+view shows cannot be used for it: its parser drops the line saying a file has no final newline.
+`PatchIntegrationTest` applies every choice of a file's changes with git and holds the result to a
+model of the whole file.
+
 Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
 `gmd/Cui/` references Terminal.Gui (`gmd/Program.cs`, the entry point, does — it is the composition
 root, above the layers). The one thing a lower layer needs from the UI is its main loop, and that
