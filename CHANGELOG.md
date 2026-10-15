@@ -1,7 +1,12 @@
 # Change Log for Gmd
 --------------------
 
-147 releases:
+148 releases:
+
+## [v1.9.1446.426] - 2026-10-15
+- Never offer a preview to a gmd installed with Homebrew, which has the stable releases only
+- Grey out Auto update and Allow preview releases in Config for a gmd installed with Homebrew, and say why
+- Say after the PowerShell install on Windows that gmd runs in that terminal already
 
 ## [v1.8.1445.1141] - 2026-10-14
 - Install gmd on Windows with one PowerShell command, into a folder and a PATH of your own, with no admin rights needed
