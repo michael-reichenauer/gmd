@@ -207,47 +207,12 @@ x64 and arm64, and runs `devcontainer-feature/test/gmd/test.sh` in each. From `m
 publishes the feature, at the version in `devcontainer-feature.json`, so a change of the feature is
 published only with a new version there.
 
-The package is private when it is first published. Make it public once: on GitHub, *Packages* →
-*gmd/gmd* → *Package settings* → *Change visibility* → *Public*.
+The package is linked to this repository, whose workflow published it, so it is public as the
+repository is: no step by hand is needed, and anyone can fetch it with no login (checked when 1.8
+first published it).
 
 To try a change before it is pushed, with Docker:
 
 ```bash
 npx @devcontainers/cli@0.89.0 features test --project-folder devcontainer-feature --features gmd --base-image debian:bookworm-slim
 ```
-
-## The winget package
-
-`winget install MichaelReichenauer.gmd` installs gmd on Windows from the package
-`MichaelReichenauer.gmd` in [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs), whose
-manifests install the release's `gmd.exe` as a portable app: winget puts it in
-`%LOCALAPPDATA%\Microsoft\WinGet\Packages\` and links it from a folder on the PATH. A gmd installed
-so is updated by winget, once it is closed, rather than by itself
-(`gmd/Installation/PackageManager.cs`), so the package's id stays what it is.
-
-The first version is submitted by hand, with [Komac](https://github.com/russellbanks/Komac), which
-makes the manifests and opens the pull request, from a fork of winget-pkgs it makes in the account
-of the token in `GITHUB_TOKEN` (the `gh` login's, `$(gh auth token)`, will do):
-
-```bash
-komac new MichaelReichenauer.gmd --version <version> \
-  --urls https://github.com/michael-reichenauer/gmd/releases/download/v<version>/gmd.exe \
-  --package-locale en-US --publisher "Michael Reichenauer" --publisher-url https://github.com/michael-reichenauer \
-  --publisher-support-url https://github.com/michael-reichenauer/gmd/issues --package-name gmd \
-  --package-url https://github.com/michael-reichenauer/gmd --moniker gmd --author "Michael Reichenauer" \
-  --license MIT --license-url https://github.com/michael-reichenauer/gmd/blob/main/LICENSE \
-  --copyright "Copyright (c) 2022 Michael Reichenauer" \
-  --short-description "Git client for the terminal that shows only the branches you choose" \
-  --release-notes-url https://github.com/michael-reichenauer/gmd/releases/tag/v<version> --submit
-```
-
-It asks for the rest in a terminal, all of it optional: Enter skips each, and winget then names the
-command after the file, `gmd`. On the pull request, Microsoft's bot asks once for its Contributor
-License Agreement to be agreed to, in a comment; its checks then install gmd in a sandbox, and a
-moderator merges it, usually within days. `--dry-run --output <folder>` in place of `--submit` writes
-the manifests only.
-
-After that, every release from `main` proposes its version, in the release workflow's step *Update
-the winget package (main)*, once this repository has the Actions secret `WINGET_TOKEN`: a classic
-personal access token (*Settings* → *Developer settings* → *Personal access tokens* → *Tokens
-(classic)*) with the `public_repo` scope. Until then the step warns and does nothing.

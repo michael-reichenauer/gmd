@@ -10,7 +10,9 @@ record PackageManager(string Name, string UpdateCommand, bool IsClosedFirst = fa
     // be found yet
     public static readonly PackageManager Homebrew = new("Homebrew", "brew update && brew upgrade gmd");
 
-    // The package of gmd in the winget repository, microsoft/winget-pkgs
+    // The package of gmd in the winget repository, microsoft/winget-pkgs. Left out (2026-10-15): its
+    // first version was blocked by Defender in winget's validation, as an unsigned program few have
+    // run, and gmd is not signed. Known still, for a winget package taken up again.
     public const string WingetId = "MichaelReichenauer.gmd";
 
     public static readonly PackageManager Winget = new("winget", $"winget upgrade --id {WingetId}", true);

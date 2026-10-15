@@ -86,7 +86,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   MichaelReichenauer.gmd`, once gmd is closed, since Windows cannot replace a program that runs.
   The release workflow proposes each release with Komac. A dry run of `komac new` made the
   manifests: a portable x64 installer, tags from the repo's topics, and the release notes from
-  GitHub's, which showed a Co-Authored-By trailer in 1.7's change log, now left out.
+  GitHub's, which showed a Co-Authored-By trailer in 1.7's change log, now left out. Then left out
+  (2026-10-15): the submission of 1.8 was blocked by Defender in winget's validation sandbox, though
+  Defender on a PC found nothing in the file, and getting past that for every release was judged not
+  worth it (`.notes/USABILITY.md`, item 24). The detection stays; the workflow's Komac step is gone.
 - `gmd/Cui` reviewed (2026-10-13), by five reviewers in parallel and every finding checked against
   the code before it was acted on: 32 commits, the bugs under Bugs fixed. Structure: the key-hint
   line is `Cui/Common`'s (`KeyHint`, `KeyHintBar`, `KeyHintLine`) and each view's hints are beside

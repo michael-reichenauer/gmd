@@ -47,8 +47,12 @@ class ConfigDlg : IConfigDlg
 
         dlg.AddLabel(1, 8, $"General:");
         var isCheckUpdates = dlg.AddCheckBox(1, 9, "Check for new releases", config.CheckUpdates);
-        var isAutoUpdate = dlg.AddCheckBox(1, 10, "Auto update to new releases", config.AutoUpdate);
-        var isAllowPreview = dlg.AddCheckBox(1, 11, "Allow preview releases", config.AllowPreview);
+        var manager = updater.PackageManager;
+        var isAutoUpdate = dlg.AddCheckBox(1, 10, AutoUpdateText(manager), config.AutoUpdate);
+        var isAllowPreview = dlg.AddCheckBox(1, 11, AllowPreviewText(manager), config.AllowPreview);
+        // A package manager updates gmd, with stable releases alone, so neither is gmd's to do then
+        isAutoUpdate.Enabled = manager == null;
+        isAllowPreview.Enabled = manager == null;
         var isSpellCheck = dlg.AddCheckBox(1, 12, "Spell check commit messages", config.SpellCheck);
         var isShowKeyHints = dlg.AddCheckBox(1, 13, "Show key hints at the bottom of the log", config.ShowKeyHints);
         var isAddGmdToPath = dlg.AddCheckBox(1, 14, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
@@ -83,6 +87,13 @@ class ConfigDlg : IConfigDlg
         updater.CheckUpdateAvailableAsync().RunInBackground();
         return isNamesChanged;
     }
+
+    // Saying why the box is greyed out when a package manager installed gmd
+    internal static string AutoUpdateText(PackageManager? manager) =>
+        manager == null ? "Auto update to new releases" : $"Auto update ({manager.Name} updates gmd)";
+
+    internal static string AllowPreviewText(PackageManager? manager) =>
+        manager == null ? "Allow preview releases" : $"Allow preview releases (not with {manager.Name})";
 
     // Branch names as typed, separated by commas or spaces
     internal static List<string> ParseNames(string text) =>

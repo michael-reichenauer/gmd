@@ -426,12 +426,18 @@ Reach:
   `gmdSetup.exe` out of the README; a dev container feature; then maybe Scoop, a dotnet tool, an
   Intel Mac build. *`install.ps1` on dev (2026-10-14):* `irm … | iex` installs gmd.exe to
   `%LOCALAPPDATA%\Programs\gmd` and the user's PATH, and the README leads with it on Windows; tried
-  on Linux PowerShell as far as it goes there (the download, the checksum, the replace), untried on
-  Windows. *Dev container feature on dev (2026-10-14):* `ghcr.io/michael-reichenauer/gmd/gmd:1`,
-  tested by CI in containers and published from main; its package is to be made public once.
-  *winget on dev (2026-10-14):* a gmd installed by winget leaves updating to it, and the release
-  workflow proposes each release with Komac; the package's first version, submitted by hand, waits
-  for a release with that, and the README's line for it waits for the package.
+  on Linux PowerShell as far as it goes there (the download, the checksum, the replace), and on
+  Windows (2026-10-15): installed and on the PATH at once, installed again over a gmd running, and
+  the user's PATH kept as written, `REG_EXPAND_SZ` with its `%USERPROFILE%`. *Dev container feature on dev (2026-10-14):* `ghcr.io/michael-reichenauer/gmd/gmd:1`,
+  tested by CI in containers and published from main, in 1.8, public with no step by hand.
+  *winget left out (2026-10-15):* the first version, 1.8, submitted with Komac
+  (microsoft/winget-pkgs#452829), was blocked by Defender in winget's validation sandbox
+  (`Validation-Defender-Error`), while Defender on a Windows PC found nothing in the same file: the
+  sandbox blocks unsigned programs few have run, and each release would be a new one. Getting past
+  it takes a false positive report per release, or signing, which still leaves SmartScreen's
+  warning, so it was judged not worth it: the PowerShell install is the way on Windows. gmd still
+  knows a winget install (`PackageManager.Winget`); the release workflow's step that proposed each
+  release with Komac was removed, and is in cab1e09b to take up again.
 
 Waiting for the Terminal.Gui 2.x port:
 
