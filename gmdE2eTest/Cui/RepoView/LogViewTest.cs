@@ -471,6 +471,31 @@ public class LogViewTest
         );
     }
 
+    // The details of the uncommitted changes list the files, as git status has them
+    [TestMethod]
+    public async Task TestUncommittedDetailsListTheFiles()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("2 uncommitted changes");
+
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            """
+            Id:       Uncommitted
+            Branch:   main
+            Parents:  17d85ba8
+
+            2 uncommitted changes
+
+            M alpha.txt
+            A epsilon.txt
+            """,
+            ScreenText.Rows(gmd.WaitFor("epsilon.txt"), repo.Path, 30, 8)
+        );
+    }
+
     // Tab moves into the details pane, and the cursor and page keys then scroll a message too long
     // for it rather than move to another commit, which they went on doing, since only the drawn focus
     // moves. Tab back and they move the commit again.

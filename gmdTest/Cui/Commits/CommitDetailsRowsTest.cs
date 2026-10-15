@@ -116,6 +116,47 @@ public class CommitDetailsRowsTest
         Assert.AreEqual(Color.BrightYellow, RowsOf(repo, "")[0].Fragments[1].Color);
     }
 
+    // The files below the count of them, the conflicted first and the rest by path, each with the
+    // letter the commit dialog gives it
+    [TestMethod]
+    public async Task TestTheUncommittedFiles()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .WithStatus(
+                modifiedFiles: ["src/b.cs"],
+                addedFiles: ["new.txt"],
+                deletedFiles: ["a.txt"],
+                conflictedFiles: ["z.cs", "m.cs"],
+                renamedFiles: [("old.md", "doc/new.md")]
+            )
+            .ViewRepoAsync();
+
+        Assert.AreEqual(
+            """
+            Id:       Uncommitted
+            Branch:   main
+            Parents:  c1000000
+
+            CONFLICTS: 2, 6 uncommitted changes
+
+            C m.cs
+            C z.cs
+            D a.txt
+            A new.txt
+            R old.md → doc/new.md
+            M src/b.cs
+            """,
+            TextOf(repo, "")
+        );
+        var rows = RowsOf(repo, "");
+        Assert.AreEqual(Color.BrightRed, rows[6].Fragments[0].Color);
+        Assert.AreEqual(Color.Red, rows[8].Fragments[0].Color);
+        Assert.AreEqual(Color.Green, rows[9].Fragments[0].Color);
+        Assert.AreEqual(Color.Yellow, rows[11].Fragments[0].Color);
+    }
+
     [TestMethod]
     public async Task TestAnAmbiguousCommit()
     {

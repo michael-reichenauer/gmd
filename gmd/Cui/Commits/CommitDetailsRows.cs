@@ -28,8 +28,42 @@ static class CommitDetailsRows
         rows.Add(RelativesRow(repo, commit, branch, colors));
         rows.Add(Text.Empty);
         rows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
+        if (commit.Id == Repo.UncommittedId)
+            rows.AddRange(UncommittedFiles(repo.Status));
 
         return rows;
+    }
+
+    // The files with changes not committed, below the count of them: the conflicted first, since
+    // resolving them is what has to be done next, and then the rest as the commit dialog lists them
+    static IEnumerable<Text> UncommittedFiles(Status status)
+    {
+        var conflicts = status.Conflicts.Select(c => c.Path).Order(StringComparer.Ordinal).ToList();
+        var files = new CommitFiles(status).Files;
+        if (conflicts.Count == 0 && files.Count == 0)
+            return [];
+
+        return
+        [
+            Text.Empty,
+            .. conflicts.Select(path => FileRow('C', path)),
+            .. files.Select(f => FileRow(f.Kind, f.Path)),
+        ];
+    }
+
+    // A file and what changed in it, by the letter the commit dialog uses: 'M' modified, 'A' new,
+    // 'D' deleted, 'R' renamed, and 'C' conflicted, in the red the application bar says conflicts in
+    static Text FileRow(char kind, string path)
+    {
+        var letter = $"{kind}";
+        var text = kind switch
+        {
+            'A' => Text.Green(letter),
+            'D' => Text.Red(letter),
+            'C' => Text.BrightRed(letter),
+            _ => Text.Yellow(letter),
+        };
+        return text.White($" {path}");
     }
 
     // The full id, which is the one to copy into another tool, and the tags, as the log writes them
