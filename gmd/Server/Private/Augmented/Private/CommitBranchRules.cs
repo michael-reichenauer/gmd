@@ -407,7 +407,10 @@ class CommitBranchRules : ICommitBranchRules
         if (commit.FirstChildren.Count == 1)
         { // Commit has only one child, ensure commit has same possible branches
             var child = commit.FirstChildren[0];
-            if (commit.Branches.Count != child.Branches.Count || !commit.Branches.All(child.Branches.Contains))
+            if (
+                commit.Branches.Count != child.Branches.Count
+                || !child.Branches.ToHashSet().IsSupersetOf(commit.Branches)
+            )
             { // Some branch has changed, the order of them does not matter
                 branch = null;
                 return false;
@@ -575,7 +578,7 @@ class CommitBranchRules : ICommitBranchRules
         // If more ambiguous children, merge in their sub branches as well
         commit
             .FirstChildren.Where(c => c.IsAmbiguous && c != ambiguousChild)
-            .ForEach(c => c.Branch!.AmbiguousBranches.ForEach(b => commit.Branches.TryAdd(b)));
+            .ForEach(c => commit.Branches.TryAddAll(c.Branch!.AmbiguousBranches));
 
         commit.IsAmbiguous = true;
         return true;

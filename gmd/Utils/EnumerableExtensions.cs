@@ -39,16 +39,18 @@ public static class EnumerableExtensions
         source.Add(item);
     }
 
-    // Tries to add all the items to the list if they do not already exist
+    // Tries to add all the items to the list if they do not already exist. What the list has is looked
+    // up in a set, not in the list, which made adding many items to a long list quadratic: a commit's
+    // candidate branches, hundreds long in an ambiguous stretch of rust's history.
     public static void TryAddAll<TSource>(this List<TSource> source, IEnumerable<TSource> items)
     {
+        var existing = new HashSet<TSource>(source);
         foreach (var item in items)
         {
-            if (source.Contains(item))
+            if (existing.Add(item))
             {
-                continue;
+                source.Add(item);
             }
-            source.Add(item);
         }
     }
 

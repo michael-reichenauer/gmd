@@ -75,7 +75,6 @@ class CommitBranchService : ICommitBranchService
     WorkBranch DetermineCommitBranch(WorkRepo repo, WorkCommit commit, GitRepo gitRepo)
     {
         commit.Branches.TryAddAll(commit.FirstChildren.SelectMany(c => c.Branches));
-        var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
 
         if (commit.Id == Repo.TruncatedLogCommitId)
         {
