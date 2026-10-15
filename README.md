@@ -361,7 +361,7 @@ Homebrew instead, as said above. Before it replaces anything, the new version
 is checked against the release's checksums and run once, so a download that would not start is
 never installed. The **Config ...** dialog can turn the
 update check off, update automatically, or allow preview releases, which are built from the
-`dev` branch.
+`dev` branch; with Homebrew, which has the stable releases only, the last two are greyed out.
 
 ## What Gmd Stores and Sends
 
