@@ -33,7 +33,6 @@ class RepoViewInput
     readonly ICommitDetailsView commitDetailsView;
     readonly IApplicationBar applicationBarView;
     readonly IUnicodeSetsDlg charDlg;
-    readonly IClipboardService clipboard;
     readonly Hoover hoover;
     readonly IStatusLine status;
 
@@ -45,7 +44,6 @@ class RepoViewInput
         ICommitDetailsView commitDetailsView,
         IApplicationBar applicationBarView,
         IUnicodeSetsDlg charDlg,
-        IClipboardService clipboard,
         Hoover hoover,
         IStatusLine status
     )
@@ -55,7 +53,6 @@ class RepoViewInput
         this.commitDetailsView = commitDetailsView;
         this.applicationBarView = applicationBarView;
         this.charDlg = charDlg;
-        this.clipboard = clipboard;
         this.hoover = hoover;
         this.status = status;
     }
@@ -110,8 +107,8 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.b, () => CreateBranch());
         commitsView.RegisterKeyHandler(Key.d, OnKeyD);
         commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => CommitCmds.ShowCurrentRowDiff());
-        commitsView.RegisterKeyHandler(Key.i, () => Cmd.CopyCommitId());
-        commitsView.RegisterKeyHandler(Key.I, () => Cmd.CopyCommitMessage());
+        commitsView.RegisterKeyHandler(Key.i, () => Cmd.Copy(CopyKind.Ids));
+        commitsView.RegisterKeyHandler(Key.I, () => Cmd.Copy(CopyKind.Messages));
         commitsView.RegisterKeyHandler(Key.p, OnKeyP);
         commitsView.RegisterKeyHandler(Key.P, () => PushPullCmds.PushAllBranches());
         commitsView.RegisterKeyHandler(Key.u, OnKeyU);
@@ -494,53 +491,14 @@ class RepoViewInput
         }
     }
 
+    // Ctrl-C asks what to copy of the row's commit or of the commits selected, see CommitCopy. Never
+    // the rows as drawn, which carried the graph with them.
     void Copy()
     {
-        var selection = commitsView.Selection;
-        if (selection.IsEmpty)
-        {
-            status.Notice("Select rows with ⇧↑↓ first, and Ctrl-C copies them");
+        if (IsRefused(LogKeys.Copy(Repo, commitsView.Selection)))
             return;
-        }
 
-        var (i1, i2) = (selection.I1, selection.I2);
-        if (i1 == i2)
-        { // Select within the same commit
-            CopyToClipboard(commitsView.CopySelectedText());
-            return;
-        }
-
-        CopyToClipboard(SelectedCommitsText(ServerRepo.ViewCommits, i1, i2));
-        commitsView.ClearSelection();
-        commitsView.SetNeedsDisplay();
-    }
-
-    // A copy that fails must say so: a clipboard tool that is missing or that cannot reach the
-    // session is the normal way for this to fail, and silence just looks like a key that does
-    // nothing.
-    void CopyToClipboard(string text)
-    {
-        if (clipboard.Set(text) is Error e)
-        {
-            UI.ErrorMessage(e.AllMessages());
-            return;
-        }
-
-        status.Info("Copied to the clipboard");
-    }
-
-    // The text of a selection that spans several commits: the sid and subject of each selected
-    // commit, but only of the commits on the same branch as the first selected commit, since the
-    // rows in between belong to whichever branches the graph happens to draw there.
-    internal static string SelectedCommitsText(IReadOnlyList<Commit> commits, int i1, int i2)
-    {
-        var branch = commits[i1].BranchPrimaryName;
-        return commits
-            .Skip(i1)
-            .Take(i2 - i1 + 1)
-            .Where(c => c.BranchPrimaryName == branch)
-            .Select(c => $"{c.Sid} {c.Subject}")
-            .Join("\n");
+        Menus.ShowCopyMenu(Repo.Graph.Width + 5, MenuY(Repo.CurrentIndex));
     }
 
     void OnDoubleClicked(int x, int y)

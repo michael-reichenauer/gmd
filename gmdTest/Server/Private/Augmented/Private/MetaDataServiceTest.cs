@@ -30,8 +30,8 @@ public class MetaDataServiceTest
     // no-ops by default
     void EnableSync() => repoConfig.Set(Path, c => c.SyncMetaData = true);
 
-    static string Json(params (string sid, string branch)[] choices) =>
-        JsonSerializer.Serialize(new MetaData { CommitBranchBySid = choices.ToDictionary(c => c.sid, c => c.branch) });
+    static string Json(params (string id, string branch)[] choices) =>
+        JsonSerializer.Serialize(new MetaData { CommitBranchById = choices.ToDictionary(c => c.id, c => c.branch) });
 
     [TestMethod]
     public async Task TestSetAndGetRoundTrip()
@@ -86,7 +86,7 @@ public class MetaDataServiceTest
     {
         var metaData = AssertOk(await service.GetMetaDataAsync(Path));
 
-        Assert.AreEqual(0, metaData.CommitBranchBySid.Count);
+        Assert.AreEqual(0, metaData.CommitBranchById.Count);
         CollectionAssert.AreEqual(new[] { "get data" }, git.ValueCalls);
     }
 
@@ -167,7 +167,29 @@ public class MetaDataServiceTest
         AssertOk(await service.FetchMetaDataAsync(Path));
         var metaData = AssertOk(await service.GetMetaDataAsync(Path));
 
-        CollectionAssert.AreEquivalent(new[] { "local1", "remote1" }, metaData.CommitBranchBySid.Keys.ToArray());
+        CollectionAssert.AreEquivalent(new[] { "local1", "remote1" }, metaData.CommitBranchById.Keys.ToArray());
+    }
+
+    // What another clone's reflog witnessed about a commit is a fact beside the choices, so taking it
+    // over never replaces the choice made here of the same commit
+    [TestMethod]
+    public async Task TestFetchKeepsAChoiceBesideTheRemoteWitnessedBranch()
+    {
+        EnableSync();
+        var id = RepoBuilder.Sha("e1");
+        git.Values[Key] = Json((id, "*main"));
+        var remote = new MetaData();
+        remote.SetWitnessed(id, "dev");
+        git.RemoteValues[Key] = JsonSerializer.Serialize(remote);
+
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
+
+        Assert.IsTrue(metaData.TryGetCommitBranch(id, out var name, out var isSetByUser));
+        Assert.AreEqual("main", name);
+        Assert.IsTrue(isSetByUser);
+        Assert.IsTrue(metaData.TryGetWitnessedBranch(id, out name));
+        Assert.AreEqual("dev", name);
     }
 
     // When the same commit was assigned differently here and on origin, with no record of origin's
@@ -221,7 +243,7 @@ public class MetaDataServiceTest
         var metaData = AssertOk(await service.GetMetaDataAsync(Path));
 
         Assert.IsFalse(metaData.TryGetCommitBranch("abc123", out _, out _));
-        Assert.IsTrue(metaData.CommitBranchBySid.ContainsKey("abc123"), "The removal is still shareable");
+        Assert.IsTrue(metaData.CommitBranchById.ContainsKey("abc123"), "The removal is still shareable");
     }
 
     // A value changed here since the last fetch, which origin still has as it was, is kept: the fetch

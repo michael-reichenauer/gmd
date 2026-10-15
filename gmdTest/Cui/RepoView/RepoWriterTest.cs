@@ -31,9 +31,9 @@ public class RepoWriterTest
     {
         Assert.AreEqual(
             """
-            ┣┬┺ ● Merge branch 'dev' into main                                    (^)(● main) c30000 Test Author    2024-10-15 12:00
-            ┣     Second                                                                      c20000 Test Author    2024-10-15 11:58
-            ┗╯    Initial                                                                     c10000 Test Author    2024-10-15 11:57
+            ┣┬┺ ● Merge branch 'dev' into main                                  (^)(● main) c3000000 Test Author    2024-10-15 12:00
+            ┣     Second                                                                    c2000000 Test Author    2024-10-15 11:58
+            ┗╯    Initial                                                                   c1000000 Test Author    2024-10-15 11:57
             """,
             Page(await View(), 120)
         );
@@ -44,14 +44,14 @@ public class RepoWriterTest
     [TestMethod]
     public async Task TestTheWidestArmKeepsTheSidAndTheFullAuthorAndTime()
     {
-        StringAssert.EndsWith(FirstRow(await View(), 116), "c30000 Test Author    2024-10-15 12:00");
+        StringAssert.EndsWith(FirstRow(await View(), 116), "c3000000 Test Author    2024-10-15 12:00");
     }
 
     [TestMethod]
     public async Task TestOneColumnNarrowerCutsTheAuthorAndTheTime()
     {
-        StringAssert.EndsWith(FirstRow(await View(), 115), "c30000 Test Auth 2024-10-15");
-        StringAssert.EndsWith(FirstRow(await View(), 106), "c30000 Test Auth 2024-10-15", "Still the same arm");
+        StringAssert.EndsWith(FirstRow(await View(), 115), "c3000000 Test Auth 2024-10-15");
+        StringAssert.EndsWith(FirstRow(await View(), 106), "c3000000 Test Auth 2024-10-15", "Still the same arm");
     }
 
     [TestMethod]
@@ -118,8 +118,8 @@ public class RepoWriterTest
     {
         Assert.AreEqual(
             """
-            ┣     Second                                                                      c20000 Test Author    2024-10-15 11:58
-            ┗╯    Initial                                                                     c10000 Test Author    2024-10-15 11:57
+            ┣     Second                                                                    c2000000 Test Author    2024-10-15 11:58
+            ┗╯    Initial                                                                   c1000000 Test Author    2024-10-15 11:57
             """,
             Page(await View(), 120, firstRow: 1, count: 2)
         );

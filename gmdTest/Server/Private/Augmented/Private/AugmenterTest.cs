@@ -315,6 +315,66 @@ public class AugmenterTest
         Assert.AreEqual("origin/main", repo.Branches[BranchOf(repo, "c2")].PrimaryName);
     }
 
+    // Another project's branch pulled into main, as git pulls gitk's and git-gui's: "Merge branch
+    // 'master' of https://github.com/j6t/gitk". It reads as a pull merge, a branch merged with its own
+    // remote, but the two lines merged never meet, since they are two histories. Swapped as one, main's
+    // line ran into gitk's history, and main's own commits below were left to whatever branches were
+    // started from them: in git's log, 37 of master's 6960 first-parent commits were on master.
+    //
+    //   m1        main, "Merge branch 'master' of <gitk's url>"
+    //   |\
+    //   c2 k2     main, and gitk's master
+    //   |  |
+    //   c1 k1     two roots
+    [TestMethod]
+    [DataRow("https://github.com/j6t/gitk")]
+    [DataRow("git@github.com:j6t/gitk.git")]
+    [DataRow("git://ozlabs.org/~paulus/gitk/")]
+    public async Task TestPullOfAnotherProjectsBranchIsNoPullMerge(string url)
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m1", $"Merge branch 'master' of {url}", "c2", "b2")
+            .Commit("b2", "Gitk work", "b1")
+            .Commit("c2", "Main work", "c1")
+            .Commit("b1", "Gitk's first")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "m1", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.IsFalse(CommitOf(repo, "m1").IsParentsSwapped);
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
+        Assert.AreEqual($"gitk/master:{RepoBuilder.Sid("b2")}", BranchOf(repo, "b2"), "Named after its project");
+        Assert.AreEqual($"gitk/master:{RepoBuilder.Sid("b2")}", BranchOf(repo, "b1"));
+    }
+
+    // A tag pulled from another repository, "Merge tag 'v2.0' of <url>", which git's maintainer writes
+    // for every translation round. It reads as a pull merge too, by its 'of <url>' with no target, but
+    // a tag is no branch, merged into itself or not, so the merge is left in git's order and the tagged
+    // line is the branch merged in, here one started from main.
+    //
+    //   m1        main, "Merge tag 'v2.0' of https://github.com/x/y"
+    //   |\
+    //   c2 t1     main, and the tagged commit
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestPullOfATagIsNoPullMerge()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m1", "Merge tag 'v2.0' of https://github.com/x/y", "c2", "a1")
+            .Commit("a1", "Translation", "c1")
+            .Commit("c2", "Main work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "m1", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.IsFalse(CommitOf(repo, "m1").IsParentsSwapped);
+        Assert.AreEqual("origin/main", BranchOf(repo, "c2"));
+        Assert.AreEqual($"v2.0:{RepoBuilder.Sid("a1")}", BranchOf(repo, "a1"));
+        Assert.AreEqual("origin/main", BranchOf(repo, "c1"));
+    }
+
     // But git leaves 'into' out for both trunks, so in a repo that has both, e.g. moving from master to
     // main, the subject cannot tell a pull merge from one trunk merged into the other: here master
     // merged into main. Taken for a pull merge of master, its parents were swapped and main's line ran

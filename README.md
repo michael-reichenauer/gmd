@@ -151,7 +151,7 @@ Known limits:
   left out. There is no staging of single lines or hunks.
 - Only the remote named `origin` is supported.
 - The colors assume a dark terminal: on a light theme gmd is drawn on black.
-- The log reads the latest 30,000 commits.
+- The log reads the latest 50,000 commits.
 - A password, a passphrase or whether to trust a host is asked in a dialog, but only for a command
   you ran. The fetch gmd runs in the background never asks: when it needs a login, it says so, and
   `r` fetches and asks. An ssh older than OpenSSH 8.4 (2020) asks on the terminal instead.

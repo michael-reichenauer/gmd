@@ -794,6 +794,26 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
     }
 
+    // The same with an owner in front of one of the names, as a pull request from a fork's copy of the
+    // branch has it: in sinatra, 1.2.x and timfel/1.2.x left 144 commits of 1.2.x ambiguous
+    [TestMethod]
+    public async Task TestBranchPointOfBranchesOfOneNameWithAnOwnerIsNotAmbiguous()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch '1.2.x'", "c2", "d2")
+            .Commit("c2", "Merge pull request #1 from someone/1.2.x", "c1", "e1")
+            .Commit("d2", "Fix 2", "d1")
+            .Commit("e1", "Fix other", "d1")
+            .Commit("d1", "Fix 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"someone/1.2.x:{RepoBuilder.Sid("e1")}", BranchOf(repo, "e1"));
+        Assert.AreEqual($"1.2.x:{RepoBuilder.Sid("d2")}", BranchOf(repo, "d1"), "The first of the two");
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+    }
+
     // Not so for two deleted branches whose merges name no branch: each is recovered as 'branch', a
     // name that says nothing about being one branch, so the commit where they meet is still ambiguous
     //
@@ -821,6 +841,168 @@ public class BranchStructureServiceTest
         Assert.AreEqual($"branch:{RepoBuilder.Sid("a1")}", BranchOf(repo, "a1"));
         Assert.AreEqual($"branch:{RepoBuilder.Sid("b1")}", BranchOf(repo, "b1"));
         Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
+    }
+
+    // A topic started at the tip of another, which was merged first, as git's maintainer does for a fix
+    // of a topic: the merge of b1 names its tip e1, but e1's only candidate was the branch started from
+    // it, so b2 ran down over all of b1's commits. In git's log, 380 tips a merge named were on a branch
+    // started from them, 3088 commits.
+    //
+    //   c3        main, "Merge branch 'b2'"
+    //   |\
+    //   | a1      b2, started from b1's tip
+    //   c2 |      main, "Merge branch 'b1'"
+    //   |\ |
+    //   | e1      b1's tip
+    //   | e0      b1
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestTipAMergeNamesIsOnThatBranchThoughAnotherWasStartedFromIt()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'b2'", "c2", "a1")
+            .Commit("a1", "Fix of b1", "e1")
+            .Commit("c2", "Merge branch 'b1'", "c1", "e1")
+            .Commit("e1", "Work b1 2", "e0")
+            .Commit("e0", "Work b1 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"b2:{RepoBuilder.Sid("a1")}", BranchOf(repo, "a1"));
+        Assert.AreEqual($"b1:{RepoBuilder.Sid("e1")}", BranchOf(repo, "e1"));
+        Assert.AreEqual($"b1:{RepoBuilder.Sid("e1")}", BranchOf(repo, "e0"));
+        Assert.AreEqual($"b1:{RepoBuilder.Sid("e1")}", repo.Branches[BranchOf(repo, "a1")].ParentBranch?.Name);
+    }
+
+    // A deleted maintenance line that topics were started from: no branch of its name is left, so its
+    // commit where the topics start was ambiguous between them, and so was the line below it, though
+    // its own merges say 'into maint'. That names the line, and the topics were started from it.
+    //
+    //   c3          main, merges b
+    //   c2 |        main, merges a
+    //   |\ |
+    //   | a1 b1     topics a and b, started from e2
+    //   |  \ /
+    //   |   e2      "Merge branch 'fix' into maint"
+    //   |   |\
+    //   |   | f1    fix
+    //   |   |/
+    //   |   e1      maint
+    //   |  /
+    //   c1
+    [TestMethod]
+    public async Task TestBranchPointWhoseOwnMergeNamesItIsOnThatBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'b'", "c2", "b1")
+            .Commit("c2", "Merge branch 'a'", "c1", "a1")
+            .Commit("b1", "Work b", "e2")
+            .Commit("a1", "Work a", "e2")
+            .Commit("e2", "Merge branch 'fix' into maint", "e1", "f1")
+            .Commit("f1", "Fix", "e1")
+            .Commit("e1", "Maint", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"maint:{RepoBuilder.Sid("e2")}", BranchOf(repo, "e2"));
+        Assert.AreEqual($"maint:{RepoBuilder.Sid("e2")}", BranchOf(repo, "e1"));
+        Assert.AreEqual($"fix:{RepoBuilder.Sid("f1")}", BranchOf(repo, "f1"));
+        Assert.AreEqual($"a:{RepoBuilder.Sid("a1")}", BranchOf(repo, "a1"));
+        Assert.AreEqual($"maint:{RepoBuilder.Sid("e2")}", repo.Branches[BranchOf(repo, "a1")].ParentBranch?.Name);
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+    }
+
+    // The same merge on a line with one candidate is no branch point: 'review' was fast-forwarded into
+    // the feature it was started from, so its merge is on the feature's line, and the feature's commits
+    // below it were not review's. In sinatra, such a split gave a subproject's history to a review branch.
+    //
+    //   c2        main, "Merge branch 'feature'"
+    //   |\
+    //   | e3      feature
+    //   | e2      "Merge branch 'other' into review", the feature fast-forwarded to it
+    //   | |\
+    //   | | a1    other
+    //   | |/
+    //   | e1      feature
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestMergeOfABranchFastForwardedIntoAnotherDoesNotSplitIt()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Merge branch 'feature'", "c1", "e3")
+            .Commit("e3", "Feature 2", "e2")
+            .Commit("e2", "Merge branch 'other' into review", "e1", "a1")
+            .Commit("a1", "Other", "e1")
+            .Commit("e1", "Feature", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"feature:{RepoBuilder.Sid("e3")}", BranchOf(repo, "e2"));
+        Assert.AreEqual($"feature:{RepoBuilder.Sid("e3")}", BranchOf(repo, "e1"));
+    }
+
+    // A deleted branch whose merge named nothing, e.g. git's "Sync with 2.0.1", is recovered with no
+    // name, and the first of its own merges that names the branch it was made on gives it that name
+    //
+    //   c2        main, "Sync with 2.0.1"
+    //   |\
+    //   | e2      "Git 2.0.1"
+    //   | e1      "Merge branch 'fix' into maint-2.0"
+    //   | |\
+    //   | | f1    fix
+    //   | |/
+    //   | e0
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestUnnamedBranchIsNamedByItsOwnMerge()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Sync with 2.0.1", "c1", "e2")
+            .Commit("e2", "Git 2.0.1", "e1")
+            .Commit("e1", "Merge branch 'fix' into maint-2.0", "e0", "f1")
+            .Commit("f1", "Fix", "e0")
+            .Commit("e0", "Maint", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"branch:{RepoBuilder.Sid("e2")}", BranchOf(repo, "e1"));
+        Assert.AreEqual("maint-2.0", repo.Branches[BranchOf(repo, "e2")].NiceName);
+    }
+
+    // A tag is no branch: git-flow merges a release's tag into develop, which named the release's
+    // tip after the tag, over the name the release's own merge gave it, and a name that is only a tag's
+    // never makes a deleted branch of a line a branch was started from
+    //
+    //   c2        main, "Merge branch 'release/1.0'"
+    //   |\
+    //   | | d2    develop, "Merge tag '1.0' into develop"
+    //   | |/|
+    //   | e1 |    the release's tip, tagged 1.0
+    //   | | /
+    //   | d1      develop
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestATagMergedInNamesNoBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Merge branch 'release/1.0'", "c1", "e1")
+            .Commit("d2", "Merge tag '1.0' into develop", "d1", "e1")
+            .Commit("e1", "Version 1.0", "d1")
+            .Commit("d1", "Develop", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("develop", "d2")
+            .AugmentAsync();
+
+        Assert.AreEqual($"release/1.0:{RepoBuilder.Sid("e1")}", BranchOf(repo, "e1"));
     }
 
     // A foxtrot merge: main merged into feature to bring it up to date, and then main fast-forwarded

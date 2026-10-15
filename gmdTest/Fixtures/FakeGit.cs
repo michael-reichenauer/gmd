@@ -191,6 +191,9 @@ class FakeGit : IGit
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd) =>
         throw new NotSupportedException();
 
@@ -273,6 +276,18 @@ class FakeGit : IGit
     public Task<Result> CloneAsync(string uri, string path, string wd) => throw new NotSupportedException();
 
     public Task<Result> InitRepoAsync(string path, string wd) => throw new NotSupportedException();
+
+    // Whether the repo has a commit-graph file, and the folders a write of one was made in
+    public bool IsCommitGraph { get; set; }
+    public List<string> CommitGraphWrites { get; } = [];
+
+    public bool HasCommitGraph(string wd) => IsCommitGraph;
+
+    public Task<Result> WriteCommitGraphAsync(string wd)
+    {
+        CommitGraphWrites.Add(wd);
+        return Task.FromResult<Result>(Result.Ok);
+    }
 
     public Task<Result> CheckoutAsync(string name, string wd) => throw new NotSupportedException();
 

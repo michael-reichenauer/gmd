@@ -7,6 +7,7 @@ interface ICommitMenu
 {
     void Show(int x, int y, int index);
     void ShowStashMenu(int x = Menu.Center, int y = 0);
+    void ShowCopyMenu(int x, int y);
 }
 
 class CommitMenu : ICommitMenu
@@ -43,6 +44,14 @@ class CommitMenu : ICommitMenu
     public void ShowStashMenu(int x = Menu.Center, int y = 0)
     {
         Menu.Show("Stash", x, y + 2, GetStashMenuItems());
+    }
+
+    // What Ctrl-C copies, asked rather than guessed, since a commit has several things worth copying
+    public void ShowCopyMenu(int x, int y)
+    {
+        var commits = CopiedCommits();
+        var title = commits.Count == 1 ? $"Copy: {Sid(commits[0].Id)}" : $"Copy: {commits.Count} Commits";
+        Menu.Show(title, x, y + 2, GetCopyItems());
     }
 
     IEnumerable<MenuItem> GetCommitMenuItems(string commitId)
@@ -107,20 +116,7 @@ class CommitMenu : ICommitMenu
                 () => !isStatusOK ? Why.Changes : "Already on this commit"
             )
             .Item("Commit Details", "Enter", () => cmds.ToggleDetails())
-            .Item(
-                "Copy Commit Id",
-                "i",
-                () => commands.RepoCmds.CopyCommitId(),
-                () => !c.IsUncommitted,
-                () => RepoCommands.WhyNoCopy
-            )
-            .Item(
-                "Copy Commit Message",
-                "⇧i",
-                () => commands.RepoCmds.CopyCommitMessage(),
-                () => !c.IsUncommitted,
-                () => RepoCommands.WhyNoCopy
-            )
+            .SubMenu("Copy", "Ctrl-C", GetCopyItems(), () => WhyNotCopy() == "", WhyNotCopy)
             // Above the file items rather than at the end, which the walks to Blame File count from
             .Item(
                 "Open Commit in Browser",
@@ -256,6 +252,51 @@ class CommitMenu : ICommitMenu
             () => c.IsUncommitted ? NoCommit : "This is the commit marked: Diff with it in the menu of another one"
         );
     }
+
+    // The commit on the row or the commits selected, which Ctrl-C, 'i' and '⇧i' copy (CommitCopy).
+    // The keys are shown with the items they do the same as, and no other item has one: a menu's key
+    // is what does the same from the log, where every other letter is taken.
+    IEnumerable<MenuItem> GetCopyItems()
+    {
+        var commits = CopiedCommits();
+        var copy = commands.RepoCmds;
+        if (commits.Count == 0)
+            return Menu.Items; // On the uncommitted row, where the commit menu greys out its Copy
+        if (commits.Count > 1)
+        {
+            var whyNoRange = CommitCopy.WhyNoRange(commits);
+            return Menu
+                .Items.Item("Commit Ids", "i", () => copy.Copy(CopyKind.Ids))
+                .Item("Commit Messages", "⇧i", () => copy.Copy(CopyKind.Messages))
+                .Item("Ids and Subjects", "", () => copy.Copy(CopyKind.IdsAndSubjects))
+                .Item(
+                    $"Range {CommitCopy.RangeName(commits)}",
+                    "",
+                    () => copy.Copy(CopyKind.Range),
+                    () => whyNoRange == "",
+                    () => whyNoRange
+                );
+        }
+
+        var c = commits[0];
+        return Menu
+            .Items.Item("Commit Id", "i", () => copy.Copy(CopyKind.Ids))
+            .Item("Commit Message", "⇧i", () => copy.Copy(CopyKind.Messages))
+            .Item("Subject", "", () => copy.Copy(CopyKind.Subjects))
+            .Item("Id and Subject", "", () => copy.Copy(CopyKind.IdsAndSubjects))
+            .Item("Short Id", "", () => copy.Copy(CopyKind.ShortIds))
+            .Item(
+                "Link to Commit",
+                "",
+                () => copy.CopyCommitLink(c.Id),
+                () => WebCommands.CanOpenCommit(repo.Repo, c),
+                () => WebCommands.WhyNoOpenCommit(repo.Repo, c)
+            );
+    }
+
+    IReadOnlyList<Commit> CopiedCommits() => CommitCopy.Commits(repo.Repo, commands.View.Selection, repo.CurrentIndex);
+
+    string WhyNotCopy() => CommitCopy.WhyNot(repo.Repo, commands.View.Selection, repo.CurrentIndex);
 
     // Squashes the commits selected with Shift-↑↓, which the item names once there are some
     IEnumerable<MenuItem> GetSquashItems()

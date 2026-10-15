@@ -75,7 +75,6 @@ class CommitBranchService : ICommitBranchService
     WorkBranch DetermineCommitBranch(WorkRepo repo, WorkCommit commit, GitRepo gitRepo)
     {
         commit.Branches.TryAddAll(commit.FirstChildren.SelectMany(c => c.Branches));
-        var branchNames = string.Join(",", commit.Branches.Select(b => b.Name));
 
         if (commit.Id == Repo.TruncatedLogCommitId)
         {
@@ -84,6 +83,10 @@ class CommitBranchService : ICommitBranchService
         else if (rules.TryIsBranchSetByUser(repo, gitRepo, commit, out WorkBranch? branch))
         { // Commit branch was set/determined by user,
             return Decided(commit, nameof(rules.TryIsBranchSetByUser), branch!);
+        }
+        else if (rules.TryIsDeletedBranchNamedInSubject(repo, commit, out branch))
+        { // A subject names the branch of the commit, a deleted one, which the branches above were started from
+            return Decided(commit, nameof(rules.TryIsDeletedBranchNamedInSubject), branch!);
         }
         else if (rules.TryHasOnlyOneBranch(commit, out branch))
         { // Commit only has one branch, use that

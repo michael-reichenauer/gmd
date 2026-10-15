@@ -12,6 +12,22 @@ public class LogKeysTest
 {
     static readonly Selection NoSelection = new(0, 0, 0, 0, 0);
 
+    // Ctrl-C, 'i' and '⇧i' copy a commit, which the uncommitted changes are not yet
+    [TestMethod]
+    public async Task TestCopyNeedsACommit()
+    {
+        var view = await ViewOf(Branches().WithStatus(modified: 1), "dev");
+        Assert.IsTrue(view.RowCommit.IsUncommitted);
+
+        Assert.AreEqual(
+            "The uncommitted changes are no commit yet: move to one first",
+            LogKeys.Copy(view, NoSelection).WhyNot
+        );
+
+        view.CurrentIndex = 1;
+        Assert.AreEqual(new KeyAction("copy"), LogKeys.Copy(view, NoSelection));
+    }
+
     [TestMethod]
     public async Task TestTheBranchKeysNeedABranchHighlighted()
     {
@@ -147,13 +163,13 @@ public class LogKeysTest
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "c3", isCurrent: true)
             .LocalBranch("dev", "c2");
-        var view = await ViewOf(builder, "dev", "feature:f10000");
+        var view = await ViewOf(builder, "dev", "feature:f1000000");
 
         Assert.AreEqual(new KeyAction(""), LogKeys.Color(view, HooverOn(view, "dev", "c2")), "Acts, with no hint");
         Assert.AreEqual("The main branch is always magenta", LogKeys.Color(view, HooverOn(view, "main", "c3")).WhyNot);
         Assert.AreEqual(
             "A deleted branch is always gray",
-            LogKeys.Color(view, HooverOn(view, "feature:f10000", "f1")).WhyNot
+            LogKeys.Color(view, HooverOn(view, "feature:f1000000", "f1")).WhyNot
         );
     }
 

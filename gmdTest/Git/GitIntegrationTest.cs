@@ -159,6 +159,21 @@ public class GitIntegrationTest
         Assert.AreEqual(repo.Path, Value(repo.Git.RootPath(subFolder)));
     }
 
+    // A repository has no commit-graph file until 'git gc' writes one, and then it has, for a linked
+    // worktree too, whose objects are the common dir's
+    [TestMethod]
+    public async Task TestCommitGraphIsWrittenWhereThereIsNone()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var worktree = await repo.AddWorktreeAsync("dev");
+        Assert.IsFalse(repo.Git.HasCommitGraph(repo.Path));
+
+        AssertOk(await repo.Git.WriteCommitGraphAsync(repo.Path));
+
+        Assert.IsTrue(repo.Git.HasCommitGraph(repo.Path));
+        Assert.IsTrue(repo.Git.HasCommitGraph(worktree), "The linked worktree's objects are the same");
+    }
+
     // A linked worktree has a '.git' file rather than a folder, and is a root of its own
     [TestMethod]
     public async Task TestRootPathIsFoundFromInsideALinkedWorktree()
@@ -348,6 +363,41 @@ public class GitIntegrationTest
         var diff = Value(await repo.Git.GetDiffRangeAsync(c1, c2, "Range", 3, repo.Path));
 
         CollectionAssert.AreEquivalent(new[] { "a.txt", "b.txt" }, diff.FileDiffs.Select(f => f.PathAfter).ToArray());
+    }
+
+    // The files of a commit as git lists them: the first commit's against nothing, a rename with its
+    // old path, a binary file with no counts, and a merge's against its first parent, as its diff is
+    [TestMethod]
+    public async Task TestChangedFiles()
+    {
+        var c1 = await repo.CommitFileAsync("a.txt", "one\ntwo\nthree\n", "First");
+        await repo.GitAsync("mv a.txt b.txt");
+        repo.WriteFile("b.txt", "one\ntwo\nthree\nfour\n");
+        File.WriteAllBytes(System.IO.Path.Join(repo.Path, "bin.dat"), [0, 1, 2]);
+        var c2 = await repo.CommitAsync("Second");
+        await repo.GitAsync("checkout -q -b dev");
+        await repo.CommitFileAsync("dev.txt", "dev\n", "Dev");
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main");
+        await repo.GitAsync("merge -q --no-ff -m Merge dev");
+        var merge = await repo.HeadIdAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { new ChangedFile('A', "a.txt", "", 3, 0, false) },
+            Value(await repo.Git.GetChangedFilesAsync(c1, repo.Path)).ToArray()
+        );
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                new ChangedFile('R', "b.txt", "a.txt", 1, 0, false),
+                new ChangedFile('A', "bin.dat", "", 0, 0, true),
+            },
+            Value(await repo.Git.GetChangedFilesAsync(c2, repo.Path)).ToArray()
+        );
+        CollectionAssert.AreEqual(
+            new[] { new ChangedFile('A', "dev.txt", "", 1, 0, false) },
+            Value(await repo.Git.GetChangedFilesAsync(merge, repo.Path)).ToArray()
+        );
     }
 
     [TestMethod]

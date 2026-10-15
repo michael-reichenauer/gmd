@@ -3,7 +3,10 @@ namespace gmd.Utils;
 // Some useful string extensions that are missing in .NET
 public static class StringExtensions
 {
-    const int SidLength = 6;
+    // The length of a short commit id, as the UI shows it and gmd names a branch it made up after a
+    // commit: what 'git log --oneline' writes in a repository of 16,000 objects or more, a few
+    // thousand commits, and what GitLab shows. GitHub shows seven and links eight too.
+    public const int SidLength = 8;
 
     // Method that limits the length of text to a defined length and can fill the rest with spaces
     public static string Max(this string source, int maxLength, bool isFill = false)

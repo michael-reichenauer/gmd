@@ -145,11 +145,11 @@ Key types and flow:
   pipeline comments. The bar these files are held to is a before/after comparison over a real
   repo's history, not just a green suite — see the findings in `.notes/MODERNIZATION.md`.
   `InferenceDumpTest` makes that comparison: it writes what the inference decided for every commit
-  of a repo (branch, the rule that decided it, ambiguity), plus how often it agrees with the reflog,
-  and two dumps are compared with `diff`. Dump a frozen copy (a copied `.git` keeps the reflog):
+  of a repo (branch, the rule that decided it, ambiguity), plus how often it agrees with the reflog
+  and with the merge subjects, and two dumps are compared with `diff`. Dump a frozen copy (a copied `.git` keeps the reflog):
   `GMD_INFER_REPO=<repo> GMD_INFER_OUT=<file> dotnet test gmdTest/gmdTest.csproj --filter InferenceDump`.
   Several repos with different workflows are worth it (git-flow, GitHub pull requests, local pull
-  merges); a `--filter=blob:none --no-checkout` clone is enough and quick. A change made for speed
+  merges, git's own topic branches); a `--filter=blob:none --no-checkout` clone is enough and quick. A change made for speed
   has `RefreshTimingTest` (`GMD_PERF_REPO=<repo> GMD_PERF_OUT=<file>`, `--filter RefreshTiming`),
   which times each stage of a refresh and writes what the view repos hold to `<file>.view`, for the
   same before/after `diff`.
@@ -190,7 +190,7 @@ Key types and flow:
   cursor is, again with no view; `KeyHintBar` draws it, with the layout of `KeyHintLine` (both in
   `Cui/Common/`). The diff, blame and conflict views and the start page have a `KeyHintBar` of their
   own, with the hints beside them (`DiffHints`, `BlameHints`, `ConflictHints`, `StartHints`). A key
-  whose meaning depends on where the cursor is (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`, `h`, `g`) is decided in
+  whose meaning depends on where the cursor is (`e`, `⇧e`, `s`, `p`, `u`, `d`, `b`, `h`, `g`, Ctrl-C) is decided in
   `LogKeys`, which says what its hint is or why it does nothing, and the keys and the hints both
   ask it; for any other key, when its behavior changes, check the hint for it.
   Commands are grouped by area (`RepoCommands`, `BranchCommands`, `BranchCreateCommands`,
@@ -717,7 +717,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

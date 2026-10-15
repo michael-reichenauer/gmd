@@ -289,6 +289,15 @@ class Server : IServer
         return GitConverter.ToCommitDiff(gitCommitDiff);
     }
 
+    public async Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd)
+    {
+        var result = await git.GetChangedFilesAsync(commitId, wd);
+        if (result is not IReadOnlyList<Git.ChangedFile> files)
+            return result.Error;
+
+        return files.Select(GitConverter.ToChangedFile).ToList();
+    }
+
     public async Task<Result<CommitDiff>> GetPreviewMergeDiffAsync(
         string sha1,
         string sha2,

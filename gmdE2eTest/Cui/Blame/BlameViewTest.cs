@@ -29,12 +29,12 @@ public class BlameViewTest
 
         Assert.AreEqual(
             """
-            Blame  alpha.txt  @7e09a8   4 lines, 2 commits
+            Blame  alpha.txt  @7e09a86a   4 lines, 2 commits
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┌ 65480e Test User   2024-10-15 │   1┃one
-            └                               │   2┃two
-            ┌ 7e09a8 Test User   2024-10-15 │   3┃CHANGED
-            └                               │   4┃FOUR
+            ┌ 65480ece Test User   2024-10-15 │   1┃one
+            └                                 │   2┃two
+            ┌ 7e09a86a Test User   2024-10-15 │   3┃CHANGED
+            └                                 │   4┃FOUR
             """,
             ScreenText.Rows(gmd.WaitFor("CHANGED"), repo.Path, 0, 6)
         );
@@ -65,17 +65,16 @@ public class BlameViewTest
 
         Assert.AreEqual(
             """
-            Id:         199af616c757fa248670aa1ea368ba31d046f1e3  ({repo})
-            Branch:     main  (main)
-            Author:     Test User, time: 2024-10-15 12:07:00 +00:00
-            Children:
-            Parents:    17d85b
-            Tips:       (main)
+            Id:       199af616c757fa248670aa1ea368ba31d046f1e3
+            Branch:   main
+            Author:   Test User, 2024-10-15 12:07:00 +00:00
+            Parents:  17d85ba8
+
             Add lines
 
             A body line that only the log knows.
             """,
-            ScreenText.Rows(gmd.WaitFor("A body line"), repo.Path, 30, 9)
+            DetailsRows(gmd.WaitFor("A body line"), repo.Path, 8)
         );
     }
 
@@ -276,6 +275,14 @@ public class BlameViewTest
         Assert.IsFalse(screen.Contains("Discard Changes"), "Nothing to discard");
         Assert.AreEqual("alpha\nchanged\n", File.ReadAllText(Path.Join(repo.Path, "alpha.txt")));
     }
+
+    // The first rows of the details pane, less the scrollbar at the right edge, which the files the
+    // commit changed bring when they are read
+    static string DetailsRows(string screen, string repoPath, int count) =>
+        string.Join(
+            "\n",
+            ScreenText.Rows(screen, repoPath, 30, count).Split('\n').Select(r => r.TrimEnd('┃').TrimEnd())
+        );
 
     static void OpenBlameOf(TmuxSession gmd, string path)
     {

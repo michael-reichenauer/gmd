@@ -52,6 +52,9 @@ interface IServer
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+
+    // The files the commit changed, as its diff has them, with no diff read, for the details pane
+    Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetLineHistoryAsync(
         string path,

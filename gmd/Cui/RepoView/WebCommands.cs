@@ -9,6 +9,7 @@ interface IWebCommands
     void OpenRepo();
     void OpenBranch(string name);
     void OpenCommit(string commitId);
+    void CopyCommitLink(string commitId);
     void OpenNewPullRequest(string name);
 }
 
@@ -45,6 +46,10 @@ class WebCommands : IWebCommands
         Open("a branch", links => links.Branch(RemoteName(context.ViewRepo.Repo, name)));
 
     public void OpenCommit(string commitId) => Open("a commit", links => links.Commit(commitId));
+
+    // The link to a commit copied rather than opened, for where the commit is talked about: a chat,
+    // a review or an issue
+    public void CopyCommitLink(string commitId) => WithLink("a commit", links => links.Commit(commitId), CopyLink);
 
     public void OpenNewPullRequest(string name) =>
         Open(
@@ -111,7 +116,10 @@ class WebCommands : IWebCommands
 
     static bool HasRemote(Repo repo) => repo.AllBranches.Any(b => b.IsRemote);
 
-    void Open(string what, Func<WebLinks, string?> linkOf) =>
+    void Open(string what, Func<WebLinks, string?> linkOf) => WithLink(what, linkOf, OpenOrCopyAsync);
+
+    // Runs use with the link made from the remote's URL, or says why there is none
+    void WithLink(string what, Func<WebLinks, string?> linkOf, Func<string, Task<Result>> use) =>
         Do(async repo =>
         {
             var remote = await server.GetRemoteUrlAsync(repo.Path);
@@ -124,7 +132,7 @@ class WebCommands : IWebCommands
             if (linkOf(links) is not string url)
                 return new Notice($"gmd knows no web page for {what} on {links.HostName}, only for the repository");
 
-            return await OpenOrCopyAsync(url);
+            return await use(url);
         });
 
     async Task<Result> OpenOrCopyAsync(string url)
@@ -140,6 +148,15 @@ class WebCommands : IWebCommands
 
         status.Notice($"{e.Message}: copied the link to the clipboard");
         return Result.Ok;
+    }
+
+    Task<Result> CopyLink(string url)
+    {
+        if (clipboard.Set(url) is Error e)
+            return Task.FromResult<Result>(new Error("Failed to copy the link", e));
+
+        status.Info($"Copied {url}");
+        return Task.FromResult(Result.Ok);
     }
 
     void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);

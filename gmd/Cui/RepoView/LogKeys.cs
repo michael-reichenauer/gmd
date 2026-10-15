@@ -99,6 +99,14 @@ static class LogKeys
             : KeyAction.No(BranchPushPullCommands.WhyNoPullBranch(repo.Repo, branch));
     }
 
+    // Ctrl-C asks what to copy of the row's commit or of the commits selected, the copy menu, and 'i'
+    // and '⇧i' copy their ids and messages straight away, see CommitCopy. Hinted for selected rows
+    // only, where the line has room for it.
+    public static KeyAction Copy(IViewRepo repo, Selection selection) =>
+        CommitCopy.WhyNot(repo.Repo, selection, repo.CurrentIndex) is var whyNot && whyNot != ""
+            ? KeyAction.No(whyNot)
+            : new("copy");
+
     // 'd' diffs the rows selected, else opens the menu of diffs of the highlighted branch, else
     // diffs the row's commit; on the uncommitted row with conflicts the diff is where they are
     // resolved, with Enter

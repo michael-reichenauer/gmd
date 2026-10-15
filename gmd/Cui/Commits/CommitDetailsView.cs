@@ -12,15 +12,30 @@ interface ICommitDetailsView
     void SetRows(IReadOnlyList<Text> rows);
 }
 
+// The pane below the log, and the blame, with the details of the commit on the cursor's row. Its
+// rows are built at once, and the files the commit changed are added below them once read, which
+// takes a git command, see ShowChangedFilesAsync.
 class CommitDetailsView : ICommitDetailsView
 {
-    readonly ContentView contentView;
-    IReadOnlyList<Text> rows = new List<Text>();
-
     internal static readonly int ContentHeight = 11;
-    private readonly IBranchColorService branchColorService;
 
-    public CommitDetailsView(IBranchColorService branchColorService)
+    // How long the cursor is to rest on a commit before its files are read, so that holding a
+    // cursor key down the log runs no git command for each row it passes
+    static readonly TimeSpan ReadFilesDelay = TimeSpan.FromMilliseconds(150);
+
+    // A commit's files never change, so they are kept once read, for this many commits
+    const int MaxCachedCommits = 200;
+
+    readonly ContentView contentView;
+    readonly IBranchColorService branchColorService;
+    readonly IServer server;
+    readonly Dictionary<(string Path, string Id), IReadOnlyList<ChangedFile>> filesByCommit = [];
+    IReadOnlyList<Text> rows = [];
+
+    // The commit shown, of which repo, so that files read for another are not shown for it
+    (string Path, string Id) shown = ("", "");
+
+    public CommitDetailsView(IBranchColorService branchColorService, IServer server)
     {
         contentView = new ContentView(OnGetContent)
         {
@@ -36,117 +51,61 @@ class CommitDetailsView : ICommitDetailsView
         };
 
         this.branchColorService = branchColorService;
+        this.server = server;
     }
 
     public ContentView View => contentView;
 
-    public void Set(Repo repo, Server.Commit commit, Branch branch) =>
-        UI.RunInBackground(async () =>
-        {
-            await Task.Yield();
+    public void Set(Repo repo, Server.Commit commit, Branch branch)
+    {
+        shown = (repo.Path, commit.Id);
+        filesByCommit.TryGetValue(shown, out var files);
+        ShowRows(CommitDetailsRows.Of(repo, commit, branch, branchColorService, files), isMoveToTop: true);
 
-            var id = commit.Id;
-            var color = branchColorService.GetColor(repo, branch);
-
-            if (id == Repo.UncommittedId)
-            {
-                id = "Uncommitted";
-            }
-
-            var newRows = new List<Text>();
-            var repoText = $"  ({repo.Path})";
-
-            if (commit.Id == Repo.UncommittedId)
-            {
-                newRows.Add(Text.Dark("Id:         ").BrightYellow(id).Dark(repoText));
-            }
-            else
-            {
-                newRows.Add(Text.Dark("Id:         ").White(id).Dark(repoText));
-            }
-
-            var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
-            branchName = $"{branch.NiceNameUnique}  ({branchName})";
-
-            if (commit.IsBranchSetByUser)
-            {
-                newRows.Add(
-                    Text.Dark("Branch:     ")
-                        .Color(color, branchName)
-                        .White("   Φ")
-                        .Dark(" (ambiguity resolved by user)")
-                );
-            }
-            else
-            {
-                if (commit.IsAmbiguous)
-                {
-                    var ambBranches = string.Join(", ", branch.AmbiguousBranchNames.Take(3));
-                    if (branch.AmbiguousBranchNames.Count > 3)
-                    {
-                        ambBranches += ",┅";
-                    }
-                    newRows.Add(Text.Dark("Branch:     ").White(branchName));
-                    newRows.Add(Text.Dark("Ambiguous:  ").White($"{ambBranches}"));
-                }
-                else
-                {
-                    newRows.Add(Text.Dark("Branch:     ").Color(color, branchName));
-                }
-            }
-
-            if (commit.Author != "")
-            {
-                newRows.Add(
-                    Text.Dark("Author:     ")
-                        .White($"{commit.Author}")
-                        .Dark(", time: ")
-                        .White(commit.AuthorTime.IsoZone())
-                );
-            }
-
-            newRows.Add(
-                Text.Dark("Children:   ")
-                    .White(
-                        string.Join(
-                            ", ",
-                            commit.AllChildIds.Where(id => id != Repo.UncommittedId).Select(id => id.Sid())
-                        )
-                    )
-            );
-            newRows.Add(Text.Dark("Parents:    ").White(string.Join(", ", commit.GitParentIds.Select(id => id.Sid()))));
-            if (commit.IsAhead)
-            {
-                newRows.Add(Text.Dark("Remote:     ").Green("▲ pushable"));
-            }
-            if (commit.IsBehind)
-            {
-                newRows.Add(Text.Dark("Remote:     ").Blue("▼ pullable"));
-            }
-            if (commit.Tags.Any())
-            {
-                var tagText = "[" + string.Join("][", commit.Tags.Select(t => t.Name)) + "]";
-                newRows.Add(Text.Dark("Tags:       ").Green(tagText));
-            }
-            var tips = repo.ViewBranches.Where(b => b.TipId == commit.Id);
-            if (tips.Any())
-            {
-                var tipText = new TextBuilder();
-                tips.ForEach(t => tipText.Color(branchColorService.GetColor(repo, t), $"({t.Name})"));
-                newRows.Add(Text.Dark("Tips:       ").Add(tipText));
-            }
-            newRows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
-
-            SetRows(newRows);
-        });
+        if (files == null && CommitDetailsRows.HasChangedFiles(commit))
+            ShowChangedFilesAsync(repo, commit, branch).RunInBackground();
+    }
 
     // For a caller that builds its own rows, i.e. has no Server.Commit to render. The blame view
     // uses this for a commit that is not in the shown log, where all it has is what git blame said.
     public void SetRows(IReadOnlyList<Text> rows)
     {
+        shown = ("", "");
+        ShowRows(rows, isMoveToTop: true);
+    }
+
+    // Reads the files once the cursor has rested on the commit, and adds them below the rest of its
+    // details if it is still the one shown. Neither await leaves the UI thread, since Terminal.Gui
+    // posts what follows an await back to its main loop. The rows are not scrolled back to the top,
+    // since the user may have scrolled them while the files were read.
+    async Task ShowChangedFilesAsync(Repo repo, Server.Commit commit, Branch branch)
+    {
+        var key = (repo.Path, commit.Id);
+        await Task.Delay(ReadFilesDelay);
+        if (shown != key)
+            return; // The cursor moved on
+
+        var result = await server.GetChangedFilesAsync(commit.Id, repo.Path);
+        if (result is not IReadOnlyList<ChangedFile> files)
+        {
+            Log.Warn($"Failed to read the files of {commit.Sid}: {result.Error.AllMessages()}");
+            return;
+        }
+
+        if (filesByCommit.Count >= MaxCachedCommits)
+            filesByCommit.Clear();
+        filesByCommit[key] = files;
+
+        if (shown == key)
+            ShowRows(CommitDetailsRows.Of(repo, commit, branch, branchColorService, files), isMoveToTop: false);
+    }
+
+    void ShowRows(IReadOnlyList<Text> rows, bool isMoveToTop)
+    {
         this.rows = rows;
         contentView.SetNeedsDisplay();
-        contentView.MoveToTop();
+        if (isMoveToTop)
+            contentView.MoveToTop();
     }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width) =>

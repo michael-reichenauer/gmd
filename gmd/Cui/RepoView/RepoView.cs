@@ -146,7 +146,6 @@ class RepoView : IRepoView, IRepoViewInputHost
         IApplicationBar applicationBarView,
         IFilterDlg filterDlg,
         IUnicodeSetsDlg charDlg,
-        IClipboardService clipboard,
         IStatusLine status
     )
         : base()
@@ -189,16 +188,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         commands.PushPullCmds = newPushPullCommands(commands);
         commands.WorktreeCmds = newWorktreeCommands(commands);
         commands.UndoCmds = newUndoCommands(commands);
-        input = new RepoViewInput(
-            this,
-            commitsView,
-            commitDetailsView,
-            applicationBarView,
-            charDlg,
-            clipboard,
-            hoover,
-            status
-        );
+        input = new RepoViewInput(this, commitsView, commitDetailsView, applicationBarView, charDlg, hoover, status);
 
         server.RepoChange += OnRefreshRepo;
         server.StatusChange += OnRefreshStatus;

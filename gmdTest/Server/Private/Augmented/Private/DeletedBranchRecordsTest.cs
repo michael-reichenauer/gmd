@@ -75,7 +75,7 @@ public class DeletedBranchRecordsTest
         DeletedBranchRecords.Add(records, Remote("dev", "b1", "dev"));
         DeletedBranchRecords.Add(records, Both("dev", "a2", "b1"));
 
-        Assert.AreEqual("dev a20000 Work origin/dev b10000 Pushed work", Of(records));
+        Assert.AreEqual("dev a2000000 Work origin/dev b1000000 Pushed work", Of(records));
     }
 
     // A local branch deleted and later its remote branch, which no local branch tracks any more
@@ -87,7 +87,7 @@ public class DeletedBranchRecordsTest
         DeletedBranchRecords.Add(records, Local("dev", "a2", "origin/dev"));
         DeletedBranchRecords.Add(records, Remote("dev", "b1"));
 
-        Assert.AreEqual("dev a20000 Work origin/dev b10000 Pushed work", Of(records));
+        Assert.AreEqual("dev a2000000 Work origin/dev b1000000 Pushed work", Of(records));
     }
 
     // A remote branch deleted and later the local branch that tracked it, which then tracks nothing,
@@ -100,7 +100,7 @@ public class DeletedBranchRecordsTest
         DeletedBranchRecords.Add(records, Remote("feature", "b1", "feat"));
         DeletedBranchRecords.Add(records, Local("feat", "a2"));
 
-        Assert.AreEqual("feat a20000 Work origin/feature b10000 Pushed work", Of(records));
+        Assert.AreEqual("feat a2000000 Work origin/feature b1000000 Pushed work", Of(records));
     }
 
     // Two deletes of a name that are not of one pair are two records: a local 'tmp' that tracked
@@ -118,10 +118,10 @@ public class DeletedBranchRecordsTest
 
         Assert.AreEqual(
             """
-            feat a30000 Work origin/feature - -
-            - - - origin/feat b20000 Pushed work
-            tmp a20000 Work - - -
-            - - - origin/tmp b10000 Pushed work
+            feat a3000000 Work origin/feature - -
+            - - - origin/feat b2000000 Pushed work
+            tmp a2000000 Work - - -
+            - - - origin/tmp b1000000 Pushed work
             """,
             Of(records)
         );
@@ -138,8 +138,8 @@ public class DeletedBranchRecordsTest
 
         Assert.AreEqual(
             """
-            dev2 - - origin/dev b10000 Pushed work
-            dev a20000 Work origin/dev - -
+            dev2 - - origin/dev b1000000 Pushed work
+            dev a2000000 Work origin/dev - -
             """,
             Of(records)
         );
@@ -157,8 +157,8 @@ public class DeletedBranchRecordsTest
 
         Assert.AreEqual(
             """
-            dev a20000 Later work - - -
-            fix f10000 Work - - -
+            dev a2000000 Later work - - -
+            fix f1000000 Work - - -
             """,
             Of(records)
         );
@@ -177,8 +177,8 @@ public class DeletedBranchRecordsTest
 
         Assert.AreEqual(
             """
-            fix a20000 Work origin/fix - -
-            dev a10000 Work origin/dev b10000 Pushed work
+            fix a2000000 Work origin/fix - -
+            dev a1000000 Work origin/dev b1000000 Pushed work
             """,
             Of(records)
         );
@@ -187,8 +187,8 @@ public class DeletedBranchRecordsTest
 
         Assert.AreEqual(
             """
-            dev a10000 Work origin/dev b30000 Pushed work
-            fix a20000 Work origin/fix - -
+            dev a1000000 Work origin/dev b3000000 Pushed work
+            fix a2000000 Work origin/fix - -
             """,
             Of(records),
             "Origin's side replaced, and the local side joined with it, since nothing tracks it now"
@@ -295,11 +295,14 @@ public class DeletedBranchRecordsTest
             DeletedBranchRecords.Restorable(record, repo, AllExist)
         );
 
-        Assert.AreEqual("back a20000 - origin/back - -", Of([unrestorable!]));
+        Assert.AreEqual("back a2000000 - origin/back - -", Of([unrestorable!]));
         Assert.IsNull(
             DeletedBranchRecords.Unrestorable(record, new DeletedBranch("back", Id("a2"), "", Id("b1"), "", Time))
         );
-        Assert.AreEqual("back a20000 - origin/back b10000 -", Of([DeletedBranchRecords.Unrestorable(record, null)!]));
+        Assert.AreEqual(
+            "back a2000000 - origin/back b1000000 -",
+            Of([DeletedBranchRecords.Unrestorable(record, null)!])
+        );
     }
 
     // A side restored is forgotten, and the record with it once neither side is left, so a later
@@ -315,9 +318,9 @@ public class DeletedBranchRecordsTest
 
         Assert.AreEqual(
             """
-            dev - - origin/dev b10000 Pushed work
-            fix a20000 Work - - -
-            - - - origin/dev2 b10000 Pushed work
+            dev - - origin/dev b1000000 Pushed work
+            fix a2000000 Work - - -
+            - - - origin/dev2 b1000000 Pushed work
             """,
             Of(records)
         );
@@ -326,8 +329,8 @@ public class DeletedBranchRecordsTest
 
         Assert.AreEqual(
             """
-            fix a20000 Work - - -
-            - - - origin/dev2 b10000 Pushed work
+            fix a2000000 Work - - -
+            - - - origin/dev2 b1000000 Pushed work
             """,
             Of(records)
         );

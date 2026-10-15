@@ -18,7 +18,7 @@ static class KeyHints
     public static IReadOnlyList<KeyHint> For(IViewRepo repo, Hoover hoover, Selection selection, bool isDetailsShown)
     {
         if (selection.IsRows)
-            return ForSelectedRows();
+            return ForSelectedRows(repo, selection);
 
         return hoover.IsBranch
             ? ForBranch(repo, hoover, selection)
@@ -37,7 +37,12 @@ static class KeyHints
 
     // The ranges the menu and 'd' work with: diff, squash and cherry-pick of the rows, and copying
     // them
-    static IReadOnlyList<KeyHint> ForSelectedRows() => [Menu, new("d", "diff"), new("Ctrl-C", "copy")];
+    static IReadOnlyList<KeyHint> ForSelectedRows(IViewRepo repo, Selection selection)
+    {
+        List<KeyHint> hints = [Menu, new("d", "diff")];
+        Add(hints, "Ctrl-C", LogKeys.Copy(repo, selection));
+        return hints;
+    }
 
     static IReadOnlyList<KeyHint> ForCommit(IViewRepo repo, Hoover hoover, Selection selection, bool isDetailsShown)
     {

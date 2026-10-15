@@ -33,7 +33,7 @@ class BranchWriteService : IBranchWriteService
 
         return await metaDataService.UpdateMetaDataAsync(
             wd,
-            m => m.SetBranched(currentCommit.Sid, currentBranch.NiceName)
+            m => m.SetBranched(currentCommit.Id, currentBranch.NiceName)
         );
     }
 
@@ -52,7 +52,7 @@ class BranchWriteService : IBranchWriteService
         if (await git.CreateBranchFromCommitAsync(newBranchName, source.TipId, isCheckout, wd) is Error e)
             return e;
 
-        return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(source.TipId.Sid(), source.NiceName));
+        return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(source.TipId, source.NiceName));
     }
 
     public async Task<Result> CreateBranchFromCommitAsync(Repo repo, string newBranchName, string sha, bool isCheckout)
@@ -68,7 +68,7 @@ class BranchWriteService : IBranchWriteService
             return Result.Ok;
         var branch = repo.BranchByName[commit.BranchName];
 
-        return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(commit.Sid, branch.NiceName));
+        return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(commit.Id, branch.NiceName));
     }
 
     // Renames the local branch. The meta data remembers which branch a commit belongs to by name,
@@ -227,10 +227,7 @@ class BranchWriteService : IBranchWriteService
     {
         Log.Info($"Set {commitId.Sid()} to {setNiceName} ...");
 
-        return await metaDataService.UpdateMetaDataAsync(
-            repo.Path,
-            m => m.SetCommitBranch(commitId.Sid(), setNiceName)
-        );
+        return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.SetCommitBranch(commitId, setNiceName));
     }
 
     public async Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName)
@@ -239,14 +236,11 @@ class BranchWriteService : IBranchWriteService
         var ambiguousTip = branch.AmbiguousTipId;
         Log.Info($"Resolve {ambiguousTip.Sid()} of {branchName} to {setHumanName} ...");
 
-        return await metaDataService.UpdateMetaDataAsync(
-            repo.Path,
-            m => m.SetCommitBranch(ambiguousTip.Sid(), setHumanName)
-        );
+        return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.SetCommitBranch(ambiguousTip, setHumanName));
     }
 
     public async Task<Result> UnresolveAmbiguityAsync(Repo repo, string commitId)
     {
-        return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.RemoveCommitBranch(commitId.Sid()));
+        return await metaDataService.UpdateMetaDataAsync(repo.Path, m => m.RemoveCommitBranch(commitId));
     }
 }

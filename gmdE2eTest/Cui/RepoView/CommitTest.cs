@@ -29,12 +29,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ©2                                          changes on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣   ©2 uncommitted changes                                              (● main)                       NNNN-NN-NN NN:NN
-            ┣  ● Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
-            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
+            ┣   ©2 uncommitted changes                                            (● main)                         NNNN-NN-NN NN:NN
+            ┣  ● Add delta                                                          [v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                 4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                  dd78912d Test User      2024-10-15 12:01
+            ┗    Initial                                                                   9dc406e3 Test User      2024-10-15 12:00
             """,
             ScreenText.MaskTimes(ScreenText.Of(gmd.WaitFor("Initial"), repo.Path), "uncommitted")
         );
@@ -94,12 +94,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add epsilon                                                        (● main) 2d0391 Test User      2024-10-15 12:07
-            ┣    Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
-            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
+            ┣  ● Add epsilon                                                      (● main) 2d039107 Test User      2024-10-15 12:07
+            ┣    Add delta                                                          [v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                 4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                  dd78912d Test User      2024-10-15 12:01
+            ┗    Initial                                                                   9dc406e3 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -279,12 +279,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add epsilon                                                        (● main) 2d0391 Test User      2024-10-15 12:07
-            ┣    Add delta                                                            [v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
-            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
+            ┣  ● Add epsilon                                                      (● main) 2d039107 Test User      2024-10-15 12:07
+            ┣    Add delta                                                          [v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                 4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                  dd78912d Test User      2024-10-15 12:01
+            ┗    Initial                                                                   9dc406e3 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -331,12 +331,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Add zeta                                                          (● main) 4dd1e9 Test User      2024-10-15 12:07
-            ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
-            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
-            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
-            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
+             ╭┺ ●▲Add zeta                                                        (● main) 4dd1e9f8 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                 (^/main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                4a15fb13 Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                 dd78912d Test User      2024-10-15 12:01
+            ┗     Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("Initial"),
             repo.Path
@@ -369,12 +369,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Add zeta amended                                                  (● main) 9df2d6 Test User      2024-10-15 12:07
-            ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
-            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
-            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
-            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
+             ╭┺ ●▲Add zeta amended                                                (● main) 9df2d618 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                 (^/main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                4a15fb13 Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                 dd78912d Test User      2024-10-15 12:01
+            ┗     Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 8)
         );
@@ -467,12 +467,12 @@ public class CommitTest
             """
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣─┺ ● Add zeta                                                       (^)(● main) 4dd1e9 Test User      2024-10-15 12:07
-            ┣     Add delta                                                           [v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
-            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
-            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
-            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
+            ┣─┺ ● Add zeta                                                     (^)(● main) 4dd1e9f8 Test User      2024-10-15 12:07
+            ┣     Add delta                                                         [v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                4a15fb13 Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                 dd78912d Test User      2024-10-15 12:01
+            ┗     Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(screen, repo.Path, 0, 8)
         );
@@ -487,7 +487,7 @@ public class CommitTest
     // On a clean tree the menu opens with the cursor on 'Amend ...' — 'Commit ...' is disabled, and
     // Menu.Show starts on the first item that is not — so 'Undo' is three moves away, past 'Commit
     // Diff' and 'Mark for Diff'. In it the cursor starts on 'Undo Commit', the last change of the branch, and 'Discard
-    // Changes in a File' is disabled, and so is 'Drop 17d85b', since the tag v1.0 is on the commit,
+    // Changes in a File' is disabled, and so is 'Drop 17d85ba8', since the tag v1.0 is on the commit,
     // so 'Uncommit Last Commit' is four moves down, past 'Recover Lost Commits ...', 'Restore Deleted
     // Branch ...' and 'Revert Commit'.
     [TestMethod]
@@ -571,7 +571,7 @@ public class CommitTest
     public async Task TestAmendAnOlderCommit()
     {
         using var repo = await ThreeFilesAsync();
-        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..6];
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..8];
         using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(3));
         gmd.WaitFor("Add one");
         gmd.Send("Down");
@@ -601,7 +601,7 @@ public class CommitTest
     public async Task TestDropACommitAndUndoIt()
     {
         using var repo = await ThreeFilesAsync();
-        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..6];
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..8];
         using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(3));
         gmd.WaitFor("Add one");
         gmd.Send("Down");
@@ -679,10 +679,10 @@ public class CommitTest
         // The menu opens on Squash, the first item it enables, and the item names the range it would
         // squash, which is how it says a selection was picked up
         gmd.Send("m");
-        gmd.WaitFor("Squash c02add...8332dd");
+        gmd.WaitFor("Squash c02addfd...8332dd93");
         gmd.Send("Enter");
 
-        gmd.WaitFor("Squash c02add...8332dd on 'main'");
+        gmd.WaitFor("Squash c02addfd...8332dd93 on 'main'");
         gmd.Send("Enter");
 
         // The two are now one, and the branch has diverged from its remote: one commit ahead of
@@ -692,11 +692,11 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▼2, ▲1                                       commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Commit number 02                                                  (● main) 96a909 Test User      2024-10-15 12:04
-            ┣│   ▼Commit number 03                                                  (^/main) c02add Test User      2024-10-15 12:03
-            ┣│   ▼Commit number 02                                                           8332dd Test User      2024-10-15 12:02
-            ┣╯    Commit number 01                                                           5692a8 Test User      2024-10-15 12:01
-            ┗     Commit number 00                                                           a823b7 Test User      2024-10-15 12:00
+             ╭┺ ●▲Commit number 02                                                (● main) 96a90999 Test User      2024-10-15 12:04
+            ┣│   ▼Commit number 03                                                (^/main) c02addfd Test User      2024-10-15 12:03
+            ┣│   ▼Commit number 02                                                         8332dd93 Test User      2024-10-15 12:02
+            ┣╯    Commit number 01                                                         5692a80d Test User      2024-10-15 12:01
+            ┗     Commit number 00                                                         a823b76e Test User      2024-10-15 12:00
             """,
             gmd.WaitFor("▲"),
             repo.Path
@@ -733,7 +733,7 @@ public class CommitTest
         // The menu opens on 'Amend ...', the last commit not being pushed, and Squash is two below it,
         // past the amend of the commit the cursor is on
         gmd.Send("m");
-        gmd.WaitFor("Amend 8332dd ...");
+        gmd.WaitFor("Amend 8332dd93 ...");
         for (var i = 0; i < 2; i++)
         {
             gmd.Send("Down");
@@ -741,7 +741,7 @@ public class CommitTest
         }
         gmd.Send("Enter");
 
-        gmd.WaitFor("Squash c02add...8332dd on 'main'");
+        gmd.WaitFor("Squash c02addfd...8332dd93 on 'main'");
         gmd.Send("Enter");
 
         // With no remote there is nothing left behind, so the two rows simply become one
@@ -797,10 +797,10 @@ public class CommitTest
             """
              Gmd {repo}, ●dev                                                 commit on dev [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-              ┣ ● Add gamma                                                          (● dev) b03776 Test User      2024-10-15 12:03
-            ┣ ┃   Add gamma                                                           (main) de2e9a Test User      2024-10-15 12:02
-            ┃╭┺   Work on dev                                                                ee3602 Test User      2024-10-15 12:01
-            ┗╯    Initial                                                                    9dc406 Test User      2024-10-15 12:00
+              ┣ ● Add gamma                                                        (● dev) b03776a3 Test User      2024-10-15 12:03
+            ┣ ┃   Add gamma                                                         (main) de2e9a57 Test User      2024-10-15 12:02
+            ┃╭┺   Work on dev                                                              ee36025f Test User      2024-10-15 12:01
+            ┗╯    Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(committed, repo.Path, 0, 6)
         );
@@ -854,11 +854,11 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ß1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣ ß● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
-            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
+            ┣ ß● Add delta                                                  (● main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                 4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                  dd78912d Test User      2024-10-15 12:01
+            ┗    Initial                                                                   9dc406e3 Test User      2024-10-15 12:00
             """,
             gmd.WaitUntilGone("uncommitted"),
             repo.Path

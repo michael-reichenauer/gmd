@@ -11,10 +11,14 @@ interface IBranchNameService
     string MergedFrom(WorkCommit c);
     bool IsPullRequest(WorkCommit c);
     bool IsMergeOfInto(WorkCommit c, string from);
+    bool IsWeakName(string commitId);
+    bool IsOwnName(string commitId);
     void ParentsSwapped(WorkCommit c);
 }
 
-record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
+// What a merge subject says: the branch merged in and the one merged into. A weak name merged in is
+// a tag's, or a word the subject neither quotes nor puts after a keyword, see IsWeakName.
+record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest, bool IsWeak = false);
 
 record Indexes(int from, int into, int direction);
 
@@ -31,11 +35,17 @@ class BranchNameService : IBranchNameService
 {
     readonly Dictionary<string, FromInto> parsedCommits = [];
     readonly Dictionary<string, string> branchNames = [];
+    readonly HashSet<string> weakNamed = [];
+    readonly HashSet<string> ownNamed = [];
 
     readonly FromInto noNames = new FromInto("", "", false, false);
 
     // Whether the repo read has branches of both trunk names, see IsMatchPullMergeOfTrunk
     bool hasBothTrunks = false;
+
+    // The repo read, and where the first-parent line of each of its commits ends, see IsOneLine
+    WorkRepo? repo;
+    Dictionary<string, string>? lineEnds;
 
     static readonly string[] prefixes = ["refs/remotes/origin/", "remotes/origin/", "origin/"];
 
@@ -74,9 +84,13 @@ class BranchNameService : IBranchNameService
     {
         parsedCommits.Clear();
         branchNames.Clear();
+        weakNamed.Clear();
+        ownNamed.Clear();
         hasBothTrunks =
             repo.Branches.Values.Any(b => b.NiceName == "main")
             && repo.Branches.Values.Any(b => b.NiceName == "master");
+        this.repo = repo;
+        lineEnds = null;
     }
 
     public void ParseCommitSubject(WorkCommit c)
@@ -115,7 +129,21 @@ class BranchNameService : IBranchNameService
         parsedCommits[c.Id] = swapped;
         branchNames[c.Id] = swapped.Into;
         branchNames[c.ParentIds[1]] = swapped.From;
+        weakNamed.Remove(c.Id);
+        weakNamed.Remove(c.ParentIds[1]);
+        ownNamed.Add(c.Id);
+        ownNamed.Remove(c.ParentIds[1]);
     }
+
+    // Whether the name of a commit is only a weak one, which names the line merged in when nothing else
+    // does, but is no evidence of a branch: a tag's, e.g. git-flow's release tag merged into develop,
+    // or a word of a subject that is no branch's as often as it is, e.g. "Merged conflicts with dev"
+    // or "Merge latest dev into x". Git, GitHub and GitLab all quote a branch or name it after a keyword.
+    public bool IsWeakName(string commitId) => weakNamed.Contains(commitId);
+
+    // Whether the name of a commit is from its own subject, "Merge branch 'a' into b", rather than
+    // from a merge child's, of which it was the tip
+    public bool IsOwnName(string commitId) => ownNamed.Contains(commitId);
 
     // Whether a merge commit's subject is a pull request's, e.g. 'Merge pull request #1 from x/y'
     public bool IsPullRequest(WorkCommit c) => ParseCommit(c).IsPullRequest;
@@ -138,12 +166,13 @@ class BranchNameService : IBranchNameService
             return fi;
         }
 
-        fi = ParseSubject(c.Subject);
+        fi = ParseSubject(c.Subject, () => IsOneLine(c));
 
         // Some child commit might have already specified the branch name of this commit
         // E.g. a child, which merged from this commit might have a subject like
         // 'Merge from some-branch'
         var name = branchNames.TryGetValue(c.Id, out var n) ? n : "";
+        var isOwnName = fi.Into != "";
 
         if (fi.Into != "")
         { // Subject does specify own commit, lets check if it is matches a possible child commit
@@ -168,22 +197,41 @@ class BranchNameService : IBranchNameService
         // Cache the result
         parsedCommits[c.Id] = fi;
         branchNames[c.Id] = fi.Into;
+        if (isOwnName)
+        {
+            weakNamed.Remove(c.Id);
+            ownNamed.Add(c.Id);
+        }
 
         if (IsPullMergeCommit(fi))
         {
             // The order of the parents will be switched for a pull merge and thus
             // Set the first branch name of the first parent
             branchNames[c.ParentIds[0]] = fi.From;
+            weakNamed.Remove(c.ParentIds[0]);
+        }
+        else if (fi.IsWeak)
+        { // A weak name merged in names the merged commit only when no other has named it
+            if (branchNames.GetValueOrDefault(c.ParentIds[1], "") == "" || weakNamed.Contains(c.ParentIds[1]))
+            {
+                branchNames[c.ParentIds[1]] = fi.From;
+                weakNamed.Add(c.ParentIds[1]);
+            }
         }
         else
         { // Normal commit, set the branch name for the second (other) parent
             branchNames[c.ParentIds[1]] = fi.From;
+            weakNamed.Remove(c.ParentIds[1]);
         }
 
         return fi;
     }
 
-    public FromInto ParseSubject(string subject)
+    public FromInto ParseSubject(string subject) => ParseSubject(subject, () => true);
+
+    // Parses a subject, and when it reads as a pull merge, asks whether the two lines merged are one
+    // branch's, which only the graph can tell
+    FromInto ParseSubject(string subject, Func<bool> isOneLine)
     {
         subject = subject.Trim();
         var matches = branchesRegEx.Matches(subject);
@@ -200,8 +248,37 @@ class BranchNameService : IBranchNameService
             return new FromInto(From: "", Into: TrimBranchName(match.Groups[indexes.into].Value), false, false);
         }
 
+        if (IsMatchMergeTag(match))
+        { // 'git pull <url> tag <tag>' writes "Merge tag 'v1.0' of <url>", which reads as a pull merge,
+            // but a tag is no branch, merged into itself or not, so a tag's merge is never one. Swapped
+            // as one, it ran git's master into the history of the repository the tag was pulled from.
+            return new FromInto(
+                From: TrimBranchName(match.Groups[indexes.from].Value),
+                Into: TrimBranchName(match.Groups[indexes.into].Value),
+                false,
+                false,
+                IsWeak: true
+            );
+        }
+
         if (IsMatchPullMerge(match) || (!hasBothTrunks && IsMatchPullMergeOfTrunk(match)))
         {
+            if (!isOneLine())
+            { // Reads as a pull merge, but the lines merged are not one branch's: a branch of another
+                // repository merged in, e.g. "Merge branch 'master' of https://github.com/j6t/gitk" into
+                // git's master. Named after that repository, e.g. 'gitk/master', as a pull request's
+                // branch is after its owner, and left in git's order, since the swap would run this
+                // branch's line into the other repository's history.
+                var name = TrimBranchName(match.Groups[indexes.from].Value);
+                var repository = RepositoryName(match.Groups[indexes.direction].Value);
+                return new FromInto(
+                    From: repository != "" ? $"{repository}/{name}" : match.Groups[indexes.from].Value,
+                    Into: TrimBranchName(match.Groups[indexes.into].Value),
+                    false,
+                    false
+                );
+            }
+
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
             return new FromInto(
                 From: TrimBranchName(match.Groups[indexes.from].Value),
@@ -226,8 +303,53 @@ class BranchNameService : IBranchNameService
             From: TrimBranchName(match.Groups[indexes.from].Value),
             Into: TrimBranchName(match.Groups[indexes.into].Value),
             false,
-            false
+            false,
+            IsWeak: !IsMatchQuotedOrKeyword(match)
         );
+    }
+
+    // Whether the first-parent lines of a merge's two parents, in git's order, meet in the log. The
+    // local and the remote line of a branch meet where they parted, a while before the pull. A branch
+    // of another repository, whose history was merged in as a project of its own (gitk and git-gui in
+    // git, sinatra-contrib in sinatra), has a line of its own that never meets this one. Neither do
+    // two lines that part below where a log is cut off, which is taken as one branch, as before.
+    bool IsOneLine(WorkCommit c)
+    {
+        if (repo == null || c.ParentIds.Any(id => id == Repo.TruncatedLogCommitId))
+            return true;
+
+        var ends = lineEnds ??= LineEnds(repo);
+        return ends.GetValueOrDefault(c.ParentIds[0]) is string end && end == ends.GetValueOrDefault(c.ParentIds[1]);
+    }
+
+    // The oldest commit of each commit's first-parent line that is in the log, in git's parent order,
+    // which is what the commits have until the pull merges are swapped. Made at the first pull merge,
+    // whose parents' lines are of older commits than any swapped before it.
+    static Dictionary<string, string> LineEnds(WorkRepo repo)
+    {
+        Dictionary<string, string> ends = [];
+        for (var i = repo.Commits.Count - 1; i >= 0; i--)
+        { // Oldest first, so a commit's first parent has its end before the commit does
+            var c = repo.Commits[i];
+            ends[c.Id] =
+                c.ParentIds.Count > 0
+                && c.ParentIds[0] != Repo.TruncatedLogCommitId
+                && ends.TryGetValue(c.ParentIds[0], out var end)
+                    ? end
+                    : c.Id;
+        }
+        return ends;
+    }
+
+    // The name of a repository from the 'of <url>' of a merge subject, e.g. 'gitk' for
+    // ' of https://github.com/j6t/gitk' or ' of github.com:git-l10n/git-po.git', or "" for none
+    static string RepositoryName(string direction)
+    {
+        var url = direction.Trim();
+        url = url.StartsWith("of") ? url[2..].Trim().TrimEnd('/') : "";
+        var name = url[(url.LastIndexOfAny(['/', ':']) + 1)..];
+        name = name.EndsWith(".git") ? name[..^4] : name;
+        return name.Trim('.') == "" ? "" : name; // Not 'git pull .', whose 'of .' names no repository
     }
 
     bool IsPullMergeCommit(FromInto fi)
@@ -293,6 +415,18 @@ class BranchNameService : IBranchNameService
     // commit is merged by id
     static bool IsMatchMergeCommit(Match match) =>
         match.Groups["keyword"].Value.Equals("commit", StringComparison.OrdinalIgnoreCase);
+
+    // Whether the name merged in is quoted, "Merge branch 'dev'", or follows a keyword, "Merge pull
+    // request #1 from x/dev", rather than being the word after "Merge"
+    static bool IsMatchQuotedOrKeyword(Match match)
+    {
+        var quote = match.Value.IndexOf('\'');
+        return match.Groups["keyword"].Success || (quote >= 0 && quote < match.Groups["from"].Index - match.Index);
+    }
+
+    // "Merge tag 'v1.0'" names a tag rather than a branch
+    static bool IsMatchMergeTag(Match match) =>
+        match.Groups["keyword"].Value.Equals("tag", StringComparison.OrdinalIgnoreCase);
 
     bool IsMatchPullRequest(Match match)
     {

@@ -10,20 +10,20 @@ public class BlameColumnsTest
     {
         var cw = BlameColumns.Calculate(BlameDetails.Full, 120, 100);
 
-        Assert.AreEqual(6, cw.Sid);
+        Assert.AreEqual(8, cw.Sid);
         Assert.AreEqual(11, cw.Author);
         Assert.AreEqual(10, cw.Date);
         Assert.AreEqual(4, cw.LineNbr);
-        Assert.AreEqual(38, cw.GutterWidth);
-        Assert.AreEqual(120 - 38, cw.Code);
+        Assert.AreEqual(40, cw.GutterWidth);
+        Assert.AreEqual(120 - 40, cw.Code);
     }
 
     // The gutter is stepped down one column at a time rather than squeezing the code to nothing
     [TestMethod]
-    [DataRow(120, 6, 11, 10)] // everything fits
-    [DataRow(70, 6, 11, 10)] // still 32 left for code
-    [DataRow(64, 6, 0, 10)] // author dropped
-    [DataRow(50, 6, 0, 0)] // date dropped too
+    [DataRow(120, 8, 11, 10)] // everything fits
+    [DataRow(70, 8, 11, 10)] // still 30 left for code, the least it takes
+    [DataRow(64, 8, 0, 10)] // author dropped
+    [DataRow(50, 8, 0, 0)] // date dropped too
     [DataRow(35, 0, 0, 0)] // only the bracket and the line number are left
     public void TestNarrowViewDropsColumnsInOrder(int width, int sid, int author, int date)
     {
@@ -61,7 +61,7 @@ public class BlameColumnsTest
     {
         var cw = BlameColumns.Calculate(BlameDetails.Minimal, 200, 100);
 
-        Assert.AreEqual(6, cw.Sid);
+        Assert.AreEqual(8, cw.Sid);
         Assert.AreEqual(0, cw.Author);
         Assert.AreEqual(0, cw.Date);
     }

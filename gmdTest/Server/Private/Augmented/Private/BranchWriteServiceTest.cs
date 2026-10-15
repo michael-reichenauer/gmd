@@ -116,10 +116,10 @@ public class BranchWriteServiceTest
     }
 
     // Creating a branch from another branch remembers that the commit it starts at belongs to the
-    // other branch, which is what keeps that commit off the new one when both point at it. It was
-    // written under the full commit id, while the entries are looked up by sid.
+    // other branch, which is what keeps that commit off the new one when both point at it, under the
+    // commit's full id, which is what the entries are looked up by.
     [TestMethod]
-    public async Task TestCreateBranchFromBranchRemembersWhereItStartedBySid()
+    public async Task TestCreateBranchFromBranchRemembersWhereItStarted()
     {
         var repo = await new RepoBuilder()
             .Commit("d1", "Dev work", "c1")
@@ -134,7 +134,7 @@ public class BranchWriteServiceTest
         AssertOk(await service.CreateBranchFromBranchAsync(repo, "feature", "origin/dev", false));
 
         CollectionAssert.AreEqual(new[] { $"feature at {RepoBuilder.Sid("d1")}" }, git.CreateBranchCalls);
-        CollectionAssert.AreEqual(new[] { RepoBuilder.Sid("d1") }, metaData.CommitBranchBySid.Keys.ToArray());
+        CollectionAssert.AreEqual(new[] { RepoBuilder.Sha("d1") }, metaData.CommitBranchById.Keys.ToArray());
         Assert.IsTrue(metaData.TryGetCommitBranch(RepoBuilder.Sha("d1"), out var name, out var isSetByUser));
         Assert.AreEqual("dev", name);
         Assert.IsFalse(isSetByUser, "Where a branch started is not a choice of the user");

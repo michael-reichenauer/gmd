@@ -134,6 +134,44 @@ public class GraphTest
         );
     }
 
+    // Branches that follow each other on dev, each started on the merge of the one before, share a
+    // column: the only row two of them both have is that merge, where the one is merged in and the
+    // other branches out, drawn together as '┤'. They used to take a column each, every other
+    // branch one column further right.
+    [TestMethod]
+    public async Task TestABranchStartedOnTheMergeOfAnotherSharesItsColumn()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("d4", "Merge branch 'feat3' into dev", "d3", "e1")
+            .Commit("e1", "Feat3 work", "d3")
+            .Commit("d3", "Merge branch 'feat2' into dev", "d2", "f1")
+            .Commit("f1", "Feat2 work", "d2")
+            .Commit("d2", "Merge branch 'feat1' into dev", "d1", "a1")
+            .Commit("a1", "Feat1 work", "d1")
+            .Commit("d1", "Dev work", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .LocalBranch("dev", "d4")
+            .LocalBranch("feat1", "a1")
+            .LocalBranch("feat2", "f1")
+            .LocalBranch("feat3", "e1")
+            .ViewRepoAsync(ShowBranches.AllActive);
+
+        Assert.AreEqual(
+            """
+                ┣╮   Merge branch 'feat3' into dev
+                ┃├┺  Feat3 work
+                ┣┤   Merge branch 'feat2' into dev
+                ┃├┺  Feat2 work
+                ┣┤   Merge branch 'feat1' into dev
+                ┃├┺  Feat1 work
+               ╭┺╯   Dev work
+            ┗─┺╯     Initial
+            """,
+            GraphText.WithSubjects(repo)
+        );
+    }
+
     // A branch deleted after being merged is recovered from the merge subject, and is drawn like
     // any other branch. It is not a git branch, so its single commit is a '╼' rather than a '┺':
     // the branch both starts and ends there and cannot get more commits.

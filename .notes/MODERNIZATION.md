@@ -193,6 +193,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
     commit origin went back to is in the local branch too), so it is found by origin's old tip being
     in the local branch, and a plain push of it asks first.
 
+- The commit details reworked (2026-10-15): the fields are four rows (`CommitDetailsRows`, with no
+  view), so the message has most of the ten; parents and children are named with their branch where
+  it is another, so a merge says what it merged; and the files the commit changed are listed below
+  the message (`git show --raw --numstat`, `GetChangedFilesAsync`), read once the cursor has rested
+  on it for 150 ms and kept for the last 200 commits, and those of the uncommitted changes from the
+  status. Left open, see Product: long message lines are cut rather than wrapped, the committer is
+  not shown, and the pane is ten rows whatever the terminal's height.
+
 **Bugs fixed** (the ones a user could hit; all have regression tests)
 
 - The log failed entirely under `ar-SA` and showed years hundreds off under `th-TH` / `fa-IR`:
@@ -266,7 +274,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
     Decided now by which branch is senior (`TryHasSeniorBranch`).
   - `git checkout -b` at a published branch's tip, outside gmd, made that branch ambiguous from its
     tip to its fork, and so did gmd's own *create branch from branch*, which wrote its metadata under
-    the full id while every lookup is by sid (the old entries are found now too).
+    the full id while every lookup is by sid (the old entries are found now too). Since 2026-10-15
+    every entry is written and read by the full id, and those under a sid are no longer read: a sid
+    can be another commit's too.
   - `git merge origin/main` on main, a pull merge by hand whose subject git writes without `into
     main`, was not swapped, so others' pushed commits became a side branch named main.
   - GitHub's `Merge branch 'owner:branch' into x` was cut at the owner: the branch was named after the
@@ -282,7 +292,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   reflog or from HEAD's through its checkouts, and which branch a branch was started from. A fact is
   only taken among the commit's candidates, never above main, never marks a commit likely, and is
   kept in the metadata when it decided between branches (keyed by full id and marked `~`, so older
-  gmd versions never read it and it never makes up a branch). The tail of the rule chain is one
+  gmd versions never read it and it never makes up a branch; since 2026-10-15 in a map of its own,
+  `WitnessedById`, as the choices are keyed by full id too and the two would replace each other, and
+  `MetaData.Parse` moves the `~` entries there). The tail of the rule chain is one
   branch point decision (`TryDecideBranchPoint`): integration name › git-flow release name › one name
   for all › clearly most merged in; the likely-child rules are gone, and an undecided branch point is
   drawn on its most senior name. A repo can name its own integration branches in Config.
@@ -310,6 +322,25 @@ Add new open issues and findings here as work lands; keep them short and drop th
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
   was. Verified on this repo's history: one branch renamed to `branch`, nothing else moved.
+- Inference, the third round (2026-10-15), each change measured over the corpus, with git/git added
+  to it (topic branches merged by name, maintenance lines, subprojects pulled in):
+  - `Merge branch 'master' of https://github.com/j6t/gitk`, another project pulled in, reads as a
+    pull merge and was swapped, and so was `Merge tag 'x' of <url>`: git's master line ran into
+    gitk's history and the translators' branch, and 37 of the 6960 commits of master's first-parent
+    line in the log were on master. A pull merge's two lines must meet in the log now, or it is
+    another repository's branch, named after it (`gitk/master`); a merged tag is never one.
+  - A tag merged in, or the word after "Merge" that a subject neither quotes nor puts after a
+    keyword ("Merged conflicts", "Merge latest x into y"), is a weak name (`IsWeakName`): it names a
+    merged commit only when no other merge has, and is no evidence of a branch.
+  - A name a subject gives a commit, of a branch no candidate is, now recovers that deleted branch
+    there (`TryIsDeletedBranchNamedInSubject`), ahead of the one branch rule: a topic started at the
+    tip of another merged first ran down over the other's commits (git: 380 tips, 3088 commits),
+    and a deleted maintenance line the topics were started from was ambiguous between them. See the
+    findings for why it is held to recovered candidates and, for a commit's own name, branch points.
+  - Branches of one name at a branch point match with an owner in front of either (1.2.x and a
+    fork's timfel/1.2.x).
+  - `InferenceDumpTest` scores ordinary commits too, by the merge that brought them in, lists the
+    candidates of each ambiguous tip, marks swapped merges, and writes 8 character ids.
 - Safety, from the usability review (`USABILITY.md`, Tier 1, 2026-09-25):
   - Any key the diff, blame or conflict view did not use fell through to the log view: `P` in a
     diff pushed every branch, and `c` in the resolver closed it with its decisions unsaved.
@@ -455,6 +486,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 - `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
   small bugs found along the way; and the product review's (2026-10-07), A to D.
+- The commit details pane: a message line longer than the pane is cut at its edge, where wrapping
+  it would need the rows built for the width (`OnGetContent` is given it); the committer, when not
+  the author (a rebase, a cherry pick, a commit GitHub made), is not shown, since the log reads no
+  committer name (`%cn`), only its time, which `GitConverter` drops; and the pane is ten rows on any
+  terminal, nearly half of a 24-row one. The files are read when shown, and the email and committer
+  could be too, rather than with the log for every commit.
 - Git's questions are asked in gmd's login dialog (product review step 17): ssh, and git, which asks
   `SSH_ASKPASS` when it has no `GIT_ASKPASS`, run gmd as the askpass, which asks the gmd that ran the
   git over a named pipe (`Askpass`, `AskpassServer`, `LoginDlg`). What is left:
@@ -484,9 +521,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
 - Cmd+C cannot reach a terminal program at all on macOS: the terminal keeps it, the classic key
   protocol cannot express it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile
-  binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
-  no Ctrl+C: `i` and `Shift-I` copy them, as the commit menu's *Copy Commit Id* and *Copy Commit
-  Message* do (2026-10-07).
+  binding of Cmd+C to hex `0x03` is the workaround for the copy menu. The commit id and message
+  need no Ctrl+C: `i` and `Shift-I` copy them, of the selected rows too, and the commit menu has
+  the copy menu as *Copy* (2026-10-15).
 - macOS Terminal sends Shift+↑/↓ as a plain `\E[A`/`\E[B` (`cat -v` shows `^[[A`), so they move
   rather than select there; gmd cannot tell them from ↑/↓. A profile key sending `\033[1;2A` /
   `\033[1;2B` fixes it, as `help.md` (Keys) says; iTerm2, VS Code and the Linux terminals send those
@@ -713,10 +750,27 @@ Add new open issues and findings here as work lands; keep them short and drop th
     `IsMatchPullMergeOfTrunk` repeat the prefix and trunk lists of `TrimBranchName` and
     `WellKnownBranches` (without `trunk`); `WorkCommit.IsParentsSwapped`'s comment says a pull merge
     only.
-- Tag names are taken for branch names: git-flow's `Merge tag '1.11.0' into develop` names the
-  release merge it points at, on master, `1.11.0`, and outranks the better name a pull merge gave the
-  same commit (the last merge child parsed wins). Only visible where master's line is lost, as in
-  gitflow-avh, where master was fast-forwarded to develop.
+- Left open by the third round (2026-10-15):
+  - A tag still names a line nothing else names, which is right for git's translation rounds and
+    wrong for gitflow-avh's master line after master was fast-forwarded to develop (`1.11.0`). That
+    line is lost to develop anyway: only swapping the `Merge tag 'x' into develop` on it would keep
+    master's commits on master, as a foxtrot merge's swap does.
+  - A merge naming nothing (`Sync with Git 2.51.2`, `Merge commit '<sha>'`) still sets the merged
+    commit's name to "", over a name another merge child gave it, when parsed after it.
+  - A pull merge names its local side after the local branch, which may only have pointed at
+    another branch's commit: in Terminal.Gui a branch made at v2_develop's tip and then pulled
+    named a v2_develop pull request merge (5 commits moved there in this round).
+  - A pull request built on a local branch of another name, with catch-up merges on it ("Merge
+    branch 'v2_develop' into x"), is now drawn as branch x below the pull request's branch, where
+    the commits are at a branch point. Right by the subjects; one pull request in two names.
+  - Stacked pull requests seen from a clone stay most of cli's ambiguity (above). Which merge first
+    brought the shared commit into the trunk would decide them when the base was merged first, and
+    wrongly when the stack was merged top first; not measured, and the merged-in score cannot judge
+    it, since it counts by that very merge.
+  - The parser takes `Merged in x (pull request #n)`, Bitbucket's, as the name "in" (weak now), and
+    a name stops at a `#`, which git allows (`issue#1243-x` is `issue`).
+  - The graph of all branches grows with every branch recovered: git's 5,889 branches became 6,289,
+    and drawing them all 3.2 s to 3.8 s (see Performance).
 - `origin/` is hard-coded in the name matching and in `NiceName`, so a repo whose remote is named
   otherwise matches names less often.
 - Adding the uncommitted commit sets its parent but does not add it to that parent's children,
@@ -733,8 +787,22 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (asked to confirm above 20), but then every refresh pays it.
 - Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
   the shown names with a list `Contains`, thousands times thousands once all are shown.
-- `CommitBranchService.DetermineCommitBranch` builds a `branchNames` string no one reads, for every
-  commit: about 10 ms of 30,000.
+- *Done 2026-10-15:* the commit limit, `AugmentedService.MaxCommitCount`, is 50,000 rather than
+  30,000 (measured, see Findings), with `System.GC.ConserveMemory` 7 in `gmd.csproj` paying for the
+  memory: after six refreshes of 50,000 commits of git gmd held 0.55 to 0.65 GB with it, 0.8 to
+  0.9 GB without, and 30,000 without had held 0.6 to 0.7 GB. Its cost is the first refreshes after
+  opening, up to a second longer while it compacts. A repo whose log is longer than is read and
+  that has no commit-graph file gets one written in the background (`WriteCommitGraphIfMissing`),
+  since without one `git log --date-order` reads the whole history whatever the limit: rust 1.7 s,
+  Linux 8.2 s for 30,000 commits, 0.36 s and 1.2 s with one; git's own repository 540 ms, 240 ms.
+- A refresh allocates about 9 KB per commit, six times the log's text: the output is read whole into
+  one string, which the GC has to compact off the large object heap, and then split. Each commit
+  keeps 2 to 3 KB between reads, nearly all its full message, which only the details pane and the
+  search use. A streamed parse, or messages read when needed, would let the limit grow, and would
+  spare the GC setting and its slower first refreshes.
+- Bors' subjects, `Auto merge of #123 - user:branch, r=reviewer` and `Rollup merge of #123 - ...`,
+  are read as a branch named 'of' (weak), so in rust every pull request is an 'of' branch and its
+  subprojects' lines are long ambiguous stretches with hundreds of candidates per commit.
 
 **The union result, at .NET 11 GA (November 2026)** — the steps are in `docs/UPGRADING.md`
 
@@ -874,6 +942,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   times, in an E2e rerun and in a full rerun. Once more on 2026-10-13 (`TestPushATagFromTheList`, a
   menu walk one item short right after a push, i.e. a key dropped while the refresh ran), green
   alone three times. Recorded so nobody hunts a flake that is not biting.
+- `AskpassServerTest.TestQuestionsAskedAtOnceAreEachAnswered` failed once in a full run on
+  2026-10-15, while timing runs had the machine busy, and passed alone five times and in a full rerun.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The end-to-end tests were about four of `scripts/test`'s four and a half minutes, nearly all waiting:
@@ -1050,9 +1120,61 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `BranchNameService` between the stages, so the split that lost every deleted branch's name was
   verified as pure movement and still landed broken. Anything stateful the stages share must be
   `[SingleInstance]`, and the pipeline keeps one test that resolves from the container.
+- The third round (2026-10-15) added git/git to the corpus (a `--filter=blob:none` clone, 30,000 of
+  its 85,000 commits read) and a merged-in score. Before and after the round, ambiguous commits,
+  merges on the branch their subject names, and merged-in commits on the branch named:
+
+  | repo | commits | ambiguous | subject agrees | merged in agrees |
+  |---|---|---|---|---|
+  | gmd | 2354 | 0 → 0 | 388 of 388 both | 2334 of 2339 both (reflog 431 of 431 both) |
+  | gitflow-avh | 1184 | 10 → 0 | 82 → 83 of 129 | 511 of 911 both |
+  | sinatra | 5316 | 277 → 124 | 36 → 55 of 127 | 2723 → 2729 of 2806 |
+  | Terminal.Gui | 10276 | 401 → 149 | 988 → 1021 of 1146 | 6683 → 6775 of 8059 |
+  | cli | 13336 | 475 → 433 | 609 → 614 of 646 | 10185 → 10332 of 10568 |
+  | git | 30000 | 2966 → 229 | 981 of 1885 → 1663 of 1845 | 18040 → 20379 of 20778 |
+
+  (git's merges of a tag from a url read as naming their target before, hence the 40 fewer. Its
+  master line went from 37 to all 6960 of its first-parent commits in the log.)
+- The merged-in score counts the commits on the first-parent line of a merge's merged parent, down
+  to where it meets the history merged into. It is partly circular, and it overreaches where a
+  branch is merged into another than it was started from: git-flow merges a release into master and
+  only its tag into develop, so the release's line runs on into develop's commits not yet released
+  (gitflow-avh's 400 disagreements). One commit merged twice claims the shorter line, a trunk's name
+  claims the trunk however it is called now, and a tag's merge claims nothing.
+- A subject's name for a commit that no candidate has is taken only among recovered candidates: a
+  live branch is left alone, since a name from before it was renamed would cut it in two, as the
+  renames of integration branches did to recovered lines (Terminal.Gui's develop, now v1_develop,
+  which is why an integration branch's name at one is left alone too). Leaving out the live
+  branches' names altogether lost git's old maintenance lines, which gmd recovers under live names
+  as it does dev once per merge. A commit's own "into x" is taken only where branches meet: on a
+  line of one candidate it is as often a branch fast-forwarded into another, which says nothing of
+  where it was started, and the split gave a sinatra subproject's history to a review branch. Each
+  of these was found by the corpus dump, not by a test.
+- Six character ids collide in a log of 30,000 commits (38 in git's), which made walks over a dump
+  jump between histories; the dump writes 8.
 
 **Performance**
 
+- The commit limit, measured 2026-10-15 with `RefreshTimingTest` (`GMD_PERF_COUNT`, Release, median
+  of five warm runs, commit-graph present) on git, kubernetes, rust and Linux, after the inference was
+  made linear in ambiguous stretches. A refresh is the log read and parsed, the augmentation and the
+  default view; it costs 1.2 to 2.6 s per 100,000 commits, and each commit keeps 2 to 3 KB:
+
+  | repo | 30,000 | 50,000 | 100,000 | 200,000 | kept at 100,000 |
+  |---|---|---|---|---|---|
+  | git (85,792) | 0.51 s | 0.78 s | 1.19 s (all) | | 203 MB |
+  | kubernetes (162,128) | 0.56 s | 0.82 s | 1.48 s | 2.26 s (all) | 201 MB |
+  | rust (348,912) | 0.65 s | 0.95 s | 1.90 s | 4.39 s | 241 MB |
+  | Linux (1,485,203) | 1.53 s | 1.85 s | 2.63 s | 4.18 s | 299 MB |
+
+  How far back 30,000 commits reach differs by years: git to 2018, kubernetes 2023, rust December
+  2025, Linux June 2026 (four months); 50,000 to 2013, 2021, May 2025 and March 2026. In the app on
+  git, the first screen took 0.9 s at 30,000 and 1.8 s with all 85,593 commits, a refresh after a
+  commit 2.0 s and 2.9 s (about 1.5 s of it the file monitor), and gmd held 0.6 GB and 1.7 GB after
+  three refreshes, 0.4 to 0.5 GB and 0.6 to 1.0 GB with `DOTNET_GCConserveMemory` 7 to 9. A refresh is mostly
+  latency, not a stop: the log shown stays until the new one is read, though the 8 commands that
+  await their refresh keep the keys stopped that long. A search with no match reads every message,
+  10 to 70 ms. Without a commit-graph none of this holds, see Open issues.
 - Measured with `RefreshTimingTest` (Release, median of five warm runs) over the inference corpus
   and two repos past the 30,000-commit cap, from partial clones: git (5,890 branches, nearly all
   recovered from merge subjects) and kubernetes (11,008). A refresh of the default view of 30,000

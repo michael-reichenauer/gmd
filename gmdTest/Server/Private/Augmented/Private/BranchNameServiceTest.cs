@@ -34,7 +34,20 @@ public class BranchNameServiceTest
             new FromInto("dev", "", false, false),
             Parse("Merge remote-tracking branch 'refs/remotes/origin/dev'")
         );
-        Assert.AreEqual(new FromInto("dev", "", false, false), Parse("Merge remotes/origin/dev"));
+        Assert.AreEqual(new FromInto("dev", "", false, false, true), Parse("Merge remotes/origin/dev"));
+    }
+
+    // The parser takes the word after "Merge" for a branch, which a hand-written subject may mean,
+    // "Merge develop into main", but as often does not: "Merged conflicts", "Merge latest v2_develop
+    // into x". Git, GitHub and GitLab all quote a branch or name it after a keyword, so a name that is
+    // neither is weak: it names a deleted branch only when nothing else does.
+    [TestMethod]
+    public void TestAWordAfterMergeIsAWeakName()
+    {
+        Assert.AreEqual(new FromInto("develop", "main", false, false, true), Parse("Merge develop into main"));
+        Assert.AreEqual(new FromInto("conflicts", "", false, false, true), Parse("Merged conflicts with dev"));
+        Assert.AreEqual(new FromInto("latest", "", false, false, true), Parse("Merge latest v2_develop into x"));
+        Assert.AreEqual(new FromInto("develop", "main", false, false), Parse("Merge 'develop' into main"));
     }
 
     // A pull merge is the same branch merged into itself, from the remote repository. It is
@@ -164,11 +177,16 @@ public class BranchNameServiceTest
     }
 
     // Merging a tag is not merging a branch, but the merged commits still need a name to be shown
-    // under, and the subject still says which branch they were merged into
+    // under, and the subject still says which branch they were merged into. Pulled from another
+    // repository it reads as a pull merge, but a tag is no branch merged into itself.
     [TestMethod]
     public void TestMergeOfATag()
     {
-        Assert.AreEqual(new FromInto("v1.2.3", "main", false, false), Parse("Merge tag 'v1.2.3' into main"));
+        Assert.AreEqual(new FromInto("v1.2.3", "main", false, false, true), Parse("Merge tag 'v1.2.3' into main"));
+        Assert.AreEqual(
+            new FromInto("v1.2.3", "", false, false, true),
+            Parse("Merge tag 'v1.2.3' of https://github.com/x/y")
+        );
     }
 
     // An octopus merge has more than two parents. Only the first merged branch gets a name, since

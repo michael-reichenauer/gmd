@@ -104,4 +104,25 @@ public class AugmentedServiceTest
         );
         Assert.IsTrue(updated.Worktrees[0].IsCurrent, "Found by the repo's path when none was current before");
     }
+
+    // A log cut short by the limit is only quick to read with a commit-graph file, which a fresh clone
+    // has none of, so the first read of such a repo writes one, and only then: a read of every repo,
+    // or of the same one again, would write it over and over
+    [TestMethod]
+    public void TestCommitGraphIsWrittenOnceForALogLongerThanIsRead()
+    {
+        var git = new FakeGit();
+        var service = RepoBuilder.NewAugmentedService(git, new FakeMetaDataService(new MetaData()));
+
+        service.WriteCommitGraphIfMissing(Main, isTruncated: false);
+        Assert.AreEqual(0, git.CommitGraphWrites.Count, "Not for a log read in full");
+
+        service.WriteCommitGraphIfMissing(Main, isTruncated: true);
+        service.WriteCommitGraphIfMissing(Main, isTruncated: true);
+        CollectionAssert.AreEqual(new[] { Main }, git.CommitGraphWrites, "Once a session");
+
+        git.IsCommitGraph = true;
+        service.WriteCommitGraphIfMissing(Dev, isTruncated: true);
+        CollectionAssert.AreEqual(new[] { Main }, git.CommitGraphWrites, "Not where there is one");
+    }
 }

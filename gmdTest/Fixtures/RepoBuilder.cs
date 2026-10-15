@@ -246,14 +246,14 @@ class RepoBuilder
     // Records that the user manually set the branch of a commit, as stored in the repo metadata
     public RepoBuilder UserSetBranch(string commitName, string branchName)
     {
-        metaData.SetCommitBranch(Sid(commitName), branchName);
+        metaData.SetCommitBranch(Sha(commitName), branchName);
         return this;
     }
 
     // Records that a commit is known to be the branch out point of a branch
     public RepoBuilder Branched(string commitName, string branchName)
     {
-        metaData.SetBranched(Sid(commitName), branchName);
+        metaData.SetBranched(Sha(commitName), branchName);
         return this;
     }
 
@@ -261,7 +261,7 @@ class RepoBuilder
     // The entry is kept but emptied, so the removal itself can be shared with other users.
     public RepoBuilder UnsetBranch(string commitName)
     {
-        metaData.RemoveCommitBranch(Sid(commitName));
+        metaData.RemoveCommitBranch(Sha(commitName));
         return this;
     }
 
@@ -286,7 +286,9 @@ class RepoBuilder
 
     // The operation parameters are what names a stopped operation to the user: which branch is
     // being rebased and how far it has got, and whether a commit is all that is left of it (true
-    // for a merge, false for a rebase, which has to be told to carry on).
+    // for a merge, false for a rebase, which has to be told to carry on). The files, when given,
+    // are the changes the counts count, a conflicted file as both sides modified, and a renamed one
+    // as its old and new path.
     public RepoBuilder WithStatus(
         int modified = 0,
         int added = 0,
@@ -298,15 +300,25 @@ class RepoBuilder
         string operationBranchName = "",
         int operationStep = 0,
         int operationTotal = 0,
-        bool isFinishedByCommit = true
+        bool isFinishedByCommit = true,
+        string[]? modifiedFiles = null,
+        string[]? addedFiles = null,
+        string[]? deletedFiles = null,
+        string[]? conflictedFiles = null,
+        (string From, string To)[]? renamedFiles = null
     )
     {
+        modifiedFiles ??= [];
+        addedFiles ??= [];
+        deletedFiles ??= [];
+        conflictedFiles ??= [];
+        renamedFiles ??= [];
         status = new GitStatus(
-            modified,
-            added,
-            deleted,
-            conflicted,
-            0,
+            Math.Max(modified, modifiedFiles.Length),
+            Math.Max(added, addedFiles.Length),
+            Math.Max(deleted, deletedFiles.Length),
+            Math.Max(conflicted, conflictedFiles.Length),
+            renamedFiles.Length,
             operation,
             mergeMessage,
             mergeHeadCommit == "" ? "" : Sha(mergeHeadCommit),
@@ -314,12 +326,12 @@ class RepoBuilder
             operationStep,
             operationTotal,
             isFinishedByCommit,
-            [],
-            [],
-            [],
-            [],
-            [],
-            []
+            modifiedFiles,
+            addedFiles,
+            deletedFiles,
+            conflictedFiles.Select(p => new gmd.Git.ConflictedFile(p, gmd.Git.ConflictKind.BothModified)).ToArray(),
+            renamedFiles.Select(r => r.From).ToArray(),
+            renamedFiles.Select(r => r.To).ToArray()
         );
         return this;
     }

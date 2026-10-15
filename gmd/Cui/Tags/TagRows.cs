@@ -19,7 +19,7 @@ record TagItem(RepoTag Tag, Commit? Commit, bool HasOrigin)
 static class TagRows
 {
     const int TagWidth = 20;
-    const int CommitWidth = 8;
+    const int CommitWidth = StringExtensions.SidLength + 2;
     const int DateWidth = 12;
     const int OriginWidth = 12;
     const int FixedWidth = TagWidth + CommitWidth + DateWidth + OriginWidth;

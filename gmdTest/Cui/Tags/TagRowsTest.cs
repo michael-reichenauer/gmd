@@ -45,7 +45,7 @@ public class TagRowsTest
         var c1 = RepoBuilder.Sid("c1");
 
         Assert.AreEqual(
-            "Tag                 Commit  Date        Origin      Subject             ",
+            "Tag                 Commit    Date        Origin      Subject             ",
             TagRows.Header(TagRows.MinWidth).ToString()
         );
         Assert.AreEqual(

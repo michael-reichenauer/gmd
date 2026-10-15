@@ -38,11 +38,11 @@ public class LostWorkDlgTest
             """
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
-            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
+            ┣  ● Add delta                                                  (● main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                 4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                  dd78912d Test User      2024-10-15 12:01
+            ┗    Initial                                                                   9dc406e3 Test User      2024-10-15 12:00
 
 
 
@@ -57,7 +57,7 @@ public class LostWorkDlgTest
                  │ ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
                  │ │2024-10-15 12:07  main                      1  reset     Lost work                                      │ │
                  │ └────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
-                 │  cd56a3 by Test User: left behind on 'main' by a reset                                                     │
+                 │  cd56a3ec by Test User: left behind on 'main' by a reset                                                   │
                  │ [ Diff ]  [ Create Branch ... ]                                                                 [ Close ]  │
                  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
             """,

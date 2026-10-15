@@ -10,7 +10,14 @@ namespace gmd.Server.Private.Augmented.Private;
 [SingleInstance]
 class AugmentedService : IAugmentedService
 {
-    const int maxCommitCount = 30000; // Increase performance in case of very large repos
+    // The most commits read, the newest, which bounds the cost of every read of a large repo: a
+    // refresh costs some 1.2 to 2.6 s per 100,000 commits, and each commit kept 2 to 3 KB, measured
+    // over git, kubernetes, rust and Linux (see RefreshTimingTest). 50,000 reach 13 years back in git,
+    // 5 in kubernetes and some months in Linux.
+    internal const int MaxCommitCount = 50000;
+
+    // The repos whose commit-graph file was looked for this session, see WriteCommitGraphIfMissing
+    readonly HashSet<string> commitGraphPaths = [];
 
     // The commits the reflogs mention that are looked up as maybe lost, the newest: each ref's
     // reflog is latest first, and a reflog of years can name many thousands
@@ -124,7 +131,7 @@ class AugmentedService : IAugmentedService
         fileMonitor.ReadingRepo();
 
         // Start some git commands in parallel to get commits, branches, status, ...
-        var logTask = git.GetLogAsync(maxCommitCount, path);
+        var logTask = git.GetLogAsync(MaxCommitCount, path);
         var branchesTask = git.GetBranchesAsync(path);
         var tagsTask = git.GetTagsAsync(path);
         var statusTask = git.GetStatusAsync(path);
@@ -183,9 +190,10 @@ class AugmentedService : IAugmentedService
             currentAuthor = "";
         }
 
-        var isTruncated = log.Count == maxCommitCount;
+        var isTruncated = log.Count == MaxCommitCount;
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
+        WriteCommitGraphIfMissing(path, isTruncated);
 
         var remoteReflog = await GetRemoteReflogAsync(branches, path);
 
@@ -213,6 +221,28 @@ class AugmentedService : IAugmentedService
         Log.Info($"GitRepo {t} {gitRepo}");
 
         return gitRepo;
+    }
+
+    // A log longer than gmd reads is only cut short quickly with a commit-graph file: without one, 'git
+    // log --date-order' reads every commit of the history before it shows the first, which made every
+    // read of rust's 350,000 commits take 1.7 s and of Linux's 1.5 million 8 s, against 0.4 s and
+    // 1.2 s with one. Git writes it in 'gc', which a fresh clone has not run yet, so the first read of
+    // such a repo without one writes it, in the background, once a session. A write that fails, e.g.
+    // in a read-only repo, is only logged.
+    internal void WriteCommitGraphIfMissing(string path, bool isTruncated)
+    {
+        if (!isTruncated)
+            return;
+        lock (commitGraphPaths)
+        {
+            if (!commitGraphPaths.Add(path))
+                return;
+        }
+        if (git.HasCommitGraph(path))
+            return;
+
+        Log.Info($"Writing the commit-graph file of '{path}', which has more commits than are read");
+        git.WriteCommitGraphAsync(path).RunInBackground();
     }
 
     // The reflogs of the remote branches whose local branches have commits not on them, read after the

@@ -72,6 +72,11 @@ class GraphCreater : IGraphCreater
             return false;
         }
 
+        if (IsMergedInWhereBranchedOut(b1, b2) || IsMergedInWhereBranchedOut(b2, b1))
+        {
+            return false;
+        }
+
         int high1 = b1.HighIndex;
         int low1 = b1.LowIndex;
         int high2 = b2.HighIndex - margin;
@@ -79,6 +84,15 @@ class GraphCreater : IGraphCreater
 
         return (high2 >= high1 && high2 <= low1) || (low2 >= high1 && low2 <= low1) || (high2 <= high1 && low2 >= low1);
     }
+
+    // A branch merged in on the very row another branched out of, e.g. a branch started on the merge
+    // of the one before it, can share its column: that row is the only one they both have, neither
+    // has a commit on it, and the one's '╮' and the other's '╯' are drawn together as '┤'. Never so
+    // in a filtered repo, whose ranges are its commits alone.
+    static bool IsMergedInWhereBranchedOut(GraphBranch merged, GraphBranch branched) =>
+        merged.HighIndex == branched.LowIndex
+        && merged.HighIndex < merged.TipIndex
+        && branched.LowIndex > branched.BottomIndex;
 
     void SetBranchesColor(Repo repo, IReadOnlyList<GraphBranch> branches)
     {

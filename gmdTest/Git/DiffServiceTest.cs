@@ -160,6 +160,58 @@ public class DiffServiceTest
         return commitDiff;
     }
 
+    // Output of: git show --format= -z --raw --numstat --first-parent --root --find-renames HEAD
+    // A commit that renamed a file and changed it, changed a binary file, added one and deleted one.
+    // Every field ends in a NUL, and the two lists are of the same files in the same order.
+    const string ChangedFilesOutput =
+        ":100644 100644 de98044 d68dd40 R075\0a.txt\0b.txt\0"
+        + ":100644 100644 bdc955b 350ed01 M\0bin.dat\0"
+        + ":100644 000000 c118916 0000000 D\0gone.txt\0"
+        + ":000000 100644 0000000 3e75765 A\0n.txt\0"
+        + "1\t0\t\0a.txt\0b.txt\0"
+        + "-\t-\tbin.dat\0"
+        + "0\t1\tgone.txt\0"
+        + "12\t0\tn.txt\0";
+
+    [TestMethod]
+    public async Task TestChangedFiles()
+    {
+        var cmd = new FakeCmd(ChangedFilesOutput);
+
+        var files = AssertOk(await new DiffService(cmd).GetChangedFilesAsync("abc", "/wd"));
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                new ChangedFile('R', "b.txt", "a.txt", 1, 0, false),
+                new ChangedFile('M', "bin.dat", "", 0, 0, true),
+                new ChangedFile('D', "gone.txt", "", 0, 1, false),
+                new ChangedFile('A', "n.txt", "", 12, 0, false),
+            },
+            files.ToArray()
+        );
+        // The same diff as the commit's, against its first parent, and with the user's config kept out
+        StringAssert.Contains(cmd.Calls[0].Args, "--first-parent --root --find-renames abc");
+        StringAssert.Contains(cmd.Calls[0].Args, "--no-color --no-ext-diff");
+    }
+
+    // An empty commit, e.g. one made with --allow-empty, changed nothing
+    [TestMethod]
+    public async Task TestChangedFilesOfACommitThatChangedNothing()
+    {
+        Assert.AreEqual(0, AssertOk(await new DiffService(new FakeCmd("")).GetChangedFilesAsync("abc", "/wd")).Count);
+    }
+
+    [TestMethod]
+    [DataRow(":000000 100644 0000000 3e75765 A\0n.txt\0x\t0\tn.txt\0", "Failed to parse changed file")]
+    [DataRow(":000000 100644 0000000 3e75765 A\0n.txt\0", "1 files, but 0 counts")]
+    public async Task TestChangedFilesThatCannotBeRead(string output, string message)
+    {
+        var error = AssertError(await new DiffService(new FakeCmd(output)).GetChangedFilesAsync("abc", "/wd"));
+
+        StringAssert.Contains(error.Message, message);
+    }
+
     static FileDiff FileOf(CommitDiff commitDiff, string path) =>
         commitDiff.FileDiffs.First(fd => fd.PathAfter == path);
 

@@ -103,6 +103,9 @@ internal class Git : IGit
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         diffService.GetCommitDiffAsync(commitId, contextLines, wd);
 
+    public Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd) =>
+        diffService.GetChangedFilesAsync(commitId, wd);
+
     public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
         diffService.GetFileDiffAsync(path, contextLines, wd);
 
@@ -164,6 +167,10 @@ internal class Git : IGit
     public Task<Result> CloneAsync(string uri, string path, string wd) => remoteService.CloneAsync(uri, path, wd);
 
     public Task<Result> InitRepoAsync(string path, string wd) => repoService.InitAsync(path);
+
+    public bool HasCommitGraph(string wd) => repoService.HasCommitGraph(wd);
+
+    public Task<Result> WriteCommitGraphAsync(string wd) => repoService.WriteCommitGraphAsync(wd);
 
     public Task<Result> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
 

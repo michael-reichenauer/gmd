@@ -72,12 +72,12 @@ public class PushPullTest
             """
              Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Add zeta                                                          (● main) 4dd1e9 Test User      2024-10-15 12:07
-            ┣╯    Add delta                                                   (^/main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
-            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
-            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
-            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
+             ╭┺ ●▲Add zeta                                                        (● main) 4dd1e9f8 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                 (^/main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                4a15fb13 Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                 dd78912d Test User      2024-10-15 12:01
+            ┗     Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
             """,
             gmd.WaitForStable(),
             repo.Path
@@ -90,12 +90,12 @@ public class PushPullTest
             """
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣─┺ ● Add zeta                                                       (^)(● main) 4dd1e9 Test User      2024-10-15 12:07
-            ┣     Add delta                                                           [v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
-            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
-            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
-            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
+            ┣─┺ ● Add zeta                                                     (^)(● main) 4dd1e9f8 Test User      2024-10-15 12:07
+            ┣     Add delta                                                         [v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                4a15fb13 Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                 dd78912d Test User      2024-10-15 12:01
+            ┗     Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(screen, repo.Path, 0, 8)
         );
@@ -241,12 +241,12 @@ public class PushPullTest
             """
              Gmd {repo}, ●main, ▼1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣    ▼Add zeta                                                          (^/main) 4dd1e9 Test User      2024-10-15 12:07
-            ┣─┺ ● Add delta                                                   (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
-            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
-            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
-            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
+            ┣    ▼Add zeta                                                        (^/main) 4dd1e9f8 Test User      2024-10-15 12:07
+            ┣─┺ ● Add delta                                                 (● main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                4a15fb13 Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                 dd78912d Test User      2024-10-15 12:01
+            ┗     Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
             """,
             gmd.WaitForStable(),
             repo.Path
@@ -259,12 +259,12 @@ public class PushPullTest
             """
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣─┺ ● Add zeta                                                       (^)(● main) 4dd1e9 Test User      2024-10-15 12:07
-            ┣     Add delta                                                           [v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
-            ┣     Add gamma                                                                  4a15fb Test User      2024-10-15 12:04
-            ┣╯    Add beta                                                                   dd7891 Test User      2024-10-15 12:01
-            ┗     Initial                                                                    9dc406 Test User      2024-10-15 12:00
+            ┣─┺ ● Add zeta                                                     (^)(● main) 4dd1e9f8 Test User      2024-10-15 12:07
+            ┣     Add delta                                                         [v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
+            ┣     Add gamma                                                                4a15fb13 Test User      2024-10-15 12:04
+            ┣╯    Add beta                                                                 dd78912d Test User      2024-10-15 12:01
+            ┗     Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
             """,
             ScreenText.Rows(screen, repo.Path, 0, 8)
         );
@@ -292,16 +292,16 @@ public class PushPullTest
             """
              Gmd {repo}, ●work, ▼2, ▲1                                       commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺      ▲Main local                                                                 (main) 801397 Test User 2024-10-15
-            ┣│       ▼Main remote                                                              (^/main) 292075 Test User 2024-10-15
-            ┃│  ┣    ▼Work remote                                                              (^/work) ff355b Test User 2024-10-15
-            ┃│ ╭┺─┺ ● Work on work                                                             (● work) 1d4a58 Test User 2024-10-15
-            ┣┴─╯      Add zeta                                                                          4dd1e9 Test User 2024-10-15
-            ┣         Add delta                                                                  [v1.0] 17d85b Test User 2024-10-15
-            ┣╮        Merge branch 'dev' into main                                                      4e73d2 Test User 2024-10-15
-            ┣         Add gamma                                                                         4a15fb Test User 2024-10-15
-            ┣╯        Add beta                                                                          dd7891 Test User 2024-10-15
-            ┗         Initial                                                                           9dc406 Test User 2024-10-15
+             ╭┺      ▲Main local                                                               (main) 801397c1 Test User 2024-10-15
+            ┣│       ▼Main remote                                                            (^/main) 29207585 Test User 2024-10-15
+            ┃│  ┣    ▼Work remote                                                            (^/work) ff355bff Test User 2024-10-15
+            ┃│ ╭┺─┺ ● Work on work                                                           (● work) 1d4a5849 Test User 2024-10-15
+            ┣┴─╯      Add zeta                                                                        4dd1e9f8 Test User 2024-10-15
+            ┣         Add delta                                                                [v1.0] 17d85ba8 Test User 2024-10-15
+            ┣╮        Merge branch 'dev' into main                                                    4e73d230 Test User 2024-10-15
+            ┣         Add gamma                                                                       4a15fb13 Test User 2024-10-15
+            ┣╯        Add beta                                                                        dd78912d Test User 2024-10-15
+            ┗         Initial                                                                         9dc406e3 Test User 2024-10-15
             """,
             gmd.WaitForStable(),
             repo.Path
@@ -334,16 +334,16 @@ public class PushPullTest
             """
              Gmd {repo}, ●work, ▼1, ▲1                                       commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺      ▲Main local                                                                 (main) 801397 Test User 2024-10-15
-            ┣│       ▼Main remote                                                              (^/main) 292075 Test User 2024-10-15
-            ┃│  ┣─┺ ● Work remote                                                           (^)(● work) ff355b Test User 2024-10-15
-            ┃│ ╭┺     Work on work                                                                      1d4a58 Test User 2024-10-15
-            ┣┴─╯      Add zeta                                                                          4dd1e9 Test User 2024-10-15
-            ┣         Add delta                                                                  [v1.0] 17d85b Test User 2024-10-15
-            ┣╮        Merge branch 'dev' into main                                                      4e73d2 Test User 2024-10-15
-            ┣         Add gamma                                                                         4a15fb Test User 2024-10-15
-            ┣╯        Add beta                                                                          dd7891 Test User 2024-10-15
-            ┗         Initial                                                                           9dc406 Test User 2024-10-15
+             ╭┺      ▲Main local                                                               (main) 801397c1 Test User 2024-10-15
+            ┣│       ▼Main remote                                                            (^/main) 29207585 Test User 2024-10-15
+            ┃│  ┣─┺ ● Work remote                                                         (^)(● work) ff355bff Test User 2024-10-15
+            ┃│ ╭┺     Work on work                                                                    1d4a5849 Test User 2024-10-15
+            ┣┴─╯      Add zeta                                                                        4dd1e9f8 Test User 2024-10-15
+            ┣         Add delta                                                                [v1.0] 17d85ba8 Test User 2024-10-15
+            ┣╮        Merge branch 'dev' into main                                                    4e73d230 Test User 2024-10-15
+            ┣         Add gamma                                                                       4a15fb13 Test User 2024-10-15
+            ┣╯        Add beta                                                                        dd78912d Test User 2024-10-15
+            ┗         Initial                                                                         9dc406e3 Test User 2024-10-15
             """,
             ScreenText.Rows(updated, repo.Path, 0, 12)
         );
@@ -520,7 +520,7 @@ public class PushPullTest
         gmd.Send("Enter");
 
         Assert.AreEqual(
-            $"Put 'origin/main' back at {oldTip[..6]}, as it was before the force push",
+            $"Put 'origin/main' back at {oldTip[..8]}, as it was before the force push",
             ScreenText.LastLine(gmd.WaitFor("Put 'origin/main' back at"))
         );
         Assert.AreEqual(oldTip, await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main"));

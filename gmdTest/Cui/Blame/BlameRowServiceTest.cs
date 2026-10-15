@@ -107,12 +107,12 @@ public class BlameRowServiceTest
 
         Assert.AreEqual(
             """
-            ┌ 111111 Author1     2025-01-05 │   1┃one
-            │                               │   2┃two
-            └                               │   3┃three
-            ┌ 222222 Author2     2024-01-05 │   4┃four
-            └                               │   5┃five
-            ╺ 333333 Author3     2023-01-05 │   6┃six
+            ┌ 11111111 Author1     2025-01-05 │   1┃one
+            │                                 │   2┃two
+            └                                 │   3┃three
+            ┌ 22222222 Author2     2024-01-05 │   4┃four
+            └                                 │   5┃five
+            ╺ 33333333 Author3     2023-01-05 │   6┃six
             """,
             Draw(blame)
         );
@@ -125,8 +125,8 @@ public class BlameRowServiceTest
 
         Assert.AreEqual(
             """
-            ╺ 111111 Author1     2025-01-05 │   1┃one
-            ╺ ©      Uncommitted            │   2┃two
+            ╺ 11111111 Author1     2025-01-05 │   1┃one
+            ╺ ©        Uncommitted            │   2┃two
             """,
             Draw(blame)
         );
@@ -139,8 +139,8 @@ public class BlameRowServiceTest
 
         Assert.AreEqual(
             """
-            ┌ 111111 2025-01-05 │   1┃one
-            └                   │   2┃two
+            ┌ 11111111 2025-01-05 │   1┃one
+            └                     │   2┃two
             """,
             Draw(blame, BlameDetails.Compact)
         );
@@ -151,7 +151,7 @@ public class BlameRowServiceTest
     {
         Assert.AreEqual(
             """
-            ╺ 111111 │   1┃one
+            ╺ 11111111 │   1┃one
             """,
             Draw(BlameOf((Id1, "one")), BlameDetails.Minimal)
         );
@@ -216,12 +216,12 @@ public class BlameRowServiceTest
 
         var rows = new BlameRowService().ToDetailsRows(commit);
 
-        Assert.AreEqual($"Id:         {Id1}", rows[0].ToString());
+        Assert.AreEqual($"Id:       {Id1}", rows[0].ToString());
         // The time is local with its zone offset, as the commit details view shows it, so only the
         // part that does not depend on the machine's time zone is asserted
-        StringAssert.StartsWith(rows[1].ToString(), "Author:     Author1 <alice@example.com>, time: 2025-01-05 ");
-        Assert.AreEqual("Subject:    Subject 1", rows[2].ToString());
-        StringAssert.Contains(rows[4].ToString(), "not in the shown log");
+        StringAssert.StartsWith(rows[1].ToString(), "Author:   Author1 <alice@example.com>, 2025-01-05 ");
+        Assert.AreEqual("Subject 1", rows[3].ToString());
+        StringAssert.Contains(rows[5].ToString(), "not in the shown log");
     }
 
     [TestMethod]
@@ -231,7 +231,7 @@ public class BlameRowServiceTest
 
         var rows = new BlameRowService().ToDetailsRows(commit);
 
-        Assert.AreEqual("Id:         Uncommitted", rows[0].ToString());
+        Assert.AreEqual("Id:       Uncommitted", rows[0].ToString());
     }
 
     [TestMethod]
@@ -247,9 +247,9 @@ public class BlameRowServiceTest
     {
         var blame = BlameOf((Id1, new string('x', 50)));
 
-        // 36 of gutter leaves 34 for the code, so the last column becomes the cut marker
+        // 40 of gutter leaves 30 for the code, so the last column becomes the cut marker
         Assert.AreEqual(
-            "╺ 111111 Author1     2025-01-05 │   1┃" + new string('x', 31) + "…",
+            "╺ 11111111 Author1     2025-01-05 │   1┃" + new string('x', 29) + "…",
             Draw(blame, BlameDetails.Full, 70)
         );
     }
