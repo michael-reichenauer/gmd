@@ -199,4 +199,22 @@ public class CommitRewriteIntegrationTest
         Assert.AreEqual("Ann Other", (await repo.GitAsync("log --format=%an -1")).Trim());
         Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
     }
+
+    // With commit.gpgsign set, git signs what commit, rebase and cherry-pick make, but the squash is
+    // made by commit-tree, which does not read it, so it was the one commit left unsigned, and a
+    // branch that requires signed commits refused it on the push
+    [TestMethod]
+    public async Task TestSquashIsSignedWhenTheConfigSignsCommits()
+    {
+        await repo.UseSshSigningKeyAsync();
+        await repo.GitAsync("config commit.gpgsign true");
+        await repo.CommitFileAsync("d.txt", "d\n", "On top");
+        var augmented = AssertOk(await ReadAsync());
+
+        AssertOk(await rewrite.SquashCommitsAsync(augmented, c3, c2, "Squashed"));
+
+        Assert.AreEqual("On top\nSquashed\nInitial", await LogAsync());
+        StringAssert.Contains(await repo.GitAsync("cat-file -p HEAD~1"), "BEGIN SSH SIGNATURE", "The squash");
+        StringAssert.Contains(await repo.GitAsync("cat-file -p HEAD"), "BEGIN SSH SIGNATURE", "The commit on top");
+    }
 }

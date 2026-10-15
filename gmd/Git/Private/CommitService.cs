@@ -188,14 +188,34 @@ class CommitService : ICommitService
 
     // A new commit with the files of a commit on the given parent, made without moving a branch or
     // touching the index or the working tree, e.g. the commits from that parent up to that commit
-    // made one; its id. No hook runs, as for the commits a rebase replays.
+    // made one; its id. No hook runs, as for the commits a rebase replays. It is signed when
+    // commit.gpgsign says so, as 'git commit' would sign it: commit-tree does not read that setting
+    // (since git 2.9), so it has to be asked for, and a branch that requires signed commits refuses
+    // an unsigned one on the push.
     public async Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd)
     {
-        var args = $"commit-tree {filesOfId}^{{tree}} -p {parentId} -m {Cmd.Quote(message)}";
+        var signResult = await IsSigningCommitsAsync(wd);
+        if (signResult is not bool isSign)
+            return signResult.Error;
+        var signText = isSign ? " -S" : "";
+        var args = $"commit-tree{signText} {filesOfId}^{{tree}} -p {parentId} -m {Cmd.Quote(message)}";
         var result = await cmd.RunAsync("git", args, wd);
         if (result is not string output)
             return result.Error;
         return output.Trim();
+    }
+
+    // Whether git signs the commits it makes, commit.gpgsign in any of the config files. Git exits
+    // with 1 when it is not set, which is an answer, and fails on a value that is no boolean, as
+    // 'git commit' then does too.
+    async Task<Result<bool>> IsSigningCommitsAsync(string wd)
+    {
+        var result = await cmd.RunRawAsync("git", "config --type=bool --get commit.gpgsign", wd, skipLogError: true);
+        if (result.ExitCode == 1)
+            return false;
+        if (result.ToResult() is not string output)
+            return result.ToResult().Error;
+        return output.Trim() == "true";
     }
 
     // Moves the commits of the current branch after 'upstream' onto 'onto', keeping the merges among

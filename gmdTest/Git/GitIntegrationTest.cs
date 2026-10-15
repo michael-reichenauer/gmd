@@ -1986,19 +1986,8 @@ public class GitIntegrationTest
     [TestMethod]
     public async Task TestASignedCommitIsReadWhenTheConfigShowsSignatures()
     {
-        var key = Path.Join(repo.Path, ".git", "test-signing-key");
-        try
-        {
-            if (!Proc.Run("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", key]).IsOk)
-                Assert.Inconclusive("ssh-keygen failed, so there is no key to sign with");
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            Assert.Inconclusive("No ssh-keygen to make a key to sign with");
-        }
+        await repo.UseSshSigningKeyAsync();
         await repo.CommitFileAsync("file.txt", "one\n", "First");
-        await repo.GitAsync("config gpg.format ssh");
-        await repo.GitAsync($"config user.signingkey \"{key}.pub\"");
         repo.WriteFile("file.txt", "two\n");
         await repo.GitAsync("commit -S -am Signed");
         var signed = await repo.HeadIdAsync();

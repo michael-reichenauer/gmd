@@ -204,6 +204,25 @@ sealed class TempRepo : IDisposable
 
     public async Task<string> HeadIdAsync() => (await GitAsync("rev-parse HEAD")).Trim();
 
+    // Makes the repository sign with an ssh key of its own, made here with no passphrase: git signs
+    // with ssh-keygen when gpg.format is ssh, so no gpg and no agent are needed. Signing is asked for
+    // separately, by 'commit -S' or commit.gpgsign. Inconclusive where there is no ssh-keygen.
+    public async Task UseSshSigningKeyAsync()
+    {
+        var key = IOPath.Join(Path, ".git", "test-signing-key");
+        try
+        {
+            if (!Proc.Run("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", key]).IsOk)
+                Assert.Inconclusive("ssh-keygen failed, so there is no key to sign with");
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Assert.Inconclusive("No ssh-keygen to make a key to sign with");
+        }
+        await GitAsync("config gpg.format ssh");
+        await GitAsync($"config user.signingkey \"{key}.pub\"");
+    }
+
     // Adds a bare repository next to this one as its 'origin' remote, so pushing, fetching and
     // the ahead/behind counts of a tracking branch can be tested without a network.
     public async Task AddOriginAsync()
