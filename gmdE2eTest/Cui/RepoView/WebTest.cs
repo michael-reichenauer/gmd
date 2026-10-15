@@ -43,4 +43,29 @@ public class WebTest
         );
         Assert.AreEqual($"https://github.com/user/repo/commit/{delta}", gmd.Clipboard());
     }
+
+    // The copy menu's last item copies the link to the commit without trying a browser at all, for
+    // where the commit is talked about
+    [TestMethod]
+    public async Task TestCopyTheLinkToACommit()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        var delta = (await repo.GitAsync("rev-parse HEAD~1")).Trim();
+        await repo.GitAsync("remote set-url origin https://github.com/user/repo.git");
+        await repo.GitAsync("config protocol.https.allow never");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add delta");
+
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("C-c");
+        gmd.WaitFor("Link to Commit");
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        var link = $"https://github.com/user/repo/commit/{delta}";
+        Assert.AreEqual($"Copied {link}", ScreenText.LastLine(gmd.WaitFor("Copied https")));
+        Assert.AreEqual(link, gmd.Clipboard());
+    }
 }

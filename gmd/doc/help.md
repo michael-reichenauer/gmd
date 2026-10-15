@@ -233,9 +233,9 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | PgUp, PgDn | A page up or down (Space too), in every list and view      |
 | Home, End  | The first or the last row                                  |
 | Shift-↑↓   | Select rows in the log, diff and blame views               |
-| Ctrl-C     | Copy the selected rows to the clipboard                    |
-| i          | Copy the commit id to the clipboard                        |
-| Shift-I    | Copy the commit message to the clipboard                   |
+| Ctrl-C     | Copy menu: the id, message, link ... of the commit or rows |
+| i          | Copy the commit id, or the ids of the selected rows        |
+| Shift-I    | Copy the commit message, or those of the selected rows     |
 | ?, F1      | Open this help in the browser                              |
 | Esc        | Close a menu, dialog or view                               |
 | Esc, q     | Quit, in the log view (Esc asks first)                     |
@@ -430,6 +430,16 @@ throw changes away for good ask first.
   selected commit and its branch in the log, and `Esc` goes back to where
   you were. After that, `n` and `Shift-N` go to the next and the previous
   match in the log.
+- **Copy** (`Ctrl-C`, or **Copy** in the commit menu):
+  Asks what to copy of the commit, or of the rows selected with
+  `Shift-↑↓`: the id, the message, the subject, the id and subject as
+  `git log --oneline` writes them, the short id, or the link to the commit
+  on the site hosting the remote. `i` copies the id and `Shift-I` the
+  message straight away. Selected commits are copied oldest first, the
+  order `git cherry-pick` takes them in, with the ids on one line, and the
+  menu has their range too, `<oldest>^..<newest>`, which `git log`,
+  `git diff` and `git cherry-pick` read as the commits from the oldest to
+  the newest.
 - **Merging** (`e` and `Shift-E`):
   `e` merges the highlighted branch into the current branch, and `Shift-E`
   the current branch into the highlighted one. The menus name both

@@ -104,20 +104,4 @@ public class StatusMessageTest
 
         StringAssert.StartsWith(ScreenText.LastLine(gmd.WaitFor("Fetch failed")), "Fetch failed: ");
     }
-
-    // Copy with nothing selected says how to select
-    [TestMethod]
-    public async Task TestCopyWithNothingSelectedSaysHowToSelect()
-    {
-        using var repo = await E2eRepo.CreateAsync();
-        using var gmd = TmuxSession.StartGmd(repo);
-        gmd.WaitFor("Initial");
-
-        gmd.Send("C-c");
-
-        Assert.AreEqual(
-            "Select rows with ⇧↑↓ first, and Ctrl-C copies them",
-            ScreenText.LastLine(gmd.WaitFor("Select rows"))
-        );
-    }
 }

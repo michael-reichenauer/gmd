@@ -12,6 +12,22 @@ public class LogKeysTest
 {
     static readonly Selection NoSelection = new(0, 0, 0, 0, 0);
 
+    // Ctrl-C, 'i' and '⇧i' copy a commit, which the uncommitted changes are not yet
+    [TestMethod]
+    public async Task TestCopyNeedsACommit()
+    {
+        var view = await ViewOf(Branches().WithStatus(modified: 1), "dev");
+        Assert.IsTrue(view.RowCommit.IsUncommitted);
+
+        Assert.AreEqual(
+            "The uncommitted changes are no commit yet: move to one first",
+            LogKeys.Copy(view, NoSelection).WhyNot
+        );
+
+        view.CurrentIndex = 1;
+        Assert.AreEqual(new KeyAction("copy"), LogKeys.Copy(view, NoSelection));
+    }
+
     [TestMethod]
     public async Task TestTheBranchKeysNeedABranchHighlighted()
     {

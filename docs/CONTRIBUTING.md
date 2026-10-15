@@ -133,7 +133,7 @@ for each what you see, OK or a screenshot.
 
 Symbols that may be missing from a font, shown as a box or a `?` when they are:
 
-1. `⇧`, for Shift: the key-hint line at the bottom (`⇧→ show branch`), any menu (`m`: Copy Commit
+1. `⇧`, for Shift: the key-hint line at the bottom (`⇧→ show branch`), any menu (`Ctrl-C`: Commit
    Message `⇧i`), and the status line after a key that cannot act.
 2. `✦`: the top bar, on opening a repository with branches that are hidden (`✦2`).
 3. `⌂`: the log, beside a branch checked out in another worktree (`git worktree add ../wt -b wt`,

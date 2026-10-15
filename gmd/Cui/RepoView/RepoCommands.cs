@@ -31,8 +31,8 @@ interface IRepoCommands
     void ContinueOperation();
     void SkipOperationCommit();
 
-    void CopyCommitId();
-    void CopyCommitMessage();
+    void Copy(CopyKind kind);
+    void CopyCommitLink(string commitId);
 
     void OpenRepoInBrowser();
     void OpenBranchInBrowser(string name);
@@ -89,6 +89,8 @@ class RepoCommands : IRepoCommands
     public void OpenBranchInBrowser(string name) => webCmds.OpenBranch(name);
 
     public void OpenCommitInBrowser(string commitId) => webCmds.OpenCommit(commitId);
+
+    public void CopyCommitLink(string commitId) => webCmds.CopyCommitLink(commitId);
 
     public void OpenNewPullRequest(string name) => webCmds.OpenNewPullRequest(name);
 
@@ -412,35 +414,25 @@ class RepoCommands : IRepoCommands
 
     void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 
-    // The id or the message of the commit on the cursor's row (i, Shift-I), the commonest things
-    // copied from a log. The uncommitted changes have neither yet.
-    public void CopyCommitId() =>
+    // Copies the ids, the messages, or another kind of text of the commit on the cursor's row or of
+    // the commits selected (see CommitCopy): 'i', '⇧i' and the copy menu (Ctrl-C). The selection is
+    // done with once copied, as it is once diffed.
+    public void Copy(CopyKind kind) =>
         Do(async repo =>
         {
             await Task.Yield();
-            var commit = repo.RowCommit;
-            if (commit.IsUncommitted)
-                return new Notice(WhyNoCopy);
-            if (clipboard.Set(commit.Id) is Error e)
-                return new Error("Failed to copy the commit id", e);
+            var selection = repoView.Selection;
+            if (CommitCopy.WhyNot(repo.Repo, selection, repo.CurrentIndex) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
 
-            status.Info($"Copied the id of {commit.Sid}");
+            var commits = CommitCopy.Commits(repo.Repo, selection, repo.CurrentIndex);
+            if (CommitCopy.Text(kind, commits) is not string text)
+                return new Notice(CommitCopy.WhyNoRange(commits));
+            if (clipboard.Set(text) is Error e)
+                return new Error("Failed to copy", e);
+
+            repoView.ClearSelection();
+            status.Info(CommitCopy.Said(kind, commits));
             return Result.Ok;
         });
-
-    public void CopyCommitMessage() =>
-        Do(async repo =>
-        {
-            await Task.Yield();
-            var commit = repo.RowCommit;
-            if (commit.IsUncommitted)
-                return new Notice(WhyNoCopy);
-            if (clipboard.Set(commit.Message.TrimEnd()) is Error e)
-                return new Error("Failed to copy the commit message", e);
-
-            status.Info($"Copied the message of {commit.Sid}");
-            return Result.Ok;
-        });
-
-    internal const string WhyNoCopy = "The uncommitted changes are no commit yet: move to one first";
 }
