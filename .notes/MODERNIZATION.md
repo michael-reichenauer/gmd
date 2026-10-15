@@ -769,8 +769,24 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (asked to confirm above 20), but then every refresh pays it.
 - Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
   the shown names with a list `Contains`, thousands times thousands once all are shown.
-- `CommitBranchService.DetermineCommitBranch` builds a `branchNames` string no one reads, for every
-  commit: about 10 ms of 30,000.
+- The commit limit, `AugmentedService.MaxCommitCount` (30,000), measured 2026-10-15 (see Findings):
+  every repo change reads that many commits again, so it bounds every refresh of a large repository.
+  What the numbers support is 50,000 together with `System.GC.ConserveMemory` (7 cut what gmd held
+  after a few refreshes by a quarter at 30,000 commits and nearly half at 85,593, at no measured time
+  cost), which pays for the extra memory; 100,000 only once a refresh allocates less per commit. Not
+  decided yet.
+- Without a commit-graph file, `git log --all --date-order` walks the whole history before it shows
+  the first commit, so the limit hardly bounds the read: rust 1.7 s, Linux 8.2 s for 30,000 commits
+  (0.36 s and 1.2 s with one). Git writes one in `gc`, which a fresh clone has not run. Writing it
+  when it is missing (`git commit-graph write --reachable`, 11 s once for Linux) or saying so is to
+  decide.
+- A refresh allocates about 9 KB per commit, six times the log's text: the output is read whole into
+  one string and then split. Each commit keeps 2 to 3 KB between reads, nearly all its full message,
+  which only the details pane and the search use. A streamed parse, or messages read when needed,
+  would let the limit grow.
+- Bors' subjects, `Auto merge of #123 - user:branch, r=reviewer` and `Rollup merge of #123 - ...`,
+  are read as a branch named 'of' (weak), so in rust every pull request is an 'of' branch and its
+  subprojects' lines are long ambiguous stretches with hundreds of candidates per commit.
 
 **The union result, at .NET 11 GA (November 2026)** — the steps are in `docs/UPGRADING.md`
 
@@ -910,6 +926,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   times, in an E2e rerun and in a full rerun. Once more on 2026-10-13 (`TestPushATagFromTheList`, a
   menu walk one item short right after a push, i.e. a key dropped while the refresh ran), green
   alone three times. Recorded so nobody hunts a flake that is not biting.
+- `AskpassServerTest.TestQuestionsAskedAtOnceAreEachAnswered` failed once in a full run on
+  2026-10-15, while timing runs had the machine busy, and passed alone five times and in a full rerun.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The end-to-end tests were about four of `scripts/test`'s four and a half minutes, nearly all waiting:
@@ -1121,6 +1139,26 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Performance**
 
+- The commit limit, measured 2026-10-15 with `RefreshTimingTest` (`GMD_PERF_COUNT`, Release, median
+  of five warm runs, commit-graph present) on git, kubernetes, rust and Linux, after the inference was
+  made linear in ambiguous stretches. A refresh is the log read and parsed, the augmentation and the
+  default view; it costs 1.2 to 2.6 s per 100,000 commits, and each commit keeps 2 to 3 KB:
+
+  | repo | 30,000 | 50,000 | 100,000 | 200,000 | kept at 100,000 |
+  |---|---|---|---|---|---|
+  | git (85,792) | 0.51 s | 0.78 s | 1.19 s (all) | | 203 MB |
+  | kubernetes (162,128) | 0.56 s | 0.82 s | 1.48 s | 2.26 s (all) | 201 MB |
+  | rust (348,912) | 0.65 s | 0.95 s | 1.90 s | 4.39 s | 241 MB |
+  | Linux (1,485,203) | 1.53 s | 1.85 s | 2.63 s | 4.18 s | 299 MB |
+
+  How far back 30,000 commits reach differs by years: git to 2018, kubernetes 2023, rust December
+  2025, Linux June 2026 (four months); 50,000 to 2013, 2021, May 2025 and March 2026. In the app on
+  git, the first screen took 0.9 s at 30,000 and 1.8 s with all 85,593 commits, a refresh after a
+  commit 2.0 s and 2.9 s (about 1.5 s of it the file monitor), and gmd held 0.6 GB and 1.7 GB after
+  three refreshes, 0.4 to 0.5 GB and 0.6 to 1.0 GB with `DOTNET_GCConserveMemory` 7 to 9. A refresh is mostly
+  latency, not a stop: the log shown stays until the new one is read, though the 8 commands that
+  await their refresh keep the keys stopped that long. A search with no match reads every message,
+  10 to 70 ms. Without a commit-graph none of this holds, see Open issues.
 - Measured with `RefreshTimingTest` (Release, median of five warm runs) over the inference corpus
   and two repos past the 30,000-commit cap, from partial clones: git (5,890 branches, nearly all
   recovered from merge subjects) and kubernetes (11,008). A refresh of the default view of 30,000
