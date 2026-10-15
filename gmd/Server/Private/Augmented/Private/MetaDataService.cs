@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using gmd.Common;
 using gmd.Git;
 
@@ -6,41 +7,55 @@ namespace gmd.Server.Private.Augmented.Private;
 
 public class MetaData
 {
-    public Dictionary<string, string> CommitBranchBySid { get; set; } = [];
+    // Which branch a commit is on, by the commit's full id: as the user chose it, '*' and the branch
+    // name ('*' alone once taken back, kept so that the removal is shared too), or as gmd recorded it
+    // on creating a branch at the commit, the name alone. Named in the json as it was when the key was
+    // the commit's short id, which is no longer read, since a short id can be another commit's too: a
+    // gmd from before reads these entries still, by the full id it falls back to.
+    [JsonPropertyName("CommitBranchBySid")]
+    public Dictionary<string, string> CommitBranchById { get; set; } = [];
 
-    internal void SetCommitBranch(string sid, string branchName)
+    // What the reflog witnessed about a commit's branch, by the commit's full id, kept here since the
+    // reflog is local and expires (see CommitBranchRules.TryIsWitnessed). A map of its own, so that a
+    // fact never takes the place of a choice of the same commit, nor a choice the place of a fact.
+    public Dictionary<string, string> WitnessedById { get; set; } = [];
+
+    // The metadata in its json, with the facts the reflog witnessed moved to their own map from among
+    // the choices, where they were kept marked with a '~' before they had one
+    internal static MetaData Parse(string json)
     {
-        CommitBranchBySid[sid] = "*" + branchName;
+        var metaData =
+            JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value");
+        foreach (var (id, name) in metaData.CommitBranchById.Where(e => e.Value.StartsWith('~')).ToList())
+        {
+            metaData.WitnessedById.TryAdd(id, name[1..]);
+            metaData.CommitBranchById.Remove(id);
+        }
+
+        return metaData;
     }
 
-    internal void SetBranched(string sid, string branchName)
+    internal void SetCommitBranch(string id, string branchName)
     {
-        CommitBranchBySid[sid] = branchName;
+        CommitBranchById[id] = "*" + branchName;
     }
 
-    // What the reflog witnessed about a commit's branch, kept here since the reflog is local and
-    // expires (see CommitBranchRules.TryIsWitnessed). Keyed by the full commit id, where a choice is
-    // keyed by sid, so an entry never applies to another commit with the same sid, and marked with a
-    // '~', so that it is never taken for a choice: a gmd that reads choices by sid only, as versions
-    // before these entries do, never looks one up.
+    internal void SetBranched(string id, string branchName)
+    {
+        CommitBranchById[id] = branchName;
+    }
+
     internal void SetWitnessed(string id, string branchName)
     {
-        CommitBranchBySid[id] = "~" + branchName;
+        WitnessedById[id] = branchName;
     }
 
-    internal bool TryGetWitnessedBranch(string id, out string branchName)
-    {
-        branchName = "";
-        if (!CommitBranchBySid.TryGetValue(id, out var name) || !name.StartsWith("~"))
-            return false;
+    internal bool TryGetWitnessedBranch(string id, out string branchName) =>
+        WitnessedById.TryGetValue(id, out branchName!);
 
-        branchName = name[1..];
-        return true;
-    }
-
-    internal void RemoveCommitBranch(string sid)
+    internal void RemoveCommitBranch(string id)
     {
-        SetCommitBranch(sid, ""); // Mark as removed to support sync
+        SetCommitBranch(id, ""); // Mark as removed to support sync
     }
 
     // Values are branch nice names, so a renamed branch must be renamed here as well. Without this,
@@ -49,36 +64,31 @@ public class MetaData
     // deleted branch of its own (see CommitBranchRules.TryIsBranchSetByUser).
     internal void RenameBranch(string oldNiceName, string newNiceName)
     {
-        foreach (var sid in CommitBranchBySid.Keys.ToList())
+        foreach (var id in CommitBranchById.Keys.ToList())
         {
-            var name = CommitBranchBySid[sid];
+            var name = CommitBranchById[id];
             if (name == oldNiceName)
             {
-                SetBranched(sid, newNiceName);
+                SetBranched(id, newNiceName);
             }
             else if (name == "*" + oldNiceName)
             { // Branch was set by user, keep it set by user
-                SetCommitBranch(sid, newNiceName);
+                SetCommitBranch(id, newNiceName);
             }
-            else if (name == "~" + oldNiceName)
-            { // Branch was witnessed by the reflog
-                SetWitnessed(sid, newNiceName);
-            }
+        }
+
+        foreach (var id in WitnessedById.Where(e => e.Value == oldNiceName).Select(e => e.Key).ToList())
+        {
+            SetWitnessed(id, newNiceName);
         }
     }
 
-    // Looked up by the commit's sid, which is what entries are written under, and failing that by
-    // its full id: creating a branch from a branch wrote the full id for a while, and those entries
-    // were never found. The sid comes first, so that a later choice by the user wins over them.
     internal bool TryGetCommitBranch(string id, out string branchName, out bool isSetByUser)
     {
         branchName = "";
         isSetByUser = false;
 
-        if (
-            CommitBranchBySid.TryGetValue(id.Sid(), out var name)
-            || (CommitBranchBySid.TryGetValue(id, out name) && !name.StartsWith("~"))
-        )
+        if (CommitBranchById.TryGetValue(id, out var name))
         {
             if (name.StartsWith("*"))
             {
@@ -141,9 +151,7 @@ class MetaDataService : IMetaDataService
             return read.Error;
         }
 
-        return Result.Catch(() =>
-            JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value")
-        );
+        return Result.Catch(() => MetaData.Parse(json));
     }
 
     // Changes the latest metadata and writes it
@@ -229,9 +237,7 @@ class MetaDataService : IMetaDataService
         if (read is not string json)
             return read.Error;
 
-        return Result.Catch(() =>
-            JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value")
-        );
+        return Result.Catch(() => MetaData.Parse(json));
     }
 
     // Merges origin's values into the local ones, and says whether any changed. A value changed here
@@ -242,21 +248,33 @@ class MetaDataService : IMetaDataService
     // or an ambiguity resolved again, was undone by the next fetch, every five minutes, until pushed.
     internal static bool Merge(MetaData local, MetaData? lastOrigin, MetaData origin)
     {
+        // Both, each map with its own, so no short circuit
+        var isChoicesChanged = Merge(local.CommitBranchById, lastOrigin?.CommitBranchById, origin.CommitBranchById);
+        var isWitnessedChanged = Merge(local.WitnessedById, lastOrigin?.WitnessedById, origin.WitnessedById);
+        return isChoicesChanged || isWitnessedChanged;
+    }
+
+    static bool Merge(
+        Dictionary<string, string> local,
+        Dictionary<string, string>? lastOrigin,
+        Dictionary<string, string> origin
+    )
+    {
         var isChanged = false;
-        foreach (var (key, originValue) in origin.CommitBranchBySid)
+        foreach (var (key, originValue) in origin)
         {
-            if (local.CommitBranchBySid.TryGetValue(key, out var localValue) && localValue == originValue)
+            if (local.TryGetValue(key, out var localValue) && localValue == originValue)
                 continue;
 
             var isChangedHereOnly =
                 localValue != null
                 && lastOrigin != null
-                && lastOrigin.CommitBranchBySid.TryGetValue(key, out var lastValue)
+                && lastOrigin.TryGetValue(key, out var lastValue)
                 && lastValue == originValue;
             if (isChangedHereOnly)
                 continue;
 
-            local.CommitBranchBySid[key] = originValue;
+            local[key] = originValue;
             isChanged = true;
         }
 

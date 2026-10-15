@@ -246,14 +246,14 @@ class RepoBuilder
     // Records that the user manually set the branch of a commit, as stored in the repo metadata
     public RepoBuilder UserSetBranch(string commitName, string branchName)
     {
-        metaData.SetCommitBranch(Sid(commitName), branchName);
+        metaData.SetCommitBranch(Sha(commitName), branchName);
         return this;
     }
 
     // Records that a commit is known to be the branch out point of a branch
     public RepoBuilder Branched(string commitName, string branchName)
     {
-        metaData.SetBranched(Sid(commitName), branchName);
+        metaData.SetBranched(Sha(commitName), branchName);
         return this;
     }
 
@@ -261,7 +261,7 @@ class RepoBuilder
     // The entry is kept but emptied, so the removal itself can be shared with other users.
     public RepoBuilder UnsetBranch(string commitName)
     {
-        metaData.RemoveCommitBranch(Sid(commitName));
+        metaData.RemoveCommitBranch(Sha(commitName));
         return this;
     }
 

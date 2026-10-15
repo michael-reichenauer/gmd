@@ -1,3 +1,4 @@
+using System.Text.Json;
 using gmd.Server.Private.Augmented.Private;
 
 namespace gmdTest.Augmented;
@@ -41,7 +42,7 @@ public class MetaDataTest
 
         Assert.IsFalse(metaData.TryGetCommitBranch("abc123", out var name, out _));
         Assert.AreEqual("", name);
-        Assert.IsTrue(metaData.CommitBranchBySid.ContainsKey("abc123"), "The removal itself has to be shareable");
+        Assert.IsTrue(metaData.CommitBranchById.ContainsKey("abc123"), "The removal itself has to be shareable");
     }
 
     [TestMethod]
@@ -103,32 +104,29 @@ public class MetaDataTest
         Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out var isSetByUser));
         Assert.AreEqual("main", name);
         Assert.IsTrue(isSetByUser);
-        Assert.AreEqual(1, metaData.CommitBranchBySid.Count);
+        Assert.AreEqual(1, metaData.CommitBranchById.Count);
     }
 
-    // A commit is looked up by its full id, which finds the entry under its sid, and also the ones
-    // creating a branch from a branch once wrote under the full id. The sid entry comes first, so a
-    // choice the user makes later wins over such an old entry.
+    // A commit is looked up by its full id only. An entry under a short id, as gmd wrote them before,
+    // is not taken, since a short id can be another commit's too.
     [TestMethod]
-    public void TestACommitIsFoundBySidAndByFullId()
+    public void TestACommitIsFoundByItsFullIdOnly()
     {
         var id = "abc1234567890abcdef1234567890abcdef12345";
         var metaData = new MetaData();
-        metaData.SetBranched(id, "dev");
+        metaData.SetCommitBranch(id[..6], "main");
 
+        Assert.IsFalse(metaData.TryGetCommitBranch(id, out _, out _));
+
+        metaData.SetBranched(id, "dev");
         Assert.IsTrue(metaData.TryGetCommitBranch(id, out var name, out var isSetByUser));
         Assert.AreEqual("dev", name);
         Assert.IsFalse(isSetByUser);
-
-        metaData.SetCommitBranch(id.Sid(), "main");
-        Assert.IsTrue(metaData.TryGetCommitBranch(id, out name, out isSetByUser));
-        Assert.AreEqual("main", name);
-        Assert.IsTrue(isSetByUser);
     }
 
-    // What the reflog witnessed is kept by full id and marked, so it is never taken for a choice,
-    // neither by this lookup nor by a gmd that looks choices up by sid only, and it is renamed
-    // with the branch like a choice
+    // What the reflog witnessed is kept in a map of its own, so it is never taken for a choice, and a
+    // choice of the same commit, by the same full id, never takes its place nor it the choice's; both
+    // are renamed with the branch
     [TestMethod]
     public void TestWitnessedBranchIsKeptApartFromChoices()
     {
@@ -139,14 +137,32 @@ public class MetaDataTest
         Assert.IsTrue(metaData.TryGetWitnessedBranch(id, out var name));
         Assert.AreEqual("dev", name);
         Assert.IsFalse(metaData.TryGetCommitBranch(id, out _, out _), "Not a choice");
-        Assert.IsFalse(metaData.CommitBranchBySid.ContainsKey(id.Sid()));
 
-        metaData.SetCommitBranch(id.Sid(), "main");
-        Assert.IsTrue(metaData.TryGetCommitBranch(id, out name, out _), "A choice beside it is found as before");
+        metaData.SetCommitBranch(id, "main");
+        Assert.IsTrue(metaData.TryGetCommitBranch(id, out name, out _), "A choice beside it");
         Assert.AreEqual("main", name);
+        Assert.IsTrue(metaData.TryGetWitnessedBranch(id, out name), "The fact is still kept");
+        Assert.AreEqual("dev", name);
 
         metaData.RenameBranch("dev", "dev2");
         Assert.IsTrue(metaData.TryGetWitnessedBranch(id, out name));
         Assert.AreEqual("dev2", name);
+    }
+
+    // The facts the reflog witnessed were kept among the choices, marked with a '~', before they had
+    // a map of their own, and reading moves them there. The choices keep their name in the json,
+    // which a gmd from before reads.
+    [TestMethod]
+    public void TestParseMovesTheWitnessedOutOfTheChoices()
+    {
+        var id = "abc1234567890abcdef1234567890abcdef12345";
+        var other = "def1234567890abcdef1234567890abcdef12345";
+
+        var metaData = MetaData.Parse($$"""{ "CommitBranchBySid": { "{{id}}": "~dev", "{{other}}": "*main" } }""");
+
+        Assert.IsTrue(metaData.TryGetWitnessedBranch(id, out var name));
+        Assert.AreEqual("dev", name);
+        CollectionAssert.AreEqual(new[] { other }, metaData.CommitBranchById.Keys.ToArray());
+        StringAssert.Contains(JsonSerializer.Serialize(metaData), "\"CommitBranchBySid\"");
     }
 }
