@@ -437,7 +437,10 @@ Reach:
   it takes a false positive report per release, or signing, which still leaves SmartScreen's
   warning, so it was judged not worth it: the PowerShell install is the way on Windows. gmd still
   knows a winget install (`PackageManager.Winget`); the release workflow's step that proposed each
-  release with Komac was removed, and is in cab1e09b to take up again.
+  release with Komac was removed, and is in cab1e09b to take up again. *Scoop and a dotnet tool
+  postponed (2026-10-15)*: Scoop's bucket takes two commands to install, where Homebrew's tap takes
+  one, and the PowerShell install already serves Windows; a dotnet tool needs the .NET 10 SDK, so it
+  reaches .NET developers only. Either is about the work of the tap, should someone ask for it.
 
 Waiting for the Terminal.Gui 2.x port:
 
