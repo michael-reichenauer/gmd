@@ -14,11 +14,11 @@ interface ICommitDetailsView
 
 class CommitDetailsView : ICommitDetailsView
 {
-    readonly ContentView contentView;
-    IReadOnlyList<Text> rows = new List<Text>();
-
     internal static readonly int ContentHeight = 11;
-    private readonly IBranchColorService branchColorService;
+
+    readonly ContentView contentView;
+    readonly IBranchColorService branchColorService;
+    IReadOnlyList<Text> rows = [];
 
     public CommitDetailsView(IBranchColorService branchColorService)
     {
@@ -44,100 +44,7 @@ class CommitDetailsView : ICommitDetailsView
         UI.RunInBackground(async () =>
         {
             await Task.Yield();
-
-            var id = commit.Id;
-            var color = branchColorService.GetColor(repo, branch);
-
-            if (id == Repo.UncommittedId)
-            {
-                id = "Uncommitted";
-            }
-
-            var newRows = new List<Text>();
-            var repoText = $"  ({repo.Path})";
-
-            if (commit.Id == Repo.UncommittedId)
-            {
-                newRows.Add(Text.Dark("Id:         ").BrightYellow(id).Dark(repoText));
-            }
-            else
-            {
-                newRows.Add(Text.Dark("Id:         ").White(id).Dark(repoText));
-            }
-
-            var branchName = branch.IsGitBranch ? branch.Name : "~" + branch.Name;
-            branchName = $"{branch.NiceNameUnique}  ({branchName})";
-
-            if (commit.IsBranchSetByUser)
-            {
-                newRows.Add(
-                    Text.Dark("Branch:     ")
-                        .Color(color, branchName)
-                        .White("   Φ")
-                        .Dark(" (ambiguity resolved by user)")
-                );
-            }
-            else
-            {
-                if (commit.IsAmbiguous)
-                {
-                    var ambBranches = string.Join(", ", branch.AmbiguousBranchNames.Take(3));
-                    if (branch.AmbiguousBranchNames.Count > 3)
-                    {
-                        ambBranches += ",┅";
-                    }
-                    newRows.Add(Text.Dark("Branch:     ").White(branchName));
-                    newRows.Add(Text.Dark("Ambiguous:  ").White($"{ambBranches}"));
-                }
-                else
-                {
-                    newRows.Add(Text.Dark("Branch:     ").Color(color, branchName));
-                }
-            }
-
-            if (commit.Author != "")
-            {
-                newRows.Add(
-                    Text.Dark("Author:     ")
-                        .White($"{commit.Author}")
-                        .Dark(", time: ")
-                        .White(commit.AuthorTime.IsoZone())
-                );
-            }
-
-            newRows.Add(
-                Text.Dark("Children:   ")
-                    .White(
-                        string.Join(
-                            ", ",
-                            commit.AllChildIds.Where(id => id != Repo.UncommittedId).Select(id => id.Sid())
-                        )
-                    )
-            );
-            newRows.Add(Text.Dark("Parents:    ").White(string.Join(", ", commit.GitParentIds.Select(id => id.Sid()))));
-            if (commit.IsAhead)
-            {
-                newRows.Add(Text.Dark("Remote:     ").Green("▲ pushable"));
-            }
-            if (commit.IsBehind)
-            {
-                newRows.Add(Text.Dark("Remote:     ").Blue("▼ pullable"));
-            }
-            if (commit.Tags.Any())
-            {
-                var tagText = "[" + string.Join("][", commit.Tags.Select(t => t.Name)) + "]";
-                newRows.Add(Text.Dark("Tags:       ").Green(tagText));
-            }
-            var tips = repo.ViewBranches.Where(b => b.TipId == commit.Id);
-            if (tips.Any())
-            {
-                var tipText = new TextBuilder();
-                tips.ForEach(t => tipText.Color(branchColorService.GetColor(repo, t), $"({t.Name})"));
-                newRows.Add(Text.Dark("Tips:       ").Add(tipText));
-            }
-            newRows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
-
-            SetRows(newRows);
+            SetRows(CommitDetailsRows.Of(repo, commit, branch, branchColorService));
         });
 
     // For a caller that builds its own rows, i.e. has no Server.Commit to render. The blame view
