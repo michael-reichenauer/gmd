@@ -165,6 +165,10 @@ internal class Git : IGit
 
     public Task<Result> InitRepoAsync(string path, string wd) => repoService.InitAsync(path);
 
+    public bool HasCommitGraph(string wd) => repoService.HasCommitGraph(wd);
+
+    public Task<Result> WriteCommitGraphAsync(string wd) => repoService.WriteCommitGraphAsync(wd);
+
     public Task<Result> CheckoutAsync(string name, string wd) => branchService.CheckoutAsync(name, wd);
 
     public Task<Result> MergeBranchAsync(string name, string wd) => branchService.MergeBranchAsync(name, wd);

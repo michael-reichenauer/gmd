@@ -79,6 +79,8 @@ interface IGit
     Task<Result> PushRestoreAsync(string name, string oldId, string expectedId, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
+    bool HasCommitGraph(string wd);
+    Task<Result> WriteCommitGraphAsync(string wd);
     Task<Result> CheckoutAsync(string name, string wd);
     Task<Result> MergeBranchAsync(string name, string wd);
     Task<Result> RebaseBranchAsync(string name, string wd);

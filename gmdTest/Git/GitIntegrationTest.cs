@@ -159,6 +159,21 @@ public class GitIntegrationTest
         Assert.AreEqual(repo.Path, Value(repo.Git.RootPath(subFolder)));
     }
 
+    // A repository has no commit-graph file until 'git gc' writes one, and then it has, for a linked
+    // worktree too, whose objects are the common dir's
+    [TestMethod]
+    public async Task TestCommitGraphIsWrittenWhereThereIsNone()
+    {
+        await repo.CommitFileAsync("file.txt", "text\n", "Initial");
+        var worktree = await repo.AddWorktreeAsync("dev");
+        Assert.IsFalse(repo.Git.HasCommitGraph(repo.Path));
+
+        AssertOk(await repo.Git.WriteCommitGraphAsync(repo.Path));
+
+        Assert.IsTrue(repo.Git.HasCommitGraph(repo.Path));
+        Assert.IsTrue(repo.Git.HasCommitGraph(worktree), "The linked worktree's objects are the same");
+    }
+
     // A linked worktree has a '.git' file rather than a folder, and is a root of its own
     [TestMethod]
     public async Task TestRootPathIsFoundFromInsideALinkedWorktree()
