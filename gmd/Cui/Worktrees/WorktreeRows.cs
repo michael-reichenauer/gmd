@@ -46,7 +46,7 @@ static class WorktreeRows
         text.Dark((w.IsMain ? "main" : "linked").Max(KindWidth, true));
 
         if (w.IsDetached)
-            text.Dark($"(detached {Sid(w.HeadId)})".Max(BranchWidth - 1, true) + " ");
+            text.Dark($"(detached {w.HeadId.Sid()})".Max(BranchWidth - 1, true) + " ");
         else
             text.Color(branchColor, w.Branch.Max(BranchWidth - 1, true) + " ");
 
@@ -91,8 +91,6 @@ static class WorktreeRows
     public static bool CanRemove(Worktree w) => !w.IsMain && !w.IsCurrent && !w.IsLocked && !w.IsPrunable;
 
     public static bool CanPrune(IEnumerable<Worktree> worktrees) => worktrees.Any(w => w.IsPrunable);
-
-    static string Sid(string id) => id.Length >= 6 ? id[..6] : id;
 
     static string ShortPath(string path, int width)
     {

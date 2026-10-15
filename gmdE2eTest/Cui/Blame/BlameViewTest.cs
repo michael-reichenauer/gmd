@@ -29,12 +29,12 @@ public class BlameViewTest
 
         Assert.AreEqual(
             """
-            Blame  alpha.txt  @7e09a8   4 lines, 2 commits
+            Blame  alpha.txt  @7e09a86a   4 lines, 2 commits
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┌ 65480e Test User   2024-10-15 │   1┃one
-            └                               │   2┃two
-            ┌ 7e09a8 Test User   2024-10-15 │   3┃CHANGED
-            └                               │   4┃FOUR
+            ┌ 65480ece Test User   2024-10-15 │   1┃one
+            └                                 │   2┃two
+            ┌ 7e09a86a Test User   2024-10-15 │   3┃CHANGED
+            └                                 │   4┃FOUR
             """,
             ScreenText.Rows(gmd.WaitFor("CHANGED"), repo.Path, 0, 6)
         );
@@ -69,7 +69,7 @@ public class BlameViewTest
             Branch:     main  (main)
             Author:     Test User, time: 2024-10-15 12:07:00 +00:00
             Children:
-            Parents:    17d85b
+            Parents:    17d85ba8
             Tips:       (main)
             Add lines
 

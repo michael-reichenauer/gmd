@@ -43,9 +43,9 @@ public class DeletedBranchRowsTest
     }
 
     [TestMethod]
-    [DataRow(true, true, "Restore creates 'feature' at a20000 again, and pushes 'origin/feature' back to b10000")]
-    [DataRow(true, false, "Restore creates 'feature' at a20000 again")]
-    [DataRow(false, true, "Restore pushes 'origin/feature' back to b10000")]
+    [DataRow(true, true, "Restore creates 'feature' at a2000000 again, and pushes 'origin/feature' back to b1000000")]
+    [DataRow(true, false, "Restore creates 'feature' at a2000000 again")]
+    [DataRow(false, true, "Restore pushes 'origin/feature' back to b1000000")]
     public void TestReason(bool isLocal, bool isRemote, string expected)
     {
         Assert.AreEqual(expected, DeletedBranchRows.Reason(Deleted(isLocal, isRemote)));

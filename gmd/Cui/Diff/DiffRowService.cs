@@ -85,7 +85,7 @@ class DiffRowService : IDiffRowService
             commitDiffs.ForEach(diff =>
                 rows.Add(
                     Text.White($"  {diff.Time.Iso()}  {diff.Message.Max(60, true)}")
-                        .Dark($"  {diff.Id.Sid(), 6} {diff.Author}")
+                        .Dark($"  {diff.Id.Sid()} {diff.Author}")
                 )
             );
             rows.Add(Text.Empty);

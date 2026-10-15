@@ -114,7 +114,7 @@ class RepoWriter : IRepoWriter
         int commitWidth = width - (graphWidth + markersWidth);
         int authorWidth = 15;
         int timeWidth = 17; // ' yyyy-MM-dd HH:mm', the year in full, since '26-03-10' reads as 26 March
-        int sidWidth = 7;
+        int sidWidth = StringExtensions.SidLength + 1; // With the space before it
 
         if (commitWidth < 70)
         { // Disabled sid, author and time if very narrow view
@@ -337,7 +337,7 @@ class RepoWriter : IRepoWriter
     {
         if (c.IsUncommitted)
         {
-            text.Black(Txt("       ", cw.Sid));
+            text.Black(Txt(new string(' ', cw.Sid), cw.Sid));
             return;
         }
         text.Cyan(Txt(" " + c.Sid, cw.Sid));

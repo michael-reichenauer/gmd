@@ -6,7 +6,7 @@ record BlameColumns(int Sid, int Author, int Date, int LineNbr, int Code)
 {
     // The run bracket and the space after it. Never dropped, it is the whole point of the view.
     public const int RunWidth = 2;
-    public const int SidWidth = 6; // Same as the log view, see StringExtensions.Sid()
+    public const int SidWidth = StringExtensions.SidLength; // Same as the log view
     public const int AuthorWidth = 11; // Fits the 'Uncommitted' label exactly
     public const int DateWidth = 10; // yyyy-MM-dd
     public const int MinLineNbrWidth = 4;

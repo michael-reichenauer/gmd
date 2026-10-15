@@ -36,14 +36,14 @@ public class CopyTest
             """
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  | Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮ | Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add╭ Copy: 2 Commits ───────╮                                               4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add│Commit Ids             i│                                               dd7891 Test User      2024-10-15 12:01
-            ┗    Ini│Commit Messages       ⇧i│                                               9dc406 Test User      2024-10-15 12:00
-                    │Ids and Subjects        │
-                    │Range 4e73d2^..17d85b   │
-                    ╰────────────────────────╯
+            ┣  | Add delta                                                  (● main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮ | Merge branch 'dev' into main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add╭ Copy: 2 Commits ───────────╮                                         4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add│Commit Ids                 i│                                         dd78912d Test User      2024-10-15 12:01
+            ┗    Ini│Commit Messages           ⇧i│                                         9dc406e3 Test User      2024-10-15 12:00
+                    │Ids and Subjects            │
+                    │Range 4e73d230^..17d85ba8   │
+                    ╰────────────────────────────╯
             """,
             gmd.WaitFor("Copy: 2 Commits"),
             repo.Path
@@ -57,8 +57,8 @@ public class CopyTest
 
         Assert.AreEqual(
             """
-            4e73d23 Merge branch 'dev' into main
-            17d85ba Add delta
+            4e73d230 Merge branch 'dev' into main
+            17d85ba8 Add delta
             """,
             gmd.WaitForClipboard()
         );
@@ -103,17 +103,17 @@ public class CopyTest
             """
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  | Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Mer╭ Copy: 17d85b ───╮o main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add│Commit Id       i│                                                      4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add│Commit Message ⇧i│                                                      dd7891 Test User      2024-10-15 12:01
-            ┗    Ini│Subject          │                                                      9dc406 Test User      2024-10-15 12:00
+            ┣  | Add delta                                                  (● main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮   Mer╭ Copy: 17d85ba8 ─╮o main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add│Commit Id       i│                                                    4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add│Commit Message ⇧i│                                                    dd78912d Test User      2024-10-15 12:01
+            ┗    Ini│Subject          │                                                    9dc406e3 Test User      2024-10-15 12:00
                     │Id and Subject   │
                     │Short Id         │
                     │Link to Commit   │
                     ╰─────────────────╯
             """,
-            gmd.WaitFor("Copy: 17d85b"),
+            gmd.WaitFor("Copy: 17d85ba8"),
             repo.Path
         );
 
@@ -124,7 +124,7 @@ public class CopyTest
         gmd.Send("Enter");
 
         Assert.AreEqual("Add delta", gmd.WaitForClipboard());
-        Assert.AreEqual("Copied the subject of 17d85b", ScreenText.LastLine(gmd.WaitFor("Copied the subject")));
+        Assert.AreEqual("Copied the subject of 17d85ba8", ScreenText.LastLine(gmd.WaitFor("Copied the subject")));
     }
 
     // With nothing selected, Ctrl+C is about the commit on the cursor's row, and the '⇧i' the menu
@@ -139,11 +139,11 @@ public class CopyTest
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("C-c");
-        gmd.WaitFor("Copy: 4e73d2");
+        gmd.WaitFor("Copy: 4e73d230");
         gmd.Send("I");
 
         Assert.AreEqual("Merge branch 'dev' into main", gmd.WaitForClipboard());
-        Assert.AreEqual("Copied the message of 4e73d2", ScreenText.LastLine(gmd.WaitFor("Copied the message")));
+        Assert.AreEqual("Copied the message of 4e73d230", ScreenText.LastLine(gmd.WaitFor("Copied the message")));
     }
 
     // The range git takes for the selected commits, the oldest included, with full ids
@@ -166,7 +166,7 @@ public class CopyTest
         gmd.Send("Enter");
 
         Assert.AreEqual(range, gmd.WaitForClipboard());
-        Assert.AreEqual("Copied the range 4e73d2^..17d85b", ScreenText.LastLine(gmd.WaitFor("Copied the range")));
+        Assert.AreEqual("Copied the range 4e73d230^..17d85ba8", ScreenText.LastLine(gmd.WaitFor("Copied the range")));
     }
 
     // 'i' and '⇧i' copy the commits selected too, as their items in the menu do: the messages with a
@@ -205,13 +205,13 @@ public class CopyTest
 
         gmd.Send("i");
         Assert.AreEqual(await repo.GitAsync("rev-parse main"), gmd.WaitForClipboard());
-        Assert.AreEqual("Copied the id of 17d85b", ScreenText.LastLine(gmd.WaitFor("Copied the id")));
+        Assert.AreEqual("Copied the id of 17d85ba8", ScreenText.LastLine(gmd.WaitFor("Copied the id")));
 
         // The status line is written after the copy, so once it shows, the clipboard has it
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("I");
-        Assert.AreEqual("Copied the message of 4e73d2", ScreenText.LastLine(gmd.WaitFor("Copied the message")));
+        Assert.AreEqual("Copied the message of 4e73d230", ScreenText.LastLine(gmd.WaitFor("Copied the message")));
         Assert.AreEqual("Merge branch 'dev' into main", gmd.Clipboard());
     }
 

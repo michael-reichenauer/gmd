@@ -309,7 +309,7 @@ public class DiffViewTest
     public async Task TestADiffOfAnyTwoCommits()
     {
         using var repo = await E2eRepo.CreateAsync();
-        var beta = (await repo.GitAsync("rev-parse \":/Add beta\"")).Trim()[..6];
+        var beta = (await repo.GitAsync("rev-parse \":/Add beta\"")).Trim()[..8];
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
         for (int i = 0; i < 3; i++)
@@ -327,7 +327,7 @@ public class DiffViewTest
         gmd.WaitForStable();
         PickCommitMenuItem(gmd, 3, $"Diff with {beta}");
 
-        var diff = gmd.WaitFor($"Diff {beta} to 17d85b");
+        var diff = gmd.WaitFor($"Diff {beta} to 17d85ba8");
         StringAssert.Contains(diff, "Added: delta.txt");
         StringAssert.Contains(diff, "Added: gamma.txt", "And what the merge brought in between");
     }

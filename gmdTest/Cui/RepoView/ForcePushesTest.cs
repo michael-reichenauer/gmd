@@ -102,7 +102,7 @@ public class ForcePushesTest
             It does not merge the two, which would put every commit in twice.
 
             The force push dropped 1 commit, which the new version does not have:
-              a30000 Dropped
+              a3000000 Dropped
             If that was a mistake, Restore origin/dev in the branch menu puts it back.
             """,
             ForcePushes.PullQuestion(repo, repo.RemoteRewrites["dev"])
@@ -146,14 +146,14 @@ public class ForcePushesTest
             """
             Put 'origin/dev' back as it was before the force push?
 
-            It gets a30000 Dropped again, and the 2 commits
+            It gets a3000000 Dropped again, and the 2 commits
             of the new version leave it. This is a force push too: everyone
             who pulled the new version has to deal with it in turn.
             """,
             ForcePushes.RestoreQuestion(repo, rewrite)
         );
         Assert.AreEqual(
-            "Put 'origin/dev' back at a30000, as it was before the force push",
+            "Put 'origin/dev' back at a3000000, as it was before the force push",
             ForcePushes.Restored(rewrite)
         );
         Assert.AreEqual(

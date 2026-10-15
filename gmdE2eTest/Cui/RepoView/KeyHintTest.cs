@@ -30,11 +30,11 @@ public class KeyHintTest
             """
              Gmd {repo}, ●main                                                              [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
-            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
+            ┣  ● Add delta                                                  (● main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                 4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                  dd78912d Test User      2024-10-15 12:01
+            ┗    Initial                                                                   9dc406e3 Test User      2024-10-15 12:00
 
 
 
@@ -88,18 +88,18 @@ public class KeyHintTest
             """
              Gmd {repo}, ●main                                                              [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣  ● Add delta                                                    (● main)[v1.0] 17d85b Test User      2024-10-15 12:06
-            ┣╮   Merge branch 'dev' into main                                                4e73d2 Test User      2024-10-15 12:05
-            ┣    Add gamma                                                                   4a15fb Test User      2024-10-15 12:04
-            ┣╯   Add beta                                                                    dd7891 Test User      2024-10-15 12:01
-            ┗    Initial                                                                     9dc406 Test User      2024-10-15 12:00
+            ┣  ● Add delta                                                  (● main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            ┣╮   Merge branch 'dev' into main                                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add gamma                                                                 4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add beta                                                                  dd78912d Test User      2024-10-15 12:01
+            ┗    Initial                                                                   9dc406e3 Test User      2024-10-15 12:00
 
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             Id:         17d85ba889a1084f912c412d0ce435c9d7a36f53  ({repo})
             Branch:     main  (main)
             Author:     Test User, time: 2024-10-15 12:06:00 +00:00
             Children:
-            Parents:    4e73d2
+            Parents:    4e73d230
             Tags:       [v1.0]
             Tips:       (main)
             Add delta

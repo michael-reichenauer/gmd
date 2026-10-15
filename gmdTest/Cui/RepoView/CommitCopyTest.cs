@@ -34,9 +34,9 @@ public class CommitCopyTest
         Assert.AreEqual("c1 c2 c3", Names(commits));
         Assert.AreEqual(
             $"""
-            {Short("c1")} Initial
-            {Short("c2")} Second
-            {Short("c3")} Third
+            {RepoBuilder.Sid("c1")} Initial
+            {RepoBuilder.Sid("c2")} Second
+            {RepoBuilder.Sid("c3")} Third
             """,
             CommitCopy.Text(CopyKind.IdsAndSubjects, commits)
         );
@@ -89,20 +89,23 @@ public class CommitCopyTest
         var commits = CommitCopy.Commits(repo, Rows(4, 5), 5);
 
         Assert.AreEqual($"{RepoBuilder.Sha("c2")} {RepoBuilder.Sha("c3")}", CommitCopy.Text(CopyKind.Ids, commits));
-        Assert.AreEqual($"{Short("c2")} {Short("c3")}", CommitCopy.Text(CopyKind.ShortIds, commits));
+        Assert.AreEqual(
+            $"{RepoBuilder.Sid("c2")} {RepoBuilder.Sid("c3")}",
+            CommitCopy.Text(CopyKind.ShortIds, commits)
+        );
         Assert.AreEqual("Second\nThird", CommitCopy.Text(CopyKind.Subjects, commits));
         Assert.AreEqual("Second\n\nThird", CommitCopy.Text(CopyKind.Messages, commits));
     }
 
-    // The id as 'git log --oneline' abbreviates it, a character longer than the log shows
+    // The id the log shows, eight characters, as 'git log --oneline' writes it in all but a small
+    // repository
     [TestMethod]
-    public async Task TestTheShortIdIsSevenCharacters()
+    public async Task TestTheShortIdIsTheOneTheLogShows()
     {
         var repo = await ThreeBranches().ViewRepoAsync(ShowBranches.AllActive);
         var commit = CommitCopy.Commits(repo, NoSelection, 4)[0];
 
-        Assert.AreEqual(RepoBuilder.Sha("c3")[..7], CommitCopy.Text(CopyKind.ShortIds, [commit]));
-        Assert.AreEqual(RepoBuilder.Sid("c3") + RepoBuilder.Sha("c3")[6], CommitCopy.ShortId(commit));
+        Assert.AreEqual(RepoBuilder.Sha("c3")[..8], CommitCopy.Text(CopyKind.ShortIds, [commit]));
     }
 
     // From before the oldest to the newest, which includes the oldest, with full ids
@@ -153,8 +156,6 @@ public class CommitCopyTest
 
     // Rows selected with ⇧↑↓, from the row the selection started on
     static Selection Rows(int i1, int i2, int? initial = null) => new(0, i1, int.MaxValue, i2, initial ?? i1);
-
-    static string Short(string name) => RepoBuilder.Sha(name)[..7];
 
     // The commits by the names the builder gave them
     static string Names(IReadOnlyList<Commit> commits) =>

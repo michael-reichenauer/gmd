@@ -80,7 +80,7 @@ public class WorktreeRowsTest
     public void TestADetachedWorktreeNamesItsCommitAndHasNoMergedColumn()
     {
         Assert.AreEqual(
-            "  linked  (detached 3f2a1c)      -                         /tmp/review",
+            "  linked  (detached 3f2a1c00)    -                         /tmp/review",
             Row(LinkedWorktree("/tmp/review", isDetached: true))
         );
     }

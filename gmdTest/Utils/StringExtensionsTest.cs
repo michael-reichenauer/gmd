@@ -3,13 +3,13 @@ namespace gmdTest.Utils;
 [TestClass]
 public class StringExtensionsTest
 {
-    // A sid is the short commit id gmd shows and logs, the first 6 characters of the sha
+    // A sid is the short commit id gmd shows and logs, the first 8 characters of the sha
     [TestMethod]
     public void TestSid()
     {
-        Assert.AreEqual("a1b2c3", "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2".Sid());
-        Assert.AreEqual("a1b2c3", "a1b2c3".Sid());
-        Assert.AreEqual("a1b2", "a1b2".Sid(), "A shorter id is left as it is");
+        Assert.AreEqual("a1b2c3d4", "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2".Sid());
+        Assert.AreEqual("a1b2c3d4", "a1b2c3d4".Sid());
+        Assert.AreEqual("a1b2c3", "a1b2c3".Sid(), "A shorter id is left as it is");
         Assert.AreEqual("", "".Sid());
     }
 

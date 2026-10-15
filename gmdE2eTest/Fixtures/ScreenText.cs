@@ -20,7 +20,7 @@ namespace gmdE2eTest.Fixtures;
 //         """
 //          Gmd {repo}, ●main                                    commit on main [Ϙ Search] ? X
 //         ────────────────────────────────────────────────────────────────────────────────────
-//         ┣ ● Initial                                          0a02af Test User  24-10-15 12:00
+//         ┣ ● Initial                                        0a02af3c Test User  24-10-15 12:00
 //         """,
 //         gmd.WaitFor("Initial"),
 //         repo.Path);

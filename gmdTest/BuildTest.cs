@@ -132,11 +132,11 @@ public class BuildTest
     }
 
     // Sha is the sid of a literal that CI replaces with the commit sha (see Build.cs), so it is
-    // six characters both before and after that replacement
+    // a sid's length both before and after that replacement
     [TestMethod]
     public void TestShaIsASid()
     {
-        Assert.AreEqual(6, Build.Sha().Length);
+        Assert.AreEqual(StringExtensions.SidLength, Build.Sha().Length);
     }
 
     // The help is linked at the commit CI built, which is told by its form: CI's sed replaces the

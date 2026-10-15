@@ -53,16 +53,16 @@ public class LostWorkRowsTest
     }
 
     [TestMethod]
-    [DataRow(LostBy.Deleted, false, "f20000 by Alice: made on 'feature', which was deleted")]
-    [DataRow(LostBy.Detached, false, "f20000 by Alice: made on a detached HEAD, left when a branch was checked out")]
-    [DataRow(LostBy.Reset, false, "f20000 by Alice: left behind on 'feature' by a reset")]
-    [DataRow(LostBy.Rebase, false, "f20000 by Alice: replaced on 'feature' by a rebase")]
-    [DataRow(LostBy.Amend, false, "f20000 by Alice: replaced on 'feature' by an amend")]
-    [DataRow(LostBy.Other, false, "f20000 by Alice")]
+    [DataRow(LostBy.Deleted, false, "f2000000 by Alice: made on 'feature', which was deleted")]
+    [DataRow(LostBy.Detached, false, "f2000000 by Alice: made on a detached HEAD, left when a branch was checked out")]
+    [DataRow(LostBy.Reset, false, "f2000000 by Alice: left behind on 'feature' by a reset")]
+    [DataRow(LostBy.Rebase, false, "f2000000 by Alice: replaced on 'feature' by a rebase")]
+    [DataRow(LostBy.Amend, false, "f2000000 by Alice: replaced on 'feature' by an amend")]
+    [DataRow(LostBy.Other, false, "f2000000 by Alice")]
     [DataRow(
         LostBy.Amend,
         true,
-        "f20000 by Alice: an older version of commits still there, as an amend or a rebase leaves"
+        "f2000000 by Alice: an older version of commits still there, as an amend or a rebase leaves"
     )]
     public void TestReason(LostBy lostBy, bool isRewritten, string reason)
     {

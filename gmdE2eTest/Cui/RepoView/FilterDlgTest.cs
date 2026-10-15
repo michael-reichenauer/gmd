@@ -26,11 +26,11 @@ public class FilterDlgTest
         ScreenText.AssertEqual(
             """
             Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-            Gmd 3 commits, 2 branches, 4e73d2 (main)                                      Search: dev                          ] X │
+            Gmd 3 commits, 2 branches, 4e73d230 (main)                                    Search: dev                          ] X │
             ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-            ┣╮    Merge branch 'dev' into main                                               4e73d2 Test User      2024-10-15 12:05
-             ╰╊   More dev work                                                        (dev) af3ee6 Test User      2024-10-15 12:03
-              ┗   Work on dev                                                                d997ad Test User      2024-10-15 12:02
+            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
+             ╰╊   More dev work                                                      (dev) af3ee699 Test User      2024-10-15 12:03
+              ┗   Work on dev                                                              d997ad22 Test User      2024-10-15 12:02
             """,
             gmd.WaitFor("More dev work"),
             repo.Path
@@ -58,9 +58,9 @@ public class FilterDlgTest
         Assert.AreEqual(
             """
             Filter Commits ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-            Gmd 0 commits, 0 branches, ffffff (<none>)                                    Search: zzzznothing                  ] X │
+            Gmd 0 commits, 0 branches, ffffffff (<none>)                                  Search: zzzznothing                  ] X │
             ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-            ┏   <... No commits matching filter ...>                               (~<none>) ffffff                NNNN-NN-NN NN:NN
+            ┏   <... No commits matching filter ...>                             (~<none>) ffffffff                NNNN-NN-NN NN:NN
             """,
             ScreenText.MaskTimes(
                 ScreenText.Of(gmd.WaitFor("No commits matching filter"), repo.Path),

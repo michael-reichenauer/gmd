@@ -22,11 +22,11 @@ public class TagsDlgTest
         Assert.AreEqual(
             """
                  ╭ Tags ──────────────────────────────────────────────────────────────────────────────────────────────────────╮
-                 │  Tag                 Commit  Date        Origin      Subject                                               │
+                 │  Tag                 Commit    Date        Origin      Subject                                             │
                  │ ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
-                 │ │v1.0                17d85b  2024-10-15  not pushed  Add delta                                           │ │
+                 │ │v1.0                17d85ba8  2024-10-15  not pushed  Add delta                                         │ │
                  │ └────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
-                 │  v1.0 on 17d85b of 'main', not on origin: Push pushes it                                                   │
+                 │  v1.0 on 17d85ba8 of 'main', not on origin: Push pushes it                                                 │
                  │ [ Show ]  [ Push ]  [ Remove ]                                                                  [ Close ]  │
                  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
             """,
@@ -38,7 +38,7 @@ public class TagsDlgTest
         Assert.AreEqual("v1.0", (await repo.GitAsync($"-C \"{repo.Path}-origin\" tag")).Trim());
 
         OpenTags(gmd);
-        StringAssert.Contains(gmd.WaitFor("on origin too"), "v1.0 on 17d85b of 'main', on origin too");
+        StringAssert.Contains(gmd.WaitFor("on origin too"), "v1.0 on 17d85ba8 of 'main', on origin too");
     }
 
     // Tag is five moves down the commit menu, which opens on 'Amend ...' since 'Add zeta' is not

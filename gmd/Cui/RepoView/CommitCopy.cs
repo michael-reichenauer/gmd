@@ -70,10 +70,10 @@ static class CommitCopy
         kind switch
         {
             CopyKind.Ids => commits.Select(c => c.Id).Join(" "),
-            CopyKind.ShortIds => commits.Select(ShortId).Join(" "),
+            CopyKind.ShortIds => commits.Select(c => c.Sid).Join(" "),
             CopyKind.Subjects => commits.Select(c => c.Subject).Join("\n"),
             CopyKind.Messages => commits.Select(c => c.Message.TrimEnd()).Join("\n\n"),
-            CopyKind.IdsAndSubjects => commits.Select(c => $"{ShortId(c)} {c.Subject}").Join("\n"),
+            CopyKind.IdsAndSubjects => commits.Select(c => $"{c.Sid} {c.Subject}").Join("\n"),
             CopyKind.Range => Range(commits),
             _ => throw Asserter.Fail($"Unknown copy kind {kind}"),
         };
@@ -98,10 +98,6 @@ static class CommitCopy
             ? $"Copied the {one} of {commits[0].Sid}"
             : $"Copied the {many} of {commits.Count} commits";
     }
-
-    // The id as 'git log --oneline' abbreviates it, seven characters, which is also the shortest
-    // that GitHub turns into a link to the commit; the six the log shows are not
-    public static string ShortId(Commit commit) => commit.Id[..7];
 
     // The range as the menu names it, with the ids as the log shows them
     public static string RangeName(IReadOnlyList<Commit> commits) =>

@@ -163,13 +163,13 @@ public class LogKeysTest
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "c3", isCurrent: true)
             .LocalBranch("dev", "c2");
-        var view = await ViewOf(builder, "dev", "feature:f10000");
+        var view = await ViewOf(builder, "dev", "feature:f1000000");
 
         Assert.AreEqual(new KeyAction(""), LogKeys.Color(view, HooverOn(view, "dev", "c2")), "Acts, with no hint");
         Assert.AreEqual("The main branch is always magenta", LogKeys.Color(view, HooverOn(view, "main", "c3")).WhyNot);
         Assert.AreEqual(
             "A deleted branch is always gray",
-            LogKeys.Color(view, HooverOn(view, "feature:f10000", "f1")).WhyNot
+            LogKeys.Color(view, HooverOn(view, "feature:f1000000", "f1")).WhyNot
         );
     }
 
