@@ -310,6 +310,25 @@ Add new open issues and findings here as work lands; keep them short and drop th
   as a deleted branch named after the 40-character id. `commit` is not a branch keyword any more:
   the subject still says which branch the merge is on, but nothing about where the merged commit
   was. Verified on this repo's history: one branch renamed to `branch`, nothing else moved.
+- Inference, the third round (2026-10-15), each change measured over the corpus, with git/git added
+  to it (topic branches merged by name, maintenance lines, subprojects pulled in):
+  - `Merge branch 'master' of https://github.com/j6t/gitk`, another project pulled in, reads as a
+    pull merge and was swapped, and so was `Merge tag 'x' of <url>`: git's master line ran into
+    gitk's history and the translators' branch, and 37 of the 6960 commits of master's first-parent
+    line in the log were on master. A pull merge's two lines must meet in the log now, or it is
+    another repository's branch, named after it (`gitk/master`); a merged tag is never one.
+  - A tag merged in, or the word after "Merge" that a subject neither quotes nor puts after a
+    keyword ("Merged conflicts", "Merge latest x into y"), is a weak name (`IsWeakName`): it names a
+    merged commit only when no other merge has, and is no evidence of a branch.
+  - A name a subject gives a commit, of a branch no candidate is, now recovers that deleted branch
+    there (`TryIsDeletedBranchNamedInSubject`), ahead of the one branch rule: a topic started at the
+    tip of another merged first ran down over the other's commits (git: 380 tips, 3088 commits),
+    and a deleted maintenance line the topics were started from was ambiguous between them. See the
+    findings for why it is held to recovered candidates and, for a commit's own name, branch points.
+  - Branches of one name at a branch point match with an owner in front of either (1.2.x and a
+    fork's timfel/1.2.x).
+  - `InferenceDumpTest` scores ordinary commits too, by the merge that brought them in, lists the
+    candidates of each ambiguous tip, marks swapped merges, and writes 8 character ids.
 - Safety, from the usability review (`USABILITY.md`, Tier 1, 2026-09-25):
   - Any key the diff, blame or conflict view did not use fell through to the log view: `P` in a
     diff pushed every branch, and `c` in the resolver closed it with its decisions unsaved.
@@ -713,10 +732,27 @@ Add new open issues and findings here as work lands; keep them short and drop th
     `IsMatchPullMergeOfTrunk` repeat the prefix and trunk lists of `TrimBranchName` and
     `WellKnownBranches` (without `trunk`); `WorkCommit.IsParentsSwapped`'s comment says a pull merge
     only.
-- Tag names are taken for branch names: git-flow's `Merge tag '1.11.0' into develop` names the
-  release merge it points at, on master, `1.11.0`, and outranks the better name a pull merge gave the
-  same commit (the last merge child parsed wins). Only visible where master's line is lost, as in
-  gitflow-avh, where master was fast-forwarded to develop.
+- Left open by the third round (2026-10-15):
+  - A tag still names a line nothing else names, which is right for git's translation rounds and
+    wrong for gitflow-avh's master line after master was fast-forwarded to develop (`1.11.0`). That
+    line is lost to develop anyway: only swapping the `Merge tag 'x' into develop` on it would keep
+    master's commits on master, as a foxtrot merge's swap does.
+  - A merge naming nothing (`Sync with Git 2.51.2`, `Merge commit '<sha>'`) still sets the merged
+    commit's name to "", over a name another merge child gave it, when parsed after it.
+  - A pull merge names its local side after the local branch, which may only have pointed at
+    another branch's commit: in Terminal.Gui a branch made at v2_develop's tip and then pulled
+    named a v2_develop pull request merge (5 commits moved there in this round).
+  - A pull request built on a local branch of another name, with catch-up merges on it ("Merge
+    branch 'v2_develop' into x"), is now drawn as branch x below the pull request's branch, where
+    the commits are at a branch point. Right by the subjects; one pull request in two names.
+  - Stacked pull requests seen from a clone stay most of cli's ambiguity (above). Which merge first
+    brought the shared commit into the trunk would decide them when the base was merged first, and
+    wrongly when the stack was merged top first; not measured, and the merged-in score cannot judge
+    it, since it counts by that very merge.
+  - The parser takes `Merged in x (pull request #n)`, Bitbucket's, as the name "in" (weak now), and
+    a name stops at a `#`, which git allows (`issue#1243-x` is `issue`).
+  - The graph of all branches grows with every branch recovered: git's 5,889 branches became 6,289,
+    and drawing them all 3.2 s to 3.8 s (see Performance).
 - `origin/` is hard-coded in the name matching and in `NiceName`, so a repo whose remote is named
   otherwise matches names less often.
 - Adding the uncommitted commit sets its parent but does not add it to that parent's children,
@@ -1050,6 +1086,38 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `BranchNameService` between the stages, so the split that lost every deleted branch's name was
   verified as pure movement and still landed broken. Anything stateful the stages share must be
   `[SingleInstance]`, and the pipeline keeps one test that resolves from the container.
+- The third round (2026-10-15) added git/git to the corpus (a `--filter=blob:none` clone, 30,000 of
+  its 85,000 commits read) and a merged-in score. Before and after the round, ambiguous commits,
+  merges on the branch their subject names, and merged-in commits on the branch named:
+
+  | repo | commits | ambiguous | subject agrees | merged in agrees |
+  |---|---|---|---|---|
+  | gmd | 2354 | 0 → 0 | 388 of 388 both | 2334 of 2339 both (reflog 431 of 431 both) |
+  | gitflow-avh | 1184 | 10 → 0 | 82 → 83 of 129 | 511 of 911 both |
+  | sinatra | 5316 | 277 → 124 | 36 → 55 of 127 | 2723 → 2729 of 2806 |
+  | Terminal.Gui | 10276 | 401 → 149 | 988 → 1021 of 1146 | 6683 → 6775 of 8059 |
+  | cli | 13336 | 475 → 433 | 609 → 614 of 646 | 10185 → 10332 of 10568 |
+  | git | 30000 | 2966 → 229 | 981 of 1885 → 1663 of 1845 | 18040 → 20379 of 20778 |
+
+  (git's merges of a tag from a url read as naming their target before, hence the 40 fewer. Its
+  master line went from 37 to all 6960 of its first-parent commits in the log.)
+- The merged-in score counts the commits on the first-parent line of a merge's merged parent, down
+  to where it meets the history merged into. It is partly circular, and it overreaches where a
+  branch is merged into another than it was started from: git-flow merges a release into master and
+  only its tag into develop, so the release's line runs on into develop's commits not yet released
+  (gitflow-avh's 400 disagreements). One commit merged twice claims the shorter line, a trunk's name
+  claims the trunk however it is called now, and a tag's merge claims nothing.
+- A subject's name for a commit that no candidate has is taken only among recovered candidates: a
+  live branch is left alone, since a name from before it was renamed would cut it in two, as the
+  renames of integration branches did to recovered lines (Terminal.Gui's develop, now v1_develop,
+  which is why an integration branch's name at one is left alone too). Leaving out the live
+  branches' names altogether lost git's old maintenance lines, which gmd recovers under live names
+  as it does dev once per merge. A commit's own "into x" is taken only where branches meet: on a
+  line of one candidate it is as often a branch fast-forwarded into another, which says nothing of
+  where it was started, and the split gave a sinatra subproject's history to a review branch. Each
+  of these was found by the corpus dump, not by a test.
+- Six character ids collide in a log of 30,000 commits (38 in git's), which made walks over a dump
+  jump between histories; the dump writes 8.
 
 **Performance**
 
