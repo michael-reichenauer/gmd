@@ -310,14 +310,34 @@ public class CommitServiceTest
     [TestMethod]
     public async Task TestCommitTreeAndRebaseOntoKeepingMerges()
     {
-        var cmd = new FakeCmd("1234abcd\n");
+        var cmd = new FakeCmd((_, args, _) => args.StartsWith("config") ? FakeCmd.Fail("") : FakeCmd.Ok("1234abcd\n"));
         var service = new CommitService(cmd);
 
         Assert.AreEqual("1234abcd", AssertOk(await service.CommitTreeAsync("c3", "c1", "Squashed \"two\"", wd)));
         AssertOk(await service.RebaseOntoKeepingMergesAsync("1234abcd", "c3", wd));
 
-        StringAssert.StartsWith(ArgsOf(cmd)[0], "commit-tree c3^{tree} -p c1 -m ");
-        StringAssert.Contains(ArgsOf(cmd)[0], "Squashed");
-        Assert.AreEqual("rebase --rebase-merges --onto 1234abcd c3", ArgsOf(cmd)[1]);
+        Assert.AreEqual("config --type=bool --get commit.gpgsign", ArgsOf(cmd)[0]);
+        StringAssert.StartsWith(ArgsOf(cmd)[1], "commit-tree c3^{tree} -p c1 -m ");
+        StringAssert.Contains(ArgsOf(cmd)[1], "Squashed");
+        Assert.AreEqual("rebase --rebase-merges --onto 1234abcd c3", ArgsOf(cmd)[2]);
+    }
+
+    // Signed as 'git commit' would sign it when commit.gpgsign says to, which commit-tree does not
+    // read itself; an unset value is exit 1, above, and a value git cannot read stops the squash
+    [TestMethod]
+    public async Task TestCommitTreeIsSignedAsTheConfigSays()
+    {
+        var signing = new FakeCmd((_, args, _) => FakeCmd.Ok(args.StartsWith("config") ? "true\n" : "1234abcd\n"));
+        var notSigning = new FakeCmd((_, args, _) => FakeCmd.Ok(args.StartsWith("config") ? "false\n" : "1234abcd\n"));
+        var unreadable = new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: bad boolean config value 'maybe'", 128));
+
+        AssertOk(await new CommitService(signing).CommitTreeAsync("c3", "c1", "Squashed", wd));
+        AssertOk(await new CommitService(notSigning).CommitTreeAsync("c3", "c1", "Squashed", wd));
+        var error = AssertError(await new CommitService(unreadable).CommitTreeAsync("c3", "c1", "Squashed", wd));
+
+        StringAssert.StartsWith(ArgsOf(signing)[1], "commit-tree -S c3^{tree} -p c1 -m ");
+        StringAssert.StartsWith(ArgsOf(notSigning)[1], "commit-tree c3^{tree} -p c1 -m ");
+        StringAssert.Contains(error.AllMessages(), "bad boolean");
+        Assert.AreEqual(1, unreadable.Calls.Count, "No commit made");
     }
 }
