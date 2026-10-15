@@ -21,7 +21,9 @@ namespace gmdTest.Server.Private.Augmented.Private;
 // The reflog is the one record of which branch a commit was made on, as far back as it still goes,
 // so the dump also scores the inference against it: for every commit the reflog says was made on a
 // branch, whether the inference put it on a branch of that name. Merge subjects that name the branch
-// merged into are scored the same way, which works for a clone too, where there is no reflog.
+// merged into are scored the same way, which works for a clone too, where there is no reflog, and so
+// are the ordinary commits that came in through a merge whose subject names the branch merged in. The
+// header also lists the branches each ambiguous tip could be on, which is what the user is asked.
 [TestClass]
 [TestCategory("Integration")]
 public class InferenceDumpTest
@@ -89,14 +91,20 @@ public class InferenceDumpTest
 
         AppendReflogScore(text, repo, madeOn);
         AppendSubjectScore(text, commits);
+        AppendMergedInScore(text, repo, commits);
+        AppendAmbiguousTips(text, commits);
 
         text.AppendLine("#");
-        text.AppendLine("# Columns: commit, flags (A ambiguous, T ambiguous tip, L likely, U set by the user),");
-        text.AppendLine("# parents in the order gmd uses (a pull merge's are swapped), deciding rule, branch, subject");
+        text.AppendLine(
+            "# Columns: commit, flags (A ambiguous, T ambiguous tip, L likely, U set by the user, S parents"
+        );
+        text.AppendLine("# swapped), parents in the order gmd uses, deciding rule, branch, subject");
         foreach (var c in commits)
         {
-            var parents = string.Join(",", c.ParentIds.Select(id => id.Sid()));
-            text.AppendLine($"{c.Sid} {Flags(c)} {parents, -13} {c.DecidedBy, -40} {c.Branch?.Name, -40} {c.Subject}");
+            var parents = string.Join(",", c.ParentIds.Select(Id));
+            text.AppendLine(
+                $"{Id(c.Id)} {Flags(c)} {parents, -17} {c.DecidedBy, -40} {c.Branch?.Name, -40} {c.Subject}"
+            );
         }
 
         return text.ToString();
@@ -124,7 +132,129 @@ public class InferenceDumpTest
         );
         foreach (var (commit, into) in disagreeing)
         {
-            text.AppendLine($"#   {commit.Sid} {Flags(commit)} made on {into}, inferred {commit.Branch?.Name}");
+            text.AppendLine($"#   {Id(commit.Id)} {Flags(commit)} made on {into}, inferred {commit.Branch?.Name}");
+        }
+    }
+
+    // A merge subject that names the branch merged in, "Merge branch 'a' into b" or "Merge pull request
+    // #1 from o/a", says the commits that came in through that merge were a's: the first-parent line of
+    // the merged parent, down to where it meets the history of the branch merged into. That scores the
+    // ordinary commits, which the two scores above do not reach. It is partly circular, since the
+    // inference names a deleted branch by the same subject, so it shows where other evidence overruled
+    // a subject rather than how often the subject is right. The parents are taken in git's order, as
+    // the subject means them, not as gmd swaps a pull merge's. A commit two names claim is left out.
+    //
+    // One commit merged into two branches, e.g. a git-flow release merged into master and develop,
+    // claims the shorter of the two lines: the longer runs on below where the branch was started, into
+    // the commits of the branch it was started from that the other target did not have yet. A trunk's
+    // name claims the trunk whatever it is called now, since 'master' renamed 'main' is no error.
+    static void AppendMergedInScore(StringBuilder text, WorkRepo repo, IReadOnlyList<WorkCommit> commits)
+    {
+        var parser = new BranchNameService();
+        Dictionary<(string name, string merged), List<WorkCommit>> lines = [];
+        foreach (var merge in commits.Where(c => c.ParentIds.Count == 2))
+        {
+            var from = parser.ParseSubject(merge.Subject).From;
+            if (
+                from == ""
+                || !repo.CommitsById.TryGetValue(GitParent(merge, 0), out var into)
+                || !repo.CommitsById.TryGetValue(GitParent(merge, 1), out var merged)
+            )
+                continue;
+
+            var line = LineDownTo(repo, merged, into);
+            if (!lines.TryGetValue((from, merged.Id), out var other) || line.Count < other.Count)
+                lines[(from, merged.Id)] = line;
+        }
+
+        Dictionary<string, string> claims = [];
+        foreach (var ((from, _), line) in lines)
+        {
+            foreach (var c in line)
+            {
+                claims[c.Id] = claims.TryGetValue(c.Id, out var claim) && claim != from ? "" : from;
+            }
+        }
+
+        var claimed = claims.Where(p => p.Value != "").Select(p => (commit: repo.CommitsById[p.Key], name: p.Value));
+        var disagreeing = claimed.Where(m => !IsOnNamedBranch(m.commit, m.name)).ToList();
+
+        text.AppendLine("#");
+        text.AppendLine(
+            $"# Merged in: {claimed.Count()} commits came in through a merge whose subject names the branch merged "
+                + $"in, {claimed.Count() - disagreeing.Count} are on a branch of that name, "
+                + $"{disagreeing.Count(m => m.commit.IsAmbiguous)} of the rest ambiguous "
+                + $"({claims.Count(p => p.Value == "")} claimed by two names)"
+        );
+        foreach (
+            var group in disagreeing
+                .GroupBy(m => (m.name, branch: m.commit.Branch?.Name ?? ""))
+                .OrderByDescending(g => g.Count())
+                .ThenBy(g => g.Key.name, StringComparer.Ordinal)
+                .ThenBy(g => g.Key.branch, StringComparer.Ordinal)
+        )
+        {
+            var ambiguous = group.Count(m => m.commit.IsAmbiguous);
+            text.AppendLine(
+                $"#   {group.Count(), 5} {(ambiguous > 0 ? $"({ambiguous} A)" : ""), -8} "
+                    + $"merged in from {group.Key.name}, inferred {group.Key.branch}, e.g. {Id(group.First().commit.Id)}"
+            );
+        }
+    }
+
+    // Whether a commit is on the branch a subject names, also with an owner in front of either name,
+    // and the trunk by any trunk's name, or by a remote's alone, as 'git merge upstream' writes it
+    static bool IsOnNamedBranch(WorkCommit c, string name) =>
+        c.Branch?.NiceName is string n
+        && (
+            n == name
+            || n.EndsWith("/" + name)
+            || name.EndsWith("/" + n)
+            || (c.Branch.IsMainBranch && (WellKnownBranches.IsTrunkName(name) || name is "origin" or "upstream"))
+        );
+
+    // A merge's parent in git's order, which gmd has swapped for a pull merge or a foxtrot merge
+    static string GitParent(WorkCommit merge, int index) => merge.ParentIds[merge.IsParentsSwapped ? 1 - index : index];
+
+    // The first-parent line, in git's order, from a commit down to where it meets the history of
+    // another. The log has every commit before its parents, so whether a commit is in that history is
+    // known once the history is walked in log order as far down as the commit, and no further.
+    static List<WorkCommit> LineDownTo(WorkRepo repo, WorkCommit from, WorkCommit other)
+    {
+        HashSet<string> reached = [other.Id];
+        PriorityQueue<WorkCommit, int> toWalk = new();
+        toWalk.Enqueue(other, other.GitIndex);
+
+        List<WorkCommit> line = [];
+        for (var c = from; c != null; )
+        {
+            while (toWalk.TryPeek(out var next, out var index) && index < c.GitIndex)
+            {
+                toWalk.Dequeue();
+                foreach (var id in next.ParentIds)
+                {
+                    if (repo.CommitsById.TryGetValue(id, out var parent) && reached.Add(id))
+                        toWalk.Enqueue(parent, parent.GitIndex);
+                }
+            }
+            if (reached.Contains(c.Id) || c.IsTruncatedLogCommit)
+                break;
+
+            line.Add(c);
+            c = c.ParentIds.Count > 0 ? repo.CommitsById.GetValueOrDefault(GitParent(c, 0)) : null;
+        }
+        return line;
+    }
+
+    // The branches each ambiguous tip could be on, which is what the user is asked to choose between
+    static void AppendAmbiguousTips(StringBuilder text, IReadOnlyList<WorkCommit> commits)
+    {
+        text.AppendLine("#");
+        text.AppendLine("# Ambiguous tips, with the branches they could be on:");
+        foreach (var c in commits.Where(c => c.IsAmbiguousTip))
+        {
+            var candidates = c.Branch!.AmbiguousBranches.Select(b => b.Name).Order(StringComparer.Ordinal);
+            text.AppendLine($"#   {Id(c.Id)} {c.Branch.Name}: {string.Join(", ", candidates)}");
         }
     }
 
@@ -145,11 +275,15 @@ public class InferenceDumpTest
         );
         foreach (var (commit, branch) in disagreeing)
         {
-            text.AppendLine($"#   {commit.Sid} {Flags(commit)} made on {branch}, inferred {commit.Branch?.Name}");
+            text.AppendLine($"#   {Id(commit.Id)} {Flags(commit)} made on {branch}, inferred {commit.Branch?.Name}");
         }
     }
 
+    // A commit id as the dump writes it, longer than gmd's 6 characters, of which 30,000 commits have
+    // dozens in common, which would make a dump ambiguous to read
+    static string Id(string id) => id[..Math.Min(8, id.Length)];
+
     static string Flags(WorkCommit c) =>
         $"{(c.IsAmbiguous ? 'A' : '-')}{(c.IsAmbiguousTip ? 'T' : '-')}"
-        + $"{(c.IsLikely ? 'L' : '-')}{(c.IsBranchSetByUser ? 'U' : '-')}";
+        + $"{(c.IsLikely ? 'L' : '-')}{(c.IsBranchSetByUser ? 'U' : '-')}{(c.IsParentsSwapped ? 'S' : '-')}";
 }
