@@ -266,7 +266,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
     Decided now by which branch is senior (`TryHasSeniorBranch`).
   - `git checkout -b` at a published branch's tip, outside gmd, made that branch ambiguous from its
     tip to its fork, and so did gmd's own *create branch from branch*, which wrote its metadata under
-    the full id while every lookup is by sid (the old entries are found now too).
+    the full id while every lookup is by sid (the old entries are found now too). Since 2026-10-15
+    every entry is written and read by the full id, and those under a sid are no longer read: a sid
+    can be another commit's too.
   - `git merge origin/main` on main, a pull merge by hand whose subject git writes without `into
     main`, was not swapped, so others' pushed commits became a side branch named main.
   - GitHub's `Merge branch 'owner:branch' into x` was cut at the owner: the branch was named after the
@@ -282,7 +284,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   reflog or from HEAD's through its checkouts, and which branch a branch was started from. A fact is
   only taken among the commit's candidates, never above main, never marks a commit likely, and is
   kept in the metadata when it decided between branches (keyed by full id and marked `~`, so older
-  gmd versions never read it and it never makes up a branch). The tail of the rule chain is one
+  gmd versions never read it and it never makes up a branch; since 2026-10-15 in a map of its own,
+  `WitnessedById`, as the choices are keyed by full id too and the two would replace each other, and
+  `MetaData.Parse` moves the `~` entries there). The tail of the rule chain is one
   branch point decision (`TryDecideBranchPoint`): integration name › git-flow release name › one name
   for all › clearly most merged in; the likely-child rules are gone, and an undecided branch point is
   drawn on its most senior name. A repo can name its own integration branches in Config.

@@ -267,11 +267,15 @@ Both are reworked, see proposal D.1.
    in the log it commits (one of the letters the usability review found meaning two things).
    *Since (2026-10-15):* Ctrl-C in the log asks what to copy (`CommitCopy`), the copy menu, which
    is also the commit menu's Copy: of a commit the id, message, subject, id and subject, short id
-   (seven characters, as `git log --oneline` writes it and GitHub links it) or the link; of the rows
+   (as the log shows it) or the link; of the rows
    selected the ids, the messages, the ids and subjects, or the range `<oldest>^..<newest>`, all
    oldest first, as `git cherry-pick` takes them. `i` and `Shift-I` act on the selection too. Ctrl-C
    used to copy one selected row as drawn, the graph with it, and several as sid and subject, of
    the top row's branch where the log highlighted the starting row's.
+   *Since (2026-10-15):* the short id is eight characters wherever gmd shows one or names a branch
+   after a commit (`StringExtensions.SidLength`), rather than six: what `git log --oneline` writes in
+   a repository of 16,000 objects or more and GitLab shows, and GitHub links, which it did not with
+   six. Of 50,000 commits, one in 300 shared its six with another, one in 86,000 its eight.
 3. Reword, fix up and drop, for the commits not yet pushed. *Done (2026-10-07):* reword and fix up
    are one item, **Amend <id> ...** in the commit menu of an older commit, the commit dialog with
    its message and the changed files, none ticked; **Drop <id>** is under Undo, beside Revert
