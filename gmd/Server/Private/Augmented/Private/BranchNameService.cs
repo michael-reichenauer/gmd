@@ -37,6 +37,10 @@ class BranchNameService : IBranchNameService
     // Whether the repo read has branches of both trunk names, see IsMatchPullMergeOfTrunk
     bool hasBothTrunks = false;
 
+    // The repo read, and where the first-parent line of each of its commits ends, see IsOneLine
+    WorkRepo? repo;
+    Dictionary<string, string>? lineEnds;
+
     static readonly string[] prefixes = ["refs/remotes/origin/", "remotes/origin/", "origin/"];
 
     // A branch name may contain dots, e.g. 'release/1.0', but a git ref can neither start nor end
@@ -77,6 +81,8 @@ class BranchNameService : IBranchNameService
         hasBothTrunks =
             repo.Branches.Values.Any(b => b.NiceName == "main")
             && repo.Branches.Values.Any(b => b.NiceName == "master");
+        this.repo = repo;
+        lineEnds = null;
     }
 
     public void ParseCommitSubject(WorkCommit c)
@@ -138,7 +144,7 @@ class BranchNameService : IBranchNameService
             return fi;
         }
 
-        fi = ParseSubject(c.Subject);
+        fi = ParseSubject(c.Subject, () => IsOneLine(c));
 
         // Some child commit might have already specified the branch name of this commit
         // E.g. a child, which merged from this commit might have a subject like
@@ -183,7 +189,11 @@ class BranchNameService : IBranchNameService
         return fi;
     }
 
-    public FromInto ParseSubject(string subject)
+    public FromInto ParseSubject(string subject) => ParseSubject(subject, () => true);
+
+    // Parses a subject, and when it reads as a pull merge, asks whether the two lines merged are one
+    // branch's, which only the graph can tell
+    FromInto ParseSubject(string subject, Func<bool> isOneLine)
     {
         subject = subject.Trim();
         var matches = branchesRegEx.Matches(subject);
@@ -202,6 +212,22 @@ class BranchNameService : IBranchNameService
 
         if (IsMatchPullMerge(match) || (!hasBothTrunks && IsMatchPullMergeOfTrunk(match)))
         {
+            if (!isOneLine())
+            { // Reads as a pull merge, but the lines merged are not one branch's: a branch of another
+                // repository merged in, e.g. "Merge branch 'master' of https://github.com/j6t/gitk" into
+                // git's master. Named after that repository, e.g. 'gitk/master', as a pull request's
+                // branch is after its owner, and left in git's order, since the swap would run this
+                // branch's line into the other repository's history.
+                var name = TrimBranchName(match.Groups[indexes.from].Value);
+                var repository = RepositoryName(match.Groups[indexes.direction].Value);
+                return new FromInto(
+                    From: repository != "" ? $"{repository}/{name}" : match.Groups[indexes.from].Value,
+                    Into: TrimBranchName(match.Groups[indexes.into].Value),
+                    false,
+                    false
+                );
+            }
+
             // Subject is a pull merge same branch from remote repo (same remote source and target branch)
             return new FromInto(
                 From: TrimBranchName(match.Groups[indexes.from].Value),
@@ -228,6 +254,50 @@ class BranchNameService : IBranchNameService
             false,
             false
         );
+    }
+
+    // Whether the first-parent lines of a merge's two parents, in git's order, meet in the log. The
+    // local and the remote line of a branch meet where they parted, a while before the pull. A branch
+    // of another repository, whose history was merged in as a project of its own (gitk and git-gui in
+    // git, sinatra-contrib in sinatra), has a line of its own that never meets this one. Neither do
+    // two lines that part below where a log is cut off, which is taken as one branch, as before.
+    bool IsOneLine(WorkCommit c)
+    {
+        if (repo == null || c.ParentIds.Any(id => id == Repo.TruncatedLogCommitId))
+            return true;
+
+        var ends = lineEnds ??= LineEnds(repo);
+        return ends.GetValueOrDefault(c.ParentIds[0]) is string end && end == ends.GetValueOrDefault(c.ParentIds[1]);
+    }
+
+    // The oldest commit of each commit's first-parent line that is in the log, in git's parent order,
+    // which is what the commits have until the pull merges are swapped. Made at the first pull merge,
+    // whose parents' lines are of older commits than any swapped before it.
+    static Dictionary<string, string> LineEnds(WorkRepo repo)
+    {
+        Dictionary<string, string> ends = [];
+        for (var i = repo.Commits.Count - 1; i >= 0; i--)
+        { // Oldest first, so a commit's first parent has its end before the commit does
+            var c = repo.Commits[i];
+            ends[c.Id] =
+                c.ParentIds.Count > 0
+                && c.ParentIds[0] != Repo.TruncatedLogCommitId
+                && ends.TryGetValue(c.ParentIds[0], out var end)
+                    ? end
+                    : c.Id;
+        }
+        return ends;
+    }
+
+    // The name of a repository from the 'of <url>' of a merge subject, e.g. 'gitk' for
+    // ' of https://github.com/j6t/gitk' or ' of github.com:git-l10n/git-po.git', or "" for none
+    static string RepositoryName(string direction)
+    {
+        var url = direction.Trim();
+        url = url.StartsWith("of") ? url[2..].Trim().TrimEnd('/') : "";
+        var name = url[(url.LastIndexOfAny(['/', ':']) + 1)..];
+        name = name.EndsWith(".git") ? name[..^4] : name;
+        return name.Trim('.') == "" ? "" : name; // Not 'git pull .', whose 'of .' names no repository
     }
 
     bool IsPullMergeCommit(FromInto fi)
