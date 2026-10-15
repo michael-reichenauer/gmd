@@ -157,6 +157,7 @@ public class InferenceDumpTest
             var from = parser.ParseSubject(merge.Subject).From;
             if (
                 from == ""
+                || IsTagMerge(merge)
                 || !repo.CommitsById.TryGetValue(GitParent(merge, 0), out var into)
                 || !repo.CommitsById.TryGetValue(GitParent(merge, 1), out var merged)
             )
@@ -201,6 +202,10 @@ public class InferenceDumpTest
             );
         }
     }
+
+    // A merged tag names no branch: git-flow merges a release's tag into develop, so the release
+    // branch's only merge is into master, whose line would claim develop's commits below it
+    static bool IsTagMerge(WorkCommit merge) => merge.Subject.StartsWith("Merge tag ");
 
     // Whether a commit is on the branch a subject names, also with an owner in front of either name,
     // and the trunk by any trunk's name, or by a remote's alone, as 'git merge upstream' writes it

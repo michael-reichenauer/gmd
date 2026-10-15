@@ -823,6 +823,35 @@ public class BranchStructureServiceTest
         Assert.IsTrue(CommitOf(repo, "d1").IsAmbiguous);
     }
 
+    // A tag is no branch: git-flow merges a release's tag into develop, which named the release's
+    // tip after the tag, over the name the release's own merge gave it, and a name that is only a tag's
+    // never makes a deleted branch of a line a branch was started from
+    //
+    //   c2        main, "Merge branch 'release/1.0'"
+    //   |\
+    //   | | d2    develop, "Merge tag '1.0' into develop"
+    //   | |/|
+    //   | e1 |    the release's tip, tagged 1.0
+    //   | | /
+    //   | d1      develop
+    //   |/
+    //   c1
+    [TestMethod]
+    public async Task TestATagMergedInNamesNoBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Merge branch 'release/1.0'", "c1", "e1")
+            .Commit("d2", "Merge tag '1.0' into develop", "d1", "e1")
+            .Commit("e1", "Version 1.0", "d1")
+            .Commit("d1", "Develop", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .BranchWithRemote("develop", "d2")
+            .AugmentAsync();
+
+        Assert.AreEqual($"release/1.0:{RepoBuilder.Sid("e1")}", BranchOf(repo, "e1"));
+    }
+
     // A foxtrot merge: main merged into feature to bring it up to date, and then main fast-forwarded
     // to that merge, e.g. by 'git merge feature' on main. Git's first parent of the merge is feature's
     // commit, so main's line ran through feature, and main's own commit was drawn as a side branch

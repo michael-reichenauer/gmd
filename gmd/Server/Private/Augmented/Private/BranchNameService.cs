@@ -11,10 +11,13 @@ interface IBranchNameService
     string MergedFrom(WorkCommit c);
     bool IsPullRequest(WorkCommit c);
     bool IsMergeOfInto(WorkCommit c, string from);
+    bool IsWeakName(string commitId);
     void ParentsSwapped(WorkCommit c);
 }
 
-record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest);
+// What a merge subject says: the branch merged in and the one merged into. A weak name merged in is
+// a tag's, or a word the subject neither quotes nor puts after a keyword, see IsWeakName.
+record FromInto(string From, string Into, bool IsPullMerge, bool IsPullRequest, bool IsWeak = false);
 
 record Indexes(int from, int into, int direction);
 
@@ -31,6 +34,7 @@ class BranchNameService : IBranchNameService
 {
     readonly Dictionary<string, FromInto> parsedCommits = [];
     readonly Dictionary<string, string> branchNames = [];
+    readonly HashSet<string> weakNamed = [];
 
     readonly FromInto noNames = new FromInto("", "", false, false);
 
@@ -78,6 +82,7 @@ class BranchNameService : IBranchNameService
     {
         parsedCommits.Clear();
         branchNames.Clear();
+        weakNamed.Clear();
         hasBothTrunks =
             repo.Branches.Values.Any(b => b.NiceName == "main")
             && repo.Branches.Values.Any(b => b.NiceName == "master");
@@ -121,7 +126,15 @@ class BranchNameService : IBranchNameService
         parsedCommits[c.Id] = swapped;
         branchNames[c.Id] = swapped.Into;
         branchNames[c.ParentIds[1]] = swapped.From;
+        weakNamed.Remove(c.Id);
+        weakNamed.Remove(c.ParentIds[1]);
     }
+
+    // Whether the name of a commit is only a weak one, which names the line merged in when nothing else
+    // does, but is no evidence of a branch: a tag's, e.g. git-flow's release tag merged into develop,
+    // or a word of a subject that is no branch's as often as it is, e.g. "Merged conflicts with dev"
+    // or "Merge latest dev into x". Git, GitHub and GitLab all quote a branch or name it after a keyword.
+    public bool IsWeakName(string commitId) => weakNamed.Contains(commitId);
 
     // Whether a merge commit's subject is a pull request's, e.g. 'Merge pull request #1 from x/y'
     public bool IsPullRequest(WorkCommit c) => ParseCommit(c).IsPullRequest;
@@ -150,6 +163,7 @@ class BranchNameService : IBranchNameService
         // E.g. a child, which merged from this commit might have a subject like
         // 'Merge from some-branch'
         var name = branchNames.TryGetValue(c.Id, out var n) ? n : "";
+        var isOwnName = fi.Into != "";
 
         if (fi.Into != "")
         { // Subject does specify own commit, lets check if it is matches a possible child commit
@@ -174,16 +188,30 @@ class BranchNameService : IBranchNameService
         // Cache the result
         parsedCommits[c.Id] = fi;
         branchNames[c.Id] = fi.Into;
+        if (isOwnName)
+        {
+            weakNamed.Remove(c.Id);
+        }
 
         if (IsPullMergeCommit(fi))
         {
             // The order of the parents will be switched for a pull merge and thus
             // Set the first branch name of the first parent
             branchNames[c.ParentIds[0]] = fi.From;
+            weakNamed.Remove(c.ParentIds[0]);
+        }
+        else if (fi.IsWeak)
+        { // A weak name merged in names the merged commit only when no other has named it
+            if (branchNames.GetValueOrDefault(c.ParentIds[1], "") == "" || weakNamed.Contains(c.ParentIds[1]))
+            {
+                branchNames[c.ParentIds[1]] = fi.From;
+                weakNamed.Add(c.ParentIds[1]);
+            }
         }
         else
         { // Normal commit, set the branch name for the second (other) parent
             branchNames[c.ParentIds[1]] = fi.From;
+            weakNamed.Remove(c.ParentIds[1]);
         }
 
         return fi;
@@ -218,7 +246,8 @@ class BranchNameService : IBranchNameService
                 From: TrimBranchName(match.Groups[indexes.from].Value),
                 Into: TrimBranchName(match.Groups[indexes.into].Value),
                 false,
-                false
+                false,
+                IsWeak: true
             );
         }
 
@@ -264,7 +293,8 @@ class BranchNameService : IBranchNameService
             From: TrimBranchName(match.Groups[indexes.from].Value),
             Into: TrimBranchName(match.Groups[indexes.into].Value),
             false,
-            false
+            false,
+            IsWeak: !IsMatchQuotedOrKeyword(match)
         );
     }
 
@@ -375,6 +405,14 @@ class BranchNameService : IBranchNameService
     // commit is merged by id
     static bool IsMatchMergeCommit(Match match) =>
         match.Groups["keyword"].Value.Equals("commit", StringComparison.OrdinalIgnoreCase);
+
+    // Whether the name merged in is quoted, "Merge branch 'dev'", or follows a keyword, "Merge pull
+    // request #1 from x/dev", rather than being the word after "Merge"
+    static bool IsMatchQuotedOrKeyword(Match match)
+    {
+        var quote = match.Value.IndexOf('\'');
+        return match.Groups["keyword"].Success || (quote >= 0 && quote < match.Groups["from"].Index - match.Index);
+    }
 
     // "Merge tag 'v1.0'" names a tag rather than a branch
     static bool IsMatchMergeTag(Match match) =>
