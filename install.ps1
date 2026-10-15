@@ -95,5 +95,6 @@
     if ($other) {
         Write-Host "There is another gmd on your PATH, $($other.Source), which may be found first"
     }
-    Write-Host 'Open a new terminal and run gmd in a git repository'
+    # This session has it on its PATH already, the terminals opened before it do not
+    Write-Host 'Run gmd in a git repository (a terminal that was open before has to be opened again)'
 }
