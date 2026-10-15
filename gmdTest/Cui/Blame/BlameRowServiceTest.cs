@@ -216,12 +216,12 @@ public class BlameRowServiceTest
 
         var rows = new BlameRowService().ToDetailsRows(commit);
 
-        Assert.AreEqual($"Id:         {Id1}", rows[0].ToString());
+        Assert.AreEqual($"Id:       {Id1}", rows[0].ToString());
         // The time is local with its zone offset, as the commit details view shows it, so only the
         // part that does not depend on the machine's time zone is asserted
-        StringAssert.StartsWith(rows[1].ToString(), "Author:     Author1 <alice@example.com>, time: 2025-01-05 ");
-        Assert.AreEqual("Subject:    Subject 1", rows[2].ToString());
-        StringAssert.Contains(rows[4].ToString(), "not in the shown log");
+        StringAssert.StartsWith(rows[1].ToString(), "Author:   Author1 <alice@example.com>, 2025-01-05 ");
+        Assert.AreEqual("Subject 1", rows[3].ToString());
+        StringAssert.Contains(rows[5].ToString(), "not in the shown log");
     }
 
     [TestMethod]
@@ -231,7 +231,7 @@ public class BlameRowServiceTest
 
         var rows = new BlameRowService().ToDetailsRows(commit);
 
-        Assert.AreEqual("Id:         Uncommitted", rows[0].ToString());
+        Assert.AreEqual("Id:       Uncommitted", rows[0].ToString());
     }
 
     [TestMethod]

@@ -80,7 +80,7 @@ public class DemoTest
         for (int i = 0; i < 7; i++)
             Press(gmd, demo, "Up", i < 6 ? 0.2 : 0.8);
         gmd.Send("Enter");
-        gmd.WaitFor("Children:");
+        gmd.WaitFor("Parents:");
         demo.Frame(2.5, "details");
         gmd.Send("d");
         gmd.WaitFor("Modified: src/search.js");
@@ -91,7 +91,7 @@ public class DemoTest
         demo.Caption("");
         demo.Frame(0.8);
         gmd.Send("Enter");
-        gmd.WaitUntilGone("Children:");
+        gmd.WaitUntilGone("Parents:");
         demo.Frame(0.8);
 
         // Search: the log narrows to the matching commits as you type

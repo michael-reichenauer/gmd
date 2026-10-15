@@ -65,17 +65,16 @@ public class BlameViewTest
 
         Assert.AreEqual(
             """
-            Id:         199af616c757fa248670aa1ea368ba31d046f1e3  ({repo})
-            Branch:     main  (main)
-            Author:     Test User, time: 2024-10-15 12:07:00 +00:00
-            Children:
-            Parents:    17d85ba8
-            Tips:       (main)
+            Id:       199af616c757fa248670aa1ea368ba31d046f1e3
+            Branch:   main
+            Author:   Test User, 2024-10-15 12:07:00 +00:00
+            Parents:  17d85ba8
+
             Add lines
 
             A body line that only the log knows.
             """,
-            ScreenText.Rows(gmd.WaitFor("A body line"), repo.Path, 30, 9)
+            ScreenText.Rows(gmd.WaitFor("A body line"), repo.Path, 30, 8)
         );
     }
 

@@ -34,54 +34,70 @@ public class CommitDetailsRowsTest
             .LocalBranch("feat-a", "a1")
             .LocalBranch("feat-b", "b1");
 
-    static IReadOnlyList<Text> RowsOf(Repo repo, string id) =>
-        CommitDetailsRows.Of(
-            repo,
-            repo.CommitById[id],
-            repo.BranchByName[repo.CommitById[id].BranchName],
-            new BranchColorService(new FakeRepoConfig())
-        );
+    static IReadOnlyList<Text> RowsOf(Repo repo, string name)
+    {
+        var commit = repo.CommitById[name == "" ? Repo.UncommittedId : RepoBuilder.Sha(name)];
+        return CommitDetailsRows.Of(repo, commit, repo.BranchByName[commit.BranchName], Colors);
+    }
 
-    static string TextOf(Repo repo, string id) =>
-        string.Join("\n", RowsOf(repo, id).Select(r => r.ToString().TrimEnd()));
+    static readonly BranchColorService Colors = new(new FakeRepoConfig());
 
+    static string TextOf(Repo repo, string name) =>
+        string.Join("\n", RowsOf(repo, name).Select(r => r.ToString().TrimEnd()));
+
+    static string RowOf(Repo repo, string name, string label) =>
+        RowsOf(repo, name).Select(r => r.ToString()).First(r => r.StartsWith(label));
+
+    // The merge names the branch merged in, the branch the commit is on is said once, and the tag is
+    // beside the id. The message has the rest of the pane, below a blank row.
     [TestMethod]
     public async Task TestAMergeCommit()
     {
         Assert.AreEqual(
             """
-            Id:         c300000000000000000000000000000000000000  (/test/repo)
-            Branch:     main  (origin/main)
-            Author:     Test Author, time: 2024-10-15 11:59:00 +00:00
-            Children:   c4000000
-            Parents:    c2000000, d1000000
-            Tags:       [v1.0]
-            Tips:       (origin/main)
+            Id:       c300000000000000000000000000000000000000  [v1.0]
+            Branch:   main
+            Author:   Test Author, 2024-10-15 11:59:00 +00:00
+            Parents:  c2000000, d1000000 dev    Children: c4000000
+
             Merge branch 'dev' into main
 
             Body line
             """,
-            TextOf(await Fixture(), RepoBuilder.Sha("c3"))
+            TextOf(await Fixture(), "c3")
         );
+    }
+
+    [TestMethod]
+    public async Task TestTheBranchMergedInIsInItsColor()
+    {
+        var repo = await Fixture();
+        var parents = RowsOf(repo, "c3")[3];
+
+        var dev = parents.Fragments.Single(f => f.Text == "dev");
+        Assert.AreEqual(Colors.GetColor(repo, repo.BranchByName["dev"]), dev.Color);
     }
 
     [TestMethod]
     public async Task TestACommitNotPushed()
     {
-        Assert.AreEqual(
-            """
-            Id:         c400000000000000000000000000000000000000  (/test/repo)
-            Branch:     main  (main)
-            Author:     Test Author, time: 2024-10-15 12:00:00 +00:00
-            Children:
-            Parents:    c3000000
-            Remote:     ▲ pushable
-            Ahead work
-            """,
-            TextOf(await Fixture(), RepoBuilder.Sha("c4"))
-        );
+        Assert.AreEqual("Branch:   main  ▲ pushable", RowOf(await Fixture(), "c4", "Branch:"));
     }
 
+    // The first commit of a branch says where it was started from, and where it was merged
+    [TestMethod]
+    public async Task TestTheFirstCommitOfABranch()
+    {
+        Assert.AreEqual("Parents:  c1000000 main    Children: c3000000 main", RowOf(await Fixture(), "d1", "Parents:"));
+    }
+
+    [TestMethod]
+    public async Task TestTheFirstCommitOfTheRepo()
+    {
+        Assert.AreEqual("Parents:  none    Children: d1000000 dev, c2000000", RowOf(await Fixture(), "c1", "Parents:"));
+    }
+
+    // No author or time, and the id is said in yellow, as the log's © is
     [TestMethod]
     public async Task TestTheUncommittedChanges()
     {
@@ -89,33 +105,23 @@ public class CommitDetailsRowsTest
 
         Assert.AreEqual(
             """
-            Id:         Uncommitted  (/test/repo)
-            Branch:     main  (main)
-            Children:
-            Parents:    c4000000
-            Tips:       (main)
+            Id:       Uncommitted
+            Branch:   main
+            Parents:  c4000000
+
             1 uncommitted change
             """,
-            TextOf(repo, Repo.UncommittedId)
+            TextOf(repo, "")
         );
-        Assert.AreEqual(Color.BrightYellow, RowsOf(repo, Repo.UncommittedId)[0].Fragments[1].Color);
+        Assert.AreEqual(Color.BrightYellow, RowsOf(repo, "")[0].Fragments[1].Color);
     }
 
     [TestMethod]
     public async Task TestAnAmbiguousCommit()
     {
-        Assert.AreEqual(
-            """
-            Id:         d100000000000000000000000000000000000000  (/test/repo)
-            Branch:     feat-a  (feat-a)
-            Ambiguous:  feat-a, feat-b
-            Author:     Test Author, time: 2024-10-15 11:58:00 +00:00
-            Children:   a1000000, b1000000
-            Parents:    c1000000
-            Shared work
-            """,
-            TextOf(await AmbiguousFixture().ViewRepoAsync(ShowBranches.AllActive), RepoBuilder.Sha("d1"))
-        );
+        var repo = await AmbiguousFixture().ViewRepoAsync(ShowBranches.AllActive);
+
+        Assert.AreEqual("Branch:   feat-a  ambiguous, could be: feat-a, feat-b", RowOf(repo, "d1", "Branch:"));
     }
 
     [TestMethod]
@@ -123,9 +129,37 @@ public class CommitDetailsRowsTest
     {
         var repo = await AmbiguousFixture().UserSetBranch("d1", "feat-a").ViewRepoAsync(ShowBranches.AllActive);
 
-        Assert.AreEqual(
-            "Branch:     feat-a  (feat-a)   Φ (ambiguity resolved by user)",
-            TextOf(repo, RepoBuilder.Sha("d1")).Split('\n')[1]
-        );
+        Assert.AreEqual("Branch:   feat-a  Φ (ambiguity resolved by user)", RowOf(repo, "d1", "Branch:"));
+    }
+
+    // A branch gmd recovered from a merge subject, git having deleted it long ago, and a branch of
+    // origin's whose tip is on main
+    [TestMethod]
+    public async Task TestADeletedBranchAndAnotherBranchsTip()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'gone' into main", "c2", "g1")
+            .Commit("g1", "Gone work", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .RemoteBranch("origin/remote-only", "c2")
+            .ViewRepoAsync(ShowBranches.AllActiveAndDeleted);
+
+        Assert.AreEqual("Branch:   gone  (deleted)", RowOf(repo, "g1", "Branch:"));
+        Assert.AreEqual("Branch:   main  also tip of remote-only", RowOf(repo, "c2", "Branch:"));
+    }
+
+    [TestMethod]
+    public async Task TestADetachedHead()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2")
+            .DetachedHead("c1")
+            .ViewRepoAsync(ShowBranches.AllActive);
+
+        Assert.AreEqual("Branch:   main  also tip of detached HEAD", RowOf(repo, "c1", "Branch:"));
     }
 }

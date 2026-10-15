@@ -159,7 +159,7 @@ public class LogViewTest
         if (isInDetails)
         {
             gmd.Send("Enter");
-            gmd.WaitFor("Children:");
+            gmd.WaitFor("Parents:");
             gmd.Send("Tab");
             gmd.WaitForStable();
         }
@@ -460,16 +460,14 @@ public class LogViewTest
         Assert.AreEqual(
             """
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            Id:         17d85ba889a1084f912c412d0ce435c9d7a36f53  ({repo})
-            Branch:     main  (main)
-            Author:     Test User, time: 2024-10-15 12:06:00 +00:00
-            Children:
-            Parents:    4e73d230
-            Tags:       [v1.0]
-            Tips:       (main)
+            Id:       17d85ba889a1084f912c412d0ce435c9d7a36f53  [v1.0]
+            Branch:   main
+            Author:   Test User, 2024-10-15 12:06:00 +00:00
+            Parents:  4e73d230
+
             Add delta
             """,
-            ScreenText.Rows(screen, repo.Path, 29, 9)
+            ScreenText.Rows(screen, repo.Path, 29, 7)
         );
     }
 
@@ -488,23 +486,23 @@ public class LogViewTest
         string TopOfDetails(string screen) => ScreenText.Rows(screen, repo.Path, 30, 1).TrimEnd('┃').TrimEnd();
 
         gmd.Send("Enter");
-        gmd.WaitFor("Children:");
+        gmd.WaitFor("Parents:");
         gmd.Send("Tab");
         gmd.WaitForStable();
 
         gmd.Send("Down");
-        Assert.AreEqual("Branch:     main  (main)", TopOfDetails(gmd.WaitUntilGone("Id:")));
+        Assert.AreEqual("Branch:   main", TopOfDetails(gmd.WaitUntilGone("Id:")));
         gmd.Send("PageDown"); // The 10 rows less the one kept
-        Assert.AreEqual("Body line 3", TopOfDetails(gmd.WaitFor("Body line 12")));
+        Assert.AreEqual("Body line 4", TopOfDetails(gmd.WaitFor("Body line 13")));
         gmd.Send("Up");
-        Assert.AreEqual("Body line 2", TopOfDetails(gmd.WaitUntilGone("Body line 12")));
+        Assert.AreEqual("Body line 3", TopOfDetails(gmd.WaitUntilGone("Body line 13")));
         gmd.Send("PageUp");
         StringAssert.StartsWith(TopOfDetails(gmd.WaitFor("Id:")), "Id:");
 
         gmd.Send("Tab");
         gmd.WaitForStable();
         gmd.Send("Down");
-        StringAssert.StartsWith(TopOfDetails(gmd.WaitFor("Add delta")), "Id:         17d85ba889a1");
+        StringAssert.StartsWith(TopOfDetails(gmd.WaitFor("Add delta")), "Id:       17d85ba889a1");
     }
 
     // The scrollbar is magenta in the pane the keys act on and gray in the other, so Tab moves it
@@ -518,7 +516,8 @@ public class LogViewTest
         var t = TempRepo.BaseTime;
         for (var i = 1; i <= 30; i++) // More commits than the log shows above the details
             await repo.CommitFileAtAsync("alpha.txt", $"{i}\n", $"Change {i}", t.AddMinutes(10 + i));
-        // Id, Branch, Author, Children and Parents above the 5 rows of the message fill the 10 rows
+        // Id, Branch, Author and Parents, and the blank row below them, above the 5 rows of the message
+        // fill the 10 rows
         await repo.CommitFileAtAsync(
             "alpha.txt",
             "fits\n",

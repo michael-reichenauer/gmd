@@ -95,14 +95,14 @@ public class KeyHintTest
             ┗    Initial                                                                   9dc406e3 Test User      2024-10-15 12:00
 
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            Id:         17d85ba889a1084f912c412d0ce435c9d7a36f53  ({repo})
-            Branch:     main  (main)
-            Author:     Test User, time: 2024-10-15 12:06:00 +00:00
-            Children:
-            Parents:    4e73d230
-            Tags:       [v1.0]
-            Tips:       (main)
+            Id:       17d85ba889a1084f912c412d0ce435c9d7a36f53  [v1.0]
+            Branch:   main
+            Author:   Test User, 2024-10-15 12:06:00 +00:00
+            Parents:  4e73d230
+
             Add delta
+
+
 
 
             ────────── commit on main:  m menu  d diff  Enter hide details  ←→ branch  ⇧→ show branch  f search ────────── ? help ──
