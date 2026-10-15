@@ -193,6 +193,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
     commit origin went back to is in the local branch too), so it is found by origin's old tip being
     in the local branch, and a plain push of it asks first.
 
+- The commit details reworked (2026-10-15): the fields are four rows (`CommitDetailsRows`, with no
+  view), so the message has most of the ten; parents and children are named with their branch where
+  it is another, so a merge says what it merged; and the files the commit changed are listed below
+  the message (`git show --raw --numstat`, `GetChangedFilesAsync`), read once the cursor has rested
+  on it for 150 ms and kept for the last 200 commits, and those of the uncommitted changes from the
+  status. Left open, see Product: long message lines are cut rather than wrapped, the committer is
+  not shown, and the pane is ten rows whatever the terminal's height.
+
 **Bugs fixed** (the ones a user could hit; all have regression tests)
 
 - The log failed entirely under `ar-SA` and showed years hundreds off under `th-TH` / `fa-IR`:
@@ -478,6 +486,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 - `USABILITY.md` holds the usability review's proposals not yet done: Tiers 2 to 4, and the
   small bugs found along the way; and the product review's (2026-10-07), A to D.
+- The commit details pane: a message line longer than the pane is cut at its edge, where wrapping
+  it would need the rows built for the width (`OnGetContent` is given it); the committer, when not
+  the author (a rebase, a cherry pick, a commit GitHub made), is not shown, since the log reads no
+  committer name (`%cn`), only its time, which `GitConverter` drops; and the pane is ten rows on any
+  terminal, nearly half of a 24-row one. The files are read when shown, and the email and committer
+  could be too, rather than with the log for every commit.
 - Git's questions are asked in gmd's login dialog (product review step 17): ssh, and git, which asks
   `SSH_ASKPASS` when it has no `GIT_ASKPASS`, run gmd as the askpass, which asks the gmd that ran the
   git over a named pipe (`Askpass`, `AskpassServer`, `LoginDlg`). What is left:
