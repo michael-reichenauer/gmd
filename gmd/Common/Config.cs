@@ -1,4 +1,5 @@
 using gmd.Cui.Worktrees;
+using gmd.Installation;
 
 namespace gmd.Common;
 
@@ -68,9 +69,19 @@ public class Releases
     public Release StableRelease { get; set; } = new Release();
     public string Etag { get; set; } = "";
 
-    // A dev instance is never offered one, since its version is not a release's
+    // Whether the release the last check found is newer than the gmd that runs, and so offered
     public bool IsUpdateAvailable() =>
-        !Build.IsDevInstance() && Version.TryParse(LatestVersion, out var latest) && latest > Build.Version();
+        IsUpdateAvailable(Build.Version(), Build.IsDevInstance(), RunningGmd.Current.PackageManager != null);
+
+    // A dev instance is never offered one, since its version is not a release's, and a gmd that a
+    // package manager installed is offered no preview, which the package manager has not: the check of
+    // such a gmd finds none, but the config is shared by every gmd on the machine, and another one,
+    // which updates itself and allows previews, may have found one
+    internal bool IsUpdateAvailable(Version running, bool isDevInstance, bool isPackageManaged) =>
+        !isDevInstance
+        && !(IsPreview && isPackageManaged)
+        && Version.TryParse(LatestVersion, out var latest)
+        && latest > running;
 
     // The version there is to update to, as gmd writes a version, or "" when there is none
     public string UpdateVersion() =>
