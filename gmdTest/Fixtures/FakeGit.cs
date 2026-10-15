@@ -407,6 +407,14 @@ class FakeGit : IGit
     public Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result<FilePatch>> GetUncommittedPatchAsync(string path, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> ApplyPatchToIndexAsync(FilePatch patch, string indexPath, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> ApplyPatchReversedAsync(FilePatch patch, string wd) => throw new NotSupportedException();
+
     public Task<Result> AddTagAsync(string name, string commitId, string wd) => throw new NotSupportedException();
 
     public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd) =>

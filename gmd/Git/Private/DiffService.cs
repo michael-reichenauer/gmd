@@ -139,46 +139,25 @@ class DiffService : IDiffService
         return ParseDiff(output, $"Diff of stash {name}");
     }
 
-    public async Task<Result<CommitDiff>> GetUncommittedDiffAsync(DiffOptions options, string wd)
-    {
-        // A diff of the working tree leaves out the files git does not track yet, and a file moved
-        // without 'git mv' shows as one deleted and one new rather than as a rename. Both are there
-        // once everything is staged, so it is, but into a copy of the index, which is deleted
-        // afterwards: git reads GIT_INDEX_FILE for which index to use, as 'git stash -u' does for
-        // the same reason. This used to stage into the index itself and 'git reset' it after, which
-        // wiped whatever the user had staged with other tools, 'git add -p' or an editor.
-        //
-        // That also makes it safe while an operation is in progress. 'git add .' stages an unmerged
-        // path with the conflict markers as its content, which resolves the conflict, and done to
-        // the index itself that could not be undone. Done to the copy, it changes only what the
-        // diff is made from, and a conflicted file diffs the same either way, markers and all.
-        var tempIndex = Path.Join(Path.GetTempPath(), $"gmd-index-{Guid.NewGuid():N}");
-        try
-        {
-            return await DiffWithIndexAsync(options, tempIndex, wd);
-        }
-        finally
-        {
-            // Git writes the copy through a lock file beside it, left behind only if git was killed
-            string[] paths = [tempIndex, $"{tempIndex}.lock"];
-            foreach (var path in paths)
-            {
-                if (Result.Catch(() => File.Delete(path)) is Error e)
-                    Log.Warn($"Failed to delete {path}, {e}");
-            }
-        }
-    }
+    public async Task<Result<CommitDiff>> GetUncommittedDiffAsync(DiffOptions options, string wd) =>
+        await TempIndex.WithCopyAsync<CommitDiff>(wd, env => DiffWithIndexAsync(options, env, wd));
 
-    async Task<Result<CommitDiff>> DiffWithIndexAsync(DiffOptions options, string tempIndex, string wd)
+    // A diff of the working tree leaves out the files git does not track yet, and a file moved
+    // without 'git mv' shows as one deleted and one new rather than as a rename. Both are there
+    // once everything is staged, so it is, but into a copy of the index (TempIndex), as 'git stash
+    // -u' does for the same reason. This used to stage into the index itself and 'git reset' it
+    // after, which wiped whatever the user had staged with other tools, 'git add -p' or an editor.
+    //
+    // That also makes it safe while an operation is in progress. 'git add .' stages an unmerged
+    // path with the conflict markers as its content, which resolves the conflict, and done to
+    // the index itself that could not be undone. Done to the copy, it changes only what the
+    // diff is made from, and a conflicted file diffs the same either way, markers and all.
+    async Task<Result<CommitDiff>> DiffWithIndexAsync(
+        DiffOptions options,
+        IReadOnlyDictionary<string, string> env,
+        string wd
+    )
     {
-        // A copy rather than a new, empty index, so that git's record of which files are unchanged
-        // since it last looked carries over, and it need not read every file in the working tree.
-        // A repo that has never staged anything has no index to copy, and git creates one.
-        var index = Path.Join(GitDir.GitDirPathOf(wd), "index");
-        if (File.Exists(index) && Result.Catch(() => File.Copy(index, tempIndex)) is Error copyError)
-            return new Error("Failed to copy the index", copyError);
-
-        var env = new Dictionary<string, string> { ["GIT_INDEX_FILE"] = tempIndex };
         if (await cmd.RunAsync("git", "add .", wd, environment: env) is Error addError)
             return addError;
 

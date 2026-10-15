@@ -65,6 +65,16 @@ interface IGit
         DiffOptions options,
         string wd
     );
+
+    // The patch of one file's uncommitted changes, from HEAD to the working tree, a file git does not
+    // track yet as a new one, for applying some of its lines (FilePatch)
+    Task<Result<FilePatch>> GetUncommittedPatchAsync(string path, string wd);
+
+    // Applies a patch to an index, the repository's own for "", leaving the working tree as it is
+    Task<Result> ApplyPatchToIndexAsync(FilePatch patch, string indexPath, string wd);
+
+    // Takes the changes of a patch back in the working tree, leaving the index as it is
+    Task<Result> ApplyPatchReversedAsync(FilePatch patch, string wd);
     Task<Result> RunDiffToolAsync(string path, string wd);
     Task<Result> RunMergeToolAsync(string path, string wd);
     Task<Result> FetchAsync(string wd);
