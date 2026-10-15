@@ -1,7 +1,22 @@
 # Change Log for Gmd
 --------------------
 
-148 releases:
+149 releases:
+
+## [v1.10.1446.1006] - 2026-10-15
+- Give a commit's message most of the details pane, with its fields in four rows, and name the branch of a parent or child on another one, so a merge says what it merged
+- List the files a commit changed in its details, with the lines added and deleted in each, and the uncommitted files in theirs, the conflicted first
+- Ask what to copy with Ctrl-C in the log: of a commit its id, message, subject or link, of the rows selected their ids, messages or range
+- Show commit ids with eight characters rather than six, as git log --oneline does in all but small repositories
+- Keep a branch set by hand by its commit's full id, so it never applies to another commit with the same first characters; one set with an earlier version is to be set again
+- Show the latest 50,000 commits of a large repository rather than 30,000, in no more memory than before
+- Read a large repository's log much faster when it has no commit-graph file, by writing one, as git gc would
+- Decide the branches of long ambiguous stretches in a fraction of the time, e.g. 2 s rather than 17 s for 200,000 commits of rust
+- Keep main's line through a merged tag or another project's branch pulled in, e.g. git's translations and gitk
+- Recover a deleted branch that merge subjects name where other branches were started from it, leaving far fewer commits ambiguous
+- Name a branch after a tag or a loose word of a merge subject only when nothing else names it
+- Take a branch and a fork's copy of it, e.g. timfel/1.2.x, as one where they meet
+- Let a branch started on the merge of the one before it share that one's column
 
 ## [v1.9.1446.426] - 2026-10-15
 - Never offer a preview to a gmd installed with Homebrew, which has the stable releases only
