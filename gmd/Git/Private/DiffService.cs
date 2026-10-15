@@ -5,6 +5,7 @@ namespace gmd.Git.Private;
 interface IDiffService
 {
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
     Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
@@ -55,6 +56,70 @@ class DiffService : IDiffService
             return new Error("Failed to parse diff");
 
         return commitDiffs[0];
+    }
+
+    // The files of the same diff as GetCommitDiffAsync, against the first parent, from two lists of
+    // one 'show': --raw for what happened to each file, which the counts cannot tell (a new file and
+    // one with lines only added look the same), and --numstat for the lines added and deleted. Git
+    // writes the two for the same files in the same order.
+    public async Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd)
+    {
+        var args =
+            $"show {CommitHeaderFormat} --no-color --no-ext-diff --format= -z --raw --numstat"
+            + $" --first-parent --root --find-renames {commitId}";
+        var result = await cmd.RunAsync("git", args, wd);
+        if (result is not string output)
+            return result.Error;
+
+        return ParseChangedFiles(output);
+    }
+
+    // With -z every field ends in a NUL. A --raw entry is ':<modes> <ids> <letter[score]>', then the
+    // path, or for a rename or copy the old and the new path. A --numstat entry is
+    // '<added>\t<deleted>\t<path>', or with the path empty and the old and new path after it for a
+    // rename or copy, and '-' for the counts of a binary file.
+    static Result<IReadOnlyList<ChangedFile>> ParseChangedFiles(string output)
+    {
+        var fields = output.Split('\0');
+        List<(char Kind, string Path, string OldPath)> raws = [];
+        List<(int Added, int Deleted, bool IsBinary)> counts = [];
+
+        for (var i = 0; i < fields.Length; i++)
+        {
+            var field = fields[i];
+            if (field.Trim() == "")
+                continue; // The empty one after the last NUL
+
+            if (field.StartsWith(':'))
+            {
+                var kind = field[(field.LastIndexOf(' ') + 1)..].FirstOrDefault();
+                var isTwoPaths = kind is 'R' or 'C';
+                var first = fields.ElementAtOrDefault(++i) ?? "";
+                var second = isTwoPaths ? fields.ElementAtOrDefault(++i) ?? "" : "";
+                raws.Add(isTwoPaths ? (kind, second, first) : (kind, first, ""));
+                continue;
+            }
+
+            var parts = field.Split('\t');
+            var isBinary = parts.Length == 3 && parts[0] == "-" && parts[1] == "-";
+            var (added, deleted) = (0, 0);
+            if (
+                parts.Length != 3
+                || !isBinary && (!int.TryParse(parts[0], out added) || !int.TryParse(parts[1], out deleted))
+            )
+            {
+                return new Error($"Failed to parse changed file: '{field}'");
+            }
+            if (parts[2] == "")
+                i += 2; // The old and new path of a rename, which the --raw entry has too
+            counts.Add((added, deleted, isBinary));
+        }
+
+        if (raws.Count != counts.Count)
+            return new Error($"Failed to parse changed files: {raws.Count} files, but {counts.Count} counts");
+
+        return raws.Zip(counts, (r, c) => new ChangedFile(r.Kind, r.Path, r.OldPath, c.Added, c.Deleted, c.IsBinary))
+            .ToList();
     }
 
     public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)

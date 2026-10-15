@@ -109,6 +109,9 @@ static class GitConverter
 
     public static CommitDiff[] ToCommitDiffs(Git.CommitDiff[] diffs) => diffs.Select(ToCommitDiff).ToArray();
 
+    public static ChangedFile ToChangedFile(Git.ChangedFile f) =>
+        new(f.Kind, f.Path, f.OldPath, f.Added, f.Deleted, f.IsBinary);
+
     static FileDiff ToFileDiff(Git.FileDiff d) =>
         new(
             d.PathBefore,

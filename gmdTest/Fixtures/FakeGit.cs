@@ -191,6 +191,9 @@ class FakeGit : IGit
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd) =>
+        throw new NotSupportedException();
+
     public Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd) =>
         throw new NotSupportedException();
 

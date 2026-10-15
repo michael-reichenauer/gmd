@@ -20,7 +20,18 @@ static class CommitDetailsRows
 
     public static TextBuilder Label(string label) => Text.Dark(label.PadRight(LabelWidth));
 
-    public static IReadOnlyList<Text> Of(Repo repo, Commit commit, Branch branch, IBranchColorService colors)
+    // At most this many of the files a commit changed are listed, which is plenty to see what it did
+    const int MaxFiles = 500;
+
+    // The files are those the commit changed, null while they are not read yet. Those of the
+    // uncommitted changes are in the repo's status already.
+    public static IReadOnlyList<Text> Of(
+        Repo repo,
+        Commit commit,
+        Branch branch,
+        IBranchColorService colors,
+        IReadOnlyList<ChangedFile>? files = null
+    )
     {
         List<Text> rows = [IdRow(commit), BranchRow(repo, commit, branch, colors)];
         if (commit.Author != "")
@@ -30,8 +41,52 @@ static class CommitDetailsRows
         rows.AddRange(commit.Message.Split('\n').Select(l => Text.White(l).ToText()));
         if (commit.Id == Repo.UncommittedId)
             rows.AddRange(UncommittedFiles(repo.Status));
+        else if (files != null)
+            rows.AddRange(ChangedFiles(files));
 
         return rows;
+    }
+
+    // Whether the commit has files of its own to read, i.e. is a commit of the repo, and not the
+    // uncommitted changes, whose files are in the status, or a row that stands for no commit
+    public static bool HasChangedFiles(Commit commit) =>
+        commit.Id != Repo.UncommittedId
+        && commit.Id != Repo.EmptyRepoCommitId
+        && commit.Id != Repo.TruncatedLogCommitId;
+
+    // The files the commit changed, below its message as 'git show --stat' has them: how many and
+    // how many lines, then each file with the lines added and deleted in it
+    static IEnumerable<Text> ChangedFiles(IReadOnlyList<ChangedFile> files)
+    {
+        if (files.Count == 0)
+            return [Text.Empty, Text.Dark("No files changed")];
+
+        var summary = Text.White($"{files.Count} file{(files.Count == 1 ? "" : "s")} changed");
+        AddCounts(summary, files.Sum(f => f.Added), files.Sum(f => f.Deleted));
+        List<Text> rows = [Text.Empty, summary];
+
+        foreach (var f in files.Take(MaxFiles))
+        {
+            var row = FileRow(f.Kind, f.OldPath == "" ? f.Path : $"{f.OldPath} → {f.Path}").ToTextBuilder();
+            if (f.IsBinary)
+                row.Dark("  binary");
+            else
+                AddCounts(row, f.Added, f.Deleted);
+            rows.Add(row);
+        }
+        if (files.Count > MaxFiles)
+            rows.Add(Text.Dark($"┅ {files.Count - MaxFiles} more"));
+
+        return rows;
+    }
+
+    // The lines added and deleted, each only when there are any, in the diff's green and red
+    static void AddCounts(TextBuilder text, int added, int deleted)
+    {
+        if (added > 0)
+            text.Dark("  ").Green($"+{added}");
+        if (deleted > 0)
+            text.Dark(added > 0 ? " " : "  ").Red($"-{deleted}");
     }
 
     // The files with changes not committed, below the count of them: the conflicted first, since

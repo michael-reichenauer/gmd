@@ -392,6 +392,9 @@ public record HunkResolution(int Index, HunkChoice Choice, string ManualText = "
     public override string ToString() => $"{Index}: {Choice}";
 }
 
+// A file a commit changed, see Git.ChangedFile
+public record ChangedFile(char Kind, string Path, string OldPath, int Added, int Deleted, bool IsBinary);
+
 record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs)
 {
     public override string ToString() => $"Files: {FileDiffs.Count}";

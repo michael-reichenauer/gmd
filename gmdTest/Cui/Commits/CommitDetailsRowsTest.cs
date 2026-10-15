@@ -157,6 +157,74 @@ public class CommitDetailsRowsTest
         Assert.AreEqual(Color.Yellow, rows[11].Fragments[0].Color);
     }
 
+    // Once read, the files a commit changed are below its message, as 'git show --stat' has them
+    [TestMethod]
+    public async Task TestTheFilesACommitChanged()
+    {
+        var repo = await Fixture();
+        var commit = repo.CommitById[RepoBuilder.Sha("c2")];
+        ChangedFile[] files =
+        [
+            new('R', "doc/new.md", "old.md", 1, 0, false),
+            new('M', "logo.png", "", 0, 0, true),
+            new('D', "gone.txt", "", 0, 4, false),
+            new('M', "src/b.cs", "", 12, 3, false),
+        ];
+
+        var rows = CommitDetailsRows.Of(repo, commit, repo.BranchByName[commit.BranchName], Colors, files);
+
+        Assert.AreEqual(
+            """
+            Second
+
+            4 files changed  +13 -7
+            R old.md → doc/new.md  +1
+            M logo.png  binary
+            D gone.txt  -4
+            M src/b.cs  +12 -3
+            """,
+            string.Join("\n", rows.Skip(5).Select(r => r.ToString()))
+        );
+    }
+
+    [TestMethod]
+    public async Task TestACommitThatChangedNoFiles()
+    {
+        var repo = await Fixture();
+        var commit = repo.CommitById[RepoBuilder.Sha("c2")];
+
+        var rows = CommitDetailsRows.Of(repo, commit, repo.BranchByName[commit.BranchName], Colors, []);
+
+        Assert.AreEqual("No files changed", rows[^1].ToString());
+    }
+
+    [TestMethod]
+    public async Task TestOnlyTheFirstFilesOfAVeryLargeCommitAreListed()
+    {
+        var repo = await Fixture();
+        var commit = repo.CommitById[RepoBuilder.Sha("c2")];
+        var files = Enumerable.Range(0, 502).Select(i => new ChangedFile('A', $"f{i}", "", 1, 0, false)).ToList();
+
+        var rows = CommitDetailsRows.Of(repo, commit, repo.BranchByName[commit.BranchName], Colors, files);
+
+        Assert.AreEqual("502 files changed  +502", rows[7].ToString());
+        Assert.AreEqual("A f499  +1", rows[^2].ToString());
+        Assert.AreEqual("┅ 2 more", rows[^1].ToString());
+    }
+
+    // Neither the uncommitted changes nor the rows that stand for no commit have files to read
+    [TestMethod]
+    public async Task TestWhichCommitsHaveFilesToRead()
+    {
+        var c1 = (await Fixture()).CommitById[RepoBuilder.Sha("c1")];
+        Commit CommitOf(string id) => c1 with { Id = id };
+
+        Assert.IsTrue(CommitDetailsRows.HasChangedFiles(CommitOf(RepoBuilder.Sha("c1"))));
+        Assert.IsFalse(CommitDetailsRows.HasChangedFiles(CommitOf(Repo.UncommittedId)));
+        Assert.IsFalse(CommitDetailsRows.HasChangedFiles(CommitOf(Repo.TruncatedLogCommitId)));
+        Assert.IsFalse(CommitDetailsRows.HasChangedFiles(CommitOf(Repo.EmptyRepoCommitId)));
+    }
+
     [TestMethod]
     public async Task TestAnAmbiguousCommit()
     {

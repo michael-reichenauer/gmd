@@ -64,7 +64,11 @@ With a remote, main's first row is drawn `┣─┺`: main on origin and yours,
 on the same commit (see [Remote and Local Branches](#remote-and-local-branches)).
 
 `Enter` shows the details of the commit below the log, and `Tab` moves
-into them and back.
+into them and back: its full id and tags, its branch, its author, its
+parents and children (with their branch where it is another, so a merge
+says what it merged), its message, and the files it changed with the lines
+added and deleted in each. For the uncommitted changes they list the files,
+the conflicted first.
 
 ### The Highlighted Branch
 

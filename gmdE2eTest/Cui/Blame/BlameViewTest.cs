@@ -74,7 +74,7 @@ public class BlameViewTest
 
             A body line that only the log knows.
             """,
-            ScreenText.Rows(gmd.WaitFor("A body line"), repo.Path, 30, 8)
+            DetailsRows(gmd.WaitFor("A body line"), repo.Path, 8)
         );
     }
 
@@ -275,6 +275,14 @@ public class BlameViewTest
         Assert.IsFalse(screen.Contains("Discard Changes"), "Nothing to discard");
         Assert.AreEqual("alpha\nchanged\n", File.ReadAllText(Path.Join(repo.Path, "alpha.txt")));
     }
+
+    // The first rows of the details pane, less the scrollbar at the right edge, which the files the
+    // commit changed bring when they are read
+    static string DetailsRows(string screen, string repoPath, int count) =>
+        string.Join(
+            "\n",
+            ScreenText.Rows(screen, repoPath, 30, count).Split('\n').Select(r => r.TrimEnd('┃').TrimEnd())
+        );
 
     static void OpenBlameOf(TmuxSession gmd, string path)
     {

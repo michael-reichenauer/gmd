@@ -35,6 +35,9 @@ interface IGit
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+
+    // The files the commit changed, as its diff has them, with no diff read
+    Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd);
     Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd);
     Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
 
@@ -299,6 +302,12 @@ public record Tag(string Name, string CommitId);
 public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);
 
 record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs);
+
+// A file a commit changed: what happened to it, by git's letter ('A' added, 'M' modified, 'D'
+// deleted, 'R' renamed, 'C' copied, 'T' its type changed), its path, the path it had before a rename
+// or a copy and "" otherwise, and the lines added and deleted, which git does not count in a binary
+// file
+public record ChangedFile(char Kind, string Path, string OldPath, int Added, int Deleted, bool IsBinary);
 
 record FileDiff(
     string PathBefore,

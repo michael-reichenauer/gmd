@@ -103,6 +103,9 @@ internal class Git : IGit
     public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
         diffService.GetCommitDiffAsync(commitId, contextLines, wd);
 
+    public Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd) =>
+        diffService.GetChangedFilesAsync(commitId, wd);
+
     public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
         diffService.GetFileDiffAsync(path, contextLines, wd);
 

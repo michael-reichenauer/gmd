@@ -102,12 +102,12 @@ public class KeyHintTest
 
             Add delta
 
-
-
+            1 file changed  +1
+            A delta.txt  +1
 
             ────────── commit on main:  m menu  d diff  Enter hide details  ←→ branch  ⇧→ show branch  f search ────────── ? help ──
             """,
-            gmd.WaitFor("hide details"),
+            gmd.WaitFor("A delta.txt"),
             repo.Path
         );
     }
