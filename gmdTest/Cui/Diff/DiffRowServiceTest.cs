@@ -171,6 +171,44 @@ public class DiffRowServiceTest
         Assert.AreEqual("same\nnew\nmore", DiffRowService.CopyText(lines, false));
     }
 
+    // A search looks in each side's line without its line number, which '12' would otherwise find on
+    // every twelfth line, and in the headers, e.g. a file's path; not in a divider, nor in the filler
+    // of a side with no line
+    [TestMethod]
+    public void TestASearchLooksInTheLinesWithoutTheirNumbers()
+    {
+        var rows = RowsOf(
+            FileDiffOf(
+                "a.txt",
+                (DiffMode.DiffSame, "same"),
+                (DiffMode.DiffRemoved, "old"),
+                (DiffMode.DiffAdded, "new"),
+                (DiffMode.DiffAdded, "more")
+            )
+        );
+
+        var texts = rows
+            .Rows.Select(DiffRowService.SearchText)
+            .Where(t => t != ("", ""))
+            .Select(t => $"{t.Left.TrimEnd()}|{t.Right.TrimEnd()}");
+
+        Assert.AreEqual(
+            """
+            Commit:  abc123|
+            Author:  Test|
+            Date:    2025-01-01 00:00:00|
+            Message: A commit|
+            1 File:  1 modified   +2 -1 lines|
+              Modified:    a.txt|
+            Modified: a.txt|
+            same|same
+            old|new
+            |more
+            """,
+            string.Join("\n", texts)
+        );
+    }
+
     // Stepping the context levels
 
     [TestMethod]

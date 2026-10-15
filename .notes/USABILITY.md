@@ -118,6 +118,21 @@ Ranked by how soon someone new meets the gap.
    Pop; Tags ... in the Tag menu, a list of every tag with whether origin has it, to show, push or
    remove; Mark for Diff and Diff with in the commit menu; `change:` in the search; and `l` in the
    blame, the history of the lines.
+8. **Found later (2026-10-15)**, comparing gmd with the clients its audiences know:
+   - A search in the diff and the blame, where a long diff or file could only be scrolled. *Done
+     (2026-10-15):* `f` or `/` and then `n` and `Shift-N`, as in the log, but stepping from the
+     cursor and matching a part of a line as typed (`RowSearch`); every match marked black on yellow,
+     on the cursor's row too, and said on each view's own status line, over the bottom row with the
+     key hints off as in the log.
+   - A squash left unsigned where git's config signs commits. *Fixed (2026-10-15)*, see
+     `MODERNIZATION.md`. Few sign (about one commit in ten on GitHub), but a branch that requires
+     signed commits refused the push.
+   - Open, in the order they would be met: committing or discarding single hunks (the known limit in
+     the README; ticks per hunk in the diff of the uncommitted changes, applied to a copy of the
+     index, would keep the checklist's model); a cherry-pick of the selected commits, whose range the
+     copy menu offers for the command line; ignoring whitespace in a diff (`-w`); opening a file in
+     the editor at a line of the diff or the blame; a rebase of a published branch without its force
+     push; and a reset of a branch to any commit, which takes Uncommit and then Discard today.
 
 Not needed by the audiences above: submodule and LFS commands, bisect, patches, and pull requests
 through the services' APIs.

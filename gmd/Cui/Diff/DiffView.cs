@@ -34,7 +34,7 @@ class DiffView : IDiffView
     readonly IConflictView conflictView;
     readonly Config config;
     ContentView contentView = null!;
-    KeyHintBar? hintBar;
+    KeyHintBar hintBar = null!;
     CommitDiff[] diffs = null!;
     DiffRows diffRows = new DiffRows();
     DiffSource source = null!;
@@ -49,7 +49,15 @@ class DiffView : IDiffView
     bool isCommitTriggered = false;
     bool isRefreshNeeded;
 
+    // The search of the lines, f and then n and Shift-N, and the status line of this view, which says
+    // what it found, as the log's says what a command did
+    RowSearch search = RowSearch.None;
+    IStatusLine status = new StatusLine();
+
     bool IsSelected => contentView.SelectCount > 0;
+
+    // How wide each of the two columns is, as OnGetContent lays them out
+    int ColumnWidth => (contentView.ContentWidth + 1 - 2) / 2;
 
     // The conflicted paths and their kinds, re-read whenever the diff is. Taken from the status
     // rather than from the diff itself, so a conflict git wrote no markers for — a modify/delete,
@@ -87,6 +95,8 @@ class DiffView : IDiffView
         this.fileContext.Clear();
         this.conflictState = conflicts ?? ConflictState.None;
         this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
+        this.search = RowSearch.None;
+        this.status = new StatusLine();
 
         Toplevel diffView = new Toplevel()
         {
@@ -109,14 +119,19 @@ class DiffView : IDiffView
         };
 
         diffView.Add(contentView);
-        hintBar = config.ShowKeyHints
-            ? new KeyHintBar(
-                () => DiffHints.For(this.source.CanCommit, this.source.HasContext, conflictState.Files.Count > 0),
-                () => null
-            )
-            : null;
-        if (hintBar != null)
-            diffView.Add(hintBar);
+        // The bar is there with the hints off too, for what a search found, as the log has it
+        hintBar = new KeyHintBar(
+            () =>
+                DiffHints.For(
+                    this.source.CanCommit,
+                    this.source.HasContext,
+                    conflictState.Files.Count > 0,
+                    search.IsActive
+                ),
+            () => status.Current
+        );
+        diffView.Add(hintBar);
+        hintBar.FollowStatus(status, config.ShowKeyHints, diffView);
         RegisterShortcuts(contentView);
 
         contentView.SetNeedsDisplay();
@@ -145,6 +160,13 @@ class DiffView : IDiffView
         view.RegisterLetterHandler(Key.s, () => ShowScrollMenu());
         view.RegisterLetterHandler(Key.u, () => ShowUndoMenu());
         view.RegisterLetterHandler(Key.c, () => TriggerCommit());
+
+        // Search the lines with the keys the log searches its commits with. n and Shift-N are one case
+        // each, as they are in the log, rather than a letter in both cases.
+        view.RegisterLetterHandler(Key.f, Search);
+        view.RegisterKeyHandler((Key)'/', Search);
+        view.RegisterKeyHandler(Key.n, () => StepMatch(1));
+        view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
 
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
         // was bound to it in this view before.
@@ -188,6 +210,9 @@ class DiffView : IDiffView
             x,
             y,
             Menu.Items.SubMenu("Scroll to", "s", scrollToItems)
+                .Item("Search ...", "f", () => Search())
+                .Item("Next Match", "n", () => StepMatch(1), () => search.IsActive, () => NoSearch)
+                .Item("Previous Match", "⇧n", () => StepMatch(-1), () => search.IsActive, () => NoSearch)
                 .SubMenu("Diff File", "", diffItems)
                 .SubMenu("Resolve Conflicts", "Enter", conflictItems)
                 .SubMenu("Run External Merge Tool", "", GetMergeToolItems())
@@ -203,6 +228,75 @@ class DiffView : IDiffView
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected)
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
+    }
+
+    const string NoSearch = "No search to go on with: search with f first";
+
+    // Asks for a text and goes to where it is, from the cursor down, and n and Shift-N then go on
+    // from wherever the cursor is, as RowSearch steps
+    void Search()
+    {
+        if (SearchDlg.Show("diff") is not string text)
+            return;
+
+        search = FindInRows(text);
+        if (!search.IsActive)
+        {
+            status.Notice($"'{text}' is not in the diff");
+            return;
+        }
+
+        ShowMatch(search.First(contentView.CurrentIndex));
+    }
+
+    void StepMatch(int direction)
+    {
+        if (!search.IsActive)
+        {
+            status.Notice(NoSearch);
+            return;
+        }
+
+        var index = search.Next(contentView.CurrentIndex, direction);
+        if (index == -1)
+        {
+            status.Notice(search.NoMoreText(direction));
+            return;
+        }
+
+        ShowMatch(index);
+    }
+
+    // Each side of a row is searched, and not the two as one line, so a match never runs from the end
+    // of the left one into the right one
+    RowSearch FindInRows(string text) =>
+        RowSearch.Find(
+            text,
+            diffRows.Count,
+            i =>
+            {
+                var (left, right) = DiffRowService.SearchText(diffRows.Rows[i]);
+                return $"{left}\n{right}";
+            }
+        );
+
+    // The cursor is put on the row, on the side the match is on, the left one when both have it, which
+    // is where a copy then takes the lines from too, and the columns are scrolled sideways to show it
+    void ShowMatch(int index)
+    {
+        var row = diffRows.Rows[index];
+        if (row.Mode == DiffRowMode.SideBySide)
+        {
+            var (left, right) = DiffRowService.SearchText(row);
+            isFocusLeft = RowSearch.IndexOf(left, search.Text) != -1;
+            var (text, lineNbr) = isFocusLeft ? (left, row.LeftLineNbr) : (right, row.RightLineNbr);
+            var start = DiffRowService.LineNbrWidth(lineNbr) + RowSearch.IndexOf(text, search.Text);
+            rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, ColumnWidth);
+        }
+
+        contentView.ShowCurrentIndex(index);
+        contentView.SetNeedsDisplay();
+        status.Info(search.MatchText(index));
     }
 
     void ShowScrollMenu()
@@ -528,7 +622,8 @@ class DiffView : IDiffView
     {
         diffs = newDiffs;
         diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
-        hintBar?.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
+        search = FindInRows(search.Text); // The rows the search found are other rows now
+        hintBar.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
 
         // The old selection covers rows that no longer hold what they did, and a copy would take
         // whatever now sits there
@@ -618,34 +713,35 @@ class DiffView : IDiffView
 
         if (row.Mode == DiffRowMode.SpanBoth)
         { // The left text spans over full width
-            var text = row.Left.Subtext(0, viewWidth);
+            var text = Marked(row.Left, row.LineNbr).Subtext(0, viewWidth);
             return isSelectedRow ? text.ToSelect()
                 : isCurrentRow ? text.ToHighlight()
                 : text;
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
+        var (leftText, rightText) = (Marked(row.Left, row.LeftLineNbr), Marked(row.Right, row.RightLineNbr));
         var left =
             (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffRowService.NoLine)
                 ? row.Left != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…").Add(row.Left.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
-                    : row.Left.Subtext(rowStartX, columnWidth, true)
+                    ? Text.Dark("…").Add(leftText.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
+                    : leftText.Subtext(rowStartX, columnWidth, true)
                 : row.Left != DiffRowService.NoLine && rowStartX > 0
                     ? Text.Dark("…")
-                        .Add(row.Left.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…")))
-                    : row.Left.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
+                        .Add(leftText.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…")))
+                    : leftText.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
         var right =
             (row.Right.Length - rowStartX <= columnWidth || row.Right == DiffRowService.NoLine)
                 ? row.Right != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…").Add(row.Right.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
-                    : row.Right.Subtext(rowStartX, columnWidth, true)
+                    ? Text.Dark("…").Add(rightText.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
+                    : rightText.Subtext(rowStartX, columnWidth, true)
                 : row.Right != DiffRowService.NoLine && rowStartX > 0
                     ? Text.Dark("…")
                         .Add(
-                            row.Right.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…"))
+                            rightText.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…"))
                         )
-                    : row.Right.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
+                    : rightText.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
 
         return Text.Add(
                 isSelectedRow && isFocusLeft ? left.ToSelect()
@@ -659,6 +755,12 @@ class DiffView : IDiffView
                 : right
             );
     }
+
+    // The text with what the search found marked, after the line number, which is not searched
+    Text Marked(Text text, int lineNbr) =>
+        !search.IsActive || text == DiffRowService.NoLine
+            ? text
+            : text.WithMatches(search.Text, DiffRowService.LineNbrWidth(lineNbr));
 
     // Copy selected text to clipboard and clear selection
     void OnCopy()

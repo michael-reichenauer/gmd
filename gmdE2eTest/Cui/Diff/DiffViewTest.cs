@@ -132,6 +132,51 @@ public class DiffViewTest
         }
     }
 
+    // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the
+    // cursor down, with the text marked black on yellow on the cursor's row too; n and Shift-N go on
+    // from there and say where they stop, as the log's do. What it found is said over the bottom row,
+    // the key hints being off.
+    [TestMethod]
+    public async Task TestSearchTheDiff()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        gmd.WaitFor("Modified: long.txt");
+
+        gmd.Send("/");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText("LINE 2");
+        gmd.Send("Enter");
+
+        var found = gmd.WaitFor("Match 1 of");
+        Assert.AreEqual("Match 1 of 7 for 'LINE 2'", ScreenText.LastLine(found));
+        var row = ScreenText.Of(found, repo.Path).Split('\n').FindIndexBy(l => l.Contains("line 20 changed"));
+        // The cursor's row: highlighted on the left side, 'D', where the match is, and 'line 2' marked,
+        // 'y', on both sides, beside the change, 'g'
+        Assert.AreEqual(
+            "  DDDyyyy yD                                               .  ...yyyy y. ggggggg",
+            ScreenText.BackgroundRows(gmd.CaptureColors(), row, 1)
+        );
+
+        gmd.Send("n");
+        Assert.AreEqual("Match 2 of 7 for 'LINE 2'", ScreenText.LastLine(gmd.WaitFor("Match 2 of")));
+        gmd.Send("N");
+        gmd.WaitFor("Match 1 of");
+        gmd.Send("N");
+        Assert.AreEqual(
+            "No more matches for 'LINE 2' above: n goes down",
+            ScreenText.LastLine(gmd.WaitFor("No more matches"))
+        );
+
+        gmd.Send("f");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText("absent");
+        gmd.Send("Enter");
+        Assert.AreEqual("'absent' is not in the diff", ScreenText.LastLine(gmd.WaitFor("is not in the diff")));
+    }
+
     // The same thing from the diff menu, which is how the keys are found in the first place. The
     // items name the file they would act on and what it would then show, and the direction that
     // has nowhere to go is disabled — at the default context there is no less context to ask for.
@@ -155,34 +200,39 @@ public class DiffViewTest
             """
             ══════════════════════════════════════╭ Diff Menu ────────────────────────────────╮════════════════════════════════════
             Commit:  c00a3cc9fb5f429e9136ddb81fe75│Scroll to                               s >│
-            Author:  Test User <test@example.com> │Diff File                                 >│
-            Date:    2024-10-15 12:02:00          │Resolve Conflicts                   Enter >│
-            Message: Change both files            │Run External Merge Tool                   >│
-                                                  │Discard Changes                         u >│
-            2 Files:  2 modified   +2 -2 lines    │Refresh                                 r  │
-              Modified:    long.txt               │Commit                                  c  │
-              Modified:    short.txt              │More Context of long.txt (15 lines)     +  │
+            Author:  Test User <test@example.com> │Search ...                              f  │
+            Date:    2024-10-15 12:02:00          │Next Match                              n  │
+            Message: Change both files            │Previous Match                         ⇧n  │
+                                                  │Diff File                                 >│
+            2 Files:  2 modified   +2 -2 lines    │Resolve Conflicts                   Enter >│
+              Modified:    long.txt               │Run External Merge Tool                   >│
+              Modified:    short.txt              │Discard Changes                         u >│
+                                                  │Refresh                                 r  │
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Commit                                  c  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: long.txt                    │More Context of long.txt (15 lines)     +  │
                                                   │Less Context                            -  │
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Focus Left Column                       ←  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Modified: long.txt                    │Focus Right Column                      →  │
-                                                  │Close                                 Esc  │
-            ──────────────────────────────────────╰───────────────────────────────────────────╯────────────────────────────────────
+            ──────────────────────────────────────│Focus Left Column                       ←  │────────────────────────────────────
+              14 line 14                          │Focus Right Column                      →  │
+              15 line 15                          │Close                                 Esc  │
+              16 line 16                          ╰───────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 14),
+            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 17),
             repo.Path
         );
 
         // 'Less Context' is dark, i.e. disabled, while 'More Context' is white — the file is at the
         // default, so there is nothing narrower to ask for
-        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 8, 2).Split('\n');
+        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 11, 2).Split('\n');
         StringAssert.Contains(colors[0], "mWWWW WWWWWWW", "'More Context' and its shortcut are enabled");
         StringAssert.Contains(colors[1], "mDDDD DDDDDDD", "'Less Context' is dark, i.e. disabled");
 
-        // Two moves down from 'Scroll to', since the disabled items in between are skipped
-        gmd.Send("Down");
-        gmd.WaitForStable();
-        gmd.Send("Down");
-        gmd.WaitForStable();
+        // Three moves down from 'Scroll to', past 'Search ...' and 'Refresh', since the disabled
+        // items in between are skipped
+        for (int i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
         gmd.Send("Enter");
 
         StringAssert.Contains(

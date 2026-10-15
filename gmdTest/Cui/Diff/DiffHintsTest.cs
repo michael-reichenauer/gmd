@@ -12,12 +12,12 @@ public class DiffHintsTest
     public void TestTheDiffOffersCommitAndDiscardForTheUncommittedChanges()
     {
         Assert.AreEqual(
-            "m menu  Esc close  + - context  s to file  ←→ columns",
-            Line(DiffHints.For(canCommit: false, hasContext: true, hasConflicts: false))
+            "m menu  Esc close  + - context  s to file  f search  ←→ columns",
+            Line(DiffHints.For(canCommit: false, hasContext: true, hasConflicts: false, hasSearch: false))
         );
         Assert.AreEqual(
-            "m menu  Esc close  Enter resolve  c commit  + - context  s to file  u discard  ←→ columns",
-            Line(DiffHints.For(canCommit: true, hasContext: true, hasConflicts: true))
+            "m menu  Esc close  Enter resolve  c commit  + - context  s to file  f search  u discard  ←→ columns",
+            Line(DiffHints.For(canCommit: true, hasContext: true, hasConflicts: true, hasSearch: false))
         );
     }
 
@@ -26,8 +26,18 @@ public class DiffHintsTest
     public void TestALineHistoryHasNoContextToStep()
     {
         Assert.AreEqual(
-            "m menu  Esc close  s to file  ←→ columns",
-            Line(DiffHints.For(canCommit: false, hasContext: false, hasConflicts: false))
+            "m menu  Esc close  s to file  f search  ←→ columns",
+            Line(DiffHints.For(canCommit: false, hasContext: false, hasConflicts: false, hasSearch: false))
+        );
+    }
+
+    // n goes on to the next match once a search found any, as in the log
+    [TestMethod]
+    public void TestASearchWithMatchesOffersTheNextOne()
+    {
+        Assert.AreEqual(
+            "m menu  Esc close  + - context  s to file  n next match  f search  ←→ columns",
+            Line(DiffHints.For(canCommit: false, hasContext: true, hasConflicts: false, hasSearch: true))
         );
     }
 

@@ -519,7 +519,14 @@ Within the diff: `r` re-reads it from git, `s` scrolls to a file, `u`
 discards the changes of an uncommitted file, `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
 two columns sideways and pick which one a selection copies from, `Ctrl-C`
-copies the selected lines, and `Esc` or `q` closes the view. **Diff File**
+copies the selected lines, and `Esc` or `q` closes the view.
+
+`f` or `/` searches the lines for a text, as it is typed and in any case,
+and puts the cursor on the first line with it from the cursor down, on the
+side it is on, scrolled sideways to it where it is further right. Every
+place it is found is marked in black on yellow. `n` and `Shift-N` then go to
+the next and the previous one from wherever the cursor is, and the line at
+the bottom says which one it is, e.g. `Match 2 of 7`. **Diff File**
 in the menu opens an uncommitted file in the diff tool git is configured
 with (`git difftool`).
 
@@ -544,8 +551,9 @@ reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column
 stays put, `i` copies the current line's commit id and `Shift-I` its
-message, as in the log, `Ctrl-C` copies the selected lines, `m` opens the
-menu, and `Esc` or `q` closes the view.
+message, as in the log, `f` or `/` searches the code and `n` and `Shift-N`
+step through what it found, as in the diff, `Ctrl-C` copies the selected
+lines, `m` opens the menu, and `Esc` or `q` closes the view.
 
 
 ## Resolving Conflicts
