@@ -503,9 +503,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   through to the log view; `r` refreshes a diff. (`?` and F1 are registered there now.)
 - Cmd+C cannot reach a terminal program at all on macOS: the terminal keeps it, the classic key
   protocol cannot express it, and Terminal.Gui 1.x has no Command modifier. An iTerm2 profile
-  binding of Cmd+C to hex `0x03` is the workaround for copying rows. The commit id and message need
-  no Ctrl+C: `i` and `Shift-I` copy them, as the commit menu's *Copy Commit Id* and *Copy Commit
-  Message* do (2026-10-07).
+  binding of Cmd+C to hex `0x03` is the workaround for the copy menu. The commit id and message
+  need no Ctrl+C: `i` and `Shift-I` copy them, of the selected rows too, and the commit menu has
+  the copy menu as *Copy* (2026-10-15).
 - macOS Terminal sends Shift+↑/↓ as a plain `\E[A`/`\E[B` (`cat -v` shows `^[[A`), so they move
   rather than select there; gmd cannot tell them from ↑/↓. A profile key sending `\033[1;2A` /
   `\033[1;2B` fixes it, as `help.md` (Keys) says; iTerm2, VS Code and the Linux terminals send those

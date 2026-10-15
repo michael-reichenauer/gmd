@@ -265,6 +265,13 @@ Both are reworked, see proposal D.1.
    the uncommitted row says it is no commit yet. Blame copies its line's commit with the same two
    keys, so its gutter detail moved from `i` to `g`, and `c` copies nothing there any more, where
    in the log it commits (one of the letters the usability review found meaning two things).
+   *Since (2026-10-15):* Ctrl-C in the log asks what to copy (`CommitCopy`), the copy menu, which
+   is also the commit menu's Copy: of a commit the id, message, subject, id and subject, short id
+   (seven characters, as `git log --oneline` writes it and GitHub links it) or the link; of the rows
+   selected the ids, the messages, the ids and subjects, or the range `<oldest>^..<newest>`, all
+   oldest first, as `git cherry-pick` takes them. `i` and `Shift-I` act on the selection too. Ctrl-C
+   used to copy one selected row as drawn, the graph with it, and several as sid and subject, of
+   the top row's branch where the log highlighted the starting row's.
 3. Reword, fix up and drop, for the commits not yet pushed. *Done (2026-10-07):* reword and fix up
    are one item, **Amend <id> ...** in the commit menu of an older commit, the commit dialog with
    its message and the changed files, none ticked; **Drop <id>** is under Undo, beside Revert
