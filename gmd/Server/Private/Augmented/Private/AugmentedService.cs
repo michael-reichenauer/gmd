@@ -10,7 +10,8 @@ namespace gmd.Server.Private.Augmented.Private;
 [SingleInstance]
 class AugmentedService : IAugmentedService
 {
-    const int maxCommitCount = 30000; // Increase performance in case of very large repos
+    // The most commits read, the newest, which bounds the cost of every read of a large repo
+    internal const int MaxCommitCount = 30000;
 
     // The commits the reflogs mention that are looked up as maybe lost, the newest: each ref's
     // reflog is latest first, and a reflog of years can name many thousands
@@ -124,7 +125,7 @@ class AugmentedService : IAugmentedService
         fileMonitor.ReadingRepo();
 
         // Start some git commands in parallel to get commits, branches, status, ...
-        var logTask = git.GetLogAsync(maxCommitCount, path);
+        var logTask = git.GetLogAsync(MaxCommitCount, path);
         var branchesTask = git.GetBranchesAsync(path);
         var tagsTask = git.GetTagsAsync(path);
         var statusTask = git.GetStatusAsync(path);
@@ -183,7 +184,7 @@ class AugmentedService : IAugmentedService
             currentAuthor = "";
         }
 
-        var isTruncated = log.Count == maxCommitCount;
+        var isTruncated = log.Count == MaxCommitCount;
         if (log.Count == 0)
             return EmptyGitRepo(path, tags, status, metaData);
 

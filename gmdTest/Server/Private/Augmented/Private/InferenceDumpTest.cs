@@ -28,7 +28,7 @@ namespace gmdTest.Server.Private.Augmented.Private;
 [TestCategory("Integration")]
 public class InferenceDumpTest
 {
-    const int MaxCommitCount = 30000; // As many as AugmentedService reads
+    const int MaxCommitCount = AugmentedService.MaxCommitCount;
 
     static string RepoPath => Environment.GetEnvironmentVariable("GMD_INFER_REPO") ?? "";
     static string OutPath => Environment.GetEnvironmentVariable("GMD_INFER_OUT") ?? "";

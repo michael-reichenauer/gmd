@@ -18,11 +18,15 @@ namespace gmdTest.Server.Private;
 //
 //   GMD_PERF_REPO=<repo> GMD_PERF_OUT=<file> dotnet test gmdTest/gmdTest.csproj --filter RefreshTiming
 //
+// GMD_PERF_COUNT=<n> reads n commits rather than as many as gmd reads, to measure another limit, and
+// GMD_PERF_ALL=0 leaves out the view of all branches, whose graph takes long in a large repository.
+//
 // Each stage runs once to warm up and then five times, and the median time is reported with what
 // the stage allocated. The stages are those of a refresh: the git reads (AugmentedService), the
 // augmentation, one stage at a time (BranchStructureService), the conversion to the repo the UI
 // works with, the view repo of what is shown (ViewRepoCreater), for the default view, all live
-// branches and all branches, and the graph drawn of each.
+// branches and all branches, and the graph drawn of each; then a search of the log, and the memory
+// the repo keeps between two reads.
 //
 // Beside the timings, '<file>.view' gets what the view repos hold, which branches in which order and
 // which commits are ahead or behind, so that a change made for speed can be shown to change nothing:
@@ -32,11 +36,20 @@ namespace gmdTest.Server.Private;
 [TestCategory("Integration")]
 public class RefreshTimingTest
 {
-    const int MaxCommitCount = 30000; // As many as AugmentedService reads
     const int Runs = 5;
 
     static string RepoPath => Environment.GetEnvironmentVariable("GMD_PERF_REPO") ?? "";
     static string OutPath => Environment.GetEnvironmentVariable("GMD_PERF_OUT") ?? "";
+
+    // The view of all branches, deleted ones too, only after the user confirms it, whose graph takes
+    // seconds where thousands of branches are recovered; GMD_PERF_ALL=0 leaves it out
+    static bool IsAllShown => Environment.GetEnvironmentVariable("GMD_PERF_ALL") != "0";
+
+    // As many commits as AugmentedService reads, or as GMD_PERF_COUNT says, to measure another limit
+    static int MaxCommitCount =>
+        int.TryParse(Environment.GetEnvironmentVariable("GMD_PERF_COUNT"), out var count)
+            ? count
+            : AugmentedService.MaxCommitCount;
 
     readonly List<string> rows = [];
 
@@ -59,7 +72,53 @@ public class RefreshTimingTest
         );
         var reads = await TimeAsync("git other reads, in parallel", () => OtherReadsAsync(git, metaDataService));
 
-        var gitRepo = new GitRepo(
+        var gitRepo = NewGitRepo(log, reads);
+
+        // The augmentation, with the time of each stage of the branch structure pipeline
+        var stages = new StageTimes();
+        var augmenter = NewTimedAugmenter(stages);
+        await TimeAsync("augment", () => augmenter.GetAugRepoAsync(gitRepo), stages);
+
+        var workRepo = await augmenter.GetAugRepoAsync(gitRepo);
+        var repo = Time("to repo", () => Uncommitted.Adjust(new WorkRepoConverter().ToRepo(workRepo)));
+
+        var viewRepoCreater = new ViewRepoCreater(new ViewRepoConverter(), new FakeRepoConfig());
+        var views = new StringBuilder();
+        Repo viewRepo = repo;
+        ShowBranches[] shows = IsAllShown
+            ? [ShowBranches.Specified, ShowBranches.AllActive, ShowBranches.AllActiveAndDeleted]
+            : [ShowBranches.Specified, ShowBranches.AllActive];
+        foreach (var show in shows)
+        {
+            viewRepo = Time($"view repo, {show}", () => viewRepoCreater.GetViewRepoAsync(repo, [], show));
+            Time(
+                $"graph, {show}",
+                () => new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(viewRepo)
+            );
+            AppendView(views, $"{show}", viewRepo);
+        }
+
+        // A search of the log, which the filter dialog makes for every key typed, on the UI thread: one
+        // that matches nothing, which is the most it reads, every commit's message
+        Time("search, no match", () => viewRepoCreater.GetFilteredViewRepoAsync(repo, "zq-no-such-text", 5000));
+
+        // Once all branches are shown, every refresh shows them again by name (RepoView)
+        var shownNames = viewRepo.ViewBranches.Select(b => b.Name).ToList();
+        var refreshed = Time("view repo, refresh of all", () => viewRepoCreater.GetViewRepoAsync(repo, shownNames));
+        AppendView(views, "Refresh of all", refreshed);
+
+        await RowKeptAsync(git, metaDataService);
+
+        var header =
+            $"# Refresh timing of {Path.GetFileName(Path.GetFullPath(RepoPath).TrimEnd('/'))}: "
+            + $"{workRepo.Commits.Count} commits, {workRepo.Branches.Count} branches "
+            + $"({workRepo.Branches.Values.Count(b => b.IsGitBranch)} git branches), median of {Runs} runs";
+        File.WriteAllText(OutPath, header + "\n" + string.Join("\n", rows) + "\n");
+        File.WriteAllText(OutPath + ".view", views.ToString());
+    }
+
+    static GitRepo NewGitRepo(IReadOnlyList<gmd.Git.Commit> log, OtherReads reads) =>
+        new(
             DateTime.UtcNow,
             RepoPath,
             log,
@@ -73,38 +132,24 @@ public class RefreshTimingTest
             reflog: reads.Reflog
         );
 
-        // The augmentation, with the time of each stage of the branch structure pipeline
-        var stages = new StageTimes();
-        var augmenter = NewTimedAugmenter(stages);
-        await TimeAsync("augment", () => augmenter.GetAugRepoAsync(gitRepo), stages);
+    // The memory the repo the UI shows keeps between two reads, its commits' messages included, which
+    // is what a larger log costs beside the time: what a read of its own leaves behind, once the git
+    // repo and the work repo it was made from are let go of, as they are after a read
+    async Task RowKeptAsync(IGit git, MetaDataService metaDataService)
+    {
+        var before = GC.GetTotalMemory(forceFullCollection: true);
+        var repo = await ReadRepoAsync(git, metaDataService);
+        var after = GC.GetTotalMemory(forceFullCollection: true);
+        GC.KeepAlive(repo);
+        rows.Add($"{"repo kept between reads", -40} {"", 12} {(after - before) / 1024.0 / 1024.0, 9:F1} MB");
+    }
 
-        var workRepo = await augmenter.GetAugRepoAsync(gitRepo);
-        var repo = Time("to repo", () => Uncommitted.Adjust(new WorkRepoConverter().ToRepo(workRepo)));
-
-        var viewRepoCreater = new ViewRepoCreater(new ViewRepoConverter(), new FakeRepoConfig());
-        var views = new StringBuilder();
-        Repo viewRepo = repo;
-        foreach (var show in new[] { ShowBranches.Specified, ShowBranches.AllActive, ShowBranches.AllActiveAndDeleted })
-        {
-            viewRepo = Time($"view repo, {show}", () => viewRepoCreater.GetViewRepoAsync(repo, [], show));
-            Time(
-                $"graph, {show}",
-                () => new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(viewRepo)
-            );
-            AppendView(views, $"{show}", viewRepo);
-        }
-
-        // Once all branches are shown, every refresh shows them again by name (RepoView)
-        var shownNames = viewRepo.ViewBranches.Select(b => b.Name).ToList();
-        var refreshed = Time("view repo, refresh of all", () => viewRepoCreater.GetViewRepoAsync(repo, shownNames));
-        AppendView(views, "Refresh of all", refreshed);
-
-        var header =
-            $"# Refresh timing of {Path.GetFileName(Path.GetFullPath(RepoPath).TrimEnd('/'))}: "
-            + $"{workRepo.Commits.Count} commits, {workRepo.Branches.Count} branches "
-            + $"({workRepo.Branches.Values.Count(b => b.IsGitBranch)} git branches), median of {Runs} runs";
-        File.WriteAllText(OutPath, header + "\n" + string.Join("\n", rows) + "\n");
-        File.WriteAllText(OutPath + ".view", views.ToString());
+    static async Task<Repo> ReadRepoAsync(IGit git, MetaDataService metaDataService)
+    {
+        var log = AssertOk(await git.GetLogAsync(MaxCommitCount, RepoPath));
+        var gitRepo = NewGitRepo(log, await OtherReadsAsync(git, metaDataService));
+        var workRepo = await RepoBuilder.NewAugmenter().GetAugRepoAsync(gitRepo);
+        return Uncommitted.Adjust(new WorkRepoConverter().ToRepo(workRepo));
     }
 
     record OtherReads(
