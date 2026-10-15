@@ -24,6 +24,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Lets the GC compact the large object heap when it fragments, where every read of the log puts
+         its output, a string of megabytes: after a few refreshes of a log of 50,000 commits gmd held
+         0.8 to 0.9 GB without, 0.6 GB with (level 7 of 9). The first refreshes after opening take
+         up to a second longer while it compacts. -->
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The spell check dictionary (SCOWL en_US, see doc/spelling/en_US.license). LogicalName pins the
          resource names rather than relying on how the folder path is mangled into one. -->
     <EmbeddedResource Include="doc/spelling/en_US.dic" LogicalName="gmd.doc.spelling.en_US.dic" />
