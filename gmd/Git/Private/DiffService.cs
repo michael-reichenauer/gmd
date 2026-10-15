@@ -4,11 +4,11 @@ namespace gmd.Git.Private;
 
 interface IDiffService
 {
-    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, DiffOptions options, string wd);
     Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd);
-    Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
-    Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd);
-    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd);
+    Task<Result<CommitDiff>> GetUncommittedDiffAsync(DiffOptions options, string wd);
+    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, DiffOptions options, string wd);
     Task<Result<CommitDiff[]>> GetLineHistoryAsync(
         string path,
         int firstLine,
@@ -16,8 +16,14 @@ interface IDiffService
         string reference,
         string wd
     );
-    Task<Result<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, int contextLines, string wd);
-    Task<Result<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, DiffOptions options, string wd);
+    Task<Result<CommitDiff>> GetDiffRangeAsync(
+        string sha1,
+        string sha2,
+        string message,
+        DiffOptions options,
+        string wd
+    );
     Task<Result> RunDiffToolAsync(string path, string wd);
     Task<Result> RunMergeToolAsync(string path, string wd);
 }
@@ -43,11 +49,11 @@ class DiffService : IDiffService
         this.cmd = cmd;
     }
 
-    public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, DiffOptions options, string wd)
     {
         var args =
             $"show {CommitHeaderFormat} {DiffFormat} --date=iso --first-parent --root --patch"
-            + $" --find-renames --unified={contextLines} {commitId}";
+            + $" --find-renames {options.Args} {commitId}";
         var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
@@ -122,9 +128,9 @@ class DiffService : IDiffService
             .ToList();
     }
 
-    public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd)
     {
-        var args = $"stash show -u {DiffFormat} --patch --find-renames --unified={contextLines} {name}";
+        var args = $"stash show -u {DiffFormat} --patch --find-renames {options.Args} {name}";
         var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
@@ -132,7 +138,7 @@ class DiffService : IDiffService
         return ParseDiff(output, $"Diff of stash {name}");
     }
 
-    public async Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetUncommittedDiffAsync(DiffOptions options, string wd)
     {
         // A diff of the working tree leaves out the files git does not track yet, and a file moved
         // without 'git mv' shows as one deleted and one new rather than as a rename. Both are there
@@ -148,7 +154,7 @@ class DiffService : IDiffService
         var tempIndex = Path.Join(Path.GetTempPath(), $"gmd-index-{Guid.NewGuid():N}");
         try
         {
-            return await DiffWithIndexAsync(contextLines, tempIndex, wd);
+            return await DiffWithIndexAsync(options, tempIndex, wd);
         }
         finally
         {
@@ -162,7 +168,7 @@ class DiffService : IDiffService
         }
     }
 
-    async Task<Result<CommitDiff>> DiffWithIndexAsync(int contextLines, string tempIndex, string wd)
+    async Task<Result<CommitDiff>> DiffWithIndexAsync(DiffOptions options, string tempIndex, string wd)
     {
         // A copy rather than a new, empty index, so that git's record of which files are unchanged
         // since it last looked carries over, and it need not read every file in the working tree.
@@ -175,11 +181,11 @@ class DiffService : IDiffService
         if (await cmd.RunAsync("git", "add .", wd, environment: env) is Error addError)
             return addError;
 
-        var args = $"diff {DiffFormat} --find-renames --unified={contextLines} HEAD";
+        var args = $"diff {DiffFormat} --find-renames {options.Args} HEAD";
         var diff = await cmd.RunAsync("git", args, wd, environment: env, isKeepCr: true);
         if (diff is Error e && e.Message.Contains("ambiguous argument 'HEAD': unknown revision"))
         { // No commit yet, so there is no HEAD to diff against; what is staged is the whole diff
-            var stagedArgs = $"diff {DiffFormat} --staged --unified={contextLines}";
+            var stagedArgs = $"diff {DiffFormat} --staged {options.Args}";
             diff = await cmd.RunAsync("git", stagedArgs, wd, environment: env, isKeepCr: true);
         }
         if (diff is not string output)
@@ -223,10 +229,10 @@ class DiffService : IDiffService
         return commitDiffs.ToArray();
     }
 
-    public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
+    public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, DiffOptions options, string wd)
     {
         var args =
-            $"log {CommitHeaderFormat} {DiffFormat} --date=iso --patch --follow --unified={contextLines} -- {Cmd.Quote(path)}";
+            $"log {CommitHeaderFormat} {DiffFormat} --date=iso --patch --follow {options.Args} -- {Cmd.Quote(path)}";
         var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;
@@ -244,19 +250,19 @@ class DiffService : IDiffService
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     )
     {
-        var options = $"{DiffFormat} --find-renames --unified={contextLines} --full-index";
-        var result = await cmd.RunAsync("git", $"diff {options} {sha1}~..{sha2}", wd, isKeepCr: true);
+        var diffArgs = $"{DiffFormat} --find-renames {options.Args} --full-index";
+        var result = await cmd.RunAsync("git", $"diff {diffArgs} {sha1}~..{sha2}", wd, isKeepCr: true);
         if (
             result is Error e
             && e.Message.Contains($"ambiguous argument '{sha1}~..{sha2}': unknown revision")
             && await EmptyTreeIfRootAsync(sha1, wd) is string emptyTree
         )
         { // A root commit has no 'sha1~', so its changes are from nothing, as 'git show' has them
-            result = await cmd.RunAsync("git", $"diff {options} {emptyTree} {sha2}", wd, isKeepCr: true);
+            result = await cmd.RunAsync("git", $"diff {diffArgs} {emptyTree} {sha2}", wd, isKeepCr: true);
         }
         if (result is not string output)
             return result.Error;
@@ -280,11 +286,11 @@ class DiffService : IDiffService
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     )
     {
-        var args = $"diff {DiffFormat} --find-renames --unified={contextLines} --full-index {sha1} {sha2}";
+        var args = $"diff {DiffFormat} --find-renames {options.Args} --full-index {sha1} {sha2}";
         var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;

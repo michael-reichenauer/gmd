@@ -51,11 +51,11 @@ interface IServer
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
-    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, Git.DiffOptions options, string wd);
 
     // The files the commit changed, as its diff has them, with no diff read, for the details pane
     Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd);
-    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, Git.DiffOptions options, string wd);
     Task<Result<CommitDiff[]>> GetLineHistoryAsync(
         string path,
         int firstLine,
@@ -68,10 +68,16 @@ interface IServer
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        Git.DiffOptions options,
         string wd
     );
-    Task<Result<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetDiffRangeAsync(
+        string sha1,
+        string sha2,
+        string message,
+        Git.DiffOptions options,
+        string wd
+    );
     Task<Result> RunDiffToolAsync(string path, string wd);
     Task<Result> RunMergeToolAsync(string path, string wd);
 
@@ -142,7 +148,7 @@ interface IServer
     Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
-    Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetStashDiffAsync(string name, Git.DiffOptions options, string wd);
     Task<Result> StashDropAsync(string name, string wd);
     Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
     Task<Result> AddTagAsync(string name, string commitId, string wd);

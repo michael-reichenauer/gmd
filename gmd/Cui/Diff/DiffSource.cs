@@ -2,11 +2,11 @@ using gmd.Server;
 
 namespace gmd.Cui.Diff;
 
-// How the diff view gets its diff again, at a given number of context lines. The view is opened
-// from six places using five different git commands, so it has to be told how to re-fetch rather
-// than assuming it is always a commit id — which is what it did before, and why refreshing a
-// stash, a range or a file history diff quietly fetched the wrong thing.
-delegate Task<Result<CommitDiff[]>> DiffReload(int contextLines);
+// How the diff view gets its diff again, with given options, e.g. a number of context lines. The
+// view is opened from six places using five different git commands, so it has to be told how to
+// re-fetch rather than assuming it is always a commit id — which is what it did before, and why
+// refreshing a stash, a range or a file history diff quietly fetched the wrong thing.
+delegate Task<Result<CommitDiff[]>> DiffReload(Git.DiffOptions options);
 
 // Where the diff the view shows comes from: how to read it again, and what can be done with it. The
 // diff alone does not say, so the view took the id of the uncommitted changes to mean they can be
@@ -25,9 +25,9 @@ record DiffSource(DiffReload Reload)
     public bool CanCommit { get; init; }
 
     // A source of one diff, which is all of them except the file and line histories
-    public static DiffSource Single(Func<int, Task<Result<CommitDiff>>> getAsync) =>
-        new(async contextLines =>
-            await getAsync(contextLines) switch
+    public static DiffSource Single(Func<Git.DiffOptions, Task<Result<CommitDiff>>> getAsync) =>
+        new(async options =>
+            await getAsync(options) switch
             {
                 CommitDiff diff => new[] { diff },
                 Error e => e,
