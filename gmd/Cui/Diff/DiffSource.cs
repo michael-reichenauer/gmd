@@ -24,6 +24,22 @@ record DiffSource(DiffReload Reload)
     // files are not all uncommitted.
     public bool CanCommit { get; init; }
 
+    // The diff, with its files of whitespace changes alone listed when whitespace is left out, which
+    // git leaves out (DiffWhitespace). They are found in the diff read again with whitespace, with
+    // no context, since only which files it has is wanted of it.
+    public async Task<Result<CommitDiff[]>> ReadAsync(Git.DiffOptions options)
+    {
+        var read = await Reload(options);
+        if (!options.IsIgnoreWhitespace || read is not CommitDiff[] shown)
+            return read;
+
+        return await Reload(new Git.DiffOptions(0)) switch
+        {
+            CommitDiff[] all => DiffWhitespace.WithWhitespaceOnlyFiles(shown, all),
+            Error e => e,
+        };
+    }
+
     // A source of one diff, which is all of them except the file and line histories
     public static DiffSource Single(Func<Git.DiffOptions, Task<Result<CommitDiff>>> getAsync) =>
         new(async options =>

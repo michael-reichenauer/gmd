@@ -526,7 +526,15 @@ and puts the cursor on the first line with it from the cursor down, on the
 side it is on, scrolled sideways to it where it is further right. Every
 place it is found is marked in black on yellow. `n` and `Shift-N` then go to
 the next and the previous one from wherever the cursor is, and the line at
-the bottom says which one it is, e.g. `Match 2 of 7`. **Diff File**
+the bottom says which one it is, e.g. `Match 2 of 7`.
+
+`w` hides the changes of whitespace alone, as GitHub's *Hide whitespace*
+does, and `w` again shows them. A line whose spaces alone changed is then
+unchanged, and the summary at the top says `whitespace hidden`. A file whose
+changes are all whitespace is still listed, as `(Whitespace only)` and with
+no lines, so that it is not missed in what is committed, and can still be
+discarded. It is for the diff it was pressed in: the next one shows
+whitespace again. **Diff File**
 in the menu opens an uncommitted file in the diff tool git is configured
 with (`git difftool`).
 

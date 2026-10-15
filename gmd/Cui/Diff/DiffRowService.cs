@@ -14,10 +14,13 @@ interface IDiffRowService
     // conflictPaths are the files git reports as unmerged. Needed because the diff can only see a
     // conflict git wrote markers for: a modify/delete or a binary conflict has none, and would
     // otherwise be headed 'Added:' or 'Modified:' as if there were nothing to resolve.
+    // isIgnoreWhitespace is a diff read with whitespace left out, whose rows say so, and mark no change
+    // of the spaces around a line's text, nor of its line end, either.
     DiffRows ToDiffRows(
         CommitDiff[] commitDiffs,
         IReadOnlyDictionary<string, int> fileContext,
-        IReadOnlyList<string> conflictPaths
+        IReadOnlyList<string> conflictPaths,
+        bool isIgnoreWhitespace = false
     );
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
@@ -85,7 +88,8 @@ class DiffRowService : IDiffRowService
     public DiffRows ToDiffRows(
         CommitDiff[] commitDiffs,
         IReadOnlyDictionary<string, int> fileContext,
-        IReadOnlyList<string> conflictPaths
+        IReadOnlyList<string> conflictPaths,
+        bool isIgnoreWhitespace = false
     )
     {
         commitDiffs = commitDiffs.Select(d => AsConflicted(d, conflictPaths)).ToArray();
@@ -105,7 +109,7 @@ class DiffRowService : IDiffRowService
             rows.Add(Text.Empty);
         }
 
-        commitDiffs.ForEach(diff => AddCommitDiff(diff, rows, fileContext));
+        commitDiffs.ForEach(diff => AddCommitDiff(diff, rows, fileContext, isIgnoreWhitespace));
         rows.Add(Text.Empty);
         rows.AddLine(Text.Yellow("━"));
         return rows;
@@ -193,12 +197,17 @@ class DiffRowService : IDiffRowService
         };
     }
 
-    static void AddCommitDiff(CommitDiff commitDiff, DiffRows rows, IReadOnlyDictionary<string, int> fileContext)
+    static void AddCommitDiff(
+        CommitDiff commitDiff,
+        DiffRows rows,
+        IReadOnlyDictionary<string, int> fileContext,
+        bool isIgnoreWhitespace
+    )
     {
         AddCommitSummery(commitDiff, rows);
-        AddDiffFileNamesSummery(commitDiff, rows);
+        AddDiffFileNamesSummery(commitDiff, rows, isIgnoreWhitespace);
 
-        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext));
+        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext, isIgnoreWhitespace));
     }
 
     // Add a summery of the commit with id, author, date and message
@@ -218,9 +227,9 @@ class DiffRowService : IDiffRowService
     }
 
     // Add a summery of the files in the commit
-    static void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows)
+    static void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows, bool isIgnoreWhitespace)
     {
-        rows.Add(FilesRow(commitDiff));
+        rows.Add(FilesRow(commitDiff, isIgnoreWhitespace));
 
         commitDiff.FileDiffs.ForEach(fd =>
         {
@@ -235,6 +244,10 @@ class DiffRowService : IDiffRowService
             {
                 text.Dark(" (Binary)");
             }
+            if (fd.IsWhitespaceOnly)
+            {
+                text.Dark(" (Whitespace only)");
+            }
             rows.Add(text);
         });
     }
@@ -242,8 +255,9 @@ class DiffRowService : IDiffRowService
     // "3 Files:  1 added, 2 modified   +25 -7 lines": how many files of each kind, worded and
     // colored as the list below it, and the lines added and removed. Every changed line is in the
     // hunks whatever their context, so the lines are counted as 'git diff --stat' counts them; a
-    // binary file has none, and a conflict's markers are not counted.
-    static Text FilesRow(CommitDiff diff)
+    // binary file has none, and a conflict's markers are not counted. With whitespace left out the
+    // row says so, since it is then not every change that is counted and shown.
+    static Text FilesRow(CommitDiff diff, bool isIgnoreWhitespace)
     {
         var files = diff.FileDiffs;
         var text = Text.White(files.Count == 1 ? "1 File:" : $"{files.Count} Files:");
@@ -264,6 +278,8 @@ class DiffRowService : IDiffRowService
         var removed = lines.Count(l => l.DiffMode == DiffMode.DiffRemoved);
         if (added + removed > 0)
             text.Dark("   ").Green($"+{added}").Dark(" ").Red($"-{removed}").Dark(" lines");
+        if (isIgnoreWhitespace)
+            text.Dark("   ").Yellow("whitespace hidden");
 
         return text;
     }
@@ -289,7 +305,12 @@ class DiffRowService : IDiffRowService
         };
 
     // Add a diff for the file, which consists of several file section diffs
-    static void AddFileDiff(FileDiff fileDiff, DiffRows rows, IReadOnlyDictionary<string, int> fileContext)
+    static void AddFileDiff(
+        FileDiff fileDiff,
+        DiffRows rows,
+        IReadOnlyDictionary<string, int> fileContext,
+        bool isIgnoreWhitespace
+    )
     {
         rows.Add(Text.Empty);
         rows.AddLine(Text.Blue("━"));
@@ -306,17 +327,27 @@ class DiffRowService : IDiffRowService
         {
             text.Dark("  (Binary)");
         }
+        if (fd.IsWhitespaceOnly)
+        {
+            text.Dark("  (Whitespace only)");
+        }
         if (fileContext.TryGetValue(fd.PathAfter, out var contextLines) && contextLines != DiffContext.Default)
         {
             text.Dark($"  {DiffContext.ToText(contextLines)}");
         }
         rows.Add(text, fd.PathAfter);
 
-        fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(fileDiff, sd, rows));
+        if (fd.IsWhitespaceOnly)
+        { // Its lines are in the diff with whitespace, which has nothing else of it to show
+            rows.Add(Text.Empty);
+            rows.Add(Text.Dark("Only whitespace changed, which is hidden"));
+        }
+
+        fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(fileDiff, sd, rows, isIgnoreWhitespace));
     }
 
     // Add a file section diff (the actual diff lines for a sub section of a file)
-    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows)
+    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows, bool isIgnoreWhitespace)
     {
         rows.Add(Text.Empty);
         rows.AddLine(Text.Dark("─"));
@@ -345,7 +376,7 @@ class DiffRowService : IDiffRowService
             {
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows);
+                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
                     var txt = Text.BrightMagenta("=== Start of conflict");
                     rows.Add(txt, txt);
                     break;
@@ -355,7 +386,7 @@ class DiffRowService : IDiffRowService
                 // which is where it used to end up for want of being recognised at all.
                 case DiffMode.DiffConflictBase:
                     diffMode = DiffMode.DiffConflictBase;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows);
+                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
                     rows.Add(Text.Dark("=== Common ancestor"));
                     break;
 
@@ -365,7 +396,7 @@ class DiffRowService : IDiffRowService
 
                 case DiffMode.DiffConflictEnd:
                     diffMode = DiffMode.DiffConflictEnd;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows);
+                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
                     var txt2 = Text.BrightMagenta("=== End of conflict");
                     rows.Add(txt2, txt2);
                     break;
@@ -437,7 +468,7 @@ class DiffRowService : IDiffRowService
                     }
                     else
                     {
-                        AddBlocks(ref leftBlock, ref rightBlock, rows);
+                        AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
                         leftBlock.Add(leftNr, dl.Line, Color.White);
                         rightBlock.Add(rightNr, dl.Line, Color.White);
                     }
@@ -448,18 +479,18 @@ class DiffRowService : IDiffRowService
             }
         }
 
-        AddBlocks(ref leftBlock, ref rightBlock, rows);
+        AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
         rows.AddLine(Text.Dark("─"));
     }
 
-    static void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows)
+    static void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows, bool isIgnoreWhitespace)
     {
         // Add block parts where both block have lines
         var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
         for (int i = 0; i < minCount; i++)
         {
-            var (left, right) = WithCrShown(leftBlock.Lines[i], rightBlock.Lines[i]);
-            var (lT, rT) = GetDiffSides(left, right);
+            var (left, right) = WithCrShown(leftBlock.Lines[i], rightBlock.Lines[i], isIgnoreWhitespace);
+            var (lT, rT) = GetDiffSides(left, right, isIgnoreWhitespace);
             rows.Add(lT, rT, left.LineNbr, right.LineNbr);
         }
 
@@ -492,11 +523,12 @@ class DiffRowService : IDiffRowService
     // A line's '\r', kept of a file's '\r\n' line ends (DiffService reads the diff with them), is shown
     // only where it is the change, a change of line ends: as '␍' on the side of a changed pair that
     // has it when the other has not, which was the same text on both sides when every '\r' was
-    // dropped. Elsewhere it is left out, so a file with '\r\n' line ends looks as any other.
+    // dropped. Elsewhere it is left out, so a file with '\r\n' line ends looks as any other, and so
+    // it is with whitespace left out, which git takes the '\r' to be.
     const string CrMark = "␍";
 
-    static (Line, Line) WithCrShown(Line left, Line right) =>
-        left.Text.EndsWith('\r') == right.Text.EndsWith('\r')
+    static (Line, Line) WithCrShown(Line left, Line right, bool isIgnoreWhitespace) =>
+        isIgnoreWhitespace || left.Text.EndsWith('\r') == right.Text.EndsWith('\r')
             ? (left with { Text = WithoutCr(left.Text) }, right with { Text = WithoutCr(right.Text) })
             : (left with { Text = CrMarked(left.Text) }, right with { Text = CrMarked(right.Text) });
 
@@ -504,8 +536,11 @@ class DiffRowService : IDiffRowService
 
     static string CrMarked(string text) => text.EndsWith('\r') ? text[..^1] + CrMark : text;
 
-    static (Text, Text) GetDiffSides(Line lL, Line rL)
+    static (Text, Text) GetDiffSides(Line lL, Line rL, bool isIgnoreWhitespace)
     {
+        // A change of the spaces before or after the text is marked, unless whitespace is left out
+        var (removedSpace, addedSpace) = isIgnoreWhitespace ? (Color.Black, Color.Black) : (Color.RedBg, Color.GreenBg);
+
         // Mark leading space changes in diff
         var leftString = lL.Text.TrimStart();
         var rightString = rL.Text.TrimStart();
@@ -517,12 +552,12 @@ class DiffRowService : IDiffRowService
         var leftText = Text.Black(new string(' ', minDiffPrefixMargin));
         if (diffLeftPrefixMargin > minDiffPrefixMargin)
         {
-            leftText.RedBg(new string(' ', diffLeftPrefixMargin - minDiffPrefixMargin));
+            leftText.Color(removedSpace, new string(' ', diffLeftPrefixMargin - minDiffPrefixMargin));
         }
         var rightText = Text.Black(new string(' ', minDiffPrefixMargin));
         if (diffRightPrefixMargin > minDiffPrefixMargin)
         {
-            rightText.GreenBg(new string(' ', diffRightPrefixMargin - minDiffPrefixMargin));
+            rightText.Color(addedSpace, new string(' ', diffRightPrefixMargin - minDiffPrefixMargin));
         }
 
         // Mark trailing space changes in diff
@@ -530,8 +565,8 @@ class DiffRowService : IDiffRowService
         var rightLength = rightString.Length;
         leftString = leftString.TrimEnd();
         rightString = rightString.TrimEnd();
-        var leftSuffix = Text.RedBg(new string(' ', leftLength - leftString.Length));
-        var rightSuffix = Text.GreenBg(new string(' ', rightLength - rightString.Length));
+        var leftSuffix = Text.Color(removedSpace, new string(' ', leftLength - leftString.Length));
+        var rightSuffix = Text.Color(addedSpace, new string(' ', rightLength - rightString.Length));
 
         var differ = new Differ();
         var result = differ.CreateCharacterDiffs(leftString, rightString, true);

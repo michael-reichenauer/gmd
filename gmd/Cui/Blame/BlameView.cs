@@ -410,7 +410,7 @@ class BlameView : IBlameView
         var (firstLine, lastLine) = (blame.Lines[first].LineNbr, blame.Lines[last].LineNbr);
         var reference = blame.Reference;
         // 'git log -L' takes no context, so there is none to step
-        var source = new DiffSource(_ => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, repo.Path))
+        var source = new DiffSource(o => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, o, repo.Path))
         {
             HasContext = false,
         };

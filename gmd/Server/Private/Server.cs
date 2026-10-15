@@ -345,10 +345,11 @@ class Server : IServer
         int firstLine,
         int lastLine,
         string reference,
+        DiffOptions options,
         string wd
     )
     {
-        var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, wd);
+        var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, options, wd);
         if (diffs is not Git.CommitDiff[] gitCommitDiffs)
             return diffs.Error;
         return GitConverter.ToCommitDiffs(gitCommitDiffs);

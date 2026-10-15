@@ -61,6 +61,7 @@ interface IServer
         int firstLine,
         int lastLine,
         string reference,
+        Git.DiffOptions options,
         string wd
     );
     Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);

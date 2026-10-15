@@ -14,6 +14,7 @@ interface IDiffService
         int firstLine,
         int lastLine,
         string reference,
+        DiffOptions options,
         string wd
     );
     Task<Result<CommitDiff>> GetRefsDiffAsync(string sha1, string sha2, string message, DiffOptions options, string wd);
@@ -209,16 +210,18 @@ class DiffService : IDiffService
     // Every commit that changed the lines, newest first, each with the diff of those lines alone, as
     // they were in the file at the reference, or at HEAD for "": 'git log -L', which follows the
     // lines through the changes above them that moved them. It has no context lines to ask for.
+    // 'git log -L' takes no context, so of the options only the whitespace is given
     public async Task<Result<CommitDiff[]>> GetLineHistoryAsync(
         string path,
         int firstLine,
         int lastLine,
         string reference,
+        DiffOptions options,
         string wd
     )
     {
         var args =
-            $"log {CommitHeaderFormat} {DiffFormat} --date=iso {Cmd.Quote($"-L{firstLine},{lastLine}:{path}")} {reference}".TrimEnd();
+            $"log {CommitHeaderFormat} {DiffFormat} --date=iso{options.WhitespaceArgs} {Cmd.Quote($"-L{firstLine},{lastLine}:{path}")} {reference}".TrimEnd();
         var result = await cmd.RunAsync("git", args, wd, isKeepCr: true);
         if (result is not string output)
             return result.Error;

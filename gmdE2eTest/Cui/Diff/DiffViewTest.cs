@@ -211,12 +211,13 @@ public class DiffViewTest
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Commit                                  c  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             Modified: long.txt                    │More Context of long.txt (15 lines)     +  │
                                                   │Less Context                            -  │
-            ──────────────────────────────────────│Focus Left Column                       ←  │────────────────────────────────────
-              14 line 14                          │Focus Right Column                      →  │
-              15 line 15                          │Close                                 Esc  │
-              16 line 16                          ╰───────────────────────────────────────────╯
+            ──────────────────────────────────────│Hide Whitespace Changes                 w  │────────────────────────────────────
+              14 line 14                          │Focus Left Column                       ←  │
+              15 line 15                          │Focus Right Column                      →  │
+              16 line 16                          │Close                                 Esc  │
+              17 line 17                          ╰───────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 17),
+            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 18),
             repo.Path
         );
 
@@ -283,6 +284,57 @@ public class DiffViewTest
         gmd.Send("Escape");
         StringAssert.Contains(gmd.WaitUntilGone("Added: zeta.txt"), "▲1", "Nothing was pushed");
         Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
+    }
+
+    // w hides the changes of whitespace alone and says so, and w shows them again. A file whose changes
+    // are all whitespace stays listed, and can still be discarded, rather than vanish from the diff of
+    // the changes about to be committed; and a re-indented line is unchanged, beside the added one.
+    [TestMethod]
+    public async Task TestHideWhitespace()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        repo.WriteFile("alpha.txt", "  alpha\nmore\n");
+        repo.WriteFile("beta.txt", "beta gamma delta  \n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©2 uncommitted changes");
+        gmd.Send("d");
+        gmd.WaitFor("Modified: beta.txt");
+
+        gmd.Send("w");
+        var hidden = gmd.WaitFor("whitespace hidden");
+        // From the message down, the date of the uncommitted changes being the time now
+        Assert.AreEqual(
+            """
+            Message: Uncommitted changes
+
+            2 Files:  2 modified   +1 -0 lines   whitespace hidden
+              Modified:    alpha.txt
+              Modified:    beta.txt (Whitespace only)
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: alpha.txt
+
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+               1   alpha                                               │   1   alpha
+            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│   2┃more
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: beta.txt  (Whitespace only)
+
+            Only whitespace changed, which is hidden
+            """,
+            ScreenText.Rows(hidden, repo.Path, 2, 18)
+        );
+        Assert.AreEqual("Whitespace changes hidden: w shows them", ScreenText.LastLine(hidden));
+
+        gmd.Send("u");
+        StringAssert.Contains(gmd.WaitFor("All Changes"), "beta.txt", "Still offered to discard");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("All Changes");
+
+        gmd.Send("w");
+        StringAssert.Contains(gmd.WaitUntilGone("whitespace hidden"), "Modified: beta.txt");
     }
 
     // Undoing uncommitted changes from the diff asks first, and No is the default: the item is

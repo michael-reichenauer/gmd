@@ -47,6 +47,7 @@ interface IGit
         int firstLine,
         int lastLine,
         string reference,
+        DiffOptions options,
         string wd
     );
     Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);
