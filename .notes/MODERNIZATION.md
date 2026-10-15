@@ -769,21 +769,19 @@ Add new open issues and findings here as work lands; keep them short and drop th
   (asked to confirm above 20), but then every refresh pays it.
 - Not measured, same shape as what was fixed: `ShowBranches.AllRecent` checks every branch against
   the shown names with a list `Contains`, thousands times thousands once all are shown.
-- The commit limit, `AugmentedService.MaxCommitCount` (30,000), measured 2026-10-15 (see Findings):
-  every repo change reads that many commits again, so it bounds every refresh of a large repository.
-  What the numbers support is 50,000 together with `System.GC.ConserveMemory` (7 cut what gmd held
-  after a few refreshes by a quarter at 30,000 commits and nearly half at 85,593, at no measured time
-  cost), which pays for the extra memory; 100,000 only once a refresh allocates less per commit. Not
-  decided yet.
-- Without a commit-graph file, `git log --all --date-order` walks the whole history before it shows
-  the first commit, so the limit hardly bounds the read: rust 1.7 s, Linux 8.2 s for 30,000 commits
-  (0.36 s and 1.2 s with one). Git writes one in `gc`, which a fresh clone has not run. Writing it
-  when it is missing (`git commit-graph write --reachable`, 11 s once for Linux) or saying so is to
-  decide.
+- *Done 2026-10-15:* the commit limit, `AugmentedService.MaxCommitCount`, is 50,000 rather than
+  30,000 (measured, see Findings), with `System.GC.ConserveMemory` 7 in `gmd.csproj` paying for the
+  memory: after six refreshes of 50,000 commits of git gmd held 0.55 to 0.65 GB with it, 0.8 to
+  0.9 GB without, and 30,000 without had held 0.6 to 0.7 GB. Its cost is the first refreshes after
+  opening, up to a second longer while it compacts. A repo whose log is longer than is read and
+  that has no commit-graph file gets one written in the background (`WriteCommitGraphIfMissing`),
+  since without one `git log --date-order` reads the whole history whatever the limit: rust 1.7 s,
+  Linux 8.2 s for 30,000 commits, 0.36 s and 1.2 s with one; git's own repository 540 ms, 240 ms.
 - A refresh allocates about 9 KB per commit, six times the log's text: the output is read whole into
-  one string and then split. Each commit keeps 2 to 3 KB between reads, nearly all its full message,
-  which only the details pane and the search use. A streamed parse, or messages read when needed,
-  would let the limit grow.
+  one string, which the GC has to compact off the large object heap, and then split. Each commit
+  keeps 2 to 3 KB between reads, nearly all its full message, which only the details pane and the
+  search use. A streamed parse, or messages read when needed, would let the limit grow, and would
+  spare the GC setting and its slower first refreshes.
 - Bors' subjects, `Auto merge of #123 - user:branch, r=reviewer` and `Rollup merge of #123 - ...`,
   are read as a branch named 'of' (weak), so in rust every pull request is an 'of' branch and its
   subprojects' lines are long ambiguous stretches with hundreds of candidates per commit.
