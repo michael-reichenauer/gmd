@@ -115,7 +115,7 @@ class BlameRowService : IBlameRowService
     }
 
     // The details of a commit that is not in the shown log, so there is no Server.Commit for the
-    // commit details view to render. Only the log is capped (30000 commits), not the blame, so
+    // commit details view to render. Only the log is capped (MaxCommitCount), not the blame, so
     // this is what a very large repo falls back to. Named fields are the same as that view's, and
     // the missing ones are called out rather than left as blanks the reader has to interpret.
     public IReadOnlyList<Text> ToDetailsRows(Server.BlameCommit c)

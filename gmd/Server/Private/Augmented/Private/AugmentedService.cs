@@ -10,8 +10,11 @@ namespace gmd.Server.Private.Augmented.Private;
 [SingleInstance]
 class AugmentedService : IAugmentedService
 {
-    // The most commits read, the newest, which bounds the cost of every read of a large repo
-    internal const int MaxCommitCount = 30000;
+    // The most commits read, the newest, which bounds the cost of every read of a large repo: a
+    // refresh costs some 1.2 to 2.6 s per 100,000 commits, and each commit kept 2 to 3 KB, measured
+    // over git, kubernetes, rust and Linux (see RefreshTimingTest). 50,000 reach 13 years back in git,
+    // 5 in kubernetes and some months in Linux.
+    internal const int MaxCommitCount = 50000;
 
     // The repos whose commit-graph file was looked for this session, see WriteCommitGraphIfMissing
     readonly HashSet<string> commitGraphPaths = [];
