@@ -430,9 +430,10 @@ class CommitBranchRules : ICommitBranchRules
     //   - the name: an integration branch (develop, dev) is senior to a release or hotfix branch,
     //     which is senior to any other, since each is started from the one before;
     //   - among the branches of the most senior name: when they all have one name, e.g. a deleted
-    //     dev recovered once per merge of it, there is nothing to choose between, and the one most
-    //     branches were merged into goes on, or the first. Not when the name is the one every branch
-    //     recovered with no name gets, which says nothing about them being one;
+    //     dev recovered once per merge of it, or 1.2.x and a fork's timfel/1.2.x, there is nothing to
+    //     choose between, and the one most branches were merged into goes on, or the first. Not when
+    //     the name is the one every branch recovered with no name gets, which says nothing about them
+    //     being one;
     //   - otherwise the branch that clearly more other branches were merged into: at least two, and
     //     at least twice as many as any other, not counting the trunk merged in to bring a branch up
     //     to date.
@@ -472,7 +473,7 @@ class CommitBranchRules : ICommitBranchRules
 
     static bool IsOneName(IReadOnlyList<BranchGroup> groups) =>
         groups.All(g => BranchFactory.IsNamed(g.Primary))
-        && groups.Select(g => g.Primary.NiceName).Distinct().Count() == 1;
+        && groups.All(g => IsSameName(g.Primary.NiceName, groups[0].Primary.NiceName));
 
     static BranchGroup MostMergedInto(IReadOnlyList<BranchGroup> groups) =>
         groups.OrderByDescending(g => g.Primary.MergedFromNames.Count).First();

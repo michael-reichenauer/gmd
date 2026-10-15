@@ -794,6 +794,26 @@ public class BranchStructureServiceTest
         Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
     }
 
+    // The same with an owner in front of one of the names, as a pull request from a fork's copy of the
+    // branch has it: in sinatra, 1.2.x and timfel/1.2.x left 144 commits of 1.2.x ambiguous
+    [TestMethod]
+    public async Task TestBranchPointOfBranchesOfOneNameWithAnOwnerIsNotAmbiguous()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c3", "Merge branch '1.2.x'", "c2", "d2")
+            .Commit("c2", "Merge pull request #1 from someone/1.2.x", "c1", "e1")
+            .Commit("d2", "Fix 2", "d1")
+            .Commit("e1", "Fix other", "d1")
+            .Commit("d1", "Fix 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .AugmentAsync();
+
+        Assert.AreEqual($"someone/1.2.x:{RepoBuilder.Sid("e1")}", BranchOf(repo, "e1"));
+        Assert.AreEqual($"1.2.x:{RepoBuilder.Sid("d2")}", BranchOf(repo, "d1"), "The first of the two");
+        Assert.IsFalse(repo.Commits.Any(c => c.IsAmbiguous));
+    }
+
     // Not so for two deleted branches whose merges name no branch: each is recovered as 'branch', a
     // name that says nothing about being one branch, so the commit where they meet is still ambiguous
     //
