@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using IOPath = System.IO.Path;
 
@@ -139,9 +140,9 @@ sealed class TmuxSession : IDisposable
     // alone, see StableCount.
     public string WaitForMoving(Func<string, bool> isMatch, string what, int timeoutMs = DefaultTimeoutMs)
     {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var clock = Stopwatch.StartNew();
         var screen = "";
-        while (DateTime.UtcNow < deadline)
+        while (clock.ElapsedMilliseconds < timeoutMs)
         {
             screen = Capture();
             if (isMatch(screen))
@@ -167,8 +168,8 @@ sealed class TmuxSession : IDisposable
     // to look at.
     public string WaitForClipboard(string previous = "", int timeoutMs = DefaultTimeoutMs)
     {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (DateTime.UtcNow < deadline)
+        var clock = Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < timeoutMs)
         {
             var text = Clipboard();
             if (text != "" && text != previous)
@@ -206,9 +207,9 @@ sealed class TmuxSession : IDisposable
     string PollLog(Func<string, bool> isDone, string what, int timeoutMs)
     {
         var path = Path.Join(Home, "gmd.log");
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var clock = Stopwatch.StartNew();
         var log = "";
-        while (DateTime.UtcNow < deadline)
+        while (clock.ElapsedMilliseconds < timeoutMs)
         {
             // gmd has it open for writing, hence the share mode
             log = File.Exists(path) ? ReadShared(path) : "";
@@ -314,8 +315,8 @@ sealed class TmuxSession : IDisposable
 
     public void WaitForExit(int timeoutMs = DefaultTimeoutMs)
     {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (DateTime.UtcNow < deadline)
+        var clock = Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < timeoutMs)
         {
             if (!IsRunning)
                 return;
@@ -459,14 +460,17 @@ sealed class TmuxSession : IDisposable
 
     // Polls capture-pane until the condition holds and the screen has then been unchanged for
     // StableCount polls in a row
+    // Every wait is timed on a monotonic clock, not the time of day: that jumps when the computer wakes
+    // from sleep and sets its clock, and every wait running then timed out at once, eight tests failing
+    // after a second each, 'timed out after 30000 ms'
     string Poll(Func<string, bool> isDone, string what, int timeoutMs)
     {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var clock = Stopwatch.StartNew();
         var screen = "";
         var previous = "";
         var stable = 0;
 
-        while (DateTime.UtcNow < deadline)
+        while (clock.ElapsedMilliseconds < timeoutMs)
         {
             screen = Capture();
             stable = screen == previous ? stable + 1 : 0;
