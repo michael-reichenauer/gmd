@@ -41,4 +41,15 @@ public class TextTest
         Assert.AreSame(text, text.WithMatches(""));
         Assert.AreSame(text, text.WithMatches("absent"));
     }
+
+    // A builder made from a text is as long as the text, which it was not: it counted only what was
+    // added to it after, so a separator meant for after a text was left out when it was not empty
+    [TestMethod]
+    public void TestABuilderOfATextIsAsLongAsTheText()
+    {
+        var text = Text.Cyan("abc").White(" de").ToText();
+
+        Assert.AreEqual(6, text.ToTextBuilder().Length);
+        Assert.AreEqual(8, text.ToTextBuilder().Dark("..").Length);
+    }
 }

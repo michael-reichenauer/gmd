@@ -226,6 +226,7 @@ class TextBuilder
     public TextBuilder(IEnumerable<TextFragment> fragments)
     {
         this.fragments = fragments.ToList();
+        Length = this.fragments.Sum(f => TextWidth.Of(f.Text));
     }
 
     public int Length { get; private set; } = 0;
