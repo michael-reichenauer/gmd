@@ -135,7 +135,7 @@ class ConflictWorkspace : IConflictWorkspace
         if (finish == ResolveNext.None)
             return ResolveNext.None;
 
-        var name = OperationName(state.Operation);
+        var name = OperationText.Name(state.Operation);
         var choice = UI.InfoMessage(
             "Conflicts Resolved",
             $"Every conflict of the {name.ToLower()} is resolved.\n\n"
@@ -152,15 +152,4 @@ class ConflictWorkspace : IConflictWorkspace
         state.Operation == GitOperation.None ? ResolveNext.None
         : state.IsFinishedByCommit ? ResolveNext.Commit
         : ResolveNext.Continue;
-
-    static string OperationName(GitOperation operation) =>
-        operation switch
-        {
-            GitOperation.Merge => "Merge",
-            GitOperation.CherryPick => "Cherry Pick",
-            GitOperation.Revert => "Revert",
-            GitOperation.Rebase => "Rebase",
-            GitOperation.Am => "Patch",
-            _ => "Operation",
-        };
 }

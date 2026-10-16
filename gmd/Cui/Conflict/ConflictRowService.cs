@@ -359,14 +359,7 @@ class ConflictRowService : IConflictRowService
         return text;
     }
 
+    // The operation, as gmd names it elsewhere, or with none in progress what the view does
     static string OperationName(GitOperation operation) =>
-        operation switch
-        {
-            GitOperation.Merge => "Merge",
-            GitOperation.CherryPick => "Cherry pick",
-            GitOperation.Revert => "Revert",
-            GitOperation.Rebase => "Rebase",
-            GitOperation.Am => "Apply patches",
-            _ => "Resolve",
-        };
+        operation == GitOperation.None ? "Resolve" : OperationText.Name(operation);
 }

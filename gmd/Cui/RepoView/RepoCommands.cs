@@ -217,18 +217,7 @@ class RepoCommands : IRepoCommands
 
     // The name of what git stopped part way through, e.g. "Rebase", for the menu items that act on
     // it. "Operation" when nothing is in progress, where those items are hidden anyway.
-    public string OperationName() => OperationName(context.ViewRepo.Repo.Status.Operation);
-
-    static string OperationName(GitOperation operation) =>
-        operation switch
-        {
-            GitOperation.Merge => "Merge",
-            GitOperation.CherryPick => "Cherry Pick",
-            GitOperation.Revert => "Revert",
-            GitOperation.Rebase => "Rebase",
-            GitOperation.Am => "Apply Patches",
-            _ => "Operation",
-        };
+    public string OperationName() => OperationText.Name(context.ViewRepo.Repo.Status.Operation);
 
     // What the operation is doing, for the separator that heads the menu section, e.g.
     // "Rebasing 'dev' (3 of 7)  ·  2 conflicts"
@@ -236,7 +225,7 @@ class RepoCommands : IRepoCommands
     {
         var repo = context.ViewRepo;
         var s = repo.Repo.Status;
-        var text = OperationName(s.Operation);
+        var text = OperationText.Name(s.Operation);
         if (s.OperationBranchName != "")
             text += $" '{s.OperationBranchName}'";
         if (s.OperationTotal > 0)
