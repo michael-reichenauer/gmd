@@ -46,10 +46,15 @@ class BlameView : IBlameView
 
     readonly IHelpPage helpPage;
     readonly Config config;
-    KeyHintBar? hintBar;
+    KeyHintBar hintBar = null!;
+
+    // The search of the lines, f and then n and Shift-N, and the status line of this view, which says
+    // what it found, as in the diff
+    RowSearch search = RowSearch.None;
+    IStatusLine status = new StatusLine();
 
     // The bottom row, for the key hints, unless they are turned off
-    int HintsHeight => hintBar != null ? 1 : 0;
+    int HintsHeight => config.ShowKeyHints ? 1 : 0;
 
     public BlameView(
         IBlameRowService blameRowService,
@@ -88,6 +93,8 @@ class BlameView : IBlameView
         this.isShowDetails = false;
         this.details = BlameDetails.Full;
         this.backStack.Clear();
+        this.search = RowSearch.None;
+        this.status = new StatusLine();
 
         Toplevel blameView = new Toplevel()
         {
@@ -107,17 +114,17 @@ class BlameView : IBlameView
             ColorScheme = ColorSchemes.Border,
         };
 
-        hintBar = config.ShowKeyHints
-            ? new KeyHintBar(
-                () =>
-                    BlameHints.For(
-                        isShowDetails,
-                        CurrentRow?.Commit.PreviousId is not (null or ""),
-                        backStack.Count > 0
-                    ),
-                () => null
-            )
-            : null;
+        // The bar is there with the hints off too, for what a search found, as in the diff
+        hintBar = new KeyHintBar(
+            () =>
+                BlameHints.For(
+                    isShowDetails,
+                    CurrentRow?.Commit.PreviousId is not (null or ""),
+                    backStack.Count > 0,
+                    search.IsActive
+                ),
+            () => status.Current
+        );
 
         contentView = new ContentView(OnGetContent)
         {
@@ -134,13 +141,10 @@ class BlameView : IBlameView
         detailsView = newDetailsView();
         detailsView.View.Y = Pos.AnchorEnd(CommitDetailsView.ContentHeight + HintsHeight);
 
-        blameView.Add(header, border, contentView, detailsView.View);
-        if (hintBar is KeyHintBar bar)
-        {
-            blameView.Add(bar);
-            // 'p' and Backspace are offered for the line's commit, and for having stepped back
-            contentView.CurrentIndexChange += () => bar.SetNeedsDisplay();
-        }
+        blameView.Add(header, border, contentView, detailsView.View, hintBar);
+        hintBar.FollowStatus(status, config.ShowKeyHints, blameView);
+        // 'p' and Backspace are offered for the line's commit, and for having stepped back
+        contentView.CurrentIndexChange += () => hintBar.SetNeedsDisplay();
         RegisterShortcuts(contentView);
         detailsView.View.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
         detailsView.View.RegisterKeyHandler(Key.Enter, ToggleDetails);
@@ -150,7 +154,8 @@ class BlameView : IBlameView
 
         SetHeader();
         contentView.SetNeedsDisplay();
-        UI.RunDialog(blameView);
+        using (Menu.SayingWhyNotOn(status))
+            UI.RunDialog(blameView);
     }
 
     void RegisterShortcuts(ContentView view)
@@ -188,6 +193,12 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.i, CopyLineId);
         view.RegisterKeyHandler(Key.I, CopyLineMessage);
 
+        // Search the lines with the keys of the diff and the log, n and Shift-N one case each as there
+        view.RegisterLetterHandler(Key.f, Search);
+        view.RegisterKeyHandler((Key)'/', Search);
+        view.RegisterKeyHandler(Key.n, () => StepMatch(1));
+        view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
+
         view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
         // At the screen row above the click, so the first item is beside it: the view is two rows down
         view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y + 1));
@@ -207,7 +218,8 @@ class BlameView : IBlameView
                         cw,
                         rowStartX,
                         i + firstRow == currentIndex,
-                        contentView.IsRowSelected(i + firstRow)
+                        contentView.IsRowSelected(i + firstRow),
+                        search.IsActive ? search.Text : ""
                     )
             );
 
@@ -285,7 +297,7 @@ class BlameView : IBlameView
 
         contentView.SetNeedsDisplay();
         detailsView.View.SetNeedsDisplay();
-        hintBar?.SetNeedsDisplay(); // Enter shows or hides the details
+        hintBar.SetNeedsDisplay(); // Enter shows or hides the details
     }
 
     // Focus moves to the details so a long commit message can be scrolled, as in the log view.
@@ -399,7 +411,7 @@ class BlameView : IBlameView
         var (firstLine, lastLine) = (blame.Lines[first].LineNbr, blame.Lines[last].LineNbr);
         var reference = blame.Reference;
         // 'git log -L' takes no context, so there is none to step
-        var source = new DiffSource(_ => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, repo.Path))
+        var source = new DiffSource(o => server.GetLineHistoryAsync(path, firstLine, lastLine, reference, o, repo.Path))
         {
             HasContext = false,
         };
@@ -471,6 +483,7 @@ class BlameView : IBlameView
 
         blame = newBlame;
         blameRows = blameRowService.ToBlameRows(blame);
+        search = FindInRows(search.Text); // Searched again, in the version now blamed
         rowStartX = startX;
         // Scrolled to the line too: Back put the cursor on it with the view at the top of the file
         contentView.MoveToTop();
@@ -478,6 +491,58 @@ class BlameView : IBlameView
         SetHeader();
         contentView.SetNeedsDisplay();
         return true;
+    }
+
+    const string NoSearch = "No search to go on with: search with f first";
+
+    // Asks for a text and goes to where it is in the code, from the cursor down, and n and Shift-N
+    // then go on from wherever the cursor is, as in the diff
+    void Search()
+    {
+        if (SearchDlg.Show("file") is not string text)
+            return;
+
+        search = FindInRows(text);
+        if (!search.IsActive)
+        {
+            status.Notice($"'{text}' is not in {blame.Path}");
+            return;
+        }
+
+        ShowMatch(search.First(contentView.CurrentIndex));
+    }
+
+    void StepMatch(int direction)
+    {
+        if (!search.IsActive)
+        {
+            status.Notice(NoSearch);
+            return;
+        }
+
+        var index = search.Next(contentView.CurrentIndex, direction);
+        if (index == -1)
+        {
+            status.Notice(search.NoMoreText(direction));
+            return;
+        }
+
+        ShowMatch(index);
+    }
+
+    // The code is searched, not the gutter's commits beside it
+    RowSearch FindInRows(string text) => RowSearch.Find(text, blameRows.Rows.Count, i => blameRows.Rows[i].Text);
+
+    // The cursor is put on the line, and the code scrolled sideways to show the match
+    void ShowMatch(int index)
+    {
+        var start = RowSearch.IndexOf(blameRows.Rows[index].Text, search.Text);
+        var cw = BlameColumns.Calculate(details, contentView.ContentWidth, blameRows.Rows.Count);
+        rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, cw.Code);
+
+        contentView.ShowCurrentIndex(index);
+        contentView.SetNeedsDisplay();
+        status.Info(search.MatchText(index));
     }
 
     void OnCopy()
@@ -549,6 +614,9 @@ class BlameView : IBlameView
                 )
                 .Item("Back", "Backspace", () => Back(), () => backStack.Count > 0)
                 .Separator()
+                .Item("Search ...", "f", () => Search())
+                .Item("Next Match", "n", () => StepMatch(1), () => search.IsActive, () => NoSearch)
+                .Item("Previous Match", "⇧n", () => StepMatch(-1), () => search.IsActive, () => NoSearch)
                 .SubMenu("Scroll to Commit", "", GetScrollToItems())
                 .Item("Commit Details", "Enter", () => ToggleDetails())
                 .Item($"Gutter Detail ({details})", "g", () => CycleDetails())

@@ -621,8 +621,8 @@ public class DiffServiceTest
         var cmd = new FakeCmd(FileLogOutput);
         var service = new DiffService(cmd);
 
-        var commitDiffs = AssertOk(await service.GetLineHistoryAsync("my dir/a.txt", 3, 7, "abc123", "/wd"));
-        AssertOk(await service.GetLineHistoryAsync("a.txt", 1, 1, "", "/wd"));
+        var commitDiffs = AssertOk(await service.GetLineHistoryAsync("my dir/a.txt", 3, 7, "abc123", 0, "/wd"));
+        AssertOk(await service.GetLineHistoryAsync("a.txt", 1, 1, "", 0, "/wd"));
 
         Assert.AreEqual(2, commitDiffs.Length);
         Assert.AreEqual($"log {Format} --date=iso \"-L3,7:my dir/a.txt\" abc123", cmd.Calls[0].Args);
@@ -704,7 +704,7 @@ public class DiffServiceTest
     {
         await AssertArgsContain(Format, s => s.GetCommitDiffAsync("abc123", 6, "/wd"));
         await AssertArgsContain(Format, s => s.GetFileDiffAsync("a.txt", 6, "/wd"));
-        await AssertArgsContain(Format, s => s.GetLineHistoryAsync("a.txt", 1, 2, "", "/wd"));
+        await AssertArgsContain(Format, s => s.GetLineHistoryAsync("a.txt", 1, 2, "", 0, "/wd"));
         await AssertArgsContain(DiffFormat, s => s.GetStashDiffAsync("stash@{0}", 6, "/wd"));
         await AssertArgsContain(DiffFormat, s => s.GetDiffRangeAsync("a", "b", "Range", 6, "/wd"));
         await AssertArgsContain(DiffFormat, s => s.GetRefsDiffAsync("a", "b", "Refs", 6, "/wd"));
@@ -736,6 +736,40 @@ public class DiffServiceTest
         await new DiffService(cmd).GetUncommittedDiffAsync(15, TempWd());
 
         CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), $"diff {DiffFormat} --staged --unified=15");
+    }
+
+    // Every diff command leaves out the changes of whitespace alone when asked, the line history too,
+    // which takes no context, and the fallback of an empty repo with the rest of its options
+    [TestMethod]
+    public async Task TestEveryDiffCommandCanLeaveOutWhitespace()
+    {
+        var options = new DiffOptions(6, IsIgnoreWhitespace: true);
+        const string ignore = "--unified=6 --ignore-all-space";
+        await AssertArgsContain(ignore, s => s.GetCommitDiffAsync("abc123", options, "/wd"));
+        await AssertArgsContain(ignore, s => s.GetFileDiffAsync("a.txt", options, "/wd"));
+        await AssertArgsContain(ignore, s => s.GetStashDiffAsync("stash@{0}", options, "/wd"));
+        await AssertArgsContain(ignore, s => s.GetDiffRangeAsync("a", "b", "Range", options, "/wd"));
+        await AssertArgsContain(ignore, s => s.GetRefsDiffAsync("a", "b", "Refs", options, "/wd"));
+        await AssertArgsContain(
+            "--date=iso --ignore-all-space ",
+            s => s.GetLineHistoryAsync("a.txt", 1, 2, "", options, "/wd")
+        );
+
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.EndsWith("HEAD")
+                    ? FakeCmd.Fail("fatal: ambiguous argument 'HEAD': unknown revision")
+                    : FakeCmd.Ok(ConflictOutput)
+        );
+        await new DiffService(cmd).GetUncommittedDiffAsync(options, TempWd());
+        CollectionAssert.Contains(cmd.Calls.Select(c => c.Args).ToArray(), $"diff {DiffFormat} --staged {ignore}");
+
+        static async Task AssertArgsContain(string expected, Func<DiffService, Task> call)
+        {
+            var cmd = new FakeCmd(ShowOutput);
+            await call(new DiffService(cmd));
+            StringAssert.Contains(cmd.Calls[0].Args, expected);
+        }
     }
 
     // A range diff has no commit header of its own, so it gets the message it was asked for

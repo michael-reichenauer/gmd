@@ -5,7 +5,8 @@ namespace gmd.Cui.Blame;
 // The blame view's key-hint line, see KeyHintLine. 'Esc close' comes early, as in the diff's.
 static class BlameHints
 {
-    public static IReadOnlyList<KeyHint> For(bool isDetailsShown, bool hasPrevious, bool canGoBack)
+    // hasSearch is a search with matches for n to go on with, as in the diff's
+    public static IReadOnlyList<KeyHint> For(bool isDetailsShown, bool hasPrevious, bool canGoBack, bool hasSearch)
     {
         List<KeyHint> hints =
         [
@@ -19,6 +20,9 @@ static class BlameHints
             hints.Add(new("p", "previous"));
         if (canGoBack)
             hints.Add(new("Backspace", "back"));
+        if (hasSearch)
+            hints.Add(new("n", "next match"));
+        hints.Add(new("f", "search"));
         hints.AddRange([new("i", "copy id"), new("g", "gutter")]);
         return hints;
     }

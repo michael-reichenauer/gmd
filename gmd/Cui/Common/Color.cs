@@ -22,6 +22,10 @@ record Color
     public static readonly Color RedBg = Make(Terminal.Gui.Color.White, Terminal.Gui.Color.Red);
     public static readonly Color GreenBg = Make(Terminal.Gui.Color.Black, Terminal.Gui.Color.BrightGreen);
 
+    // A search match in the diff and the blame, black on yellow as a find marks it in most tools. The
+    // row highlights leave it as it is (Text.ToHighlight), since the cursor is put on the match.
+    public static readonly Color Match = Make(Terminal.Gui.Color.Black, Terminal.Gui.Color.BrightYellow);
+
     public Color(Color fg, Color bg)
         : this(fg.Foreground, bg.Foreground) { }
 

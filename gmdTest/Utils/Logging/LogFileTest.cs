@@ -68,7 +68,8 @@ public class LogFileTest
             Assert.Inconclusive("Root writes a read-only file all the same");
         using var folder = new TempFolder();
         var path = folder.File("gmd.log", "A line of the last run\n");
-        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        if (!OperatingSystem.IsWindows()) // Not run there, but the analyzer does not see that (CA1416)
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
 
         AssertOk(LogFile.Open(path));
 

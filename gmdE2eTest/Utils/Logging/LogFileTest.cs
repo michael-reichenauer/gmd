@@ -20,7 +20,8 @@ public class LogFileTest
         var home = TempHome.Create();
         var log = Path.Join(home.Path, "gmd.log");
         File.WriteAllText(log, "A line of the last run\n");
-        File.SetUnixFileMode(log, UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(log, UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
 
         using var gmd = TmuxSession.StartGmd(home, repo.Path);
 

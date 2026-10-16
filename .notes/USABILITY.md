@@ -118,6 +118,72 @@ Ranked by how soon someone new meets the gap.
    Pop; Tags ... in the Tag menu, a list of every tag with whether origin has it, to show, push or
    remove; Mark for Diff and Diff with in the commit menu; `change:` in the search; and `l` in the
    blame, the history of the lines.
+8. **Found later (2026-10-15)**, comparing gmd with the clients its audiences know:
+   - A search in the diff and the blame, where a long diff or file could only be scrolled. *Done
+     (2026-10-15):* `f` or `/` and then `n` and `Shift-N`, as in the log, but stepping from the
+     cursor and matching a part of a line as typed (`RowSearch`); every match marked black on yellow,
+     on the cursor's row too, and said on each view's own status line, over the bottom row with the
+     key hints off as in the log.
+   - A squash left unsigned where git's config signs commits. *Fixed (2026-10-15)*, see
+     `MODERNIZATION.md`. Few sign (about one commit in ten on GitHub), but a branch that requires
+     signed commits refused the push.
+   - Ignoring whitespace in a diff. *Done (2026-10-15):* `w` in the diff view, git's
+     `--ignore-all-space` through `DiffOptions`, for the diff it is pressed in only. A file whose
+     changes are all whitespace, which git then leaves out, is listed as such, as GitHub lists it
+     (`DiffWhitespace`), so it is still in the file list, Scroll to and Discard; and no change of the
+     spaces around a line, nor of its line end, is marked.
+   - Committing or discarding part of a file (the known limit in the README). *Planned
+     (2026-10-15)*, as ticks rather than a staging area, which keeps the checklist's model: in the
+     diff of the uncommitted changes `x` leaves a change out, or the selected lines, and the commit
+     takes the rest, made with `git commit` on a temporary index of HEAD with the chosen lines
+     applied to it (`GIT_INDEX_FILE`), the real index then caught up for the committed paths, the
+     working tree never written; a discard is the same patch applied in reverse to the working tree.
+     A choice is of a line by its side, number and text, and a left-out line not found exactly when
+     the commit is made stops that file ("changed since its changes were chosen"). Not while
+     whitespace is hidden, nor during a merge, nor for binary, renamed or deleted files, at first.
+     In phases: 1. the patch model and applying it; 2. discarding a change or the selected lines
+     (`u`); 3. choosing what to commit (`x`, the drawing, partly ticked files in the commit dialog,
+     the commit and amend); 4. later, a way back from discards (`git stash create` first, recorded as
+     Restore Deleted Branch records), and renamed and deleted files in part. *Phase 1 done
+     (2026-10-15):* `FilePatch`, `PatchParser` and `PatchService` in the git layer, see `CLAUDE.md`.
+     *Phase 2 done (2026-10-16):* `u` in the diff of the uncommitted changes has This Change, or
+     Selected Lines, at the top of its menu, asked first (`DiffLines`, `Server.DiscardLinesAsync`,
+     `ChosenLines`); a line is matched with its tabs as the diff shows them, three spaces each. On
+     the way, a greyed out item of the diff's or the blame's menu said why on the log's status line,
+     behind the view; it says it on the view's own now (`Menu.SayingWhyNotOn`), drawn under the
+     open menu, which is all Terminal.Gui redraws then.
+     *Phase 3 done (2026-10-16):* `x` in the diff of the uncommitted changes leaves the change, the
+     selected lines or on a file's header the whole file out of the commit, or puts them back
+     (`LeftOutLines`, for the session, of the repo shown); drawn dark with `╎`, counted on the
+     header and in the commit dialog. The commit is `Server.CommitLinesAsync`, the patches of the
+     rest in `PatchService.CommitPatchesAsync`, through an index of HEAD, the real index reset for
+     the committed paths after. A left-out line is found again where only its number moved (its
+     text unique among the file's changed lines of its version); one not found stops the commit,
+     the header saying how many. An older commit's amend refuses a file with lines left out. Phase
+     1's patch of a file in a repository with no commit yet was not read: with a path git says
+     'bad revision', not 'unknown revision', so HEAD is asked about first now.
+     *Phase 4's way back done (2026-10-16):* every discard, the lines, a file, all changes, all with
+     the ignored files, and a stash dropped, keeps what it throws away (`Server.DiscardedChanges`):
+     the working tree before and after it as commits on `refs/gmd/discarded`, whose reflog keeps
+     them for git's 30 days, a dropped stash as a commit whose parent is the stash. Restore
+     Discarded Changes, in the Undo menu, lists them, diffs them, and puts one back, the difference
+     applied to the working tree, which git refuses whole if its files changed since. `git stash
+     create`, which this plan named, leaves out the new files, so the snapshot is a copy of the index
+     with everything added and written as a tree (`SnapshotService`). The questions say the way back
+     now, and the status line after each discard. The ignored files are not kept.
+     *Phase 4's files done (2026-10-16):* a deleted file in part needed nothing, phase 1's patches
+     and the rows already had it, now tested end to end (a line discarded is the file with that line
+     again). A renamed file in part: its patch is of both paths, the rename found as the uncommitted
+     diff finds it (`PatchService` stages everything into the copy of the index now, and asks
+     `--name-status` for the old path); its lines go in with the rename, the old path then not
+     committed whole too, and with none of them the rename alone does, a patch with no hunks not
+     being empty then; taken back, they are a change of the file where it is now, so the rename
+     stays. Git writes a tab after a path with a space on the '---' and '+++' lines, not in the
+     'diff --git' one, which the header made for that keeps.
+   - Open, in the order they would be met: a cherry-pick of the selected commits, whose range the
+     copy menu offers for the command line; opening a file in the editor at a line of the diff or the
+     blame; a rebase of a published branch without its force push; and a reset of a branch to any
+     commit, which takes Uncommit and then Discard today.
 
 Not needed by the audiences above: submodule and LFS commands, bisect, patches, and pull requests
 through the services' APIs.
@@ -766,7 +832,8 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    it is fetched, and a pull then moves the branch's own commits onto the new version rather than
    merging the two; *Restore origin* puts origin back, asking first, since that is a force push too. Left for later: a key for Undo
    and a key hint, and a way back from Discard All Changes and Drop Stash, which the reflog does not
-   record (see MODERNIZATION.md).
+   record (see MODERNIZATION.md). *The way back done (2026-10-16):* Restore Discarded Changes, see
+   the product review's part 2, item 8.
 
 ---
 

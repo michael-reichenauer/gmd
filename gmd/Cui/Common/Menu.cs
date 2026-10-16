@@ -33,8 +33,18 @@ class Menu
     public const int Center = -int.MaxValue;
 
     // Where a greyed out item says why it is, when it is picked anyway: the status line at the
-    // bottom of the log view, which is left in view behind a menu. Set once, by MainView.
+    // bottom of the log view, which is left in view behind a menu. Set by MainView, and for as long
+    // as a view over the log runs, its own (SayingWhyNotOn).
     internal static IStatusLine? StatusLine { get; set; }
+
+    // The menus of a view over the log, e.g. the diff, say why on its status line until disposed:
+    // on the log's, they said it behind the view, out of sight
+    internal static Disposable SayingWhyNotOn(IStatusLine status)
+    {
+        var before = StatusLine;
+        StatusLine = status;
+        return new Disposable(() => StatusLine = before);
+    }
 
     public static void Show(
         string title,

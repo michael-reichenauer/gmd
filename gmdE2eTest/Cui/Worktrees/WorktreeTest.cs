@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using gmdE2eTest.Fixtures;
 
 namespace gmdE2eTest.Cui.Worktrees;
@@ -120,8 +121,8 @@ public class WorktreeTest
         File.WriteAllText(Path.Join(repo.WorktreePath("dev"), "new.txt"), "new\n");
 
         // The re-read is every thirty seconds
-        var deadline = DateTime.UtcNow.AddSeconds(75);
-        while (ColorOfMarker(gmd) != 'Y' && DateTime.UtcNow < deadline)
+        var clock = Stopwatch.StartNew(); // Not the time of day, which jumps, see TmuxSession.Poll
+        while (ColorOfMarker(gmd) != 'Y' && clock.Elapsed < TimeSpan.FromSeconds(75))
         {
             Thread.Sleep(500);
         }
@@ -139,8 +140,8 @@ public class WorktreeTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("⌂1");
 
-        var deadline = DateTime.UtcNow.AddSeconds(15);
-        while (ColorOfMarker(gmd) != 'Y' && DateTime.UtcNow < deadline)
+        var clock = Stopwatch.StartNew(); // Not the time of day, which jumps, see TmuxSession.Poll
+        while (ColorOfMarker(gmd) != 'Y' && clock.Elapsed < TimeSpan.FromSeconds(15))
         {
             Thread.Sleep(200);
         }

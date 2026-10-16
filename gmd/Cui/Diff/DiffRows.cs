@@ -5,6 +5,7 @@ namespace gmd.Cui.Diff;
 class DiffRows
 {
     readonly List<DiffRow> rows = [];
+    string[]? files;
 
     internal int MaxLength { get; private set; }
     internal int Count => rows.Count;
@@ -16,13 +17,32 @@ class DiffRows
         string filePath = "",
         string commitId = "",
         int leftLineNbr = 0,
-        int rightLineNbr = 0
-    ) => Add(oneRow, Text.Empty, DiffRowMode.SpanBoth, filePath, commitId, leftLineNbr, rightLineNbr);
+        int rightLineNbr = 0,
+        string? removedText = null,
+        string? addedText = null
+    ) =>
+        Add(
+            oneRow,
+            Text.Empty,
+            DiffRowMode.SpanBoth,
+            filePath,
+            commitId,
+            leftLineNbr,
+            rightLineNbr,
+            removedText,
+            addedText
+        );
 
-    internal void Add(Text left, Text right, int leftLineNbr = 0, int rightLineNbr = 0) =>
-        Add(left, right, DiffRowMode.SideBySide, "", "", leftLineNbr, rightLineNbr);
+    internal void Add(
+        Text left,
+        Text right,
+        int leftLineNbr = 0,
+        int rightLineNbr = 0,
+        string? removedText = null,
+        string? addedText = null
+    ) => Add(left, right, DiffRowMode.SideBySide, "", "", leftLineNbr, rightLineNbr, removedText, addedText);
 
-    internal void AddLine(Text line) => Add(line, Text.Empty, DiffRowMode.DividerLine, "", "", 0, 0);
+    internal void AddLine(Text line) => Add(line, Text.Empty, DiffRowMode.DividerLine, "", "", 0, 0, null, null);
 
     void Add(
         Text left,
@@ -31,7 +51,9 @@ class DiffRows
         string filePath,
         string commitId,
         int leftLineNbr,
-        int rightLineNbr
+        int rightLineNbr,
+        string? removedText,
+        string? addedText
     )
     {
         // The filler of a side with no line is no text to scroll to: it is 300 wide, and counted, it
@@ -45,7 +67,14 @@ class DiffRows
             MaxLength = right.Length;
         }
 
-        rows.Add(new DiffRow(left, right, mode, filePath, commitId, leftLineNbr, rightLineNbr));
+        files = null;
+        rows.Add(
+            new DiffRow(left, right, mode, filePath, commitId, leftLineNbr, rightLineNbr)
+            {
+                RemovedText = removedText,
+                AddedText = addedText,
+            }
+        );
     }
 
     // Where a row is, as content rather than as an index, which means nothing once the rows are
@@ -76,6 +105,20 @@ class DiffRows
         }
 
         return -1;
+    }
+
+    // The file a row is in, "" above the first, as AnchorAt finds it, worked out once for all rows,
+    // since every row drawn asks
+    internal string FileAt(int index)
+    {
+        files ??= Files();
+        return index >= 0 && index < files.Length ? files[index] : "";
+    }
+
+    string[] Files()
+    {
+        var path = "";
+        return rows.Select(r => path = r.FilePath != "" ? r.FilePath : path).ToArray();
     }
 
     // The value of the closest row at or above the index that has one, "" above them all
@@ -109,6 +152,13 @@ record DiffRow(
 {
     // The line number this row is at, preferring the new file's side, or 0 if it is not a source line
     internal int LineNbr => RightLineNbr != 0 ? RightLineNbr : LeftLineNbr;
+
+    // The text of the removed line on the left and of the added line on the right, as the diff has
+    // it, null where that side is no change: what a discard of the row's lines is told by (ChosenLine)
+    public string? RemovedText { get; init; }
+    public string? AddedText { get; init; }
+
+    public bool IsChange => RemovedText != null || AddedText != null;
 }
 
 // Where the cursor is, as content rather than a row index, so it survives the rows being rebuilt

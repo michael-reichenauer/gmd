@@ -514,6 +514,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
     fails instead; the advice then is to log in once with git in a terminal, after which GCM has the
     token stored. Showing GCM's own prompts in gmd would need GCM to ask an askpass, which as far as
     its documentation says it does not.
+- Signing is git's, as its config says (`commit.gpgsign`), for every commit gmd makes; Squash, the
+  one made by `commit-tree`, which does not read that setting, passes `-S` itself (2026-10-15). Not
+  tried, and left until someone reports it: a gpg key with a passphrase and a terminal pinentry
+  (`pinentry-curses`, `pinentry-tty`), which asks on the terminal gpg-agent is told of (`GPG_TTY`),
+  i.e. over gmd's screen as ssh did before the askpass. A graphical pinentry or a cached passphrase
+  does not touch the terminal, and ssh signing (`gpg.format ssh`) is ssh-keygen, which presumably
+  asks through `SSH_ASKPASS` as ssh does.
 - An exception on a thread of its own, rather than on the UI main loop or in a task, ends the
   process in `AppDomain.UnhandledException` before `Main` gets to say so (see the crash fix under
   Bugs fixed). Nothing in gmd starts such a thread today.

@@ -188,13 +188,13 @@ class FakeGit : IGit
     public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd) =>
+    public Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, DiffOptions options, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd) =>
         throw new NotSupportedException();
 
-    public Task<Result<CommitDiff>> GetUncommittedDiffAsync(int contextLines, string wd) =>
+    public Task<Result<CommitDiff>> GetUncommittedDiffAsync(DiffOptions options, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result<CommitDiff[]>> GetLineHistoryAsync(
@@ -202,10 +202,11 @@ class FakeGit : IGit
         int firstLine,
         int lastLine,
         string reference,
+        DiffOptions options,
         string wd
     ) => throw new NotSupportedException();
 
-    public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd) =>
+    public Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, DiffOptions options, string wd) =>
         throw new NotSupportedException();
 
     public Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd) =>
@@ -215,7 +216,7 @@ class FakeGit : IGit
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     ) => throw new NotSupportedException();
 
@@ -223,7 +224,7 @@ class FakeGit : IGit
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     ) => throw new NotSupportedException();
 
@@ -403,8 +404,43 @@ class FakeGit : IGit
 
     public Task<Result> StashDropAsync(string name, string wd) => throw new NotSupportedException();
 
-    public Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd) =>
+    public Task<Result> StashStoreAsync(string id, string message, string wd) => throw new NotSupportedException();
+
+    public Task<Result<string>> WriteWorkingTreeAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result<string>> WriteCommitAsync(
+        string tree,
+        IReadOnlyList<string> parents,
+        string message,
+        string wd
+    ) => throw new NotSupportedException();
+
+    public Task<Result> LogRefAsync(string refName, string id, string message, string wd) =>
         throw new NotSupportedException();
+
+    public Task<Result<IReadOnlyList<RefLogRecord>>> GetRefLogAsync(string refName, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> ApplyDiffAsync(string fromId, string toId, string wd) => throw new NotSupportedException();
+
+    public Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result<FilePatch>> GetUncommittedPatchAsync(string path, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> ApplyPatchToIndexAsync(FilePatch patch, string indexPath, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> ApplyPatchReversedAsync(FilePatch patch, string wd) => throw new NotSupportedException();
+
+    public Task<Result> CommitPatchesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, FilePatch> patches,
+        string wd
+    ) => throw new NotSupportedException();
 
     public Task<Result> AddTagAsync(string name, string commitId, string wd) => throw new NotSupportedException();
 

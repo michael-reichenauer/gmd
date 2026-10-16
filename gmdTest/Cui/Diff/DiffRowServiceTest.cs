@@ -171,6 +171,102 @@ public class DiffRowServiceTest
         Assert.AreEqual("same\nnew\nmore", DiffRowService.CopyText(lines, false));
     }
 
+    // With whitespace hidden the summary says so, a file of whitespace changes alone is listed as such,
+    // with a row saying why it has no lines, and the new indent of a changed line is not marked,
+    // where it is otherwise, with the spaces on the green background of an added change, '+'
+    [TestMethod]
+    public void TestADiffWithWhitespaceHiddenSaysSoAndMarksNone()
+    {
+        var reindented = FileDiffOf("a.c", (DiffMode.DiffRemoved, "bar();"), (DiffMode.DiffAdded, "    baz();"));
+        var spacesOnly = FileOf("b.txt") with { IsWhitespaceOnly = true };
+        var diff = CommitDiffOf(reindented, spacesOnly);
+
+        var hidden = new DiffRowService().ToDiffRows(
+            [diff],
+            new Dictionary<string, int>(),
+            [],
+            isIgnoreWhitespace: true
+        );
+        var shown = new DiffRowService().ToDiffRows([diff], new Dictionary<string, int>(), []);
+
+        Assert.AreEqual(
+            """
+            2 Files:  2 modified   +1 -1 lines   whitespace hidden
+              Modified:    a.c
+              Modified:    b.txt (Whitespace only)
+            """,
+            FileListOf(hidden)
+        );
+        Assert.AreEqual(
+            """
+            ═
+            Commit:  abc123
+            Author:  Test
+            Date:    2025-01-01 00:00:00
+            Message: A commit
+
+            2 Files:  2 modified   +1 -1 lines   whitespace hidden
+              Modified:    a.c
+              Modified:    b.txt (Whitespace only)
+
+            ━
+            Modified: a.c
+
+            ─
+               1┃bar(); │    1┃    baz();
+            ─
+
+            ━
+            Modified: b.txt  (Whitespace only)
+
+            Only whitespace changed, which is hidden
+
+            ━
+            """,
+            DiffText.Of(hidden)
+        );
+        Assert.AreEqual("   DCWW-WWW │    DC    WW+WWW", DiffText.BodyColorsOf(hidden), "The indent not marked");
+        Assert.AreEqual("   DCWW-WWW │    DC++++WW+WWW", DiffText.BodyColorsOf(shown));
+    }
+
+    // A search looks in each side's line without its line number, which '12' would otherwise find on
+    // every twelfth line, and in the headers, e.g. a file's path; not in a divider, nor in the filler
+    // of a side with no line
+    [TestMethod]
+    public void TestASearchLooksInTheLinesWithoutTheirNumbers()
+    {
+        var rows = RowsOf(
+            FileDiffOf(
+                "a.txt",
+                (DiffMode.DiffSame, "same"),
+                (DiffMode.DiffRemoved, "old"),
+                (DiffMode.DiffAdded, "new"),
+                (DiffMode.DiffAdded, "more")
+            )
+        );
+
+        var texts = rows
+            .Rows.Select(DiffRowService.SearchText)
+            .Where(t => t != ("", ""))
+            .Select(t => $"{t.Left.TrimEnd()}|{t.Right.TrimEnd()}");
+
+        Assert.AreEqual(
+            """
+            Commit:  abc123|
+            Author:  Test|
+            Date:    2025-01-01 00:00:00|
+            Message: A commit|
+            1 File:  1 modified   +2 -1 lines|
+              Modified:    a.txt|
+            Modified: a.txt|
+            same|same
+            old|new
+            |more
+            """,
+            string.Join("\n", texts)
+        );
+    }
+
     // Stepping the context levels
 
     [TestMethod]

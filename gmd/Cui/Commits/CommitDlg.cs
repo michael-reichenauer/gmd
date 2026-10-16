@@ -32,15 +32,17 @@ interface ICommitDlg
 class CommitDlg : ICommitDlg
 {
     readonly ISpellChecker spellChecker;
+    readonly LeftOutLines leftOut;
     IReadOnlyList<Server.Commit>? commits;
     UITextView message = null!;
 
     // The checklist shows this many files at most, and scrolls for more
     const int MaxFileRows = 8;
 
-    internal CommitDlg(ISpellChecker spellChecker)
+    internal CommitDlg(ISpellChecker spellChecker, LeftOutLines leftOut)
     {
         this.spellChecker = spellChecker;
+        this.leftOut = leftOut;
     }
 
     public bool Show(
@@ -63,7 +65,7 @@ class CommitDlg : ICommitDlg
         // The files, to untick what is not to be committed. Not while an operation is in progress,
         // whose result git commits whole, refusing a commit of some files of a merge, nor for an
         // amend with no changes, which rewords the last commit.
-        var files = repo.Status.IsMerging ? null : new CommitFiles(repo.Status);
+        var files = repo.Status.IsMerging ? null : new CommitFiles(repo.Status, leftOut: leftOut);
         var message = isAmend ? repo.CurrentCommit().Message : repo.Status.MergeMessage;
         var isOk = ShowDialog(repo, showDiff, isAmend, null, message, files, out commitMessage);
         paths = files?.PathsToCommit;
@@ -79,7 +81,7 @@ class CommitDlg : ICommitDlg
     )
     {
         commits = null;
-        var files = new CommitFiles(repo.Status, isTicked: false);
+        var files = new CommitFiles(repo.Status, isTicked: false, leftOut);
         var isOk = ShowDialog(repo, showDiff, true, commit, commit.Message, files, out commitMessage);
         paths = files.TickedPaths;
         return isOk;
@@ -166,6 +168,14 @@ class CommitDlg : ICommitDlg
                 dlg.Validate(() => files.TickedCount > 0, "No file is ticked to commit: Space ticks one");
         }
 
+        // An older commit is amended with the whole of each file ticked (an 'amend!' commit, see
+        // CommitRewriteService), so lines left out of one would go in, unasked
+        if (older != null && files != null)
+            dlg.Validate(
+                () => files.TickedWithLinesLeftOut.Count == 0,
+                "A ticked file has lines left out with x in the diff, which an older commit cannot be amended without: put them back, or untick it"
+            );
+
         // A commit amended with the message it has and no file is not amended at all. The last one
         // can be given a new message alone with changes there too, by unticking them all: a ticked
         // file was asked for, so the message could not be fixed without taking work in progress in.
@@ -204,12 +214,15 @@ class CommitDlg : ICommitDlg
     }
 
     // A file of the checklist: ticked or not, as a check box is drawn, what changed, and the path;
-    // an unticked one dark, being left out
+    // an unticked one dark, being left out, and how many lines of a ticked one are left out
     static Text FileRow(CommitFiles files, int index, int width)
     {
         var file = files.Files[index];
         var isTicked = files.IsTicked(index);
-        var path = file.Path.Length + 4 <= width ? file.Path : $"┅{file.Path[^Math.Max(0, width - 5)..]}";
+        var leftOut = isTicked ? files.LeftOutCount(index) : 0;
+        var leftOutText = leftOut == 0 ? "" : $"  {leftOut} line{(leftOut == 1 ? "" : "s")} left out";
+        var pathWidth = width - leftOutText.Length;
+        var path = file.Path.Length + 4 <= pathWidth ? file.Path : $"┅{file.Path[^Math.Max(0, pathWidth - 5)..]}";
         if (!isTicked)
             return Text.Dark($"□ {file.Kind} {path}");
 
@@ -221,7 +234,7 @@ class CommitDlg : ICommitDlg
             'D' => text.Red(kind),
             _ => text.Yellow(kind),
         };
-        return text.White($" {path}");
+        return text.White($" {path}").Yellow(leftOutText);
     }
 
     private bool OnKey(Action showDiff, Key key)

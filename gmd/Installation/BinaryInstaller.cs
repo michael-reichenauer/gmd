@@ -415,15 +415,14 @@ class BinaryInstaller : IBinaryInstaller
     // With the mode of the binary it replaces, which runs, so that the new one runs too: a download is
     // made as a plain file, 0644 under the usual umask. Set directly rather than by 'chmod +x <path>',
     // whose path, unquoted, failed every update of a gmd in a folder with a space in its name.
-    static Result MakeExecutable(string stagedPath, string targetPath)
-    {
-        if (OperatingSystem.IsWindows())
-            return Result.Ok; // Windows runs a file by its name
-
-        return Result.Catch(() =>
+    // The check of Windows is in the lambda, where the analyzer sees it (CA1416), rather than before.
+    static Result MakeExecutable(string stagedPath, string targetPath) =>
+        Result.Catch(() =>
         {
+            if (OperatingSystem.IsWindows())
+                return; // Windows runs a file by its name
+
             var mode = File.GetUnixFileMode(targetPath) | UnixFileMode.UserRead | UnixFileMode.UserExecute;
             File.SetUnixFileMode(stagedPath, mode);
         });
-    }
 }

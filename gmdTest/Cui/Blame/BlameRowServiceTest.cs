@@ -264,4 +264,22 @@ public class BlameRowServiceTest
         // 8 of gutter leaves 10 for the code, scrolled 5 in, so both ends are cut
         Assert.AreEqual("╺ │   1┃…6789abcd…", service.ToRowText(rows.Rows[0], cw, 5, false, false).ToString());
     }
+
+    // A search is of the code, so its match is marked there and not in the gutter, here the sid
+    // 11111111, and stays marked on the cursor's row, where a search puts the cursor
+    [TestMethod]
+    public void TestASearchMatchIsMarkedInTheCodeOnly()
+    {
+        var service = new BlameRowService();
+        var rows = service.ToBlameRows(BlameOf((Id1, "x = 1111;")));
+        var cw = BlameColumns.Calculate(BlameDetails.Minimal, 50, 1);
+
+        var text = service.ToRowText(rows.Rows[0], cw, 0, true, false, "1111");
+
+        Assert.AreEqual("╺ 11111111 │   1┃x = 1111;", text.ToString().TrimEnd());
+        Assert.AreEqual(
+            "1111",
+            string.Join(",", text.Fragments.Where(f => f.Color == Color.Match).Select(f => f.Text))
+        );
+    }
 }

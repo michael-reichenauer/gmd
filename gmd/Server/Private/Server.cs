@@ -15,6 +15,7 @@ class Server : IServer
     readonly IViewRepoConverter converter;
     readonly IViewRepoCreater viewRepoCreater;
     readonly IFileMonitor fileMonitor;
+    readonly DiscardedChanges discarded;
 
     public Server(
         IGit git,
@@ -25,9 +26,11 @@ class Server : IServer
         IDeletedBranchService deletedBranchService,
         IViewRepoConverter converter,
         IViewRepoCreater viewRepoCreater,
-        IFileMonitor fileMonitor
+        IFileMonitor fileMonitor,
+        DiscardedChanges discarded
     )
     {
+        this.discarded = discarded;
         this.git = git;
         this.augmentedService = augmentedService;
         this.branchWriteService = branchWriteService;
@@ -275,12 +278,47 @@ class Server : IServer
     public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
         Paused(() => git.CommitFilesAsync(message, isAmend, paths, wd));
 
-    public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd)
+    // Commits the paths with the lines left out of them left out, in the working tree, uncommitted:
+    // a file with none whole, and one with some as the patch of the rest of its changes, the file's
+    // patch read again and the left-out lines found in it as the diff showed them (ChosenLines). One
+    // not found, the file having changed since, stops the commit, with nothing committed, rather than
+    // a line left out going in.
+    public Task<Result> CommitLinesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, IReadOnlyList<ChosenLine>> leftOut,
+        string wd
+    ) =>
+        Paused(async () =>
+        {
+            Dictionary<string, FilePatch> patches = [];
+            foreach (var (path, lines) in leftOut)
+            {
+                var patchResult = await git.GetUncommittedPatchAsync(path, wd);
+                if (patchResult is not FilePatch patch)
+                    return patchResult.Error;
+                var foundResult = ChosenLines.Find(patch, lines, path);
+                if (foundResult is not IReadOnlySet<PatchLine> found)
+                    return foundResult.Error;
+                var chosenResult = patch.ForApply(l => !found.Contains(l));
+                if (chosenResult is not FilePatch chosen)
+                    return chosenResult.Error;
+                patches[path] = chosen;
+            }
+
+            // A renamed file's old path is in its patch's rename, so it is not committed whole too
+            var renamedFrom = patches.Values.Select(p => p.RenamedFrom).ToHashSet();
+            var whole = paths.Where(p => !leftOut.ContainsKey(p) && !renamedFrom.Contains(p)).ToList();
+            return await git.CommitPatchesAsync(message, isAmend, whole, patches, wd);
+        });
+
+    public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, DiffOptions options, string wd)
     {
         var diffTask =
             commitId == Repo.UncommittedId
-                ? git.GetUncommittedDiffAsync(contextLines, wd)
-                : git.GetCommitDiffAsync(commitId, contextLines, wd);
+                ? git.GetUncommittedDiffAsync(options, wd)
+                : git.GetCommitDiffAsync(commitId, options, wd);
 
         var diff = await diffTask;
         if (diff is not Git.CommitDiff gitCommitDiff)
@@ -302,11 +340,11 @@ class Server : IServer
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     )
     {
-        var diff = await git.GetPreviewMergeDiffAsync(sha1, sha2, message, contextLines, wd);
+        var diff = await git.GetPreviewMergeDiffAsync(sha1, sha2, message, options, wd);
         if (diff is not Git.CommitDiff gitCommitDiff)
             return diff.Error;
 
@@ -317,11 +355,11 @@ class Server : IServer
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        DiffOptions options,
         string wd
     )
     {
-        var diff = await git.GetDiffRangeAsync(sha1, sha2, message, contextLines, wd);
+        var diff = await git.GetDiffRangeAsync(sha1, sha2, message, options, wd);
         if (diff is not Git.CommitDiff gitCommitDiff)
             return diff.Error;
 
@@ -332,9 +370,9 @@ class Server : IServer
 
     public Task<Result> RunMergeToolAsync(string path, string wd) => Paused(() => git.RunMergeToolAsync(path, wd));
 
-    public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd)
+    public async Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, DiffOptions options, string wd)
     {
-        var diffs = await git.GetFileDiffAsync(path, contextLines, wd);
+        var diffs = await git.GetFileDiffAsync(path, options, wd);
         if (diffs is not Git.CommitDiff[] gitCommitDiffs)
             return diffs.Error;
         return GitConverter.ToCommitDiffs(gitCommitDiffs);
@@ -345,10 +383,11 @@ class Server : IServer
         int firstLine,
         int lastLine,
         string reference,
+        DiffOptions options,
         string wd
     )
     {
-        var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, wd);
+        var diffs = await git.GetLineHistoryAsync(path, firstLine, lastLine, reference, options, wd);
         if (diffs is not Git.CommitDiff[] gitCommitDiffs)
             return diffs.Error;
         return GitConverter.ToCommitDiffs(gitCommitDiffs);
@@ -542,13 +581,45 @@ class Server : IServer
     public Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd) =>
         git.GetIgnoredPathsAsync(paths, wd);
 
+    // Each discard keeps what it throws away first, for Restore Discarded Changes (DiscardedChanges)
     public Task<Result> UndoAllUncommittedChangesAsync(string wd) =>
-        Paused(() => git.UndoAllUncommittedChangesAsync(wd));
+        Paused(() => discarded.DiscardAsync("All changes", () => git.UndoAllUncommittedChangesAsync(wd), wd));
 
     public Task<Result> UndoUncommittedFileAsync(string path, string wd) =>
-        Paused(() => git.UndoUncommittedFileAsync(path, wd));
+        Paused(() => discarded.DiscardAsync(path, () => git.UndoUncommittedFileAsync(path, wd), wd));
 
-    public Task<Result> CleanWorkingFolderAsync(string wd) => Paused(() => git.CleanWorkingFolderAsync(wd));
+    // Takes the chosen lines of a file's uncommitted changes back in the working tree, and only those:
+    // the file's patch is read again, the lines found in it as the diff showed them (ChosenLines), and
+    // the patch of them alone applied in reverse
+    public Task<Result> DiscardLinesAsync(string path, IReadOnlyList<ChosenLine> lines, string wd) =>
+        Paused(() =>
+            discarded.DiscardAsync(
+                $"{lines.Count} line{(lines.Count == 1 ? "" : "s")} of {path}",
+                () => DiscardChosenLinesAsync(path, lines, wd),
+                wd
+            )
+        );
+
+    async Task<Result> DiscardChosenLinesAsync(string path, IReadOnlyList<ChosenLine> lines, string wd)
+    {
+        var patchResult = await git.GetUncommittedPatchAsync(path, wd);
+        if (patchResult is not FilePatch patch)
+            return patchResult.Error;
+        var chosenResult = ChosenLines.Find(patch, lines, path);
+        if (chosenResult is not IReadOnlySet<PatchLine> chosen)
+            return chosenResult.Error;
+        var discardResult = patch.ForReverseApply(chosen.Contains);
+        if (discardResult is not FilePatch discard)
+            return discardResult.Error;
+
+        return await git.ApplyPatchReversedAsync(discard, wd);
+    }
+
+    // The ignored files it deletes are not kept, being the ones the uncommitted diff leaves out
+    public Task<Result> CleanWorkingFolderAsync(string wd) =>
+        Paused(() =>
+            discarded.DiscardAsync("All changes, not the ignored files", () => git.CleanWorkingFolderAsync(wd), wd)
+        );
 
     public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => git.GetFilesToCleanAsync(wd);
 
@@ -603,15 +674,38 @@ class Server : IServer
 
     public Task<Result> StashApplyAsync(string name, string wd) => Paused(() => git.StashApplyAsync(name, wd));
 
-    public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd)
+    public async Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd)
     {
-        var diffResult = await git.GetStashDiffAsync(name, contextLines, wd);
+        var diffResult = await git.GetStashDiffAsync(name, options, wd);
         if (diffResult is not Git.CommitDiff diff)
             return diffResult.Error;
         return GitConverter.ToCommitDiff(diff);
     }
 
-    public Task<Result> StashDropAsync(string name, string wd) => Paused(() => git.StashDropAsync(name, wd));
+    // Kept first, for Restore Discarded Changes, as a discard is
+    public Task<Result> StashDropAsync(string name, string wd) =>
+        Paused(async () =>
+        {
+            var stashesResult = await git.GetStashesAsync(wd);
+            if (stashesResult is not IReadOnlyList<Git.Stash> stashes)
+                return stashesResult.Error;
+            if (stashes.FirstOrDefault(s => s.Name == name) is not Git.Stash stash)
+                return new Error($"There is no stash {name}");
+            return await discarded.DropStashAsync(stash, wd);
+        });
+
+    public Task<Result<IReadOnlyList<DiscardedChange>>> GetDiscardedAsync(string wd) => discarded.GetAsync(wd);
+
+    public Task<Result> RestoreDiscardedAsync(DiscardedChange change, string wd) =>
+        Paused(() => discarded.RestoreAsync(change, wd));
+
+    public async Task<Result<CommitDiff>> GetDiscardedDiffAsync(DiscardedChange change, DiffOptions options, string wd)
+    {
+        var diffResult = await discarded.GetDiffAsync(change, options, wd);
+        if (diffResult is not Git.CommitDiff diff)
+            return diffResult.Error;
+        return GitConverter.ToCommitDiff(diff);
+    }
 
     public async Task<Result<string>> GetChangeLogAsync(string? newRelease = null)
     {

@@ -6,7 +6,7 @@ namespace gmd.Cui.Blame;
 interface IBlameRowService
 {
     BlameRows ToBlameRows(Server.Blame blame);
-    Text ToRowText(BlameRow row, BlameColumns cw, int rowStartX, bool isCurrent, bool isSelected);
+    Text ToRowText(BlameRow row, BlameColumns cw, int rowStartX, bool isCurrent, bool isSelected, string search = "");
     IReadOnlyList<Text> ToDetailsRows(Server.BlameCommit commit);
 }
 
@@ -97,7 +97,15 @@ class BlameRowService : IBlameRowService
         return colorById;
     }
 
-    public Text ToRowText(BlameRow row, BlameColumns cw, int rowStartX, bool isCurrent, bool isSelected)
+    // search is the text a search found, marked where it is in the code, "" for none
+    public Text ToRowText(
+        BlameRow row,
+        BlameColumns cw,
+        int rowStartX,
+        bool isCurrent,
+        bool isSelected,
+        string search = ""
+    )
     {
         // The run bracket is drawn outside the highlight, the same way the log view highlights the
         // commit columns but not the branch graph beside them
@@ -106,7 +114,7 @@ class BlameRowService : IBlameRowService
         var rest = new TextBuilder();
         WriteCommit(rest, row, cw);
         rest.Dark(LineNbrPrefix).Dark(TxtRight($"{row.LineNbr}", cw.LineNbr)).Dark(LineNbrSuffix);
-        rest.Add(ClipCode(CodeText(row), cw.Code, rowStartX));
+        rest.Add(ClipCode(CodeText(row).WithMatches(search), cw.Code, rowStartX));
 
         Text restText =
             isSelected ? rest.Select()

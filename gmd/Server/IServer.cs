@@ -51,16 +51,26 @@ interface IServer
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
-    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, int contextLines, string wd);
+
+    // Commits the paths with the lines left out of them, by file, left in the working tree, uncommitted
+    Task<Result> CommitLinesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, IReadOnlyList<ChosenLine>> leftOut,
+        string wd
+    );
+    Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, Git.DiffOptions options, string wd);
 
     // The files the commit changed, as its diff has them, with no diff read, for the details pane
     Task<Result<IReadOnlyList<ChangedFile>>> GetChangedFilesAsync(string commitId, string wd);
-    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, int contextLines, string wd);
+    Task<Result<CommitDiff[]>> GetFileDiffAsync(string path, Git.DiffOptions options, string wd);
     Task<Result<CommitDiff[]>> GetLineHistoryAsync(
         string path,
         int firstLine,
         int lastLine,
         string reference,
+        Git.DiffOptions options,
         string wd
     );
     Task<Result<Blame>> GetBlameAsync(string path, string reference, string wd);
@@ -68,10 +78,16 @@ interface IServer
         string sha1,
         string sha2,
         string message,
-        int contextLines,
+        Git.DiffOptions options,
         string wd
     );
-    Task<Result<CommitDiff>> GetDiffRangeAsync(string sha1, string sha2, string message, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetDiffRangeAsync(
+        string sha1,
+        string sha2,
+        string message,
+        Git.DiffOptions options,
+        string wd
+    );
     Task<Result> RunDiffToolAsync(string path, string wd);
     Task<Result> RunMergeToolAsync(string path, string wd);
 
@@ -118,6 +134,10 @@ interface IServer
     Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd);
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
+
+    // Takes the chosen lines of a file's uncommitted changes back in the working tree, the rest of its
+    // changes left as they are; refused when the file has changed since the lines were shown
+    Task<Result> DiscardLinesAsync(string path, IReadOnlyList<ChosenLine> lines, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
     Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
     Task<Result> UndoCommitAsync(string id, int parent, string wd);
@@ -142,8 +162,14 @@ interface IServer
     Task<Result> RestoreOriginAsync(RemoteRewrite rewrite, string wd);
     Task<Result> CloneAsync(string uri, string path, string wd);
     Task<Result> InitRepoAsync(string path, string wd);
-    Task<Result<CommitDiff>> GetStashDiffAsync(string name, int contextLines, string wd);
+    Task<Result<CommitDiff>> GetStashDiffAsync(string name, Git.DiffOptions options, string wd);
     Task<Result> StashDropAsync(string name, string wd);
+
+    // What the discards threw away, and the stashes dropped, newest first, each to be put back
+    // (DiscardedChanges): its diff, and restoring it
+    Task<Result<IReadOnlyList<DiscardedChange>>> GetDiscardedAsync(string wd);
+    Task<Result<CommitDiff>> GetDiscardedDiffAsync(DiscardedChange change, Git.DiffOptions options, string wd);
+    Task<Result> RestoreDiscardedAsync(DiscardedChange change, string wd);
     Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
     Task<Result> AddTagAsync(string name, string commitId, string wd);
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);

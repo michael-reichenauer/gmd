@@ -170,6 +170,10 @@ repository.
   the changed files, new ones too, all ticked: `Tab` into the list and
   `Space` unticks the file under the cursor, which is then left as it is,
   uncommitted, and `a` unticks or ticks all. `Ctrl-D` shows the diff.
+- **Commit part of a file:** in the diff of the uncommitted changes (`d`
+  on the `©` row), `x` leaves the change the cursor is on, or the lines
+  selected with `Shift-↑↓`, out of the commit, and `x` again puts them
+  back. The commit then leaves them in the working tree, uncommitted.
 - **Push and pull:** `p` and `u` for the branch you are on, or for the
   highlighted one; `Shift-P` and `Shift-U` for every shown branch.
 - **Open a pull request:** `m` on the branch, then **Create Pull Request in
@@ -352,7 +356,8 @@ back on origin after **Undo Rebase** took it back here.
 ## Undo and Recovery
 
 The ways back are under **Undo** in the commit menu (`m`). The items that
-throw changes away for good ask first.
+throw changes away ask first, and what they throw away gmd keeps, for
+**Restore Discarded Changes**.
 
 - **Undo** the last change of the current branch, named after it, e.g.
   **Undo Rebase** or **Undo Commit 'Fix'**: the branch goes back to where
@@ -383,6 +388,26 @@ throw changes away for good ask first.
   since restoring origin's is a push, and origin's is left alone if someone
   pushed a branch of the name since. A branch deleted outside gmd is not
   listed: Recover Lost Commits finds its work, if no other branch has it.
+- **Restore Discarded Changes ...**: what the discards below threw away,
+  and the stashes dropped, newest first. Uncommitted changes were never in
+  git's history, so gmd keeps them itself: the files before and after each
+  discard, as commits on a ref of its own, `refs/gmd/discarded`, whose
+  reflog keeps them for about 30 days, as git keeps lost commits. `d`
+  shows what was discarded, and `r` puts it back in the working tree, new
+  files untracked again and nothing staged, or a stash back in the list of
+  stashes. Git refuses, whole, to put back changes whose files have changed
+  since; the diff is still there to copy from. The files git ignores are
+  not kept, being none of the uncommitted changes.
+- **Discard Lines** (`u` in the diff of the uncommitted changes, on a
+  change, or with lines selected with `Shift-↑↓`): **This Change**, at the
+  top of the menu, takes back the change the cursor is on, and **Selected
+  Lines** those lines: removed lines are put back and added lines taken
+  out, and the rest of the file's changes stay as they are. It asks first,
+  and Restore Discarded Changes brings them back. It is refused if the file has changed since the
+  diff was read, rather than taking back other lines (`r` reads it again),
+  and is not for a file with conflicts, nor while whitespace is hidden
+  (`w`), which are discarded whole. A renamed file stays renamed: its
+  lines are taken back where it is now.
 - **Discard Changes in a File** (also `u` in the diff of the uncommitted
   changes): `git checkout --force HEAD -- <file>`, staged changes too, or
   a new file is unstaged and deleted
@@ -401,6 +426,7 @@ throw changes away for good ask first.
   has it, to check that nothing left over makes a build or a test pass.
   The files git ignores go too, also those kept on purpose, such as a
   .env file of secrets, so the question lists everything it deletes.
+  Restore Discarded Changes brings back the rest, but not those.
 
 
 ## More Commands
@@ -409,6 +435,19 @@ throw changes away for good ask first.
   Commit the uncommitted changes, every file ticked in the dialog's list,
   with warnings for large or binary files. While a merge, a revert or the
   like is in progress there is no list: git commits its result whole.
+  Lines left out with `x` in the diff of the uncommitted changes are drawn
+  dark there, with a `╎` where a change has `┃`, counted on the file's
+  header, e.g. `(3 lines left out)`, and in the dialog, beside the file:
+  the commit takes the rest of the file and leaves those lines as they
+  are, uncommitted, and nothing staged. `x` on a file's header puts every
+  line of it back. A line left out that is not found as it was shown, the
+  file having changed since, stops the commit, with nothing committed,
+  rather than going in: the diff finds a line again where only its number
+  moved, and says how many it does not find. A renamed file's lines go in
+  with its rename, and with every line left out the rename alone does: the
+  move without the edits. Not while something is in progress, nor for a
+  file with conflicts, nor while whitespace is hidden (`w`); and an older
+  commit cannot be amended with a file that has lines left out.
   After a merge made in gmd, `Ctrl-A` in the dialog adds the subjects of
   the merged commits, one per line, and for a merged merge the list in its
   message.
@@ -474,7 +513,8 @@ throw changes away for good ask first.
   **Stash Changes ...** puts the uncommitted changes aside, new files too.
   **Stash Pop** brings a stash back and drops it, **Stash Apply** brings it
   back and keeps it, e.g. for the same changes on another branch as well,
-  and **Stash Diff** and **Stash Drop** show it and throw it away.
+  and **Stash Diff** and **Stash Drop** show it and throw it away, which
+  Restore Discarded Changes, under Undo, takes back.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on
@@ -516,10 +556,28 @@ Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
 other: the changes from the older of the two to the newer.
 
 Within the diff: `r` re-reads it from git, `s` scrolls to a file, `u`
-discards the changes of an uncommitted file, `c` commits, `Enter` resolves
+discards uncommitted changes (the change the cursor is on, the lines
+selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `x` leaves the change the
+cursor is on, or the lines selected, out of the next commit, or puts them
+back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
 two columns sideways and pick which one a selection copies from, `Ctrl-C`
-copies the selected lines, and `Esc` or `q` closes the view. **Diff File**
+copies the selected lines, and `Esc` or `q` closes the view.
+
+`f` or `/` searches the lines for a text, as it is typed and in any case,
+and puts the cursor on the first line with it from the cursor down, on the
+side it is on, scrolled sideways to it where it is further right. Every
+place it is found is marked in black on yellow. `n` and `Shift-N` then go to
+the next and the previous one from wherever the cursor is, and the line at
+the bottom says which one it is, e.g. `Match 2 of 7`.
+
+`w` hides the changes of whitespace alone, as GitHub's *Hide whitespace*
+does, and `w` again shows them. A line whose spaces alone changed is then
+unchanged, and the summary at the top says `whitespace hidden`. A file whose
+changes are all whitespace is still listed, as `(Whitespace only)` and with
+no lines, so that it is not missed in what is committed, and can still be
+discarded. It is for the diff it was pressed in: the next one shows
+whitespace again. **Diff File**
 in the menu opens an uncommitted file in the diff tool git is configured
 with (`git difftool`).
 
@@ -544,8 +602,9 @@ reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column
 stays put, `i` copies the current line's commit id and `Shift-I` its
-message, as in the log, `Ctrl-C` copies the selected lines, `m` opens the
-menu, and `Esc` or `q` closes the view.
+message, as in the log, `f` or `/` searches the code and `n` and `Shift-N`
+step through what it found, as in the diff, `Ctrl-C` copies the selected
+lines, `m` opens the menu, and `Esc` or `q` closes the view.
 
 
 ## Resolving Conflicts

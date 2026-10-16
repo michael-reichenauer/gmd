@@ -167,7 +167,8 @@ public class BlameViewTest
     }
 
     // The key hints of the blame view, on its bottom row as the log has them: 'p' for a line whose
-    // commit changed an older version, and the details pane opening above the line
+    // commit changed an older version, and the details pane opening above the line. At 120 columns
+    // the last of them, 'g gutter', is left out for want of room.
     [TestMethod]
     public async Task TestBlameHasHintsOfItsOwn()
     {
@@ -184,7 +185,7 @@ public class BlameViewTest
         var hints = ScreenText.LastLine(gmd.WaitFor("p previous")).TrimStart('─', ' ');
         StringAssert.StartsWith(
             hints,
-            "m menu  Esc close  Enter details  d diff  l line history  p previous  i copy id  g gutter ─"
+            "m menu  Esc close  Enter details  d diff  l line history  p previous  f search  i copy id ─"
         );
         StringAssert.EndsWith(hints, "? help");
 
@@ -283,6 +284,58 @@ public class BlameViewTest
             "\n",
             ScreenText.Rows(screen, repoPath, 30, count).Split('\n').Select(r => r.TrimEnd('┃').TrimEnd())
         );
+
+    // The code is searched, as in the diff, and not the gutter beside it: 'o' is in three lines, and
+    // 'Test User', the author on every line, is in none. n before any search says how to start one.
+    [TestMethod]
+    public async Task TestSearchTheBlame()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\nthree\nfour\n", "Add lines", t.AddMinutes(7));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("four");
+
+        gmd.Send("n");
+        Assert.AreEqual(
+            "No search to go on with: search with f first",
+            ScreenText.LastLine(gmd.WaitFor("No search to go on with"))
+        );
+
+        gmd.Send("f");
+        gmd.WaitFor("Text to find in the file");
+        gmd.SendText("O");
+        gmd.Send("Enter");
+        Assert.AreEqual("Match 1 of 3 for 'O'", ScreenText.LastLine(gmd.WaitFor("Match 1 of 3")));
+        gmd.Send("n");
+        gmd.WaitFor("Match 2 of 3");
+        gmd.Send("n");
+        gmd.WaitFor("Match 3 of 3");
+        gmd.WaitForStable();
+        // The cursor on the third match, 'four', highlighted, 'D', and each 'o' marked, 'y'
+        Assert.AreEqual(
+            """
+            - -------- ---- ----   ---------- -   --y..
+            -                                 -   ----y
+            -                                 -   -------
+            -                                 D   DDDyDD
+            """,
+            ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4)
+        );
+        gmd.Send("n");
+        Assert.AreEqual(
+            "No more matches for 'O' below: ⇧n goes back up",
+            ScreenText.LastLine(gmd.WaitFor("No more matches"))
+        );
+
+        gmd.Send("f");
+        gmd.WaitFor("Text to find in the file");
+        gmd.SendText("Test User");
+        gmd.Send("Enter");
+        gmd.WaitFor("'Test User' is not in alpha.txt");
+    }
 
     static void OpenBlameOf(TmuxSession gmd, string path)
     {

@@ -1849,7 +1849,7 @@ public class GitIntegrationTest
         var range = Value(await repo.Git.GetDiffRangeAsync(c2, c2, "Range", 6, repo.Path));
         var refs = Value(await repo.Git.GetPreviewMergeDiffAsync(c1, c2, "Refs", 6, repo.Path));
         var history = Value(await repo.Git.GetFileDiffAsync("file.txt", 6, repo.Path));
-        var lines = Value(await repo.Git.GetLineHistoryAsync("file.txt", 2, 2, "", repo.Path));
+        var lines = Value(await repo.Git.GetLineHistoryAsync("file.txt", 2, 2, "", 0, repo.Path));
 
         Assert.AreEqual($"{c2} file.txt +two", Summary(commit));
         Assert.AreEqual(" file.txt +three", Summary(uncommitted));
@@ -1986,19 +1986,8 @@ public class GitIntegrationTest
     [TestMethod]
     public async Task TestASignedCommitIsReadWhenTheConfigShowsSignatures()
     {
-        var key = Path.Join(repo.Path, ".git", "test-signing-key");
-        try
-        {
-            if (!Proc.Run("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", key]).IsOk)
-                Assert.Inconclusive("ssh-keygen failed, so there is no key to sign with");
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            Assert.Inconclusive("No ssh-keygen to make a key to sign with");
-        }
+        await repo.UseSshSigningKeyAsync();
         await repo.CommitFileAsync("file.txt", "one\n", "First");
-        await repo.GitAsync("config gpg.format ssh");
-        await repo.GitAsync($"config user.signingkey \"{key}.pub\"");
         repo.WriteFile("file.txt", "two\n");
         await repo.GitAsync("commit -S -am Signed");
         var signed = await repo.HeadIdAsync();
@@ -2011,6 +2000,29 @@ public class GitIntegrationTest
         Assert.AreEqual($"{signed} Signed", $"{log[0].Id} {log[0].Subject}");
         Assert.AreEqual($"{signed} Signed", $"{diff.Id} {diff.Message}");
         Assert.AreEqual($"{signed} commit: Signed", $"{reflog[0].Id} {reflog[0].Message}");
+    }
+
+    // What hiding whitespace counts on of git: with it left out a file whose changes are all whitespace
+    // has no diff at all, which is why the view finds such files in the diff with it (DiffWhitespace),
+    // and a line whose spaces alone changed is unchanged, while one that changed more is still a change
+    [TestMethod]
+    public async Task TestADiffCanLeaveOutWhitespace()
+    {
+        await repo.CommitFileAsync("a.txt", "one\ntwo\n", "First");
+        await repo.CommitFileAsync("b.txt", "same\n", "Second");
+        repo.WriteFile("a.txt", "  one\nTWO\n");
+        repo.WriteFile("b.txt", "same  \n");
+        var id = await repo.CommitAsync("Spaces and a change");
+
+        var all = Value(await repo.Git.GetCommitDiffAsync(id, 6, repo.Path));
+        var hidden = Value(
+            await repo.Git.GetCommitDiffAsync(id, new DiffOptions(6, IsIgnoreWhitespace: true), repo.Path)
+        );
+
+        Assert.AreEqual("a.txt, b.txt", string.Join(", ", all.FileDiffs.Select(f => f.PathAfter)));
+        Assert.AreEqual("a.txt", string.Join(", ", hidden.FileDiffs.Select(f => f.PathAfter)));
+        var lines = hidden.FileDiffs[0].SectionDiffs.SelectMany(s => s.LineDiffs).Select(l => $"{l.DiffMode} {l.Line}");
+        Assert.AreEqual("DiffSame   one\nDiffRemoved two\nDiffAdded TWO", string.Join("\n", lines));
     }
 
     // What the diff view's '+' and '-' keys actually buy: git shows more unchanged lines around
@@ -2180,7 +2192,7 @@ public class GitIntegrationTest
         await repo.CommitFileAsync("a.txt", "zero\none\nTWO\n", "Add a line above");
         await repo.CommitFileAsync("a.txt", "zero\nONE\nTWO\n", "Change one");
 
-        var history = Value(await repo.Git.GetLineHistoryAsync("a.txt", 3, 3, "", repo.Path));
+        var history = Value(await repo.Git.GetLineHistoryAsync("a.txt", 3, 3, "", 0, repo.Path));
 
         CollectionAssert.AreEqual(new[] { "Change two", "Add lines" }, history.Select(d => d.Message).ToArray());
     }

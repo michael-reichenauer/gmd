@@ -7,12 +7,14 @@ namespace gmd.Cui.RepoView;
 
 // The way back from the commands that move branches, which the reflog makes possible: undoing the
 // last change of a branch, undoing that undo, and bringing back the work no branch has any more. And
-// the way back from deleting a branch, whose reflog git deletes with it, which gmd records itself.
+// the way back from deleting a branch, whose reflog git deletes with it, and from discarding changes,
+// which git never had, both of which gmd records itself.
 interface IUndoCommands
 {
     void UndoLastChange(string branchName);
     void RecoverLostCommits();
     void RestoreDeletedBranch();
+    void RestoreDiscarded();
 }
 
 class UndoCommands : IUndoCommands
@@ -26,15 +28,18 @@ class UndoCommands : IUndoCommands
     readonly IDiffView diffView;
     readonly IDeletedBranchesDlg deletedBranchesDlg;
     readonly IRestoreBranchDlg restoreBranchDlg;
+    readonly IDiscardedDlg discardedDlg;
 
     public UndoCommands(
         CommandContext context,
         ILostWorkDlg lostWorkDlg,
         IDiffView diffView,
         IDeletedBranchesDlg deletedBranchesDlg,
-        IRestoreBranchDlg restoreBranchDlg
+        IRestoreBranchDlg restoreBranchDlg,
+        IDiscardedDlg discardedDlg
     )
     {
+        this.discardedDlg = discardedDlg;
         this.context = context;
         this.progress = context.Progress;
         this.status = context.Status;
@@ -150,6 +155,69 @@ class UndoCommands : IUndoCommands
             status.Info(DeletedBranchRows.Restored(deleted, isLocal, isRemote));
             return Result.Ok;
         });
+
+    // What the discards threw away, and the stashes dropped, in a list to diff and to put one back
+    // from, which gmd keeps for about 30 days (Server.DiscardedChanges). Read once, and shown again
+    // after a diff. A discard is put back in the working tree as it was, which git refuses, whole,
+    // if its files have changed since; then its diff is still there to copy from.
+    public void RestoreDiscarded() =>
+        Do(async repo =>
+        {
+            IReadOnlyList<DiscardedChange> changes;
+            using (status.Progress("Looking for discarded changes"))
+            {
+                var changesResult = await server.GetDiscardedAsync(repo.Path);
+                if (changesResult is not IReadOnlyList<DiscardedChange> found)
+                    return new Error("Failed to look for discarded changes", changesResult.Error);
+                changes = found;
+            }
+            if (changes.Count == 0)
+                return new Notice("Nothing discarded to restore: what gmd discards, it keeps for about 30 days");
+
+            var selected = 0;
+            while (true)
+            {
+                if (discardedDlg.Show(changes, selected) is not DiscardedChoice choice)
+                    return Result.Ok;
+                selected = changes.ToList().IndexOf(choice.Change);
+
+                if (choice.Action == DiscardedAction.Diff)
+                {
+                    if (await ShowDiscardedDiffAsync(choice.Change) is Error diffError)
+                        return diffError;
+                    continue;
+                }
+
+                Result restored;
+                using (status.Progress(DiscardedRows.Restoring(choice.Change)))
+                {
+                    restored = await server.RestoreDiscardedAsync(choice.Change, repo.Path);
+                }
+                if (restored is Error e)
+                    return new Error(
+                        $"Could not restore {choice.Change.What}: its files have changed since it was discarded.\n"
+                            + "Diff shows what it was, to copy from.",
+                        e
+                    );
+
+                repoView.Refresh();
+                status.Info(DiscardedRows.Restored(choice.Change));
+                return Result.Ok;
+            }
+        });
+
+    // What Restore would put back, shown modally, so the list comes back when it is closed
+    async Task<Result> ShowDiscardedDiffAsync(DiscardedChange change)
+    {
+        var repo = context.ViewRepo;
+        var source = DiffSource.Single(n => server.GetDiscardedDiffAsync(change, n, repo.Path));
+        var diffsResult = await source.Reload(DiffContext.Default);
+        if (diffsResult is not CommitDiff[] diffs)
+            return new Error("Failed to diff what was discarded", diffsResult.Error);
+
+        diffView.Show(diffs, source, repo.Path);
+        return Result.Ok;
+    }
 
     // The diff of the whole line of work, from where it left the history that is still there, or of
     // its one commit. Shown modally, so the list comes back when it is closed.

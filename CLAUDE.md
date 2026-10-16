@@ -161,6 +161,10 @@ Key types and flow:
   `Repo.RemoteRewrites`). A deleted branch is the one thing the reflog cannot bring back, since git
   deletes the branch's reflog with it, so gmd records each branch it deletes itself
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
+  Nor can it bring back what a discard throws away, uncommitted changes, which git never had, or a
+  stash dropped: `Server/Private/DiscardedChanges.cs` keeps them, the working tree before and after
+  each discard as commits on `refs/gmd/discarded`, whose reflog keeps them for git's 30 days, which
+  Restore Discarded Changes puts back (`SnapshotService` in the git layer).
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,
@@ -252,7 +256,9 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
   It holds how to read the diff again (`DiffReload`), and what the view may do with it: step the
   context (not a line history, `git log -L`), and commit and discard (the log's uncommitted diff
-  alone, not blame's).
+  alone, not blame's). What a diff is read with is `Git.DiffOptions`, the context and whether
+  whitespace is left out (`w`); git then leaves out a file of whitespace changes alone, which
+  `DiffWhitespace` puts back, listed with no lines.
 - **`Cui/Blame/`** — `BlameRowService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
   math, and steps detail down as the terminal narrows.
@@ -269,6 +275,21 @@ revert or am. The parser's invariant is `ToText(Parse(x)) == x` byte for byte, f
 can have (mixed line endings, no final newline, a BOM, all three conflict styles); everything the
 resolver writes goes through it, so that identity is what stops resolving one conflict from
 rewriting the rest of the file.
+
+Committing or discarding part of a file rests on the same idea. `Git/FilePatch.cs` is the patch of
+one file, which `PatchParser` reads and writes back byte for byte (the same invariant), and of which
+`ForApply` and `ForReverseApply` make the patch of the chosen lines alone, a change's removed and
+added lines paired as the diff view pairs them. `PatchService` reads a file's uncommitted patch
+(written by git to a file, `--output`, since `Cmd` trims and decodes; anything not UTF-8 is refused)
+and applies a patch with `git apply`, to an index or in reverse to the working tree; a renamed
+file's patch is of both its paths, a rename, found as the uncommitted diff finds it. The diff the
+view shows cannot be used for it: its parser drops the line saying a file has no final newline.
+`PatchIntegrationTest` applies every choice of a file's changes with git and holds the result to a
+model of the whole file. The diff view's `u` discards the change the cursor is on or the lines
+selected (`DiffLines`), which `Server.DiscardLinesAsync` finds in the patch read again
+(`ChosenLines`, by version, number and text) before taking them back; its `x` leaves them out of
+the next commit (`LeftOutLines`, for the session), which `Server.CommitLinesAsync` commits the rest
+of through an index of HEAD (`PatchService.CommitPatchesAsync`), the working tree never written.
 
 Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
 `gmd/Cui/` references Terminal.Gui (`gmd/Program.cs`, the entry point, does — it is the composition
@@ -714,7 +735,7 @@ Other things to know:
 - Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
-  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`,
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy` and `ConflictResolution` exist. `Text.ToString()`

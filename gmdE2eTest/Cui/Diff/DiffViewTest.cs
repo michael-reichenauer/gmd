@@ -132,6 +132,51 @@ public class DiffViewTest
         }
     }
 
+    // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the
+    // cursor down, with the text marked black on yellow on the cursor's row too; n and Shift-N go on
+    // from there and say where they stop, as the log's do. What it found is said over the bottom row,
+    // the key hints being off.
+    [TestMethod]
+    public async Task TestSearchTheDiff()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        gmd.WaitFor("Modified: long.txt");
+
+        gmd.Send("/");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText("LINE 2");
+        gmd.Send("Enter");
+
+        var found = gmd.WaitFor("Match 1 of");
+        Assert.AreEqual("Match 1 of 7 for 'LINE 2'", ScreenText.LastLine(found));
+        var row = ScreenText.Of(found, repo.Path).Split('\n').FindIndexBy(l => l.Contains("line 20 changed"));
+        // The cursor's row: highlighted on the left side, 'D', where the match is, and 'line 2' marked,
+        // 'y', on both sides, beside the change, 'g'
+        Assert.AreEqual(
+            "  DDDyyyy yD                                               .  ...yyyy y. ggggggg",
+            ScreenText.BackgroundRows(gmd.CaptureColors(), row, 1)
+        );
+
+        gmd.Send("n");
+        Assert.AreEqual("Match 2 of 7 for 'LINE 2'", ScreenText.LastLine(gmd.WaitFor("Match 2 of")));
+        gmd.Send("N");
+        gmd.WaitFor("Match 1 of");
+        gmd.Send("N");
+        Assert.AreEqual(
+            "No more matches for 'LINE 2' above: n goes down",
+            ScreenText.LastLine(gmd.WaitFor("No more matches"))
+        );
+
+        gmd.Send("f");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText("absent");
+        gmd.Send("Enter");
+        Assert.AreEqual("'absent' is not in the diff", ScreenText.LastLine(gmd.WaitFor("is not in the diff")));
+    }
+
     // The same thing from the diff menu, which is how the keys are found in the first place. The
     // items name the file they would act on and what it would then show, and the direction that
     // has nowhere to go is disabled — at the default context there is no less context to ask for.
@@ -155,34 +200,41 @@ public class DiffViewTest
             """
             ══════════════════════════════════════╭ Diff Menu ────────────────────────────────╮════════════════════════════════════
             Commit:  c00a3cc9fb5f429e9136ddb81fe75│Scroll to                               s >│
-            Author:  Test User <test@example.com> │Diff File                                 >│
-            Date:    2024-10-15 12:02:00          │Resolve Conflicts                   Enter >│
-            Message: Change both files            │Run External Merge Tool                   >│
-                                                  │Discard Changes                         u >│
-            2 Files:  2 modified   +2 -2 lines    │Refresh                                 r  │
-              Modified:    long.txt               │Commit                                  c  │
-              Modified:    short.txt              │More Context of long.txt (15 lines)     +  │
-                                                  │Less Context                            -  │
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Focus Left Column                       ←  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Modified: long.txt                    │Focus Right Column                      →  │
-                                                  │Close                                 Esc  │
-            ──────────────────────────────────────╰───────────────────────────────────────────╯────────────────────────────────────
+            Author:  Test User <test@example.com> │Search ...                              f  │
+            Date:    2024-10-15 12:02:00          │Next Match                              n  │
+            Message: Change both files            │Previous Match                         ⇧n  │
+                                                  │Diff File                                 >│
+            2 Files:  2 modified   +2 -2 lines    │Resolve Conflicts                   Enter >│
+              Modified:    long.txt               │Run External Merge Tool                   >│
+              Modified:    short.txt              │Discard Changes                         u >│
+                                                  │Refresh                                 r  │
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Commit                                  c  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: long.txt                    │Leave Out of Commit                     x  │
+                                                  │More Context of long.txt (15 lines)     +  │
+            ──────────────────────────────────────│Less Context                            -  │────────────────────────────────────
+              14 line 14                          │Hide Whitespace Changes                 w  │
+              15 line 15                          │Focus Left Column                       ←  │
+              16 line 16                          │Focus Right Column                      →  │
+              17 line 17                          │Close                                 Esc  │
+              18 line 18                          ╰───────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 14),
+            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path
         );
 
         // 'Less Context' is dark, i.e. disabled, while 'More Context' is white — the file is at the
         // default, so there is nothing narrower to ask for
-        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 8, 2).Split('\n');
+        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 12, 2).Split('\n');
         StringAssert.Contains(colors[0], "mWWWW WWWWWWW", "'More Context' and its shortcut are enabled");
         StringAssert.Contains(colors[1], "mDDDD DDDDDDD", "'Less Context' is dark, i.e. disabled");
 
-        // Two moves down from 'Scroll to', since the disabled items in between are skipped
-        gmd.Send("Down");
-        gmd.WaitForStable();
-        gmd.Send("Down");
-        gmd.WaitForStable();
+        // Three moves down from 'Scroll to', past 'Search ...' and 'Refresh', since the disabled
+        // items in between are skipped, 'Leave Out of Commit' too, which only the uncommitted diff has
+        for (int i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
         gmd.Send("Enter");
 
         StringAssert.Contains(
@@ -233,6 +285,347 @@ public class DiffViewTest
         gmd.Send("Escape");
         StringAssert.Contains(gmd.WaitUntilGone("Added: zeta.txt"), "▲1", "Nothing was pushed");
         Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
+    }
+
+    // w hides the changes of whitespace alone and says so, and w shows them again. A file whose changes
+    // are all whitespace stays listed, and can still be discarded, rather than vanish from the diff of
+    // the changes about to be committed; and a re-indented line is unchanged, beside the added one.
+    [TestMethod]
+    public async Task TestHideWhitespace()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        repo.WriteFile("alpha.txt", "  alpha\nmore\n");
+        repo.WriteFile("beta.txt", "beta gamma delta  \n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©2 uncommitted changes");
+        gmd.Send("d");
+        gmd.WaitFor("Modified: beta.txt");
+
+        gmd.Send("w");
+        var hidden = gmd.WaitFor("whitespace hidden");
+        // From the message down, the date of the uncommitted changes being the time now
+        Assert.AreEqual(
+            """
+            Message: Uncommitted changes
+
+            2 Files:  2 modified   +1 -0 lines   whitespace hidden
+              Modified:    alpha.txt
+              Modified:    beta.txt (Whitespace only)
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: alpha.txt
+
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+               1   alpha                                               │   1   alpha
+            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│   2┃more
+            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            Modified: beta.txt  (Whitespace only)
+
+            Only whitespace changed, which is hidden
+            """,
+            ScreenText.Rows(hidden, repo.Path, 2, 18)
+        );
+        Assert.AreEqual("Whitespace changes hidden: w shows them", ScreenText.LastLine(hidden));
+
+        gmd.Send("u");
+        StringAssert.Contains(gmd.WaitFor("All Changes"), "beta.txt", "Still offered to discard");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("All Changes");
+
+        gmd.Send("w");
+        StringAssert.Contains(gmd.WaitUntilGone("whitespace hidden"), "Modified: beta.txt");
+    }
+
+    // A file with two changes, two made TWO, and eleven made ELEVEN with a line added after it, not
+    // committed, and the diff of it open with the cursor on the second change, which search put it on
+    static async Task<(TempRepo Repo, TmuxSession Gmd)> OnTheSecondChangeAsync(string search)
+    {
+        var repo = await E2eRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 12).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("lines.txt", Text(lines), "Add lines", TempRepo.BaseTime.AddMinutes(7));
+        lines[1] = "TWO";
+        lines[10] = "ELEVEN";
+        lines.Insert(11, "extra");
+        repo.WriteFile("lines.txt", Text(lines));
+
+        var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+        gmd.Send("d");
+        gmd.WaitFor("Modified: lines.txt");
+        gmd.Send("/");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText(search);
+        gmd.Send("Enter");
+        gmd.WaitFor("Match 1 of 1");
+        return (repo, gmd);
+    }
+
+    static string Text(IEnumerable<string> lines) => string.Concat(lines.Select(l => l + "\n"));
+
+    // u on a change offers it first, above the files, and asks, No being the default; then that change
+    // alone is taken back, its added line taken out too, and the file's other change stays
+    [TestMethod]
+    public async Task TestDiscardTheChangeTheCursorIsOn()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("ELEVEN");
+        using var _ = repo;
+        using var __ = gmd;
+
+        gmd.Send("u");
+        gmd.WaitFor("This Change in lines.txt");
+        gmd.Send("Enter");
+        var question = gmd.WaitFor("Discard this change in lines.txt?");
+        StringAssert.Contains(question, "-line 11");
+        StringAssert.Contains(question, "+ELEVEN");
+        StringAssert.Contains(question, "+extra");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Discarded 3 lines of lines.txt: Restore Discarded Changes in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Discarded"))
+        );
+        Assert.AreEqual(
+            "line 1\nTWO\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\n",
+            File.ReadAllText(Path.Join(repo.Path, "lines.txt"))
+        );
+        StringAssert.Contains(gmd.WaitUntilGone("ELEVEN"), "TWO", "The diff read again, with the other change");
+    }
+
+    // Rows selected are the lines discarded, here the added line alone of a change of three, which
+    // leaves the rest of the change as it was
+    [TestMethod]
+    public async Task TestDiscardTheSelectedLines()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("extra");
+        using var _ = repo;
+        using var __ = gmd;
+
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+        gmd.Send("u");
+        gmd.WaitFor("Selected Lines in lines.txt");
+        gmd.Send("Enter");
+        gmd.WaitFor("Discard the selected lines in lines.txt?");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Discarded 1 line of lines.txt: Restore Discarded Changes in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Discarded"))
+        );
+        StringAssert.EndsWith(File.ReadAllText(Path.Join(repo.Path, "lines.txt")), "line 10\nELEVEN\nline 12\n");
+    }
+
+    // x leaves the change the cursor is on out of the commit: drawn dark, counted on the file's header
+    // and in the commit dialog, and a commit then takes the file's other change and leaves that one
+    // in the working tree, uncommitted, with nothing staged
+    [TestMethod]
+    public async Task TestLeaveAChangeOutOfTheCommit()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("ELEVEN");
+        using var _ = repo;
+        using var __ = gmd;
+
+        gmd.Send("x");
+        Assert.AreEqual(
+            "Left 3 lines of lines.txt out of the commit: x puts them back",
+            ScreenText.LastLine(gmd.WaitFor("out of the commit"))
+        );
+        var diff = ScreenText.Of(gmd.Capture(), repo.Path);
+        StringAssert.Contains(diff, "Modified: lines.txt  (3 lines left out)");
+        StringAssert.Contains(diff, "  11╎line 11");
+
+        gmd.Send("c");
+        StringAssert.Contains(gmd.WaitFor("Commit 1 change on 'main'"), "M lines.txt  3 lines left out");
+        gmd.SendText("Make two TWO");
+        gmd.Send("Enter");
+        gmd.WaitFor("Committed to 'main'");
+
+        Assert.AreEqual(
+            "line 1\nTWO\nline 3",
+            string.Join("\n", (await repo.GitAsync("show HEAD:lines.txt")).Split('\n').Take(3))
+        );
+        Assert.IsFalse((await repo.GitAsync("show HEAD:lines.txt")).Contains("ELEVEN"), "Left out of the commit");
+        StringAssert.Contains(File.ReadAllText(Path.Join(repo.Path, "lines.txt")), "ELEVEN\nextra\n", "Still there");
+        Assert.AreEqual(" M lines.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+    }
+
+    // A line left out that is not found as it was, the file changed since, stops the commit, with
+    // nothing committed, rather than it going in unseen
+    [TestMethod]
+    public async Task TestACommitStopsWhenALineLeftOutIsNotFound()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("ELEVEN");
+        using var _ = repo;
+        using var __ = gmd;
+        var head = await repo.GitAsync("rev-parse HEAD");
+        gmd.Send("x");
+        gmd.WaitFor("out of the commit");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Modified: lines.txt");
+        repo.WriteFile("lines.txt", File.ReadAllText(Path.Join(repo.Path, "lines.txt")).Replace("ELEVEN", "ELEVEN!"));
+
+        gmd.Send("c");
+        gmd.WaitFor("3 lines left out");
+        gmd.SendText("Make two TWO");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("has changed since the diff was read"), "lines.txt");
+        Assert.AreEqual(head, await repo.GitAsync("rev-parse HEAD"), "Nothing committed");
+    }
+
+    // Every discard is kept, and Restore Discarded Changes, in the commit menu's Undo, puts it back:
+    // here all changes, a file changed and a new one, discarded from the diff and back as they were,
+    // the new file untracked again and nothing staged. The status line says where the way back is.
+    [TestMethod]
+    public async Task TestDiscardedChangesArePutBack()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©2 uncommitted changes");
+        var before = await repo.GitAsync("status --porcelain");
+        gmd.Send("d");
+        gmd.WaitFor("Added: epsilon.txt");
+        gmd.Send("u");
+        gmd.WaitFor("All Changes");
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor("Discard all uncommitted changes?"), "Restore Discarded Changes");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        Assert.AreEqual(
+            "Discarded all changes: Restore Discarded Changes in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Discarded all changes"))
+        );
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Added: epsilon.txt");
+
+        // The commit menu starts on 'Amend ...', and 'Undo' is three moves down, past 'Commit Diff'
+        // and 'Mark for Diff'; in it, on 'Undo Commit', main's last change, as DeletedBranchesDlgTest
+        // counts, the item is three moves down, past the two Recover and Restore before it
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("Restore Discarded Changes ...");
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor("Time              Discarded"), "All changes");
+        gmd.Send("r");
+
+        Assert.AreEqual("Restored all changes", ScreenText.LastLine(gmd.WaitFor("Restored all changes")));
+        Assert.AreEqual(before, await repo.GitAsync("status --porcelain"));
+        Assert.AreEqual("alpha\nchanged\n", File.ReadAllText(Path.Join(repo.Path, "alpha.txt")));
+    }
+
+    // A file moved, with no 'git mv', and changed in two places: one change left out with x, and the
+    // commit takes the rename with the other, the old path gone, and leaves the one out uncommitted
+    [TestMethod]
+    public async Task TestLeaveAChangeOfARenamedFileOut()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 8).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("old.txt", Text(lines), "Add lines", TempRepo.BaseTime.AddMinutes(7));
+        File.Move(Path.Join(repo.Path, "old.txt"), Path.Join(repo.Path, "new.txt"));
+        lines[0] = "LINE 1";
+        lines[7] = "LINE 8";
+        repo.WriteFile("new.txt", Text(lines));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+        gmd.Send("d");
+        gmd.WaitFor("new.txt");
+        gmd.Send("/");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText("LINE 8");
+        gmd.Send("Enter");
+        gmd.WaitFor("Match 1 of 1");
+
+        gmd.Send("x");
+        gmd.WaitFor("Left 2 lines of new.txt out of the commit");
+        gmd.Send("c");
+        // Moved with no 'git mv', the file is new and the old one deleted as the dialog lists them
+        StringAssert.Contains(gmd.WaitFor("2 lines left out"), "A new.txt  2 lines left out");
+        gmd.SendText("Move the lines");
+        gmd.Send("Enter");
+        gmd.WaitFor("Committed to 'main'");
+
+        StringAssert.StartsWith(await repo.GitAsync("show HEAD:new.txt"), "LINE 1\n");
+        StringAssert.EndsWith(await repo.GitAsync("show HEAD:new.txt"), "line 8");
+        Assert.AreEqual("", await repo.GitAsync("ls-tree --name-only HEAD old.txt"), "The old path gone");
+        Assert.AreEqual(" M new.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+    }
+
+    // A line of a deleted file discarded is put back, the file there again with that line alone
+    [TestMethod]
+    public async Task TestDiscardLinesOfADeletedFile()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.CommitFileAtAsync(
+            "lines.txt",
+            "one\ntwo\nthree\nfour\n",
+            "Add lines",
+            TempRepo.BaseTime.AddMinutes(7)
+        );
+        repo.DeleteFile("lines.txt");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+        gmd.Send("d");
+        gmd.WaitFor("lines.txt");
+        gmd.Send("/");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText("two");
+        gmd.Send("Enter");
+        gmd.WaitFor("Match 1 of 1");
+
+        gmd.Send("S-Down"); // Selects the row the cursor is on
+        gmd.WaitForStable();
+        gmd.Send("u");
+        gmd.WaitFor("Selected Lines in lines.txt");
+        gmd.Send("Enter");
+        gmd.WaitFor("Discard the selected lines in lines.txt?");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("Discarded 1 line of lines.txt");
+
+        Assert.AreEqual("two\n", File.ReadAllText(Path.Join(repo.Path, "lines.txt")));
+    }
+
+    // A greyed out item of the diff's menu says why on the diff's own status line, where it is seen;
+    // the log's, which it was said on, is behind the diff
+    [TestMethod]
+    public async Task TestAGreyedOutItemSaysWhyInTheDiff()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add delta");
+        gmd.Send("d");
+        gmd.WaitFor("Added: delta.txt");
+        gmd.Send("m");
+        gmd.WaitFor("Diff Menu");
+
+        gmd.Send("n"); // Next Match, greyed out with no search
+
+        Assert.AreEqual(
+            "No search to go on with: search with f first",
+            ScreenText.LastLine(gmd.WaitFor("No search to go on with"))
+        );
     }
 
     // Undoing uncommitted changes from the diff asks first, and No is the default: the item is
