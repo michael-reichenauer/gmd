@@ -672,13 +672,13 @@ class ConflictView : IConflictView
     {
         // Something already chosen is what to start from, so '1' then 'e' means "ours, but tweaked"
         if (resolution.ChoiceOf(hunk.Index) != HunkChoice.None)
-            return string.Join('\n', resolution.ResultOf(hunk).Select(l => l.Text));
+            return ConflictResolution.ToText(resolution.ResultOf(hunk).Select(l => l.Text));
 
         // Otherwise both sides' changes combined, where they can be, or both sides, which is the
         // usual starting point for a merge written by hand
         if (CombinationOf(hunk) is IReadOnlyList<CombinedLine> combined)
-            return string.Join('\n', combined.Select(l => l.Text));
-        return string.Join('\n', hunk.Ours.Concat(hunk.Theirs).Select(l => l.Text));
+            return ConflictResolution.ToText(combined.Select(l => l.Text));
+        return ConflictResolution.ToText(hunk.Ours.Concat(hunk.Theirs).Select(l => l.Text));
     }
 
     // Takes both sides' changes in one, c, where they touch no word in common (ConflictCombine): what

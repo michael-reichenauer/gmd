@@ -49,7 +49,7 @@ class ConflictResolution
     // is, and kept as lines with where each came from, which is how the result draws them
     public void SetCombined(int hunkIndex, IReadOnlyList<CombinedLine> lines)
     {
-        Set(hunkIndex, HunkChoice.Manual, string.Join('\n', lines.Select(l => l.Text)));
+        Set(hunkIndex, HunkChoice.Manual, ToText(lines.Select(l => l.Text)));
         combined[hunkIndex] = lines;
     }
 
@@ -109,5 +109,16 @@ class ConflictResolution
             lines.RemoveAt(lines.Count - 1);
 
         return lines;
+    }
+
+    // Lines as text, which ToLines reads back as the same lines, e.g. both sides to start typing
+    // from, or a combination taken as text. Joined by '\n', and with one more after an empty last
+    // line: by the rule above a '\n' at the end only ends the line before it, so joining alone lost
+    // a blank last line, and a combination of one blank line wrote nothing.
+    public static string ToText(IEnumerable<string> lines)
+    {
+        var list = lines.ToList();
+        var text = string.Join('\n', list);
+        return list.Count > 0 && list[^1] == "" ? text + "\n" : text;
     }
 }
