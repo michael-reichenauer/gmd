@@ -123,8 +123,16 @@ that does not fight the diff's colors, light themes.
   `Tab` moves the keys there and back, a click goes to a file. `h` hides a file's lines, its header
   alone then; its lines left out of the commit are not refound, and not reported lost, while hidden.
   On the way: Terminal.Gui eats the key after a resize (MODERNIZATION.md).
-- [ ] 4. The resolver's sides against the ancestor, its names and line numbers, the whole result
-  (4). M
+- [x] 4. The resolver's sides against the ancestor, its names and line numbers, the whole result
+  (4). M *Done (2026-10-16):* each side drawn against the ancestor (`SideChanges`: `+`, `~` with its
+  words, `-` dark, kept lines dark), a removed line paired with the most alike added one; the
+  ancestor read as the file opens, and without it where it cannot be had. The sides named by branch
+  and subject (`GetConflictSidesAsync`, `ConflictNames`): `main (HEAD) · <subject>`, a rebase's
+  commit by its id. Lines numbered as their side has them, in a gutter that stays while the text
+  scrolls. The result pane the whole file as it will be saved (`ConflictRowService.ToResult`), about
+  two fifths of the view, each decided conflict's lines barred in its side's color, an undecided one
+  a row of the keys, scrolled to the cursor's conflict. With the ancestor known, showing its own
+  pane (`b`) no longer moves any row: every line of it is in each side.
 - [ ] 5. Combine (5). M
 - [ ] 6. The Resolve workspace (6). M to L
 - [ ] 7. Typing in the result (7), after the probe.

@@ -8,6 +8,13 @@ interface IConflictRowService
     ConflictRows ToRows(ConflictFile file, ConflictResolution resolution, bool isShowBase, ConflictNames? names = null);
     Text ToRowText(ConflictRow row, ConflictColumns columns, int startX);
     Text ToHeader(ConflictFile file, ConflictResolution resolution, int currentHunk, GitOperation operation);
+    ConflictResult ToResult(ConflictFile file, ConflictResolution resolution, ConflictNames names);
+}
+
+// The file as it will be saved, as rows, and the row each conflict's lines start at in it
+record ConflictResult(IReadOnlyList<Text> Rows, IReadOnlyDictionary<int, int> Starts)
+{
+    public static readonly ConflictResult None = new([], new Dictionary<int, int>());
 }
 
 // Turns a conflicted file and what the user has decided about it into drawn rows.
@@ -240,6 +247,70 @@ class ConflictRowService : IConflictRowService
             .ToTextBuilder()
             .Add(text.Subtext(gutterWidth + startX, width - gutter, isFillRest: isPad));
     }
+
+    // The file as it will be saved, as the decisions so far make it: the text between conflicts, each
+    // decided conflict's lines with a bar in the color of the side they came from, magenta where
+    // written by hand, and each undecided one a row saying so, which a save leaves the conflict's
+    // markers in place of. Numbered as the file will be, but for those.
+    public ConflictResult ToResult(ConflictFile file, ConflictResolution resolution, ConflictNames names)
+    {
+        List<Text> rows = [];
+        Dictionary<int, int> starts = [];
+        var nbr = 1;
+        foreach (var segment in file.Segments)
+        {
+            if (segment.Hunk is not ConflictHunk hunk)
+            {
+                segment.Lines.ForEach(l => rows.Add(Gutter(" ", Color.Dark, nbr++).White(Shown(l))));
+                continue;
+            }
+
+            starts[hunk.Index] = rows.Count;
+            var choice = resolution.ChoiceOf(hunk.Index);
+            if (choice == HunkChoice.None)
+            {
+                rows.Add(Undecided(hunk, names));
+                continue;
+            }
+
+            var lines = ResultLines(hunk, choice, resolution);
+            if (lines.Count == 0)
+                rows.Add(Text.Color(Color.Magenta, "▌").Dark("      nothing, the region is removed"));
+            lines.ForEach(l => rows.Add(Gutter("▌", l.Color, nbr++).White(Shown(l.Line))));
+        }
+
+        return new ConflictResult(rows, starts);
+    }
+
+    // The lines a decision takes, each with the color of where it came from
+    static IReadOnlyList<(FileLine Line, Color Color)> ResultLines(
+        ConflictHunk hunk,
+        HunkChoice choice,
+        ConflictResolution resolution
+    )
+    {
+        IEnumerable<(FileLine, Color)> Of(IReadOnlyList<FileLine> lines, Color color) => lines.Select(l => (l, color));
+        var (ours, theirs) = (Of(hunk.Ours, Color.Yellow), Of(hunk.Theirs, Color.Cyan));
+        return choice switch
+        {
+            HunkChoice.Ours => ours.ToList(),
+            HunkChoice.Theirs => theirs.ToList(),
+            HunkChoice.OursThenTheirs => ours.Concat(theirs).ToList(),
+            HunkChoice.TheirsThenOurs => theirs.Concat(ours).ToList(),
+            HunkChoice.Base => Of(hunk.Base, Color.Dark).ToList(),
+            _ => Of(resolution.ResultOf(hunk), Color.Magenta).ToList(),
+        };
+    }
+
+    static Text Undecided(ConflictHunk hunk, ConflictNames names) =>
+        Text.Red("▌")
+            .Dark("      ")
+            .Red($"Conflict {hunk.Index + 1} is not decided:")
+            .Dark(" 1 ")
+            .Yellow(names.Ours.Max(20))
+            .Dark(", 2 ")
+            .Cyan(names.Theirs.Max(20))
+            .Dark(", 3 or 4 both, 0 neither, e edit");
 
     // 'Resolve  src/Foo.cs   conflict 2 of 5   ·  3 still to resolve'
     public Text ToHeader(ConflictFile file, ConflictResolution resolution, int currentHunk, GitOperation operation)

@@ -24,8 +24,13 @@ interface IConflictView
 // because during a rebase those two mean the opposite of what is expected — see ConflictRowService.
 class ConflictView : IConflictView
 {
-    // How many rows the result pane takes when it is open
-    const int ResultHeight = 8;
+    // How many rows the result pane takes, its title below the file included: about two fifths of the
+    // view, and 8 at least, worked out as the view opens
+    int resultHeight = MinResultHeight;
+    const int MinResultHeight = 8;
+
+    // The file as it will be saved, which the result pane shows, made again with every decision
+    ConflictResult result = ConflictResult.None;
 
     readonly IServer server;
     readonly IProgress progress;
@@ -124,29 +129,26 @@ class ConflictView : IConflictView
 
         // The keys worth knowing here on the bottom row, below the result pane, unless turned off
         var hintsHeight = config.ShowKeyHints ? 1 : 0;
+        resultHeight = Math.Max(MinResultHeight, (Application.Driver.Rows - 2 - hintsHeight) * 2 / 5);
         contentView = new ContentView(OnGetContent)
         {
             X = 0,
             Y = 2,
             Width = Dim.Fill(),
-            Height = Dim.Fill(ResultHeight + 1 + hintsHeight),
+            Height = Dim.Fill(resultHeight + hintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
             IsHighlightCurrentIndex = true,
         };
 
-        var resultBorder = new HorizontalLine()
-        {
-            X = 0,
-            Y = Pos.AnchorEnd(ResultHeight + 1 + hintsHeight),
-            ColorScheme = ColorSchemes.Border,
-        };
+        // Its title row is the border above it
         resultView = new ContentView(OnGetResultContent)
         {
             X = 0,
-            Y = Pos.AnchorEnd(ResultHeight + hintsHeight),
+            Y = Pos.AnchorEnd(resultHeight + hintsHeight),
             Width = Dim.Fill(),
-            Height = ResultHeight,
+            Height = resultHeight,
+            TopRow = ResultTitle,
             IsShowCursor = false,
             IsScrollMode = true,
             IsFocus = false,
@@ -155,7 +157,7 @@ class ConflictView : IConflictView
             CanFocus = false,
         };
 
-        view.Add(header, border, contentView, resultBorder, resultView);
+        view.Add(header, border, contentView, resultView);
         if (config.ShowKeyHints)
             view.Add(new KeyHintBar(ConflictHints.For, () => null));
         RegisterShortcuts(contentView);
@@ -223,10 +225,12 @@ class ConflictView : IConflictView
     {
         var anchor = rows.Count > 0 ? rows.AnchorAt(contentView.CurrentIndex) : null;
         rows = rowService.ToRows(file, resolution, isShowBase, names);
+        result = rowService.ToResult(file, resolution, names);
         if (anchor != null && rows.IndexOf(anchor) is var index and not -1 && index != contentView.CurrentIndex)
             contentView.ShowCurrentIndex(index);
 
         SetHeader();
+        ShowResultOf(CurrentHunk); // What was decided, or how it was shown
         contentView.SetNeedsDisplay();
         resultView.SetNeedsDisplay();
     }
@@ -241,14 +245,24 @@ class ConflictView : IConflictView
     void OnCurrentIndexChange()
     {
         SetHeader();
-        // Another conflict's result is read from its start
+        // The result follows the cursor to its conflict, a few lines of what is above it in sight
         if (CurrentHunk != resultHunk)
         {
             resultHunk = CurrentHunk;
-            resultView.Scroll(-resultView.FirstIndex);
+            ShowResultOf(resultHunk);
         }
         resultView.SetNeedsDisplay();
     }
+
+    void ShowResultOf(int hunk)
+    {
+        if (!result.Starts.TryGetValue(hunk, out var start))
+            return;
+        resultView.Scroll(Math.Max(0, start - ResultAbove) - resultView.FirstIndex);
+    }
+
+    // How many lines above a conflict's own the result shows of it
+    const int ResultAbove = 3;
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
@@ -260,33 +274,26 @@ class ConflictView : IConflictView
         return (texts, rows.Count);
     }
 
-    // What the conflict under the cursor currently resolves to, which is the whole point of the
-    // pane: the decision is visible as text rather than only as a word in the header
-    (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int __)
+    // The file as it will be saved, which is the whole point of the pane: the decisions are visible
+    // as text, in the file around them, rather than only as words in the conflicts' headers, and an
+    // undecided conflict says which keys decide it, naming the sides as the column titles do
+    (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int __) =>
+        (result.Rows.Skip(firstRow).Take(rowCount), result.Rows.Count);
+
+    // The pane's title, its border: what it shows, and the colors of where its lines came from
+    Text ResultTitle(int firstRow, int width)
     {
-        var hunk = CurrentHunkOrNull();
-        if (hunk == null)
-            return ([Text.Dark("No conflict here")], 1);
-
-        if (resolution.ChoiceOf(hunk.Index) == HunkChoice.None)
-            return ([NotResolvedYet(hunk)], 1);
-
-        var lines = resolution.ResultOf(hunk);
-        if (lines.Count == 0)
-            return ([Text.Dark("(nothing — the whole region is removed)")], 1);
-
-        var texts = lines.Skip(firstRow).Take(rowCount).Select(l => (Text)Text.White(ConflictRowService.Shown(l)));
-        return (texts, lines.Count);
+        var title = Text.Dark("─── ").White("Result").Dark($", {file.Path} as it will be saved ");
+        var legend = Text.Dark(" ")
+            .Yellow("▌")
+            .Dark($"{names.Ours.Max(20)} ")
+            .Cyan("▌")
+            .Dark($"{names.Theirs.Max(20)} ")
+            .Magenta("▌")
+            .Dark("edited ───");
+        var fill = Math.Max(0, width - title.Length - legend.Length);
+        return title.Dark(new string('─', fill)).Add(legend);
     }
-
-    // What the keys do, naming the sides as the column titles do and in their colors, since '1' and
-    // '2' meant nothing until it was clear which side each takes (.notes/USABILITY.md, the product review)
-    Text NotResolvedYet(ConflictHunk hunk) =>
-        Text.Dark($"Conflict {hunk.Index + 1} is not resolved yet — press 1 for ")
-            .Yellow(names.Ours.Max(20))
-            .Dark(", 2 for ")
-            .Cyan(names.Theirs.Max(20))
-            .Dark(", 3 or 4 for both, 0 for neither");
 
     // The first conflict is what the file was opened for, and it can be a long way down a file that
     // is mostly text both sides agree on, so the view opens on it rather than at the top.

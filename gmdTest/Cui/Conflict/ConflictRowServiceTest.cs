@@ -316,6 +316,49 @@ public class ConflictRowServiceTest
         );
     }
 
+    // The result is the file as it will be saved: the text between conflicts, a decided conflict's
+    // lines with a bar in the color of the side they came from, numbered as the file will be, and an
+    // undecided one a row saying which keys decide it, where its lines start
+    [TestMethod]
+    public void TestTheResultIsTheFileAsItWillBeSaved()
+    {
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [
+                new ConflictSegment(Lines("a"), null),
+                new ConflictSegment([], new ConflictHunk(0, "HEAD", "", "topic", Lines("o1"), [], Lines("t1", "t2"))),
+                new ConflictSegment(Lines("b"), null),
+                new ConflictSegment([], new ConflictHunk(1, "HEAD", "", "topic", Lines("o3"), [], Lines("t3"))),
+            ],
+            true,
+            true
+        );
+        var resolution = new ConflictResolution(file);
+        resolution.Set(0, HunkChoice.TheirsThenOurs);
+        var names = ConflictNames.Of(file, new ConflictSides("main", "", ""));
+
+        var result = new ConflictRowService().ToResult(file, resolution, names);
+
+        Assert.AreEqual(
+            """
+                1 a
+            ▌   2 t1
+            ▌   3 t2
+            ▌   4 o1
+                5 b
+            ▌      Conflict 2 is not decided: 1 main, 2 topic, 3 or 4 both, 0 neither, e edit
+            """,
+            string.Join("\n", result.Rows.Select(r => r.ToString()))
+        );
+        Assert.AreEqual("C\nC\nY", string.Join("\n", result.Rows.Skip(1).Take(3).Select(r => TextColorsOfBar(r))));
+        CollectionAssert.AreEqual(new[] { 1, 5 }, new[] { result.Starts[0], result.Starts[1] });
+    }
+
+    // The color letter of a row's bar, its first rune
+    static string TextColorsOfBar(gmd.Cui.Common.Text row) => gmdTest.Fixtures.TextColors.Of(row)[..1];
+
     // ---- columns ----
 
     [TestMethod]

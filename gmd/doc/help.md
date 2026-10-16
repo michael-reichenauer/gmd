@@ -667,8 +667,13 @@ the version both started from, the common ancestor, which is what says why
 they conflict: `+` a line it added, `~` a line it changed, with the words
 it changed marked in its color, `-` a line of the ancestor's it removed, in
 dark, and the lines it kept in dark too. A line is numbered as its side has
-it, and the text between conflicts as the left side has it. A pane below
-shows what the conflict under the cursor resolves to as you decide.
+it, and the text between conflicts as the left side has it.
+
+A pane below shows the file as it will be saved, as your decisions so far
+make it, scrolled to the conflict the cursor is in: each decided conflict's
+lines with a bar in the color of the side they came from, magenta where
+written by hand, and each undecided one as a row saying which keys decide
+it.
 
 The whole file is shown, not just its conflicts, since the text around a
 conflict is what tells you what it is part of. The view opens on the first

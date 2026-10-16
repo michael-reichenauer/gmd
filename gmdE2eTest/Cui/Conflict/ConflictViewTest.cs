@@ -34,28 +34,35 @@ public class ConflictViewTest
             main (HEAD) · Change it on main                            │dev · Change it on dev
             ~  40 line 40 on main                                      │~  40 line 40 on dev
                41 line 41
-               42 line 42
-               43 line 43
-               44 line 44
+               42 line 42                                                                                                          ┃
+               43 line 43                                                                                                          ┃
+               44 line 44                                                                                                          ┃
                45 line 45                                                                                                          ┃
                46 line 46                                                                                                          ┃
                47 line 47                                                                                                          ┃
                48 line 48                                                                                                          ┃
                49 line 49                                                                                                          ┃
-               50 line 50                                                                                                          ┃
-               51 line 51                                                                                                          ┃
-               52 line 52                                                                                                          ┃
-               53 line 53                                                                                                          ┃
-               54 line 54                                                                                                          ┃
-               55 line 55                                                                                                          ┃
-               56 line 56                                                                                                          ┃
-               57 line 57
-               58 line 58
-               59 line 59
-               60 line 60
-               61 line 61
-            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            Conflict 1 is not resolved yet — press 1 for main, 2 for dev, 3 or 4 for both, 0 for neither
+               50 line 50
+               51 line 51
+               52 line 52
+               53 line 53
+               54 line 54
+               55 line 55
+            ─── Result, long.txt as it will be saved ──────────────────────────────────────────────────────── ▌main ▌dev ▌edited ───
+               37 line 37
+               38 line 38
+               39 line 39
+            ▌      Conflict 1 is not decided: 1 main, 2 dev, 3 or 4 both, 0 neither, e edit
+               40 line 41
+               41 line 42
+               42 line 43                                                                                                          ┃
+               43 line 44                                                                                                          ┃
+               44 line 45                                                                                                          ┃
+               45 line 46                                                                                                          ┃
+               46 line 47
+               47 line 48
+               48 line 49
+               49 line 50
             """,
             gmd.WaitFor("─── Conflict 1"),
             repo.Path
@@ -146,28 +153,35 @@ public class ConflictViewTest
             main (HEAD) · Change it on main        │common ancestor                        │dev · Change it on dev
             ~  40 line 40 on main                  │      line 40                          │~  40 line 40 on dev
                41 line 41
-               42 line 42
-               43 line 43
-               44 line 44
+               42 line 42                                                                                                          ┃
+               43 line 43                                                                                                          ┃
+               44 line 44                                                                                                          ┃
                45 line 45                                                                                                          ┃
                46 line 46                                                                                                          ┃
                47 line 47                                                                                                          ┃
                48 line 48                                                                                                          ┃
                49 line 49                                                                                                          ┃
-               50 line 50                                                                                                          ┃
-               51 line 51                                                                                                          ┃
-               52 line 52                                                                                                          ┃
-               53 line 53                                                                                                          ┃
-               54 line 54                                                                                                          ┃
-               55 line 55                                                                                                          ┃
-               56 line 56                                                                                                          ┃
-               57 line 57
-               58 line 58
-               59 line 59
-               60 line 60
-               61 line 61
-            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            line 40
+               50 line 50
+               51 line 51
+               52 line 52
+               53 line 53
+               54 line 54
+               55 line 55
+            ─── Result, long.txt as it will be saved ──────────────────────────────────────────────────────── ▌main ▌dev ▌edited ───
+               37 line 37
+               38 line 38
+               39 line 39
+            ▌  40 line 40
+               41 line 41
+               42 line 42
+               43 line 43                                                                                                          ┃
+               44 line 44                                                                                                          ┃
+               45 line 45                                                                                                          ┃
+               46 line 46                                                                                                          ┃
+               47 line 47
+               48 line 48
+               49 line 49
+               50 line 50
             """,
             gmd.WaitFor("all resolved"),
             repo.Path
@@ -330,7 +344,7 @@ public class ConflictViewTest
 
         var screen = gmd.WaitFor("] [ next, previous");
         StringAssert.Contains(ScreenText.LastLine(screen), "m menu  Esc close  ] [ next, previous  s save");
-        StringAssert.Contains(screen, "press 1 for main", "The result pane is still there, above the hints");
+        StringAssert.Contains(screen, "is not decided: 1 main", "The result pane is still there, above the hints");
     }
 
     // A file one side deleted has no text to merge, so it is resolved whole, with no view of the
@@ -421,9 +435,10 @@ public class ConflictViewTest
         StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "conflict 2 of 2");
     }
 
-    // A result taller than the pane below is scrolled with Shift-↓ and Shift-↑, since the pane never
-    // takes the focus from the file, or by the mouse wheel over it: it showed its first rows only.
-    // Another conflict's result is shown from its start.
+    // The result pane below is the file as it will be saved, scrolled to the conflict the cursor is in,
+    // a few lines above it in sight. It is scrolled with Shift-↓ and Shift-↑, since the pane never takes
+    // the focus from the file, or by the mouse wheel over it. Back on a conflict, its result is shown
+    // from its start again.
     [TestMethod]
     public async Task TestALongResultIsScrolled()
     {
@@ -434,26 +449,26 @@ public class ConflictViewTest
         gmd.Send("]");
         gmd.WaitFor("conflict 2 of 2");
         gmd.Send("1");
-        WaitForLastLine(gmd, "line 60 on main, 8 of 12");
+        WaitForLastLine(gmd, "▌  64 line 60 on main, 11 of 12");
 
         for (int i = 0; i < 4; i++)
         {
             gmd.Send("S-Down");
             gmd.WaitForStable();
         }
-        WaitForLastLine(gmd, "line 60 on main, 12 of 12");
+        WaitForLastLine(gmd, "68 line 63");
 
         var bottom = gmd.Capture().Split('\n').Length - 1;
         gmd.Wheel(10, bottom, -1);
-        WaitForLastLine(gmd, "line 60 on main, 11 of 12");
+        WaitForLastLine(gmd, "67 line 62");
         gmd.Send("S-Up");
-        WaitForLastLine(gmd, "line 60 on main, 10 of 12");
+        WaitForLastLine(gmd, "66 line 61");
 
         gmd.Send("[");
         gmd.WaitFor("conflict 1 of 2");
         gmd.Send("]");
         gmd.WaitFor("conflict 2 of 2");
-        WaitForLastLine(gmd, "line 60 on main, 8 of 12");
+        WaitForLastLine(gmd, "▌  64 line 60 on main, 11 of 12");
     }
 
     // The bottom row, the result pane's last when the hints are off, read as it settles and without
