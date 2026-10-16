@@ -1,7 +1,17 @@
 # Change Log for Gmd
 --------------------
 
-149 releases:
+150 releases:
+
+## [v1.11.1447.386] - 2026-10-16
+- Commit part of a file: x in the diff of the uncommitted changes leaves the change the cursor is on, or the selected lines, out of the commit, which takes the rest and leaves them uncommitted
+- Discard part of a file: u in the diff offers the change the cursor is on, or the selected lines, above the files whole
+- Bring back what was discarded, a change, a file, all changes or a dropped stash, with Restore Discarded Changes in the Undo menu, kept for about 30 days
+- Commit and discard some lines of a renamed file, which stays renamed, and of a deleted one
+- Search the lines of a diff or a blame with f or /, the matches marked, and step through them with n and Shift-N
+- Hide the changes of whitespace alone in a diff with w, a file with nothing else listed as whitespace only
+- Sign the commit a squash makes when git's config signs commits, as every other commit gmd makes is
+- Say why a greyed out item of the diff's or the blame's menu cannot be used on their own status line, rather than behind them
 
 ## [v1.10.1446.1006] - 2026-10-15
 - Give a commit's message most of the details pane, with its fields in four rows, and name the branch of a parent or child on another one, so a merge says what it merged
