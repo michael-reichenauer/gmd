@@ -700,7 +700,7 @@ next and previous one from wherever the cursor is.
 | c          | Combine both sides' changes, where they touch other words  |
 | 0          | Take the common ancestor, i.e. undo both sides' changes    |
 | u          | Clear the decision on this conflict                        |
-| e          | Edit the result of this conflict by hand                   |
+| e          | Type the result of this conflict by hand, Esc when done    |
 | ]  [       | Next or previous conflict (n and p do the same)            |
 | b          | Show the version both sides started from                   |
 | a          | Whole file: take one side, or put the conflicts back       |
@@ -738,12 +738,16 @@ place, there is no one combination, and `c` says so; the result pane offers
 it for each conflict it can be had for. It is never taken by itself, and `u`
 takes it back.
 
-`e` is for the merge that is neither side but something of both. A box
-opens holding what the conflict resolves to now, or if you have not chosen
-yet both sides' changes combined where `c` can combine them, and both sides
-where not, and it says which it gave you. Emptying the box
-is how to delete the conflicted region outright. `Tab` moves from the box
-to the buttons, since Enter inside it is a newline.
+`e` is for the merge that is neither side but something of both. It is
+typed in the result pane, in place of the conflict's lines, with the file
+around it and both sides in sight above. It starts from what the conflict
+resolves to now, or if you have not chosen yet from both sides' changes
+combined where `c` can combine them, and from both sides where not, and the
+pane's title says which. The lines after it are numbered as they will be as
+you type. `Esc` is done, as is `Tab` or a click on the sides, and what you
+typed is the conflict's decision; with nothing typed it is left as it was.
+`Ctrl-Z` undoes, and `u` afterwards clears the decision. Emptying the text
+is how to delete the conflicted region outright.
 
 A file with no text to merge is not shown in columns; it asks the one
 question it can, and which question depends on which sides still have the

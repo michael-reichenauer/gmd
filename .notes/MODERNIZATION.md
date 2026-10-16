@@ -913,11 +913,6 @@ Add new open issues and findings here as work lands; keep them short and drop th
     replacing red or green then too, for red-green color blindness.
   - *`NO_COLOR`.* Not read. Low value for gmd, whose graph tells branches apart by color alone;
     revisit if asked.
-- **Inline conflict editing** (typing in the result pane with both sides in view). The modal `E`
-  box covers the need. The gate is whether `SetFocus()` gives a `UITextView` the keyboard when it
-  shares a bare `Toplevel` with `ContentView`s — a configuration nothing in the codebase has run,
-  and a half-hour probe settles it. The cheaper change is to show both sides read-only inside the
-  edit dialog (`UIDialog.AddContentView`, as `CommitDlg` does).
 - **Combined diffs (`diff --cc`)** are skipped with a warning. Relaxing the `@@ ` check alone is
   harmful: `ParseSectionDiff` calls a bare `int.Parse` on `-1,1 -1,1 +1,1` and throws outside the
   `Result` handling. Full support needs n+1 `@` hunk headers, two-column line prefixes and a three-sided
@@ -1228,6 +1223,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Terminal.Gui 1.x and the UI**
 
+- A text view can be typed in beside `ContentView`s in a bare `Toplevel` (2026-10-16, the
+  resolver's result pane): `SetFocus()` on a `UITextView` added to it gives it every key, since a
+  `ContentView` acts on its registered keys in `ProcessHotKey` only while it has the focus. Esc
+  reaches the text view's `KeyPress` before its `ProcessKey`, which is where to catch it; `Leave`
+  is raised for Tab and for a click on a focusable view beside it, but not for its own right-click
+  menu, which runs over it and gives the keys back. A view laid over a `ContentView` is drawn after
+  it when added after it, and a `ContentView` clears its whole frame, so the rows under it are
+  drawn blank but for the gutter.
 - A resize of the terminal eats the next key, whatever the view (2026-10-16): after
   `tmux resize-window`, `w` in the diff and `d` in the log did nothing the first time and worked the
   second. So does a user's resizing of the window, presumably. Not gmd's: the key never reaches

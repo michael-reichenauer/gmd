@@ -631,11 +631,107 @@ public class ConflictViewTest
     static string ListOf(string screen) =>
         string.Join("\n", ScreenText.Rows(screen, "", 2, 3).Split('\n').Select(r => r[..Math.Min(r.Length, 24)]));
 
-    static void OpenTheResolver(TmuxSession gmd)
+    // e types a conflict's result by hand in the result pane, in the file around it, with the sides in
+    // sight above, from both sides' changes combined where they can be. Esc is done, and what was typed
+    // is the decision; leaving it with nothing typed leaves the conflict as it was. It was a box over
+    // the sides, which hid what was being merged.
+    [TestMethod]
+    public async Task TestAConflictIsTypedInTheResultPane()
+    {
+        using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
+        using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
+        OpenTheResolver(gmd, "Pricing.cs");
+        gmd.WaitFor("─── Conflict 1");
+
+        gmd.Send("e");
+        var screen = gmd.WaitFor("Typing conflict 1");
+        Assert.AreEqual(
+            """
+            ─── Typing conflict 1 by hand, from both sides' changes combined, Esc when done ──────── ▌main ▌dev ▌both or by hand ───
+                1 decimal Total(Order order)
+                2 {
+                3     var sum = order.Sum;
+            ▌   4     var discounted = sum - sum * Discount(order.Customer);
+            ▌   5     return Math.Round(discounted + discounted * vatRate, 2);
+            ▌
+                6 }
+                7
+            """,
+            ScreenText.Rows(screen, repo.Path, 25, 9)
+        );
+        Assert.AreEqual(
+            "Esc done  Ctrl-Z undo",
+            ScreenText.LastLine(screen).Trim('─', ' ').Replace("? help", "").Trim('─', ' ')
+        );
+        Assert.IsTrue(gmd.IsCursorVisible, "The caret is in the text");
+        Assert.AreEqual((6, 29), gmd.CursorPosition, "At the start of its first line");
+
+        // Letters that are keys of the resolver are text here, and a line added renumbers the file after it
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.SendText(" // s and q");
+        gmd.WaitFor("// s and q");
+        gmd.Send("Enter");
+        gmd.WaitForStable();
+        gmd.SendText("    Log(sum)");
+        screen = gmd.WaitFor("Log(sum)");
+        Assert.AreEqual(
+            """
+            ▌   4     var discounted = sum - sum * Discount(order.Customer); // s and q
+            ▌   5     Log(sum)
+            ▌   6     return Math.Round(discounted + discounted * vatRate, 2);
+            ▌
+                7 }
+            """,
+            ScreenText.Rows(screen, repo.Path, 29, 5)
+        );
+
+        gmd.Send("Escape");
+        screen = gmd.WaitFor("edited by hand");
+        StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "1 still to resolve");
+        StringAssert.Contains(ScreenText.LastLine(screen), "Conflict 1 is written by hand: u takes it back");
+
+        // A click on the sides leaves the text too, here with nothing typed, so conflict 2 is as it was
+        gmd.Send("]");
+        gmd.WaitFor("conflict 2 of 2");
+        gmd.Send("e");
+        gmd.WaitFor("Typing conflict 2");
+        gmd.Click(10, 13);
+        screen = gmd.WaitUntilGone("Typing conflict 2");
+        StringAssert.Contains(ScreenText.LastLine(screen), "Conflict 2 is as it was, nothing was typed");
+        StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "1 still to resolve");
+
+        gmd.Send("c");
+        gmd.WaitFor("all resolved");
+        gmd.Send("s");
+        gmd.WaitFor("Conflicts Resolved");
+        Assert.AreEqual(
+            """
+            decimal Total(Order order)
+            {
+                var sum = order.Sum;
+                var discounted = sum - sum * Discount(order.Customer); // s and q
+                Log(sum)
+                return Math.Round(discounted + discounted * vatRate, 2);
+            }
+
+            decimal Discount(Customer customer)
+            {
+                if (customer.IsGold)
+                    return 0.10m;
+                return customer.IsMember ? 0.05m : 0m;
+            }
+
+            """,
+            await File.ReadAllTextAsync(Path.Join(repo.Path, "Pricing.cs"))
+        );
+    }
+
+    static void OpenTheResolver(TmuxSession gmd, string file = "long.txt")
     {
         gmd.WaitFor("CONFLICTS");
         gmd.Send("d");
-        gmd.WaitFor("C long.txt");
+        gmd.WaitFor($"C {file}");
         gmd.Send("Enter");
         gmd.WaitFor("Resolve Conflicts");
         gmd.Send("Enter");

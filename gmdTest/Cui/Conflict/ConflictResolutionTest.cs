@@ -64,6 +64,23 @@ public class ConflictResolutionTest
     }
 
     // Choosing a side after editing by hand must not leave the edit behind to be written
+    // The result pane shows a conflict as it is typed from a copy, the decisions so far with the text
+    // typed for it, and the decision is made only when the typing is done
+    [TestMethod]
+    public void TestTypingIsShownFromACopy()
+    {
+        var resolution = new ConflictResolution(FileWith(2));
+        resolution.Set(0, HunkChoice.Theirs);
+
+        var typed = resolution.WithTyped(1, "a\nb");
+
+        Assert.AreEqual(HunkChoice.Theirs, typed.ChoiceOf(0));
+        Assert.AreEqual(HunkChoice.Manual, typed.ChoiceOf(1));
+        Assert.AreEqual("a\nb", typed.ManualTextOf(1));
+        Assert.AreEqual(HunkChoice.None, resolution.ChoiceOf(1), "Not decided until done");
+        Assert.AreEqual(1, resolution.UnresolvedCount);
+    }
+
     [TestMethod]
     public void TestChoosingASideForgetsTheHandEdit()
     {

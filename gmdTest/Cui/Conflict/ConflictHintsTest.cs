@@ -17,5 +17,12 @@ public class ConflictHintsTest
         );
     }
 
+    // While a conflict is typed in the result pane, every other key is text
+    [TestMethod]
+    public void TestTypingOffersHowToBeDone()
+    {
+        Assert.AreEqual("Esc done  Ctrl-Z undo", Line(ConflictHints.Typing));
+    }
+
     static string Line(IReadOnlyList<KeyHint> hints) => string.Join("  ", hints.Select(h => $"{h.Key} {h.Text}"));
 }

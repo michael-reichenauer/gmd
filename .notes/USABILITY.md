@@ -153,7 +153,15 @@ that does not fight the diff's colors, light themes.
   in the bar and the repo menu, where it was, rather than a button next to the finish. The diff draws
   an unmerged file as its header and one row, "2 conflicts: Enter resolves them". Left out: the
   other changed files in the list, which the diff shows.
-- [ ] 7. Typing in the result (7), after the probe.
+- [x] 7. Typing in the result (7), after the probe. *Done (2026-10-16):* the probe passed (see
+  `MODERNIZATION.md`, Terminal.Gui), so `e` types the conflict in the result pane rather than a box
+  over the sides: a `UITextView` laid over the conflict's rows, the file's lines above and after it,
+  its gutter numbered as the file will be (`ConflictTyping`, no view), the lines after renumbered as
+  lines are added, from a copy of the decisions with the text typed (`ConflictResolution.WithTyped`).
+  It starts from the same text the box did, which the pane's title says. Esc, Tab or a click on the
+  sides is done, and what was typed is the decision, with nothing typed left as it was; u takes it
+  back. Esc keeps rather than cancels: a reflex Esc should not throw typing away, and Ctrl-Z and u are
+  there for the rest.
 
 ---
 

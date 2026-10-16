@@ -16,10 +16,15 @@ interface IConflictRowService
     );
 }
 
-// The file as it will be saved, as rows, and the row each conflict's lines start at in it
-record ConflictResult(IReadOnlyList<Text> Rows, IReadOnlyDictionary<int, int> Starts)
+// The file as it will be saved, as rows, and the rows of each conflict's lines in it: where they
+// start, and where they end, the row after them
+record ConflictResult(
+    IReadOnlyList<Text> Rows,
+    IReadOnlyDictionary<int, int> Starts,
+    IReadOnlyDictionary<int, int> Ends
+)
 {
-    public static readonly ConflictResult None = new([], new Dictionary<int, int>());
+    public static readonly ConflictResult None = new([], new Dictionary<int, int>(), new Dictionary<int, int>());
 }
 
 // Turns a conflicted file and what the user has decided about it into drawn rows.
@@ -79,7 +84,7 @@ class ConflictRowService : IConflictRowService
     }
 
     // How wide a line's gutter is: its mark, its number in 4 and a space
-    const int GutterWidth = 6;
+    internal const int GutterWidth = 6;
 
     static void AddHunk(
         ConflictRows rows,
@@ -270,6 +275,7 @@ class ConflictRowService : IConflictRowService
     {
         List<Text> rows = [];
         Dictionary<int, int> starts = [];
+        Dictionary<int, int> ends = [];
         var nbr = 1;
         foreach (var segment in file.Segments)
         {
@@ -282,18 +288,18 @@ class ConflictRowService : IConflictRowService
             starts[hunk.Index] = rows.Count;
             var choice = resolution.ChoiceOf(hunk.Index);
             if (choice == HunkChoice.None)
-            {
                 rows.Add(Undecided(hunk, names, canCombine?.Invoke(hunk) ?? false));
-                continue;
+            else
+            {
+                var lines = ResultLines(hunk, choice, resolution);
+                if (lines.Count == 0)
+                    rows.Add(Text.Color(Color.Magenta, "▌").Dark("      nothing, the region is removed"));
+                lines.ForEach(l => rows.Add(Gutter("▌", l.Color, nbr++).White(Shown(l.Line))));
             }
-
-            var lines = ResultLines(hunk, choice, resolution);
-            if (lines.Count == 0)
-                rows.Add(Text.Color(Color.Magenta, "▌").Dark("      nothing, the region is removed"));
-            lines.ForEach(l => rows.Add(Gutter("▌", l.Color, nbr++).White(Shown(l.Line))));
+            ends[hunk.Index] = rows.Count;
         }
 
-        return new ConflictResult(rows, starts);
+        return new ConflictResult(rows, starts, ends);
     }
 
     // The lines a decision takes, each with the color of where it came from

@@ -22,4 +22,7 @@ static class ConflictHints
         hints.AddRange([new("e", "edit"), new("b", "ancestor"), new("a", "whole file"), new("u", "clear")]);
         return hints;
     }
+
+    // While a conflict is typed in the result pane, where every other key is text
+    public static IReadOnlyList<KeyHint> Typing { get; } = [new("Esc", "done"), new("Ctrl-Z", "undo")];
 }

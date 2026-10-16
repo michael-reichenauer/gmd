@@ -354,6 +354,7 @@ public class ConflictRowServiceTest
         );
         Assert.AreEqual("C\nC\nY", string.Join("\n", result.Rows.Skip(1).Take(3).Select(r => TextColorsOfBar(r))));
         CollectionAssert.AreEqual(new[] { 1, 5 }, new[] { result.Starts[0], result.Starts[1] });
+        CollectionAssert.AreEqual(new[] { 4, 6 }, new[] { result.Ends[0], result.Ends[1] });
     }
 
     // The color letter of a row's bar, its first rune

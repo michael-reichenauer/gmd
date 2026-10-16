@@ -274,7 +274,8 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   per hunk; it never builds file text, the decisions go back down to be applied. `SideChanges` is a
   side as its change against the common ancestor, which the resolver reads as the file opens, and
   `ConflictCombine` both sides' changes in one where they touch other words, taken as text written
-  by hand. `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
+  by hand. `e` types a conflict in the result pane, a `UITextView` laid over its rows, which
+  `ConflictTyping` places. `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
   the operation, one after the other, from the conflict box, the repo menu and the diff's Enter, and
   asks to commit or continue once none is left, which the caller does; how a file's view ended
   (`ConflictOutcome`) says where it goes next, and `ConflictFileList` is the list of files beside it.
@@ -753,7 +754,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

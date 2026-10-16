@@ -85,6 +85,19 @@ class ConflictView : IConflictView
     // How the view ended, which Show returns
     ConflictOutcome outcome = new(ConflictEnd.Closed);
 
+    // The text of a conflict being typed by hand in the result pane, null when none is: the view it is
+    // typed in, which conflict, what it started as and where that came from, which the pane's title
+    // says, where it goes in the pane, the result with it, and the row the text is scrolled to, which
+    // the gutter numbers its rows from
+    Toplevel top = null!;
+    UITextView? typingView;
+    int typingHunk = -1;
+    string typingSeed = "";
+    string typingFrom = "";
+    ConflictTyping typing = new(0, 0, 0, 0);
+    ConflictResult typingResult = ConflictResult.None;
+    int typingTopRow;
+
     // The workspace's conflicted files, listed beside the resolver, how wide, 0 when not, whether
     // the list has the keys, as Tab moves them there and back, and which file is selected in it
     ConflictFileList files = ConflictFileList.None;
@@ -164,6 +177,8 @@ class ConflictView : IConflictView
             Width = Dim.Fill(),
             Height = Dim.Fill(),
         };
+        top = view;
+        typingView = null;
 
         header = new UILabel(0, 0);
         var border = new HorizontalLine()
@@ -220,7 +235,10 @@ class ConflictView : IConflictView
 
         view.Add(header, border, listView, contentView, resultView);
         // The bar is there with the hints off too, for what a key did, as in the diff
-        var hintBar = new KeyHintBar(() => ConflictHints.For(files.Files.Count > 1), () => status.Current);
+        var hintBar = new KeyHintBar(
+            () => typingView != null ? ConflictHints.Typing : ConflictHints.For(files.Files.Count > 1),
+            () => status.Current
+        );
         view.Add(hintBar);
         hintBar.FollowStatus(status, config.ShowKeyHints, view);
         RegisterShortcuts(contentView);
@@ -380,8 +398,16 @@ class ConflictView : IConflictView
     // The file as it will be saved, which is the whole point of the pane: the decisions are visible
     // as text, in the file around them, rather than only as words in the conflicts' headers, and an
     // undecided conflict says which keys decide it, naming the sides as the column titles do
-    (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int __) =>
-        (result.Rows.Skip(firstRow).Take(rowCount), result.Rows.Count);
+    //
+    // While a conflict is typed, the pane is the file around it, the text view laid over its rows
+    (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int __)
+    {
+        if (typingView == null)
+            return (result.Rows.Skip(firstRow).Take(rowCount), result.Rows.Count);
+
+        var rows = typing.Rows(typingResult, typingHunk, typingView.TopRow);
+        return (rows.Take(rowCount), rows.Count);
+    }
 
     // Goes to another file of the workspace, asking first about decisions not saved, as closing does
     void GoToFile(string path)
@@ -468,10 +494,16 @@ class ConflictView : IConflictView
         return (rows.Skip(firstRow).Take(rowCount), rows.Count);
     }
 
-    // The pane's title, its border: what it shows, and the colors of where its lines came from
+    // The pane's title, its border: what it shows, or what is typed in it, and the colors of where its
+    // lines came from
     Text ResultTitle(int firstRow, int width)
     {
-        var title = Text.Dark("─── ").White("Result").Dark($", {file.Path} as it will be saved ");
+        var title =
+            typingView != null
+                ? Text.Dark("─── ")
+                    .Magenta("Typing")
+                    .Dark($" conflict {typingHunk + 1} by hand, {typingFrom}, Esc when done ")
+                : Text.Dark("─── ").White("Result").Dark($", {file.Path} as it will be saved ");
         var legend = Text.Dark(" ")
             .Yellow("▌")
             .Dark($"{names.Ours.Max(20)} ")
@@ -526,37 +558,113 @@ class ConflictView : IConflictView
         contentView.ShowCurrentIndex(index);
     }
 
-    // Hand edits the result of one conflict, for the merge that is neither side but something of
-    // both — and for dropping the region altogether, by emptying the box. A modal box rather than
-    // editing in the view itself: Terminal.Gui's text view needs the real keyboard focus, and this
-    // is the one arrangement of it the codebase already relies on — the commit dialog is the same
-    // thing with a different label.
+    // Types the result of one conflict by hand, for the merge that is neither side but something of
+    // both, and for dropping the region altogether, by emptying it. Typed in the result pane, in the
+    // file around it, the sides staying in sight above, which a box over them hid. It starts from what
+    // the conflict resolves to now, or from both sides' changes combined, or from both sides, which the
+    // pane's title says. Esc, Tab or a click on the sides is done, and what was typed is the
+    // conflict's decision.
     void EditCurrentHunk()
     {
         var hunk = CurrentHunkOrNull();
-        if (hunk == null)
+        if (hunk == null || typingView != null)
             return;
 
-        var width = Math.Min(100, Application.Driver.Cols - 8);
-        var height = Math.Min(26, Application.Driver.Rows - 4);
-        var dlg = new UIDialog($"Edit Conflict {hunk.Index + 1} of {file.Path}", width, height);
+        typingHunk = hunk.Index;
+        typingSeed = SeedText(hunk);
+        typingFrom = TypedFrom(hunk);
+        typingTopRow = 0;
+        typingView = new UITextView()
+        {
+            X = listWidth + ConflictRowService.GutterWidth,
+            Width = Dim.Fill(),
+            Text = typingSeed,
+            ColorScheme = ColorSchemes.TextField,
+        };
+        typingView.ContentsChanged += _ => LayOutTyping();
+        typingView.Redrawn += OnTypingRedrawn;
+        typingView.KeyPress += e =>
+        {
+            if (e.KeyEvent.Key != Key.Esc)
+                return;
+            e.Handled = true;
+            contentView.SetFocus(); // Done, as leaving it is
+        };
+        // Done however the keys leave it, Esc, Tab or a click on the sides
+        typingView.Leave += _ => EndTyping();
 
-        dlg.AddLabel(1, 0, SeedNote(hunk));
-        var edit = dlg.AddMultiLineInputView(1, 2, width - 4, height - 6, SeedText(hunk));
-
-        if (!dlg.ShowOkCancel(edit))
-            return;
-
-        // RawText and not Text: the latter trims, and indentation is part of code
-        resolution.Set(hunk.Index, HunkChoice.Manual, edit.RawText);
-        SetRows();
+        LayOutTyping();
+        top.Add(typingView);
+        typingView.SetFocus();
+        typingView.CursorPosition = new Point(0, 0);
     }
 
-    // Says where the text in the box came from, so it is never a surprise
-    string SeedNote(ConflictHunk hunk) =>
-        resolution.ChoiceOf(hunk.Index) != HunkChoice.None ? "What this conflict resolves to now:"
-        : CombinationOf(hunk) != null ? "Both sides' changes combined, to change as you want:"
-        : $"Both sides, {names.Ours.Max(20)} first, to cut down to what you want:";
+    // Where the text goes in the pane, and the result with it typed, again with every change to it:
+    // the lines after it are numbered as they will be, and the text grows as lines are added
+    void LayOutTyping()
+    {
+        if (typingView == null)
+            return;
+
+        var withTyped = resolution.WithTyped(typingHunk, typingView.RawText);
+        typingResult = rowService.ToResult(file, withTyped, names, h => CombinationOf(h) != null);
+        typing = ConflictTyping.Of(
+            typingResult.Starts[typingHunk],
+            typingResult.Ends[typingHunk],
+            typingResult.Rows.Count,
+            typingView.Lines,
+            resultView.ContentHeight
+        );
+
+        // The pane's rows are below its title
+        var hintsHeight = config.ShowKeyHints ? 1 : 0;
+        typingView.Y = Pos.AnchorEnd(resultHeight + hintsHeight - 1 - typing.Above);
+        typingView.Height = typing.TextHeight;
+        top.LayoutSubviews();
+        resultView.SetNeedsDisplay();
+        typingView.SetNeedsDisplay();
+    }
+
+    // The caret scrolls the text, and the gutter numbers its rows from the row it is scrolled to
+    void OnTypingRedrawn()
+    {
+        if (typingView == null || typingView.TopRow == typingTopRow)
+            return;
+        typingTopRow = typingView.TopRow;
+        resultView.SetNeedsDisplay();
+        typingView.SetNeedsDisplay();
+    }
+
+    // What was typed is the conflict's decision, unless nothing was, when it is left as it was
+    void EndTyping()
+    {
+        if (typingView is not UITextView view)
+            return;
+
+        typingView = null;
+        top.Remove(view);
+        // RawText and not Text: the latter trims, and indentation is part of code
+        var text = view.RawText;
+        if (text != typingSeed)
+        {
+            resolution.Set(typingHunk, HunkChoice.Manual, text);
+            status.Info($"Conflict {typingHunk + 1} is written by hand: u takes it back");
+        }
+        else
+        {
+            status.Info($"Conflict {typingHunk + 1} is as it was, nothing was typed");
+        }
+
+        contentView.SetFocus();
+        SetRows();
+        top.SetNeedsDisplay();
+    }
+
+    // Where the text typed from came from, which the pane's title says, so it is never a surprise
+    string TypedFrom(ConflictHunk hunk) =>
+        resolution.ChoiceOf(hunk.Index) != HunkChoice.None ? "from what it resolves to now"
+        : CombinationOf(hunk) != null ? "from both sides' changes combined"
+        : $"from both sides, {names.Ours.Max(20)} first, to cut down";
 
     string SeedText(ConflictHunk hunk)
     {
@@ -1022,7 +1130,7 @@ class ConflictView : IConflictView
                     () => hunk != null ? WhyNotCombine(hunk) : "No conflict here"
                 )
                 .Item("Use the Common Ancestor", "0", ChooseBase, () => hasHunk)
-                .Item("Edit by Hand ...", "e", EditCurrentHunk, () => hasHunk)
+                .Item("Edit by Hand", "e", EditCurrentHunk, () => hasHunk)
                 .Item("Clear Decision", "u", () => Choose(HunkChoice.None), () => hasHunk)
                 .Separator()
                 .Item(

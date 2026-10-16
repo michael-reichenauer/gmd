@@ -53,6 +53,18 @@ class ConflictResolution
         combined[hunkIndex] = lines;
     }
 
+    // A copy with one conflict as text being typed by hand, which the result pane shows while it is
+    // typed (ConflictView): the decision is made once the typing is done
+    public ConflictResolution WithTyped(int hunkIndex, string text)
+    {
+        var copy = new ConflictResolution(file);
+        choices.ToList().ForEach(c => copy.choices[c.Key] = c.Value);
+        manualTexts.ToList().ForEach(t => copy.manualTexts[t.Key] = t.Value);
+        combined.ToList().ForEach(c => copy.combined[c.Key] = c.Value);
+        copy.Set(hunkIndex, HunkChoice.Manual, text);
+        return copy;
+    }
+
     // The combination a conflict was decided with, null where it was not
     public IReadOnlyList<CombinedLine>? CombinedOf(int hunkIndex) => combined.GetValueOrDefault(hunkIndex);
 
