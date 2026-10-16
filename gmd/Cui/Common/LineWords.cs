@@ -57,17 +57,26 @@ record LineWords(IReadOnlyList<WordRun> Left, IReadOnlyList<WordRun> Right, doub
         return pieces.Select((p, i) => new WordRun(p, changed[i]));
     }
 
-    // Neighbouring pieces alike in being changed or not as one run, the fewer for the view to draw
+    // Neighbouring pieces alike in being changed or not as one run, the fewer for the view to draw.
+    // Built up in a StringBuilder: a run made longer by a piece at a time was copied whole each time,
+    // so a minified line of 200 KB with one change took 0.7 s rather than a few milliseconds.
     static IReadOnlyList<WordRun> Joined(IEnumerable<WordRun> runs)
     {
         List<WordRun> joined = [];
+        var text = new StringBuilder();
+        bool? isChanged = null;
         foreach (var run in runs)
         {
-            if (joined.Count > 0 && joined[^1].IsChanged == run.IsChanged)
-                joined[^1] = joined[^1] with { Text = joined[^1].Text + run.Text };
-            else
-                joined.Add(run);
+            if (isChanged != null && run.IsChanged != isChanged)
+            {
+                joined.Add(new WordRun(text.ToString(), isChanged.Value));
+                text.Clear();
+            }
+            isChanged = run.IsChanged;
+            text.Append(run.Text);
         }
+        if (isChanged != null)
+            joined.Add(new WordRun(text.ToString(), isChanged.Value));
         return joined;
     }
 

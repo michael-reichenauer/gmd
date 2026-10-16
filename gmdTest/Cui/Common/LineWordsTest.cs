@@ -39,6 +39,21 @@ public class LineWordsTest
         Assert.AreEqual("[cafe] au lait", Marked(accent.Right));
     }
 
+    // A minified line, all of it one piece after another, marks the one value changed in it, the rest
+    // a run each side of it. Made a piece at a time by copying the run whole, 200 KB took 0.7 s.
+    [TestMethod]
+    public void TestALongLineMarksItsOneChange()
+    {
+        var left = string.Concat(Enumerable.Range(0, 10000).Select(i => $"a{i}:b({i}),"));
+        var right = left.Replace("a5000:b(5000)", "a5000:c(5000)");
+
+        var words = LineWords.Of(left, right);
+
+        Assert.AreEqual(3, words.Right.Count);
+        Assert.AreEqual(new WordRun("c", true), words.Right[1]);
+        Assert.AreEqual(right, string.Concat(words.Right.Select(r => r.Text)));
+    }
+
     // A word changed is marked whole, where the character diff marked the letters the two words do
     // not share, 'co' and 'st' of 'const' against 'readonly'
     [TestMethod]
