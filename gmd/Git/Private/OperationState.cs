@@ -127,7 +127,7 @@ record OperationState(
         return None;
     }
 
-    static string ReadFirstLine(string path) =>
+    internal static string ReadFirstLine(string path) =>
         Result.Catch(() => File.ReadAllText(path)) is string text ? text.Split('\n')[0].Trim() : "";
 
     static int ReadNumber(string path) => int.TryParse(ReadFirstLine(path), out var value) ? value : 0;

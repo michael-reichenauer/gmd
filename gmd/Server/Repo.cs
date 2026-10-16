@@ -276,6 +276,12 @@ public record ConflictState(GitOperation Operation, IReadOnlyList<ConflictedFile
     public override string ToString() => $"{Operation}: {Files.Count} conflicts";
 }
 
+// The two sides of an operation stopped on conflicts, see Git.ConflictSides
+public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject)
+{
+    public static readonly ConflictSides None = new("", "", "");
+}
+
 public record ConflictedFile(string Path, ConflictKind Kind)
 {
     public override string ToString() => $"{Kind} {Path}";

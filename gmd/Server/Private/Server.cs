@@ -525,6 +525,13 @@ class Server : IServer
         return GitConverter.ToConflictFile(file);
     }
 
+    public async Task<Result<ConflictSides>> GetConflictSidesAsync(string wd) =>
+        await git.GetConflictSidesAsync(wd) switch
+        {
+            Git.ConflictSides sides => GitConverter.ToConflictSides(sides),
+            Error e => e,
+        };
+
     public Task<Result> ResolveConflictFileAsync(
         string path,
         ConflictKind kind,

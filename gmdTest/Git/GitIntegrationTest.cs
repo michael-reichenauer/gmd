@@ -1023,6 +1023,35 @@ public class GitIntegrationTest
         Assert.AreEqual(1, status.OperationTotal);
     }
 
+    // The sides of a stopped merge: the branch HEAD is on and its subject, and the subject of the
+    // branch merged in, from MERGE_HEAD
+    [TestMethod]
+    public async Task TestTheSidesOfAStoppedMerge()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        Assert.AreEqual(
+            new ConflictSides("main", "Main work", "Dev work"),
+            Value(await repo.Git.GetConflictSidesAsync(repo.Path))
+        );
+    }
+
+    // During a rebase HEAD is on no branch, and the other side is the commit being applied, from
+    // REBASE_HEAD
+    [TestMethod]
+    public async Task TestTheSidesOfAStoppedRebase()
+    {
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase main");
+
+        Assert.AreEqual(
+            new ConflictSides("", "Main work", "Dev work"),
+            Value(await repo.Git.GetConflictSidesAsync(repo.Path))
+        );
+    }
+
     // Abort puts the working folder back as it was, from each of the operations gmd can start
     [TestMethod]
     public async Task TestAbortOfAConflictedMerge()

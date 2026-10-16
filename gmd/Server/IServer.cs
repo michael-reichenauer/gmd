@@ -112,6 +112,7 @@ interface IServer
     Task<Result<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
     Task<Result<ConflictState>> GetConflictStateAsync(string wd);
     Task<Result<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, bool isWithBase, string wd);
+    Task<Result<ConflictSides>> GetConflictSidesAsync(string wd);
     Task<Result> ResolveConflictFileAsync(
         string path,
         ConflictKind kind,

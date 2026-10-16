@@ -33,6 +33,9 @@ static class GitConverter
 
     public static ConflictedFile ToConflictedFile(Git.ConflictedFile f) => new(f.Path, ToConflictKind(f.Kind));
 
+    public static ConflictSides ToConflictSides(Git.ConflictSides s) =>
+        new(s.OursBranch, s.OursSubject, s.TheirsSubject);
+
     public static GitOperation ToOperation(Git.GitOperation operation) =>
         operation switch
         {

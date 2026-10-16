@@ -5,7 +5,7 @@ namespace gmd.Cui.Conflict;
 
 interface IConflictRowService
 {
-    ConflictRows ToRows(ConflictFile file, ConflictResolution resolution, bool isShowBase);
+    ConflictRows ToRows(ConflictFile file, ConflictResolution resolution, bool isShowBase, ConflictNames? names = null);
     Text ToRowText(ConflictRow row, ConflictColumns columns, int startX);
     Text ToHeader(ConflictFile file, ConflictResolution resolution, int currentHunk, GitOperation operation);
 }
@@ -23,8 +23,14 @@ class ConflictRowService : IConflictRowService
     //
     // Numbered as each side has it: the text between conflicts and the left side as ours, the right
     // side as theirs, each counting its own lines of the conflicts before.
-    public ConflictRows ToRows(ConflictFile file, ConflictResolution resolution, bool isShowBase)
+    public ConflictRows ToRows(
+        ConflictFile file,
+        ConflictResolution resolution,
+        bool isShowBase,
+        ConflictNames? names = null
+    )
     {
+        names ??= ConflictNames.Of(file, ConflictSides.None);
         var rows = new ConflictRows();
         var (ours, theirs) = (1, 1); // The line numbers the next line has in each side
 
@@ -41,7 +47,16 @@ class ConflictRowService : IConflictRowService
                 continue;
             }
 
-            AddHunk(rows, segment.Hunk, resolution, isShowBase, file.HasBase || segment.Hunk.HasBase, ours, theirs);
+            AddHunk(
+                rows,
+                segment.Hunk,
+                resolution,
+                names,
+                isShowBase,
+                file.HasBase || segment.Hunk.HasBase,
+                ours,
+                theirs
+            );
             (ours, theirs) = (ours + segment.Hunk.Ours.Count, theirs + segment.Hunk.Theirs.Count);
         }
 
@@ -58,6 +73,7 @@ class ConflictRowService : IConflictRowService
         ConflictRows rows,
         ConflictHunk hunk,
         ConflictResolution resolution,
+        ConflictNames names,
         bool isShowBase,
         bool hasAncestor,
         int oursStart,
@@ -65,12 +81,12 @@ class ConflictRowService : IConflictRowService
     )
     {
         var choice = resolution.ChoiceOf(hunk.Index);
-        var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ").Add(ChoiceText(choice, hunk));
+        var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ").Add(ChoiceText(choice, names));
         rows.Add(ConflictRow.Header(title, hunk.Index));
 
-        // The names git wrote into the markers, not 'ours' and 'theirs' — during a rebase those two
-        // mean the opposite of what is expected, and these say which side is really which
-        var labels = new List<Text> { Text.Yellow(hunk.OursLabel.Max(60)), Text.Cyan(hunk.TheirsLabel.Max(60)) };
+        // The sides by name, not 'ours' and 'theirs' — during a rebase those two mean the opposite of
+        // what is expected, and the names say which side is really which — and by what they did
+        var labels = new List<Text> { names.OursTitle, names.TheirsTitle };
 
         // The base slot is drawn whenever the pane is on, even for a conflict whose ancestor is
         // empty — both sides added lines where there were none. Leaving it out for that one hunk
@@ -166,18 +182,14 @@ class ConflictRowService : IConflictRowService
         return hunk.BaseLabel == "" ? "common ancestor" : hunk.BaseLabel.Max(60);
     }
 
-    static Text ChoiceText(HunkChoice choice, ConflictHunk hunk) =>
+    static Text ChoiceText(HunkChoice choice, ConflictNames names) =>
         choice switch
         {
             HunkChoice.None => Text.Red("── unresolved ───────"),
-            HunkChoice.Ours => Text.Green($"── using {hunk.OursLabel.Max(30)} "),
-            HunkChoice.Theirs => Text.Green($"── using {hunk.TheirsLabel.Max(30)} "),
-            HunkChoice.OursThenTheirs => Text.Green(
-                $"── using {hunk.OursLabel.Max(20)} then {hunk.TheirsLabel.Max(20)} "
-            ),
-            HunkChoice.TheirsThenOurs => Text.Green(
-                $"── using {hunk.TheirsLabel.Max(20)} then {hunk.OursLabel.Max(20)} "
-            ),
+            HunkChoice.Ours => Text.Green($"── using {names.Ours.Max(30)} "),
+            HunkChoice.Theirs => Text.Green($"── using {names.Theirs.Max(30)} "),
+            HunkChoice.OursThenTheirs => Text.Green($"── using {names.Ours.Max(20)} then {names.Theirs.Max(20)} "),
+            HunkChoice.TheirsThenOurs => Text.Green($"── using {names.Theirs.Max(20)} then {names.Ours.Max(20)} "),
             // Not the ancestor's own label, which is 'base' for a recovered one and whatever git
             // wrote for a diff3 one — neither says what taking it means the way these words do
             HunkChoice.Base => Text.Green("── using the common ancestor "),

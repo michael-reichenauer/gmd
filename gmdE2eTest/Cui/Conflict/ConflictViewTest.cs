@@ -31,7 +31,7 @@ public class ConflictViewTest
                38 line 38
                39 line 39
             ─── Conflict 1 ── unresolved ───────
-            HEAD                                                       │dev
+            main (HEAD) · Change it on main                            │dev · Change it on dev
             ~  40 line 40 on main                                      │~  40 line 40 on dev
                41 line 41
                42 line 42
@@ -55,7 +55,7 @@ public class ConflictViewTest
                60 line 60
                61 line 61
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            Conflict 1 is not resolved yet — press 1 for HEAD, 2 for dev, 3 or 4 for both, 0 for neither
+            Conflict 1 is not resolved yet — press 1 for main, 2 for dev, 3 or 4 for both, 0 for neither
             """,
             gmd.WaitFor("─── Conflict 1"),
             repo.Path
@@ -143,7 +143,7 @@ public class ConflictViewTest
                38 line 38
                39 line 39
             ─── Conflict 1 ── using the common ancestor
-            HEAD                                   │common ancestor                        │dev
+            main (HEAD) · Change it on main        │common ancestor                        │dev · Change it on dev
             ~  40 line 40 on main                  │      line 40                          │~  40 line 40 on dev
                41 line 41
                42 line 42
@@ -330,7 +330,7 @@ public class ConflictViewTest
 
         var screen = gmd.WaitFor("] [ next, previous");
         StringAssert.Contains(ScreenText.LastLine(screen), "m menu  Esc close  ] [ next, previous  s save");
-        StringAssert.Contains(screen, "press 1 for HEAD", "The result pane is still there, above the hints");
+        StringAssert.Contains(screen, "press 1 for main", "The result pane is still there, above the hints");
     }
 
     // A file one side deleted has no text to merge, so it is resolved whole, with no view of the

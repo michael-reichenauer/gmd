@@ -13,7 +13,8 @@ interface IConflictView
     // loop on a Task here would deadlock rather than merely stall. onChanged is called once what was
     // changed is on disk, which for a file resolved whole, with no view of the resolver, is after
     // this has returned, so the caller reads the file again from there rather than on return.
-    void Show(ConflictFile file, GitOperation operation, string repoPath, Action onChanged);
+    // sides are what git knows of the two sides, which name them (ConflictNames)
+    void Show(ConflictFile file, ConflictSides sides, GitOperation operation, string repoPath, Action onChanged);
 }
 
 // Resolves the conflicts of one file: the two sides (and the common ancestor, on request) side by
@@ -35,6 +36,8 @@ class ConflictView : IConflictView
     readonly IHelpPage helpPage;
     UILabel header = null!;
     ConflictFile file = null!;
+    ConflictSides sides = ConflictSides.None;
+    ConflictNames names = null!;
     ConflictResolution resolution = null!;
     ConflictRows rows = new ConflictRows();
     GitOperation operation;
@@ -79,10 +82,12 @@ class ConflictView : IConflictView
         }
     }
 
-    public void Show(ConflictFile file, GitOperation operation, string repoPath, Action onChanged)
+    public void Show(ConflictFile file, ConflictSides sides, GitOperation operation, string repoPath, Action onChanged)
     {
         this.onChanged = onChanged;
         this.file = file;
+        this.sides = sides;
+        this.names = ConflictNames.Of(file, sides);
         this.operation = operation;
         this.repoPath = repoPath;
         this.rowStartX = 0;
@@ -217,7 +222,7 @@ class ConflictView : IConflictView
     void SetRows()
     {
         var anchor = rows.Count > 0 ? rows.AnchorAt(contentView.CurrentIndex) : null;
-        rows = rowService.ToRows(file, resolution, isShowBase);
+        rows = rowService.ToRows(file, resolution, isShowBase, names);
         if (anchor != null && rows.IndexOf(anchor) is var index and not -1 && index != contentView.CurrentIndex)
             contentView.ShowCurrentIndex(index);
 
@@ -276,11 +281,11 @@ class ConflictView : IConflictView
 
     // What the keys do, naming the sides as the column titles do and in their colors, since '1' and
     // '2' meant nothing until it was clear which side each takes (.notes/USABILITY.md, the product review)
-    static Text NotResolvedYet(ConflictHunk hunk) =>
+    Text NotResolvedYet(ConflictHunk hunk) =>
         Text.Dark($"Conflict {hunk.Index + 1} is not resolved yet — press 1 for ")
-            .Yellow(hunk.OursLabel.Max(20))
+            .Yellow(names.Ours.Max(20))
             .Dark(", 2 for ")
-            .Cyan(hunk.TheirsLabel.Max(20))
+            .Cyan(names.Theirs.Max(20))
             .Dark(", 3 or 4 for both, 0 for neither");
 
     // The first conflict is what the file was opened for, and it can be a long way down a file that
@@ -356,7 +361,7 @@ class ConflictView : IConflictView
     string SeedNote(ConflictHunk hunk) =>
         resolution.ChoiceOf(hunk.Index) != HunkChoice.None
             ? "What this conflict resolves to now:"
-            : $"Both sides, {hunk.OursLabel.Max(20)} first, to cut down to what you want:";
+            : $"Both sides, {names.Ours.Max(20)} first, to cut down to what you want:";
 
     string SeedText(ConflictHunk hunk)
     {
@@ -554,6 +559,7 @@ class ConflictView : IConflictView
         }
 
         file = reread;
+        names = ConflictNames.Of(file, sides);
         resolution = new ConflictResolution(file);
 
         // The ancestor is recovered per read, so a pane that cannot be filled is closed rather than
@@ -725,10 +731,6 @@ class ConflictView : IConflictView
     // The main menu's Whole File items, which offer only the sides the index holds
     void ShowWholeFileMenu() => Menu.Show($"Whole File", Menu.Center, 2, WholeFileItems());
 
-    string OursLabel() => file.Hunks.Count > 0 ? file.Hunks[0].OursLabel : "ours";
-
-    string TheirsLabel() => file.Hunks.Count > 0 ? file.Hunks[0].TheirsLabel : "theirs";
-
     void UseWholeFile(bool isOurs)
     {
         isResolved = true;
@@ -765,8 +767,7 @@ class ConflictView : IConflictView
     void ShowMainMenu(int x = Menu.Center, int y = 0)
     {
         var hunk = CurrentHunkOrNull();
-        var ours = hunk?.OursLabel ?? "ours";
-        var theirs = hunk?.TheirsLabel ?? "theirs";
+        var (ours, theirs) = (names.Ours, names.Theirs);
         var hasHunk = hunk != null;
 
         Menu.Show(
@@ -804,8 +805,8 @@ class ConflictView : IConflictView
 
     IEnumerable<Common.MenuItem> WholeFileItems() =>
         Menu
-            .Items.Item(file.HasOurs, $"Use {OursLabel()} for the Whole File", "", () => UseWholeFile(true))
-            .Item(file.HasTheirs, $"Use {TheirsLabel()} for the Whole File", "", () => UseWholeFile(false))
+            .Items.Item(file.HasOurs, $"Use {names.Ours} for the Whole File", "", () => UseWholeFile(true))
+            .Item(file.HasTheirs, $"Use {names.Theirs} for the Whole File", "", () => UseWholeFile(false))
             .Separator()
             .Item("Unresolve This File", "", Unresolve);
 }

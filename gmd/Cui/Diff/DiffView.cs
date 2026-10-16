@@ -709,6 +709,7 @@ class DiffView : IDiffView
     async void ResolveConflict(ConflictedFile conflict)
     {
         ConflictFile file;
+        ConflictSides sides;
         using (progress.Show())
         {
             // With the common ancestor, which the sides are drawn against, and without it where it
@@ -716,6 +717,9 @@ class DiffView : IDiffView
             var read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, true, repoPath);
             if (read is Error)
                 read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath);
+            // What git knows of the two sides names them, the branch and the subjects, and their
+            // names in the markers do where it knows nothing
+            sides = await server.GetConflictSidesAsync(repoPath) is ConflictSides known ? known : ConflictSides.None;
             if (read is not ConflictFile conflictFile)
             {
                 UI.ErrorMessage($"Failed to open {conflict.Path}\n{read.Error.AllMessages()}");
@@ -724,7 +728,7 @@ class DiffView : IDiffView
             file = conflictFile;
         }
 
-        conflictView.Show(file, conflictState.Operation, repoPath, RefreshDiff);
+        conflictView.Show(file, sides, conflictState.Operation, repoPath, RefreshDiff);
     }
 
     // The cursor is put on the commit or the file, which + and - and Enter act on: scrolled to alone

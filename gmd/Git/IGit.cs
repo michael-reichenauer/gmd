@@ -125,6 +125,7 @@ interface IGit
     Task<Result<IReadOnlyList<string>>> GetLeftoverMarkerPathsAsync(string wd);
     Task<Result<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
     Task<Result<ConflictFile>> WithBaseAsync(ConflictFile file, string wd);
+    Task<Result<ConflictSides>> GetConflictSidesAsync(string wd);
     Task<Result> WriteConflictFileAsync(ConflictFile file, string wd);
     Task<Result> ResolveConflictFileAsync(
         string path,
@@ -292,6 +293,11 @@ public enum ConflictKind
     DeletedByThem, // UD
     DeletedByUs, // DU
 }
+
+// The two sides of an operation stopped on conflicts, as far as git knows them: the branch HEAD is on,
+// "" when it is on none, as during a rebase, and the subject of each side's commit, "" for the other
+// side where git keeps no ref to it, e.g. a cherry pick with --no-commit or an 'am'
+public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject);
 
 public record ConflictedFile(string Path, ConflictKind Kind)
 {
