@@ -63,6 +63,17 @@ class DiffView : IDiffView
     // them again, rather than hide a change where it was not asked for
     bool isIgnoreWhitespace;
 
+    // Whether the rows are in one column, a change's removed lines above its added ones, which a
+    // narrow view is, or as v chose for this diff, null while the width chooses
+    bool isOneColumn;
+    bool? isOneColumnChosen;
+    bool isLayoutPosted;
+
+    // A view narrower than this has too little of a line in each of two columns
+    const int OneColumnBelow = 110;
+
+    bool IsOneColumnFor(int contentWidth) => isOneColumnChosen ?? contentWidth < OneColumnBelow;
+
     bool IsSelected => contentView.SelectCount > 0;
 
     // How wide each of the two columns is, as OnGetContent lays them out
@@ -105,7 +116,9 @@ class DiffView : IDiffView
         this.isRefreshNeeded = false;
         this.fileContext.Clear();
         this.conflictState = conflicts ?? ConflictState.None;
-        this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
+        this.isOneColumnChosen = null;
+        this.isOneColumn = IsOneColumnFor(Application.Driver.Cols - 1); // The view's width, but for its scrollbar
+        this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
         this.search = RowSearch.None;
         this.status = new StatusLine();
         this.isIgnoreWhitespace = false;
@@ -143,7 +156,8 @@ class DiffView : IDiffView
                     conflictState.Files.Count > 0,
                     search.IsActive,
                     isIgnoreWhitespace,
-                    LeaveOutHint()
+                    LeaveOutHint(),
+                    isOneColumn
                 ),
             () => status.Current
         );
@@ -187,6 +201,7 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.n, () => StepMatch(1));
         view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
         view.RegisterLetterHandler(Key.w, ToggleWhitespace);
+        view.RegisterLetterHandler(Key.v, ToggleLayout);
         view.RegisterLetterHandler(Key.x, ToggleLeftOut);
 
         // The next and previous change, as the resolver's ] and [ go to a conflict, and file. Terminal.Gui
@@ -218,9 +233,9 @@ class DiffView : IDiffView
 
         // Switch focus sides if clicking on other side
         int columnWidth = (contentView.ContentWidth - 2) / 2;
-        if (x > columnWidth && isFocusLeft)
+        if (x > columnWidth && isFocusLeft && !isOneColumn)
             isFocusLeft = false;
-        if (x < columnWidth && !isFocusLeft)
+        if (x < columnWidth && !isFocusLeft && !isOneColumn)
             isFocusLeft = true;
 
         contentView.SetIndexAtViewY(y);
@@ -263,8 +278,9 @@ class DiffView : IDiffView
                 .Item(ContextItemText("More Context", 1), "+", () => StepContext(1), () => CanStepContext(1))
                 .Item(ContextItemText("Less Context", -1), "-", () => StepContext(-1), () => CanStepContext(-1))
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
-                .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected)
-                .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected)
+                .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
+                .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected && !isOneColumn)
+                .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected && !isOneColumn)
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
     }
@@ -331,6 +347,12 @@ class DiffView : IDiffView
             var (text, lineNbr) = isFocusLeft ? (left, row.LeftLineNbr) : (right, row.RightLineNbr);
             var start = RowSearch.IndexOf(text, search.Text);
             var width = ColumnWidth - DiffRowService.LineNbrWidth(lineNbr); // The gutter does not scroll
+            rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, width);
+        }
+        else if (row.LineNbr != 0)
+        { // A line across the view, in one column
+            var start = RowSearch.IndexOf(DiffRowService.SearchText(row).Left, search.Text);
+            var width = ViewWidth - DiffRowService.LineNbrWidth(row.LineNbr);
             rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, width);
         }
 
@@ -1029,6 +1051,45 @@ class DiffView : IDiffView
         status.Info(isIgnoreWhitespace ? "Whitespace changes hidden: w shows them" : "Whitespace changes shown");
     }
 
+    // Shows the diff in one column, or side by side again, v, for this diff: the next one is shown as
+    // its width chooses
+    void ToggleLayout()
+    {
+        isOneColumnChosen = !isOneColumn;
+        SetLayout(!isOneColumn);
+        status.Info(
+            isOneColumn ? "In one column: v shows the sides beside each other" : "Side by side: v shows one column"
+        );
+    }
+
+    // The layout the view's width calls for, once it is drawn at a width other than the rows were
+    // made for, e.g. the terminal resized. Posted, since the rows cannot change while they are drawn.
+    void FollowWidth(int contentWidth)
+    {
+        if (isLayoutPosted || IsOneColumnFor(contentWidth) == isOneColumn)
+            return;
+
+        isLayoutPosted = true;
+        UI.Post(() =>
+        {
+            isLayoutPosted = false;
+            SetLayout(IsOneColumnFor(contentView.ContentWidth));
+        });
+    }
+
+    void SetLayout(bool isOneColumn)
+    {
+        if (isOneColumn == this.isOneColumn)
+            return;
+
+        this.isOneColumn = isOneColumn;
+        SetDiffs(diffs, CurrentAnchor());
+        hintBar.SetNeedsDisplay();
+    }
+
+    // How wide a row across the view is drawn, as OnGetContent lays it out
+    int ViewWidth => ColumnWidth * 2 + 1;
+
     // The options the diff is read with, at a context
     Git.DiffOptions Options(int contextLines) => new(contextLines, isIgnoreWhitespace);
 
@@ -1037,7 +1098,7 @@ class DiffView : IDiffView
     void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
     {
         diffs = newDiffs;
-        diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), isIgnoreWhitespace);
+        diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), isIgnoreWhitespace, isOneColumn);
         search = FindInRows(search.Text); // The rows the search found are other rows now
         RefindLeftOutLines(); // As the lines left out may have moved
         hintBar.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
@@ -1067,7 +1128,7 @@ class DiffView : IDiffView
     // Move both sides in view left, or select left side text if text is selected
     void OnMoveLeft()
     {
-        if (!isFocusLeft)
+        if (!isFocusLeft && !isOneColumn)
         { // Text is selected, lets move selection from right to left side
             isFocusLeft = true;
             contentView.SetNeedsDisplay();
@@ -1085,7 +1146,7 @@ class DiffView : IDiffView
     // Move both sides in view right, or select right side text if text is selected
     void OnMoveRight()
     {
-        if (isFocusLeft)
+        if (isFocusLeft && !isOneColumn)
         { // Text is selected, lets move selection from left to right side
             isFocusLeft = false;
             contentView.SetNeedsDisplay();
@@ -1093,7 +1154,7 @@ class DiffView : IDiffView
         }
 
         // Move both sides in view right
-        int maxColumnWidth = contentView!.ContentWidth / 2;
+        int maxColumnWidth = isOneColumn ? contentView.ContentWidth : contentView.ContentWidth / 2;
         if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
         {
             rowStartX++;
@@ -1104,6 +1165,7 @@ class DiffView : IDiffView
     // Returns the content for the view
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
+        FollowWidth(contentWidth);
         contentWidth++;
         int columnWidth = (contentWidth - 2) / 2;
         int viewWidth = columnWidth * 2 + 1;
@@ -1138,7 +1200,12 @@ class DiffView : IDiffView
                 isLeftOutLeft || isLeftOutRight ? LeftOutText(row.Left, row.LineNbr)
                 : row.FilePath != "" ? WithLeftOutNote(row.Left, row.FilePath)
                 : Marked(row.Left, row.LineNbr);
-            var text = WithFill(spanText.Subtext(0, viewWidth), row.Fill, viewWidth);
+            // A line across the view, of a file added or removed whole or in one column, scrolls
+            // sideways as a side does, its gutter staying put
+            var text =
+                row.LineNbr != 0
+                    ? SideText(spanText, row.LineNbr, false, viewWidth)
+                    : WithFill(spanText.Subtext(0, viewWidth), row.Fill, viewWidth);
             return isSelectedRow ? text.ToSelect()
                 : !isCurrentRow ? text
                 // A line of a file drawn in one column has the cursor on its number, as a side has

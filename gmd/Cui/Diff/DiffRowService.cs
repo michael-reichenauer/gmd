@@ -14,12 +14,15 @@ interface IDiffRowService
     // conflict git wrote markers for: a modify/delete or a binary conflict has none, and would
     // otherwise be headed as added or modified as if there were nothing to resolve.
     // isIgnoreWhitespace is a diff read with whitespace left out, whose rows say so, and mark no change
-    // of the spaces around a line's text, nor of its line end, either.
+    // of the spaces around a line's text, nor of its line end, either. isOneColumn is the layout of a
+    // narrow view: a change's removed lines above its added ones, as git writes them, rather than
+    // beside them.
     DiffRows ToDiffRows(
         CommitDiff[] commitDiffs,
         IReadOnlyDictionary<string, int> fileContext,
         IReadOnlyList<string> conflictPaths,
-        bool isIgnoreWhitespace = false
+        bool isIgnoreWhitespace = false,
+        bool isOneColumn = false
     );
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
@@ -95,10 +98,12 @@ class DiffRowService : IDiffRowService
         CommitDiff[] commitDiffs,
         IReadOnlyDictionary<string, int> fileContext,
         IReadOnlyList<string> conflictPaths,
-        bool isIgnoreWhitespace = false
+        bool isIgnoreWhitespace = false,
+        bool isOneColumn = false
     )
     {
         commitDiffs = commitDiffs.Select(d => AsConflicted(d, conflictPaths)).ToArray();
+        var layout = new Layout(isIgnoreWhitespace, isOneColumn);
         DiffRows rows = new DiffRows();
 
         // A file history is one file over many commits, headed with the list of them, which the view's
@@ -115,7 +120,7 @@ class DiffRowService : IDiffRowService
             );
         }
 
-        commitDiffs.ForEach(diff => AddCommitDiff(diff, rows, fileContext, isIgnoreWhitespace, isHistory));
+        commitDiffs.ForEach(diff => AddCommitDiff(diff, rows, fileContext, layout, isHistory));
         return rows;
     }
 
@@ -205,14 +210,14 @@ class DiffRowService : IDiffRowService
         CommitDiff commitDiff,
         DiffRows rows,
         IReadOnlyDictionary<string, int> fileContext,
-        bool isIgnoreWhitespace,
+        Layout layout,
         bool isHistory
     )
     {
         AddCommitSummery(commitDiff, rows, isHistory);
-        AddDiffFileNamesSummery(commitDiff, rows, isIgnoreWhitespace);
+        AddDiffFileNamesSummery(commitDiff, rows, layout.IsIgnoreWhitespace);
 
-        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext, isIgnoreWhitespace));
+        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext, layout));
     }
 
     // The commit: its id and subject, and who made it when, each field left out that the diff has none
@@ -342,7 +347,7 @@ class DiffRowService : IDiffRowService
         FileDiff fileDiff,
         DiffRows rows,
         IReadOnlyDictionary<string, int> fileContext,
-        bool isIgnoreWhitespace
+        Layout layout
     )
     {
         rows.Add(Text.Empty);
@@ -364,12 +369,12 @@ class DiffRowService : IDiffRowService
         {
             if (i > 0)
                 rows.Add(Text.Empty);
-            AddSectionDiff(fileDiff, fileDiff.SectionDiffs[i], rows, isIgnoreWhitespace);
+            AddSectionDiff(fileDiff, fileDiff.SectionDiffs[i], rows, layout);
         }
     }
 
     // Add a file section diff (the actual diff lines for a sub section of a file)
-    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows, bool isIgnoreWhitespace)
+    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows, Layout layout)
     {
         // A file added or removed whole is one hunk of the whole file, which has nowhere to be in
         if (fileDiff.DiffMode is not DiffMode.DiffAdded and not DiffMode.DiffRemoved)
@@ -399,8 +404,12 @@ class DiffRowService : IDiffRowService
             {
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
-                    rows.AddConflictStart(Text.BrightMagenta("=== Start of conflict"));
+                    AddBlocks(leftBlock, rightBlock, rows, layout);
+                    // In one column, the sides one after the other, each named by git's marker
+                    var start = Text.BrightMagenta("=== Start of conflict");
+                    if (layout.IsOneColumn)
+                        start.Dark("  ").Yellow(MarkerName(dl.Line));
+                    rows.AddConflictStart(start, layout.IsOneColumn);
                     break;
 
                 // The common ancestor of a 'diff3' or 'zdiff3' conflict. It belongs to neither
@@ -408,7 +417,7 @@ class DiffRowService : IDiffRowService
                 // which is where it used to end up for want of being recognised at all.
                 case DiffMode.DiffConflictBase:
                     diffMode = DiffMode.DiffConflictBase;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
+                    AddBlocks(leftBlock, rightBlock, rows, layout);
                     rows.Add(Text.Dark("=== Common ancestor"));
                     break;
 
@@ -418,9 +427,19 @@ class DiffRowService : IDiffRowService
 
                 case DiffMode.DiffConflictEnd:
                     diffMode = DiffMode.DiffConflictEnd;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
-                    var txt2 = Text.BrightMagenta("=== End of conflict");
-                    rows.Add(txt2, txt2);
+                    var end = Text.BrightMagenta("=== End of conflict");
+                    if (layout.IsOneColumn)
+                    { // Ours, which is gone if the common ancestor came after it, and then theirs
+                        AddLines(leftBlock, rows);
+                        rows.Add(Text.BrightMagenta("=== ").Cyan(MarkerName(dl.Line)));
+                        AddLines(rightBlock, rows);
+                        rows.Add(end);
+                    }
+                    else
+                    {
+                        AddBlocks(leftBlock, rightBlock, rows, layout);
+                        rows.Add(end, end);
+                    }
                     break;
 
                 case DiffMode.DiffRemoved:
@@ -490,7 +509,7 @@ class DiffRowService : IDiffRowService
                     }
                     else
                     {
-                        AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
+                        AddBlocks(leftBlock, rightBlock, rows, layout);
                         leftBlock.Add(leftNr, dl.Line, LineKind.Same);
                         rightBlock.Add(rightNr, dl.Line, LineKind.Same);
                     }
@@ -501,7 +520,7 @@ class DiffRowService : IDiffRowService
             }
         }
 
-        AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
+        AddBlocks(leftBlock, rightBlock, rows, layout);
     }
 
     // A hunk's header: '@@' and the function or heading git found it in, lined up with the text of
@@ -514,8 +533,15 @@ class DiffRowService : IDiffRowService
     // The lines of a change side by side: the removed lines on the left, each beside the added line
     // at the same place on the right, as FilePatch pairs them when some of a change's lines are
     // committed or discarded, so what is chosen ends up where the view shows it
-    static void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows, bool isIgnoreWhitespace)
+    static void AddBlocks(Block leftBlock, Block rightBlock, DiffRows rows, Layout layout)
     {
+        if (layout.IsOneColumn)
+        {
+            AddOneColumn(leftBlock, rightBlock, rows, layout.IsIgnoreWhitespace);
+            return;
+        }
+
+        var isIgnoreWhitespace = layout.IsIgnoreWhitespace;
         // Add block parts where both block have lines
         var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
         for (int i = 0; i < minCount; i++)
@@ -545,6 +571,46 @@ class DiffRowService : IDiffRowService
         leftBlock.Lines.Clear();
         rightBlock.Lines.Clear();
     }
+
+    // The lines of a change in one column, as git writes them: the removed lines and then the added
+    // ones, each with the words marked that differ from the line it pairs with side by side. The
+    // unchanged line a block starts with, which is on both sides, is drawn once, numbered as it is now.
+    static void AddOneColumn(Block leftBlock, Block rightBlock, DiffRows rows, bool isIgnoreWhitespace)
+    {
+        var (left, right) = (leftBlock.Lines, rightBlock.Lines);
+        var same = 0;
+        for (; same < Math.Min(left.Count, right.Count) && left[same].Kind == LineKind.Same; same++)
+            rows.Add(LineText(right[same]), leftLineNbr: left[same].LineNbr, rightLineNbr: right[same].LineNbr);
+
+        var leftTexts = left.Select(LineText).ToList();
+        var rightTexts = right.Select(LineText).ToList();
+        for (int i = same; i < Math.Min(left.Count, right.Count); i++)
+        {
+            if (left[i].Kind == LineKind.Removed && right[i].Kind == LineKind.Added)
+                (leftTexts[i], rightTexts[i]) = ChangedSides(left[i], right[i], isIgnoreWhitespace);
+        }
+
+        for (int i = same; i < left.Count; i++)
+            rows.Add(leftTexts[i], leftLineNbr: left[i].LineNbr, removedText: RemovedText(left[i]));
+        for (int i = same; i < right.Count; i++)
+            rows.Add(rightTexts[i], rightLineNbr: right[i].LineNbr, addedText: AddedText(right[i]));
+
+        left.Clear();
+        right.Clear();
+    }
+
+    // The lines of a side of a conflict in one column
+    static void AddLines(Block block, DiffRows rows)
+    {
+        block.Lines.ForEach(l => rows.Add(LineText(l), leftLineNbr: l.LineNbr));
+        block.Lines.Clear();
+    }
+
+    // The name git wrote on a conflict's marker, e.g. 'HEAD' of '<<<<<<< HEAD'
+    static string MarkerName(string marker) => marker.TrimStart('<', '>', '|', '=').Trim();
+
+    // How the rows are made: with whitespace left out, and in one column rather than two
+    record Layout(bool IsIgnoreWhitespace, bool IsOneColumn);
 
     // The text of a removed or an added line of a block, as the diff has it, null for an unchanged
     // line or a conflict's, which are no change of the commit

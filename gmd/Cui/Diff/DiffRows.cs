@@ -58,10 +58,13 @@ class DiffRows
         rows[^1] = rows[^1] with { IsHunkHeader = true };
     }
 
-    // The marker a conflict starts with, on both sides, which a conflict is gone to by
-    internal void AddConflictStart(Text marker)
+    // The marker a conflict starts with, on both sides or across them, which a conflict is gone to by
+    internal void AddConflictStart(Text marker, bool isOneColumn)
     {
-        Add(marker, marker);
+        if (isOneColumn)
+            Add(marker);
+        else
+            Add(marker, marker);
         rows[^1] = rows[^1] with { IsConflictStart = true };
     }
 

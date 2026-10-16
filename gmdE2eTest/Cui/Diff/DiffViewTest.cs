@@ -169,6 +169,35 @@ public class DiffViewTest
         Assert.AreEqual("File 1 of 2: long.txt", ScreenText.LastLine(gmd.WaitFor("File 1 of 2")));
     }
 
+    // A view narrower than 110 columns shows the diff in one column, a change's removed lines above its
+    // added ones, and a wider one side by side, following the terminal as it is resized, until v
+    // chooses one for the diff
+    [TestMethod]
+    public async Task TestANarrowDiffIsInOneColumn()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 100, height: 30);
+        gmd.WaitFor("uncommitted");
+        gmd.Send("d");
+        StringAssert.Contains(ScreenText.Of(gmd.WaitFor("A epsilon.txt"), repo.Path), "    1 alpha\n▌   2 changed");
+
+        gmd.Resize(150, 30);
+        gmd.WaitFor("│▌   2 changed");
+
+        gmd.Send("v");
+        Assert.AreEqual(
+            "In one column: v shows the sides beside each other",
+            ScreenText.LastLine(gmd.WaitFor("In one column"))
+        );
+        StringAssert.Contains(
+            ScreenText.Of(gmd.Capture(), repo.Path),
+            "    1 alpha\n▌   2 changed",
+            "Wide, as v chose"
+        );
+        gmd.Send("v");
+        gmd.WaitFor("│▌   2 changed");
+    }
+
     // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the
     // cursor down, with the text marked black on yellow on the cursor's row too; n and Shift-N go on
     // from there and say where they stop, as the log's do. What it found is said over the bottom row,
@@ -250,10 +279,10 @@ public class DiffViewTest
                17 line 17                         │More Context of long.txt (15 lines)     +  │
                18 line 18                         │Less Context                            -  │
                19 line 19                         │Hide Whitespace Changes                 w  │
-            ▌  20 line 20                         │Focus Left Column                       ←  │
-               21 line 21                         │Focus Right Column                      →  │
-               22 line 22                         │Close                                 Esc  │
-               23 line 23                         ╰───────────────────────────────────────────╯
+            ▌  20 line 20                         │Show in One Column                      v  │
+               21 line 21                         │Focus Left Column                       ←  │
+               22 line 22                         │Focus Right Column                      →  │
+               23 line 23                         │Close                                 Esc  │
             """,
             ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path

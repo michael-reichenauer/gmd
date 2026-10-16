@@ -562,6 +562,11 @@ branch. Any two commits, wherever they are, are diffed with **Mark for
 Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
 other: the changes from the older of the two to the newer.
 
+In a view narrower than 110 columns, the diff is in one column instead,
+each change's removed lines above its added ones, as git writes them, and
+a conflict's two sides one after the other, each named. `v` switches
+between the two, for the diff it is pressed in.
+
 `]` and `[` go to the next and the previous change, a run of changed lines
 or a conflict, and `}` and `{` to the next and the previous file, and the
 line at the bottom says which it went to, e.g. `Change 3 of 9`. The top row

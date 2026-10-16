@@ -1019,4 +1019,87 @@ public class DiffRowServiceTest
             "Each commit still gets its own summery below the list"
         );
     }
+
+    // In one column, the layout of a narrow view, a change's removed lines are above its added ones,
+    // as git writes them, the unchanged line before them once, and the words that differ marked as
+    // side by side
+
+    static DiffRows OneColumnOf(FileDiff file) =>
+        new DiffRowService().ToDiffRows([CommitDiffOf(file)], new Dictionary<string, int>(), [], isOneColumn: true);
+
+    [TestMethod]
+    public void TestOneColumnHasTheRemovedLinesAboveTheAdded()
+    {
+        var rows = OneColumnOf(
+            FileOf(
+                "a.txt",
+                lines:
+                [
+                    (DiffMode.DiffSame, "one"),
+                    (DiffMode.DiffRemoved, "the quick fox"),
+                    (DiffMode.DiffRemoved, "gone"),
+                    (DiffMode.DiffAdded, "the slow fox"),
+                    (DiffMode.DiffSame, "four"),
+                ]
+            )
+        );
+
+        Assert.AreEqual(
+            """
+                1 one
+            ▌   2 the quick fox
+            ▌   3 gone
+            ▌   2 the slow fox
+                3 four
+            """,
+            DiffText.BodyOf(rows)
+        );
+        Assert.AreEqual(
+            """
+                D WWW
+            R   R WWW ----- WWW
+            R   R WWWW
+            G   G WWW ++++ WWW
+                D WWWW
+            """,
+            DiffText.BodyColorsOf(rows),
+            "The words of the pair marked, the line with no pair not"
+        );
+        CollectionAssert.AreEqual(
+            new[] { (1, 1), (2, 0), (3, 0), (0, 2), (4, 3) },
+            BodyRowsOf(rows).Select(r => (r.LeftLineNbr, r.RightLineNbr)).ToArray(),
+            "An unchanged line has both numbers, a changed one its own side's"
+        );
+    }
+
+    // A conflict's sides one after the other, each named by git's marker, ours yellow, theirs cyan
+    [TestMethod]
+    public void TestOneColumnNamesTheSidesOfAConflict()
+    {
+        var rows = OneColumnOf(
+            FileOf(
+                "a.txt",
+                DiffMode.DiffConflicts,
+                [
+                    (DiffMode.DiffConflictStart, "<<<<<< HEAD"),
+                    (DiffMode.DiffSame, "ours"),
+                    (DiffMode.DiffConflictSplit, "======"),
+                    (DiffMode.DiffSame, "theirs"),
+                    (DiffMode.DiffConflictEnd, ">>>>>> dev"),
+                ]
+            )
+        );
+
+        Assert.AreEqual(
+            """
+            === Start of conflict  HEAD
+            ▌   2 ours
+            === dev
+            ▌   4 theirs
+            === End of conflict
+            """,
+            DiffText.BodyOf(rows)
+        );
+        Assert.IsTrue(BodyRowsOf(rows)[0].IsConflictStart, "What ] goes to");
+    }
 }

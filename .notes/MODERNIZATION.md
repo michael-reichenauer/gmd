@@ -1228,6 +1228,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
 **Terminal.Gui 1.x and the UI**
 
+- A resize of the terminal eats the next key, whatever the view (2026-10-16): after
+  `tmux resize-window`, `w` in the diff and `d` in the log did nothing the first time and worked the
+  second. So does a user's resizing of the window, presumably. Not gmd's: the key never reaches
+  `ContentView`. `TmuxSession.Resize` sends an unbound F12 for it to eat.
+- A view drawn from another's draw (a header following a scroll, say) lags by a key: what it marks
+  for redraw while a draw is under way waits for the main loop's next event. `ContentView.TopRow`
+  draws such a row in the same draw instead.
+
 - A dialog with keys of its own (`UIDialog`'s `CustomDialog`) used to override `ProcessHotKey`
   without calling the base, so its views got no hot keys at all, and `ContentView` takes its keys as
   hot keys: a list in such a dialog never ticked or moved, however it was focused. It found nothing
