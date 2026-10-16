@@ -540,9 +540,7 @@ class DiffView : IDiffView
 
     // done is what is done with the file, e.g. "discarded"
     string WhyNotLinesOf(string path, string done) =>
-        ConflictPaths().Contains(path) ? $"{path} has conflicts: resolve them first, or it is {done} whole"
-        : FileOf(path) is { IsRenamed: true } ? $"{path} was renamed: it is {done} whole"
-        : "";
+        ConflictPaths().Contains(path) ? $"{path} has conflicts: resolve them first, or it is {done} whole" : "";
 
     FileDiff? FileOf(string path) => diffs[0].FileDiffs.FirstOrDefault(f => f.PathAfter == path);
 

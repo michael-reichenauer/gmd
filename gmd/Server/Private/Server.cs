@@ -307,7 +307,9 @@ class Server : IServer
                 patches[path] = chosen;
             }
 
-            var whole = paths.Where(p => !leftOut.ContainsKey(p)).ToList();
+            // A renamed file's old path is in its patch's rename, so it is not committed whole too
+            var renamedFrom = patches.Values.Select(p => p.RenamedFrom).ToHashSet();
+            var whole = paths.Where(p => !leftOut.ContainsKey(p) && !renamedFrom.Contains(p)).ToList();
             return await git.CommitPatchesAsync(message, isAmend, whole, patches, wd);
         });
 

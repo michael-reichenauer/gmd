@@ -285,6 +285,58 @@ public class PatchIntegrationTest
         Assert.AreEqual(" M a.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
     }
 
+    // A file moved, here with no 'git mv', and changed in two places, as the diff of the uncommitted
+    // changes has it: a rename, whose patch is of both paths
+    async Task<FilePatch> MovedAndChangedAsync()
+    {
+        await repo.CommitFileAsync("old.txt", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n", "Lines");
+        File.Move(PathOf("old.txt"), PathOf("new.txt"));
+        repo.WriteFile("new.txt", "L1\nl2\nl3\nl4\nl5\nl6\nl7\nL8\n");
+        var patch = AssertOk(await repo.Git.GetUncommittedPatchAsync("new.txt", repo.Path));
+        Assert.AreEqual("old.txt", patch.RenamedFrom);
+        return patch;
+    }
+
+    // Some lines of a renamed file are committed with its rename, the old path gone, and the rest stay
+    // in the working tree; with none of them the rename alone is
+    [TestMethod]
+    [DataRow(true, "L1\nl2\nl3\nl4\nl5\nl6\nl7\nl8")]
+    [DataRow(false, "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8")]
+    public async Task TestSomeLinesOfARenamedFileAreCommittedWithTheRename(bool isFirstLine, string committed)
+    {
+        var patch = await MovedAndChangedAsync();
+
+        var chosen = AssertOk(
+            patch.ForApply(l => isFirstLine && l.Text.Equals("l1", StringComparison.OrdinalIgnoreCase))
+        );
+        AssertOk(
+            await repo.Git.CommitPatchesAsync(
+                "Move",
+                false,
+                [],
+                new Dictionary<string, FilePatch> { ["new.txt"] = chosen },
+                repo.Path
+            )
+        );
+
+        Assert.AreEqual(committed, await repo.GitAsync("show HEAD:new.txt"));
+        Assert.AreEqual("", await repo.GitAsync("ls-tree --name-only HEAD old.txt"), "The old path gone");
+        Assert.AreEqual(" M new.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+    }
+
+    // Lines of a renamed file taken back leave it renamed, where it is now
+    [TestMethod]
+    public async Task TestLinesOfARenamedFileTakenBackLeaveItRenamed()
+    {
+        var patch = await MovedAndChangedAsync();
+
+        var discard = AssertOk(patch.ForReverseApply(l => l.Text.Equals("l8", StringComparison.OrdinalIgnoreCase)));
+        AssertOk(await repo.Git.ApplyPatchReversedAsync(discard, repo.Path));
+
+        Assert.AreEqual("L1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n", File.ReadAllText(PathOf("new.txt")));
+        Assert.IsFalse(File.Exists(PathOf("old.txt")));
+    }
+
     static string Text(IEnumerable<string> lines) => string.Concat(lines.Select(l => l + "\n"));
 
     string PathOf(string name) => Path.Join(repo.Path, name);

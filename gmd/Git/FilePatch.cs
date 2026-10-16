@@ -49,20 +49,28 @@ public record FilePatch(IReadOnlyList<string> Header, IReadOnlyList<PatchHunk> H
     public bool IsNew => Header.Any(l => l.StartsWith("new file mode "));
     public bool IsDeleted => Header.Any(l => l.StartsWith("deleted file mode "));
 
-    // No hunks, e.g. a patch of which no change was chosen, which there is nothing to apply of
-    public bool IsEmpty => Hunks.Count == 0;
+    // The path the file was renamed from, "" for a file not renamed
+    public string RenamedFrom =>
+        Header.FirstOrDefault(l => l.StartsWith("rename from ")) is string line
+            ? QuotedPath.Unquote(line["rename from ".Length..])
+            : "";
+
+    // No hunks, e.g. a patch of which no change was chosen, which there is nothing to apply of, unless
+    // it is a rename, which a patch with no lines still makes
+    public bool IsEmpty => Hunks.Count == 0 && RenamedFrom == "";
 
     public IEnumerable<PatchLine> Changes => Hunks.SelectMany(h => h.Lines).Where(l => l.IsChange);
 
     // Why lines of the patch cannot be chosen, the file taken whole only, or "" when they can be. A
-    // binary file has no lines; a renamed file, a changed mode and a submodule's commit are changes
-    // of the header, which a part of the lines would leave out or take with them unseen.
+    // binary file has no lines; a copy, a changed mode and a submodule's commit are changes of the
+    // header, which a part of the lines would leave out or take with them unseen. A rename goes with
+    // the lines chosen to apply, and is kept where they are taken back.
     public string WhyNotChoose =>
         Header.Any(l => l.StartsWith("Binary files ") || l.StartsWith("GIT binary patch")) ? "It is a binary file"
-        : Header.Any(l => l.StartsWith("rename from ") || l.StartsWith("copy from ")) ? "It was renamed"
+        : Header.Any(l => l.StartsWith("copy from ")) ? "It was copied"
         : Header.Any(l => l.StartsWith("old mode ")) ? "Its mode changed too"
         : Header.Any(l => l.EndsWith(" 160000")) ? "It is a submodule" // Its mode, on 'index' or 'file mode'
-        : IsEmpty ? "It has no lines that changed"
+        : Hunks.Count == 0 ? "It has no lines that changed"
         : "";
 
     public string ToText() => PatchParser.ToText(this);
@@ -117,7 +125,7 @@ public record FilePatch(IReadOnlyList<string> Header, IReadOnlyList<PatchHunk> H
                 "The changes at the end of the file, whose last line has no newline, can only be chosen together"
             );
 
-        return new FilePatch(ChosenHeader(hunks), hunks);
+        return new FilePatch(ChosenHeader(hunks, isReverse), hunks);
     }
 
     // The lines of a hunk with only the chosen changes: of each pair of a removed and an added line,
@@ -195,15 +203,31 @@ public record FilePatch(IReadOnlyList<string> Header, IReadOnlyList<PatchHunk> H
 
     // A new file of which some lines are not chosen, or a deleted one, is neither any longer, but a
     // change of a file both versions have: its '/dev/null' side takes the path of the other side. The
-    // 'index' line goes, naming as it does the versions of the whole change, which a part is not.
-    IReadOnlyList<string> ChosenHeader(IReadOnlyList<PatchHunk> hunks)
+    // 'index' line goes, naming as it does the versions of the whole change, which a part is not. A
+    // renamed file's lines taken back are a change of the file where it is now, not of the rename.
+    IReadOnlyList<string> ChosenHeader(IReadOnlyList<PatchHunk> hunks, bool isReverse)
     {
+        if (isReverse && RenamedFrom != "")
+            return ChangeOfNewPath();
+
         var header = Header.Where(l => !l.StartsWith("index ")).ToList();
         if (IsNew && hunks.Any(h => h.OldCount > 0))
             header = AsChange(header, "new file mode ", "--- /dev/null", "+++ ", "b/", "--- ", "a/");
         if (IsDeleted && hunks.Any(h => h.NewCount > 0))
             header = AsChange(header, "deleted file mode ", "+++ /dev/null", "--- ", "a/", "+++ ", "b/");
         return header;
+    }
+
+    // The header of a change of the file at its new path, from its '+++ b/<path>' line, which git ends
+    // with a tab where the path has a space, as the 'diff --git' line it is not
+    IReadOnlyList<string> ChangeOfNewPath()
+    {
+        var plusPath = Header.First(l => l.StartsWith("+++ "))["+++ ".Length..];
+        var path = plusPath.TrimEnd('\t');
+        var tab = plusPath[path.Length..];
+        var quote = path.StartsWith('"') ? "\"" : "";
+        var oldPath = $"{quote}a/{path[(quote.Length + 2)..]}";
+        return [$"diff --git {oldPath} {path}", $"--- {oldPath}{tab}", $"+++ {plusPath}"];
     }
 
     // E.g. '+++ b/a.txt' gives '--- a/a.txt' in place of '--- /dev/null', a quoted path as well

@@ -534,6 +534,79 @@ public class DiffViewTest
         Assert.AreEqual("alpha\nchanged\n", File.ReadAllText(Path.Join(repo.Path, "alpha.txt")));
     }
 
+    // A file moved, with no 'git mv', and changed in two places: one change left out with x, and the
+    // commit takes the rename with the other, the old path gone, and leaves the one out uncommitted
+    [TestMethod]
+    public async Task TestLeaveAChangeOfARenamedFileOut()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 8).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("old.txt", Text(lines), "Add lines", TempRepo.BaseTime.AddMinutes(7));
+        File.Move(Path.Join(repo.Path, "old.txt"), Path.Join(repo.Path, "new.txt"));
+        lines[0] = "LINE 1";
+        lines[7] = "LINE 8";
+        repo.WriteFile("new.txt", Text(lines));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+        gmd.Send("d");
+        gmd.WaitFor("new.txt");
+        gmd.Send("/");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText("LINE 8");
+        gmd.Send("Enter");
+        gmd.WaitFor("Match 1 of 1");
+
+        gmd.Send("x");
+        gmd.WaitFor("Left 2 lines of new.txt out of the commit");
+        gmd.Send("c");
+        // Moved with no 'git mv', the file is new and the old one deleted as the dialog lists them
+        StringAssert.Contains(gmd.WaitFor("2 lines left out"), "A new.txt  2 lines left out");
+        gmd.SendText("Move the lines");
+        gmd.Send("Enter");
+        gmd.WaitFor("Committed to 'main'");
+
+        StringAssert.StartsWith(await repo.GitAsync("show HEAD:new.txt"), "LINE 1\n");
+        StringAssert.EndsWith(await repo.GitAsync("show HEAD:new.txt"), "line 8");
+        Assert.AreEqual("", await repo.GitAsync("ls-tree --name-only HEAD old.txt"), "The old path gone");
+        Assert.AreEqual(" M new.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+    }
+
+    // A line of a deleted file discarded is put back, the file there again with that line alone
+    [TestMethod]
+    public async Task TestDiscardLinesOfADeletedFile()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        await repo.CommitFileAtAsync(
+            "lines.txt",
+            "one\ntwo\nthree\nfour\n",
+            "Add lines",
+            TempRepo.BaseTime.AddMinutes(7)
+        );
+        repo.DeleteFile("lines.txt");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+        gmd.Send("d");
+        gmd.WaitFor("lines.txt");
+        gmd.Send("/");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText("two");
+        gmd.Send("Enter");
+        gmd.WaitFor("Match 1 of 1");
+
+        gmd.Send("S-Down"); // Selects the row the cursor is on
+        gmd.WaitForStable();
+        gmd.Send("u");
+        gmd.WaitFor("Selected Lines in lines.txt");
+        gmd.Send("Enter");
+        gmd.WaitFor("Discard the selected lines in lines.txt?");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("Discarded 1 line of lines.txt");
+
+        Assert.AreEqual("two\n", File.ReadAllText(Path.Join(repo.Path, "lines.txt")));
+    }
+
     // A greyed out item of the diff's menu says why on the diff's own status line, where it is seen;
     // the log's, which it was said on, is behind the diff
     [TestMethod]

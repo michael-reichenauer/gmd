@@ -30,9 +30,10 @@ public class PatchServiceTest
 
     static string OutputOf(string args) => Regex.Match(args, "--output=\"([^\"]+)\"").Groups[1].Value;
 
-    // Staged first, as the diff of the uncommitted changes stages everything, so a file git does not
-    // track yet is in it, but into a copy of the index, and the path taken as it is, not as a pattern;
-    // then the diff in the format the patch is read in, whatever the user's config says
+    // Everything staged first, as the diff of the uncommitted changes stages it, so a file git does not
+    // track yet is in it, but into a copy of the index; then whether the file was renamed, and the
+    // diff of the path, taken as it is, not as a pattern, in the format the patch is read in, whatever
+    // the user's config says
     [TestMethod]
     public async Task TestThePatchIsReadThroughACopyOfTheIndex()
     {
@@ -41,19 +42,47 @@ public class PatchServiceTest
         var patch = AssertOk(await new PatchService(cmd).GetUncommittedPatchAsync("a*.txt", "/wd"));
 
         Assert.AreEqual(Patch, patch.ToText());
-        Assert.AreEqual("add -A -- \"a*.txt\"", cmd.Calls[0].Args);
+        Assert.AreEqual("add -A", cmd.Calls[0].Args);
         Assert.AreEqual("rev-parse --verify --quiet HEAD", cmd.Calls[1].Args);
+        Assert.AreEqual("diff --find-renames --name-status -z HEAD", cmd.Calls[2].Args);
         StringAssert.StartsWith(
-            cmd.Calls[2].Args,
+            cmd.Calls[3].Args,
             "-c diff.suppressBlankEmpty=false diff --no-color --no-ext-diff --no-textconv"
         );
-        StringAssert.EndsWith(cmd.Calls[2].Args, " HEAD -- \"a*.txt\"");
+        StringAssert.EndsWith(
+            cmd.Calls[3].Args,
+            " --no-renames --output=\"" + OutputOf(cmd.Calls[3].Args) + "\" HEAD -- \"a*.txt\""
+        );
         foreach (var call in cmd.Calls.Where(c => !c.Args.StartsWith("rev-parse")))
         {
             StringAssert.StartsWith(call.Environment!["GIT_INDEX_FILE"], Path.Join(Path.GetTempPath(), "gmd-index-"));
             Assert.AreEqual("1", call.Environment!["GIT_LITERAL_PATHSPECS"]);
         }
-        Assert.IsFalse(File.Exists(OutputOf(cmd.Calls[2].Args)), "The patch file is deleted");
+        Assert.IsFalse(File.Exists(OutputOf(cmd.Calls[3].Args)), "The patch file is deleted");
+    }
+
+    // A file renamed, moved with or without 'git mv', has the patch of both its paths, a rename, which
+    // git finds as the diff of the uncommitted changes does
+    [TestMethod]
+    public async Task TestARenamedFileHasThePatchOfBothItsPaths()
+    {
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+            {
+                if (args.StartsWith("rev-parse"))
+                    return FakeCmd.Ok("1234abcd");
+                if (args.Contains("--name-status"))
+                    return FakeCmd.Ok("M\0a.txt\0R075\0old.txt\0new.txt\0");
+                if (args.Contains(" diff "))
+                    File.WriteAllBytes(OutputOf(args), Encoding.UTF8.GetBytes(Patch));
+                return FakeCmd.Ok("");
+            }
+        );
+
+        AssertOk(await new PatchService(cmd).GetUncommittedPatchAsync("new.txt", "/wd"));
+
+        StringAssert.Contains(cmd.Calls[3].Args, " --find-renames ");
+        StringAssert.EndsWith(cmd.Calls[3].Args, " HEAD -- \"old.txt\" \"new.txt\"");
     }
 
     // A repo with no commit yet has no HEAD, and every file in it is new, which what is staged has.

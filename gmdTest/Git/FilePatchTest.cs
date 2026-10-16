@@ -221,6 +221,71 @@ public class FilePatchTest
         );
     }
 
+    const string Renamed = """
+        diff --git a/old.txt b/new.txt
+        similarity index 75%
+        rename from old.txt
+        rename to new.txt
+        index a52ef27..5a3f6fb 100644
+        --- a/old.txt
+        +++ b/new.txt
+        @@ -1,3 +1,3 @@
+        -one
+        +ONE
+         two
+        -three
+        +THREE
+
+        """;
+
+    // Some lines of a renamed file go with its rename, and with none of them the rename goes alone,
+    // which is then no empty patch: the move without the edits
+    [TestMethod]
+    public void TestSomeLinesOfARenamedFileGoWithItsRename()
+    {
+        var toApply = AssertOk(Parse(Renamed).ForApply(Chosen("-one", "+ONE")));
+        var renameAlone = AssertOk(Parse(Renamed).ForApply(_ => false));
+
+        Assert.AreEqual("old.txt", toApply.RenamedFrom);
+        Assert.AreEqual(
+            """
+            diff --git a/old.txt b/new.txt
+            similarity index 75%
+            rename from old.txt
+            rename to new.txt
+            --- a/old.txt
+            +++ b/new.txt
+            @@ -1,3 +1,3 @@
+            -one
+            +ONE
+             two
+             three
+
+            """,
+            toApply.ToText()
+        );
+        Assert.IsFalse(renameAlone.IsEmpty);
+        Assert.AreEqual(0, renameAlone.Hunks.Count);
+    }
+
+    // Lines of a renamed file taken back are a change of the file where it is now, so the rename stays;
+    // a path with a space has a tab after it on the '---' and '+++' lines, as git writes them, and none
+    // in the 'diff --git' line
+    [TestMethod]
+    public void TestLinesOfARenamedFileTakenBackLeaveTheRename()
+    {
+        var withSpace = Renamed
+            .Replace("b/new.txt", "b/my file.txt")
+            .Replace("+++ b/my file.txt", "+++ b/my file.txt\t");
+        var patch = AssertOk(Parse(withSpace).ForReverseApply(Chosen("-three", "+THREE")));
+
+        Assert.AreEqual(
+            "diff --git a/my file.txt b/my file.txt\n--- a/my file.txt\t\n+++ b/my file.txt\t\n"
+                + "@@ -1,3 +1,3 @@\n ONE\n two\n-three\n+THREE\n",
+            patch.ToText()
+        );
+    }
+
     // The last line of a file with no newline after it is the last of its version: a line added after
     // it, without the change that gives it its newline, would come after the end of the file
     [TestMethod]
@@ -240,7 +305,7 @@ public class FilePatchTest
     // it along unseen
     [TestMethod]
     [DataRow("Binary files a/a.bin and b/a.bin differ\n", "binary")]
-    [DataRow("similarity index 90%\nrename from a.txt\nrename to b.txt\n", "renamed")]
+    [DataRow("similarity index 90%\ncopy from a.txt\ncopy to b.txt\n", "copied")]
     [DataRow("old mode 100644\nnew mode 100755\n", "mode")]
     [DataRow("index 1111111..2222222 160000\n", "submodule")]
     public void TestAChangeOfTheHeaderIsTakenWhole(string header, string why)

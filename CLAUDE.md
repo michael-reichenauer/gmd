@@ -281,7 +281,8 @@ one file, which `PatchParser` reads and writes back byte for byte (the same inva
 `ForApply` and `ForReverseApply` make the patch of the chosen lines alone, a change's removed and
 added lines paired as the diff view pairs them. `PatchService` reads a file's uncommitted patch
 (written by git to a file, `--output`, since `Cmd` trims and decodes; anything not UTF-8 is refused)
-and applies a patch with `git apply`, to an index or in reverse to the working tree. The diff the
+and applies a patch with `git apply`, to an index or in reverse to the working tree; a renamed
+file's patch is of both its paths, a rename, found as the uncommitted diff finds it. The diff the
 view shows cannot be used for it: its parser drops the line saying a file has no final newline.
 `PatchIntegrationTest` applies every choice of a file's changes with git and holds the result to a
 model of the whole file. The diff view's `u` discards the change the cursor is on or the lines

@@ -171,6 +171,15 @@ Ranked by how soon someone new meets the gap.
      create`, which this plan named, leaves out the new files, so the snapshot is a copy of the index
      with everything added and written as a tree (`SnapshotService`). The questions say the way back
      now, and the status line after each discard. The ignored files are not kept.
+     *Phase 4's files done (2026-10-16):* a deleted file in part needed nothing, phase 1's patches
+     and the rows already had it, now tested end to end (a line discarded is the file with that line
+     again). A renamed file in part: its patch is of both paths, the rename found as the uncommitted
+     diff finds it (`PatchService` stages everything into the copy of the index now, and asks
+     `--name-status` for the old path); its lines go in with the rename, the old path then not
+     committed whole too, and with none of them the rename alone does, a patch with no hunks not
+     being empty then; taken back, they are a change of the file where it is now, so the rename
+     stays. Git writes a tab after a path with a space on the '---' and '+++' lines, not in the
+     'diff --git' one, which the header made for that keeps.
    - Open, in the order they would be met: a cherry-pick of the selected commits, whose range the
      copy menu offers for the command line; opening a file in the editor at a line of the diff or the
      blame; a rebase of a published branch without its force push; and a reset of a branch to any
