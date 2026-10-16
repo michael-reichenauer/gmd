@@ -114,6 +114,36 @@ public class SideChangesTest
         );
     }
 
+    // A long rewrite is paired line by line, a removed line looked for only so far past where the
+    // alignment puts it: among every added line left, a thousand lines were half a million
+    // comparisons, made anew with every decision in the resolver, seconds a key. Lines added above
+    // the changed ones, fewer than the look ahead, are still added rather than paired.
+    [TestMethod]
+    public void TestALongRewriteIsPairedLineByLine()
+    {
+        var ancestor = Lines([.. Enumerable.Range(0, 1000).Select(i => $"var value{i} = Compute(a, b);")]);
+        var side = Lines([
+            .. Enumerable.Range(0, 10).Select(i => $"// added {i}"),
+            .. Enumerable.Range(0, 1000).Select(i => $"var value{i} = Compute(a, c);"),
+        ]);
+
+        var lines = SideChanges.Of(ancestor, side);
+
+        Assert.AreEqual(10, lines.Count(l => l.Kind == SideLineKind.Added));
+        Assert.AreEqual(1000, lines.Count(l => l.Kind == SideLineKind.Changed));
+        Assert.AreEqual("var value999 = Compute(a, c);", lines[^1].Text);
+    }
+
+    // A side's changes are made once for the lines of a file as read, and again for another ancestor
+    [TestMethod]
+    public void TestASidesChangesAreMadeOnce()
+    {
+        var (ancestor, side) = (Lines("one", "two"), Lines("one", "2"));
+
+        Assert.AreSame(SideChanges.Of(ancestor, side), SideChanges.Of(ancestor, side));
+        Assert.AreNotSame(SideChanges.Of(ancestor, side), SideChanges.Of(Lines("one", "two"), side));
+    }
+
     // A carriage return alone is text in a line, as the parser keeps it, not the end of one: a line
     // diff that split on it as well put its pieces out of step with the lines and threw
     [TestMethod]
