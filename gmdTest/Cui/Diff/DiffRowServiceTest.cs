@@ -975,17 +975,26 @@ public class DiffRowServiceTest
         Assert.AreEqual("▌ C a.txt  +1", HeaderRowsOf(rows).Single());
     }
 
-    // Re-heading it also takes it out of the one column arm, since the file is no longer 'added'
+    // A file in conflict now is its header and one row saying how many conflicts it has, which the
+    // resolver resolves, Enter there; its sides are read there, not here. One git wrote no markers
+    // for, e.g. deleted on one side, is a conflict of the whole file.
     [TestMethod]
-    public void TestAnUnmergedFileIsNoLongerDrawnInOneColumn()
+    public void TestAFileInConflictIsOneRowSayingSo()
     {
         var added = FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "one")]);
+        var marked = FileOf("b.txt", DiffMode.DiffConflicts, [.. ConflictLines, .. ConflictLines]);
 
         Assert.AreEqual("▌   1 one", DiffText.BodyOf(RowsOf(added)));
         Assert.AreEqual(
-            " │ ▌   1 one",
+            "      A conflict of the whole file: Enter resolves it",
             DiffText.BodyOf(
                 new DiffRowService().ToDiffRows([CommitDiffOf(added)], new Dictionary<string, int>(), ["a.txt"])
+            )
+        );
+        Assert.AreEqual(
+            "      2 conflicts: Enter resolves them",
+            DiffText.BodyOf(
+                new DiffRowService().ToDiffRows([CommitDiffOf(marked)], new Dictionary<string, int>(), ["b.txt"])
             )
         );
     }

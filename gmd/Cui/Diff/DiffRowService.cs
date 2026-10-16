@@ -105,7 +105,12 @@ class DiffRowService : IDiffRowService
     )
     {
         commitDiffs = commitDiffs.Select(d => AsConflicted(d, conflictPaths)).ToArray();
-        var layout = new Layout(isIgnoreWhitespace, isOneColumn, hiddenFiles ?? new HashSet<string>());
+        var layout = new Layout(
+            isIgnoreWhitespace,
+            isOneColumn,
+            hiddenFiles ?? new HashSet<string>(),
+            conflictPaths.ToHashSet()
+        );
         DiffRows rows = new DiffRows();
 
         // A file history is one file over many commits, headed with the list of them, which the view's
@@ -365,6 +370,12 @@ class DiffRowService : IDiffRowService
             rows.AddFileHeader(header.Dark("  lines hidden"), fd.PathAfter);
             return;
         }
+        if (layout.Unmerged.Contains(fd.PathAfter))
+        { // A file in conflict now is resolved in the resolver, where its sides are, not read here
+            rows.AddFileHeader(header, fd.PathAfter);
+            rows.Add(UnmergedText(fd));
+            return;
+        }
         rows.AddFileHeader(header, fd.PathAfter);
 
         if (fd.IsWhitespaceOnly)
@@ -378,6 +389,20 @@ class DiffRowService : IDiffRowService
                 rows.Add(Text.Empty);
             AddSectionDiff(fileDiff, fileDiff.SectionDiffs[i], rows, layout);
         }
+    }
+
+    // What a file in conflict has, and the key that resolves it, e.g. '2 conflicts: Enter resolves
+    // them'; one with no markers, e.g. deleted on one side, is a conflict of the whole file
+    static Text UnmergedText(FileDiff fd)
+    {
+        var count = fd.SectionDiffs.SelectMany(s => s.LineDiffs).Count(l => l.DiffMode == DiffMode.DiffConflictStart);
+        var what = count switch
+        {
+            0 => "A conflict of the whole file",
+            1 => "1 conflict",
+            _ => $"{count} conflicts",
+        };
+        return Text.Dark("      ").Yellow(what).Dark($": Enter resolves {(count > 1 ? "them" : "it")}");
     }
 
     // Add a file section diff (the actual diff lines for a sub section of a file)
@@ -616,9 +641,14 @@ class DiffRowService : IDiffRowService
     // The name git wrote on a conflict's marker, e.g. 'HEAD' of '<<<<<<< HEAD'
     static string MarkerName(string marker) => marker.TrimStart('<', '>', '|', '=').Trim();
 
-    // How the rows are made: with whitespace left out, in one column rather than two, and with the
-    // lines of some files hidden
-    record Layout(bool IsIgnoreWhitespace, bool IsOneColumn, IReadOnlySet<string> HiddenFiles);
+    // How the rows are made: with whitespace left out, in one column rather than two, with the lines
+    // of some files hidden, and which files are in conflict now, which the resolver resolves
+    record Layout(
+        bool IsIgnoreWhitespace,
+        bool IsOneColumn,
+        IReadOnlySet<string> HiddenFiles,
+        IReadOnlySet<string> Unmerged
+    );
 
     // The text of a removed or an added line of a block, as the diff has it, null for an unchanged
     // line or a conflict's, which are no change of the commit
