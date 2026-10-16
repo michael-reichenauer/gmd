@@ -414,6 +414,11 @@ class ConflictView : IConflictView
     // Goes to another file of the workspace, asking first about decisions not saved, as closing does
     void GoToFile(string path)
     {
+        // A click on the list while typing is done typing, as a click on the sides is: the list takes
+        // no focus, so the text view was never left, and the file was gone from with what was typed
+        // thrown away unasked
+        EndTyping();
+
         if (path == "")
         {
             status.Notice("No other file has conflicts left");
