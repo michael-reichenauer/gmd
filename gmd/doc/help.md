@@ -688,11 +688,13 @@ it changed marked in its color, `-` a line of the ancestor's it removed, in
 dark, and the lines it kept in dark too. A line is numbered as its side has
 it, and the text between conflicts as the left side has it.
 
-A pane below shows the file as it will be saved, as your decisions so far
-make it, scrolled to the conflict the cursor is in: each decided conflict's
-lines with a bar in the color of the side they came from, magenta where
-written by hand, and each undecided one as a row saying which keys decide
-it.
+A pane below, **Result of conflict 2**, shows the file as it will be saved,
+as your decisions so far make it, at the conflict the cursor is in, or the
+last one above it: each decided conflict's lines with a bar in the color of
+the side they came from, magenta where written by hand, and each undecided
+one as a row saying which keys decide it. It stays on that conflict while
+the cursor is in the text after it; `Shift-↑` `↓` or the mouse wheel over it
+scroll it.
 
 The whole file is shown, not just its conflicts, since the text around a
 conflict is what tells you what it is part of. The view opens on the first

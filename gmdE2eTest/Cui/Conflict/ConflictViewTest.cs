@@ -48,7 +48,7 @@ public class ConflictViewTest
                53 line 53
                54 line 54
                55 line 55
-            ─── Result, long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
+            ─── Result of conflict 1 ─────────────────────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
                37 line 37
                38 line 38
                39 line 39
@@ -167,7 +167,7 @@ public class ConflictViewTest
                53 line 53
                54 line 54
                55 line 55
-            ─── Result, long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
+            ─── Result of conflict 1 ─────────────────────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
                37 line 37
                38 line 38
                39 line 39
@@ -445,18 +445,18 @@ public class ConflictViewTest
     }
 
     // The result pane below is the file as it will be saved, scrolled to the conflict the cursor is in,
-    // a few lines above it in sight. It is scrolled with Shift-↓ and Shift-↑, since the pane never takes
-    // the focus from the file, or by the mouse wheel over it. Back on a conflict, its result is shown
-    // from its start again.
+    // a few lines above it in sight, which its title names. It is scrolled with Shift-↓ and Shift-↑,
+    // since the pane never takes the focus from the file, or by the mouse wheel over it. Back on a
+    // conflict, its result is shown from its start again.
     [TestMethod]
     public async Task TestALongResultIsScrolled()
     {
         using var repo = await E2eRepo.CreateWithUnevenConflictsAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         OpenTheResolver(gmd);
-        gmd.WaitFor("─── Conflict 1");
+        StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "─── Result of conflict 1 ───");
         gmd.Send("]");
-        gmd.WaitFor("conflict 2 of 2");
+        StringAssert.Contains(gmd.WaitFor("conflict 2 of 2"), "─── Result of conflict 2 ───");
         gmd.Send("1");
         WaitForLastLine(gmd, "▌  64 line 60 on main, 11 of 12");
 

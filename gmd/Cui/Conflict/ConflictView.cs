@@ -494,25 +494,27 @@ class ConflictView : IConflictView
         return (rows.Skip(firstRow).Take(rowCount), rows.Count);
     }
 
-    // The pane's title, its border: what it shows, or what is typed in it, and the colors of where its
-    // lines came from
+    // The pane's title, its border, in the color of the conflicts' own: which conflict's result it
+    // shows, the one the cursor is in or the last above it, or what is typed in it, and the colors of
+    // where its lines came from
     Text ResultTitle(int firstRow, int width)
     {
         var title =
             typingView != null
-                ? Text.Dark("─── ")
-                    .Magenta("Typing")
-                    .Dark($" conflict {typingHunk + 1} by hand, {typingFrom}, Esc when done ")
-                : Text.Dark("─── ").White("Result").Dark($", {file.Path} as it will be saved ");
+                ? Text.BrightMagenta("─── Typing ")
+                    .Dark($"conflict {typingHunk + 1} by hand, {typingFrom}, Esc when done ")
+            : CurrentHunk >= 0 ? Text.BrightMagenta($"─── Result of conflict {CurrentHunk + 1} ")
+            : Text.BrightMagenta("─── Result ");
         var legend = Text.Dark(" ")
             .Yellow("▌")
             .Dark($"{names.Ours.Max(20)} ")
             .Cyan("▌")
             .Dark($"{names.Theirs.Max(20)} ")
             .Magenta("▌")
-            .Dark("both or by hand ───");
+            .Dark("both or by hand ")
+            .BrightMagenta("───");
         var fill = Math.Max(0, width - title.Length - legend.Length);
-        return title.Dark(new string('─', fill)).Add(legend);
+        return title.BrightMagenta(new string('─', fill)).Add(legend);
     }
 
     // The first conflict is what the file was opened for, and it can be a long way down a file that
