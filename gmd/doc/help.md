@@ -664,10 +664,12 @@ if there are decisions to keep. The header says which file it is, e.g.
 the left, the resolved ones ticked; `Tab` moves into the list, where `↑`
 `↓` and `Enter` open another. A file with no text to merge, such as one a
 side deleted, or a binary file, asks its question as its turn comes (see
-below). Once no conflict is left, a box asks whether to finish: **Commit**
-opens the commit dialog for a merge, a cherry pick or a revert, and
-**Continue** goes on with a rebase. **Later** leaves it for the commit
-(`c`) or the repo menu.
+below), and Cancel passes it over until the resolver is opened again. Once
+no conflict is left, a box asks whether to finish: **Commit** opens the
+commit dialog for a merge, a cherry pick or a revert, and **Continue** goes
+on with a rebase. **Later** leaves it for the commit (`c`) or the repo
+menu. Conflicts with nothing in progress, e.g. of a stash popped, have
+nothing to finish, and no box asks.
 
 The diff of the uncommitted changes (`d` on the `©` row) shows a conflicted
 file as one row saying how many conflicts it has, since its sides are in

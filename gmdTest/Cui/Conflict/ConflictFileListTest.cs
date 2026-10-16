@@ -7,6 +7,8 @@ namespace gmdTest.Cui.Conflict;
 [TestClass]
 public class ConflictFileListTest
 {
+    static HashSet<string> Passed(params string[] paths) => [.. paths];
+
     static ConflictFileList ListOf(string open, string[] resolved, params string[] paths) =>
         new(paths.Select(p => new ConflictedFile(p, ConflictKind.BothModified)).ToList(), resolved.ToHashSet(), open);
 
@@ -20,6 +22,37 @@ public class ConflictFileListTest
         Assert.AreEqual("a", list.NextOpen(-1));
         Assert.AreEqual("a", ListOf("d", [], "a", "b", "c", "d").NextOpen(1), "Round the end");
         Assert.AreEqual("", ListOf("a", ["b"], "a", "b").NextOpen(1), "None left but the open one");
+    }
+
+    // Once a file ended: closed is the end, a file gone to is opened, one done is opened again while it
+    // is conflicted still, and one resolved or passed over goes on to the next one still conflicted
+    [TestMethod]
+    public void TestTheFileOpenedAfterOneEnded()
+    {
+        HashSet<string> none = [];
+
+        Assert.AreEqual("", ListOf("a", [], "a", "b").After(new(ConflictEnd.Closed), none));
+        Assert.AreEqual("a", ListOf("b", [], "a", "b").After(new(ConflictEnd.GoTo, "a"), none));
+        Assert.AreEqual("a", ListOf("a", [], "a", "b").After(new(ConflictEnd.Done), none), "Conflicted still");
+        Assert.AreEqual("b", ListOf("a", ["a"], "a", "b").After(new(ConflictEnd.Done), none), "Resolved");
+        Assert.AreEqual("", ListOf("b", ["a", "b"], "a", "b").After(new(ConflictEnd.Done), none), "None left");
+    }
+
+    // A file whose question was cancelled is passed over, and so is every file passed over before: with
+    // each of them cancelled, the workspace closes rather than asking about them round and round
+    [TestMethod]
+    public void TestFilesPassedOverAreNotAskedAboutAgain()
+    {
+        var list = ListOf("a", [], "a", "b", "c");
+
+        Assert.AreEqual("b", list.After(new(ConflictEnd.Skipped), Passed("a")));
+        Assert.AreEqual("c", (list with { Open = "b" }).After(new(ConflictEnd.Skipped), Passed("a", "b")));
+        Assert.AreEqual("", (list with { Open = "c" }).After(new(ConflictEnd.Skipped), Passed("a", "b", "c")));
+        Assert.AreEqual(
+            "a",
+            (list with { Open = "c" }).After(new(ConflictEnd.GoTo, "a"), Passed("a", "b", "c")),
+            "Asked for"
+        );
     }
 
     [TestMethod]

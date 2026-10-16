@@ -393,6 +393,41 @@ public class ConflictViewTest
         );
     }
 
+    // Two files a side deleted, each question cancelled: the second is asked about after the first,
+    // and then the resolver closes. Going round the end asked about the first again, and so on, for
+    // as long as each was cancelled, with Cancel the default, so that Enter went round as well.
+    [TestMethod]
+    public async Task TestCancellingTheQuestionOfEachFileCloses()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("a.txt", "a\n", "Add a", t);
+        await repo.CommitFileAtAsync("b.txt", "b\n", "Add b", t.AddMinutes(1));
+        await repo.GitAsync("checkout -q -b dev");
+        await repo.GitAsync("rm -q a.txt b.txt");
+        repo.GitAt(["commit", "-q", "-m", "Delete both"], t.AddMinutes(2));
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("a.txt", "a2\n", "Change a", t.AddMinutes(3));
+        await repo.CommitFileAtAsync("b.txt", "b2\n", "Change b", t.AddMinutes(4));
+        await repo.GitAllowFailAsync("merge dev");
+        using var gmd = TmuxSession.StartGmd(repo);
+        var bar = gmd.WaitFor("2 conflicts");
+        var (x, y) = TmuxSession.PositionOf(bar, "2 conflicts");
+        gmd.Click(x + 2, y); // The bar's menu of the merge
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("Resolve a.txt"), "a.txt was changed here but deleted");
+        gmd.Send("Escape");
+        StringAssert.Contains(gmd.WaitFor("Resolve b.txt"), "b.txt was changed here but deleted");
+        gmd.Send("Escape");
+
+        gmd.WaitUntilGone("Resolve b.txt");
+        var screen = gmd.WaitForStable();
+        Assert.IsFalse(screen.Contains("Resolve a.txt"), "Not asked about again:\n" + screen);
+        StringAssert.Contains(screen, "2 conflicts", "Back in the log, the merge still stopped");
+    }
+
     // A file whose markers were taken out by hand, in an editor, but not marked resolved: the two
     // sides were the only choices, and either threw the hand merge away. It is marked resolved as it is.
     [TestMethod]

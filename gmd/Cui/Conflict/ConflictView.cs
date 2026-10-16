@@ -7,13 +7,15 @@ using Terminal.Gui;
 namespace gmd.Cui.Conflict;
 
 // How the resolver of a file ended, which the workspace goes on from (ConflictWorkspace): closed,
-// leaving the conflicts that are left; gone to another file, Path; or done with the file, resolved
-// or decided whole, e.g. a side taken for all of it
+// leaving the conflicts that are left; gone to another file, Path; done with the file, resolved or
+// decided whole, e.g. a side taken for all of it; or, for a file with no text to merge, its question
+// cancelled, the file passed over for now
 enum ConflictEnd
 {
     Closed,
     GoTo,
     Done,
+    Skipped,
 }
 
 record ConflictOutcome(ConflictEnd End, string Path = "");

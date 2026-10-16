@@ -43,15 +43,19 @@ class ConflictWorkspace : IConflictWorkspace
         if (await ReadStateAsync(repoPath) is not ConflictState state || state.Files.Count == 0)
             return ResolveNext.None;
 
-        // The files the operation stopped on, which the list keeps, ticking those resolved since
+        // The files the operation stopped on, which the list keeps, ticking those resolved since, and
+        // those whose question was cancelled, passed over until the workspace is opened again
         var files = state.Files;
+        HashSet<string> passed = [];
         var sides = await server.GetConflictSidesAsync(repoPath) is ConflictSides known ? known : ConflictSides.None;
         var open = files.Any(f => f.Path == path) ? path : files[0].Path;
 
-        while (true)
+        while (open != "")
         {
             var list = new ConflictFileList(files, ResolvedOf(files, state), open);
             var outcome = await ShowAsync(list, state, sides, repoPath);
+            if (outcome.End == ConflictEnd.Skipped)
+                passed.Add(open);
 
             if (await ReadStateAsync(repoPath) is not ConflictState now)
                 return ResolveNext.None;
@@ -59,19 +63,9 @@ class ConflictWorkspace : IConflictWorkspace
             if (state.Files.Count == 0)
                 return AskWhatNext(state);
 
-            list = list with { Resolved = ResolvedOf(files, state) };
-            switch (outcome.End)
-            {
-                case ConflictEnd.Closed:
-                    return ResolveNext.None;
-                case ConflictEnd.GoTo:
-                    open = outcome.Path;
-                    break;
-                default: // Done with it, on to the next one still conflicted
-                    open = list.Resolved.Contains(open) ? list.NextOpen(1) : open;
-                    break;
-            }
+            open = (list with { Resolved = ResolvedOf(files, state) }).After(outcome, passed);
         }
+        return ResolveNext.None;
     }
 
     // The file opened in the resolver, or asked about where it has no text to merge
@@ -105,9 +99,9 @@ class ConflictWorkspace : IConflictWorkspace
         if (!file.IsBinary && file.Hunks.Count > 0)
             return conflictView.Show(file, sides, state.Operation, repoPath, list);
 
-        // Cancelled, it is left for the next one, as long as there is another
+        // Cancelled, it is passed over for the next one, as long as there is another
         if (conflictView.AskWholeFile(file, repoPath) is not Func<Task<Result>> action)
-            return list.NextOpen(1) is var next && next != "" ? new(ConflictEnd.GoTo, next) : new(ConflictEnd.Closed);
+            return new(ConflictEnd.Skipped);
 
         using (progress.Show())
         {
@@ -137,19 +131,27 @@ class ConflictWorkspace : IConflictWorkspace
     // commit takes a message and a continue may stop on the next commit's conflicts
     static ResolveNext AskWhatNext(ConflictState state)
     {
+        var finish = FinishOf(state);
+        if (finish == ResolveNext.None)
+            return ResolveNext.None;
+
         var name = OperationName(state.Operation);
-        var next = state.IsFinishedByCommit ? "Commit" : $"Continue {name}";
         var choice = UI.InfoMessage(
             "Conflicts Resolved",
             $"Every conflict of the {name.ToLower()} is resolved.\n\n"
-                + (state.IsFinishedByCommit ? "A commit finishes it." : "Continuing goes on with it."),
+                + (finish == ResolveNext.Commit ? "A commit finishes it." : "Continuing goes on with it."),
             0,
-            [next, "Later"]
+            [finish == ResolveNext.Commit ? "Commit" : $"Continue {name}", "Later"]
         );
-        return choice != 0 ? ResolveNext.None
-            : state.IsFinishedByCommit ? ResolveNext.Commit
-            : ResolveNext.Continue;
+        return choice == 0 ? finish : ResolveNext.None;
     }
+
+    // What finishes the operation once its conflicts are resolved: a commit or a continue, or nothing
+    // where none is in progress, e.g. the conflicts of a stash popped, which a commit finished nothing of
+    internal static ResolveNext FinishOf(ConflictState state) =>
+        state.Operation == GitOperation.None ? ResolveNext.None
+        : state.IsFinishedByCommit ? ResolveNext.Commit
+        : ResolveNext.Continue;
 
     static string OperationName(GitOperation operation) =>
         operation switch
