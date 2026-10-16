@@ -75,6 +75,16 @@ interface IGit
 
     // Takes the changes of a patch back in the working tree, leaving the index as it is
     Task<Result> ApplyPatchReversedAsync(FilePatch patch, string wd);
+
+    // Commits the paths whole and the patches, of some of their files' changes, and nothing else,
+    // leaving the working tree as it is
+    Task<Result> CommitPatchesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, FilePatch> patches,
+        string wd
+    );
     Task<Result> RunDiffToolAsync(string path, string wd);
     Task<Result> RunMergeToolAsync(string path, string wd);
     Task<Result> FetchAsync(string wd);

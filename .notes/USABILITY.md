@@ -152,6 +152,16 @@ Ranked by how soon someone new meets the gap.
      the way, a greyed out item of the diff's or the blame's menu said why on the log's status line,
      behind the view; it says it on the view's own now (`Menu.SayingWhyNotOn`), drawn under the
      open menu, which is all Terminal.Gui redraws then.
+     *Phase 3 done (2026-10-16):* `x` in the diff of the uncommitted changes leaves the change, the
+     selected lines or on a file's header the whole file out of the commit, or puts them back
+     (`LeftOutLines`, for the session, of the repo shown); drawn dark with `╎`, counted on the
+     header and in the commit dialog. The commit is `Server.CommitLinesAsync`, the patches of the
+     rest in `PatchService.CommitPatchesAsync`, through an index of HEAD, the real index reset for
+     the committed paths after. A left-out line is found again where only its number moved (its
+     text unique among the file's changed lines of its version); one not found stops the commit,
+     the header saying how many. An older commit's amend refuses a file with lines left out. Phase
+     1's patch of a file in a repository with no commit yet was not read: with a path git says
+     'bad revision', not 'unknown revision', so HEAD is asked about first now.
    - Open, in the order they would be met: a cherry-pick of the selected commits, whose range the
      copy menu offers for the command line; opening a file in the editor at a line of the diff or the
      blame; a rebase of a published branch without its force push; and a reset of a branch to any

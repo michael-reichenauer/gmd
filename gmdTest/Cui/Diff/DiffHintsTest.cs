@@ -91,5 +91,24 @@ public class DiffHintsTest
         );
     }
 
+    // x says what it does where the cursor is, leave the lines out of the commit or put them back
+    [TestMethod]
+    public void TestXSaysWhetherItLeavesOutOrPutsBack()
+    {
+        Assert.AreEqual(
+            "m menu  Esc close  c commit  x put back  + - context  s to file  f search  u discard  w hide whitespace  ←→ columns",
+            Line(
+                DiffHints.For(
+                    canCommit: true,
+                    hasContext: true,
+                    hasConflicts: false,
+                    hasSearch: false,
+                    isWhitespaceHidden: false,
+                    leaveOut: "put back"
+                )
+            )
+        );
+    }
+
     static string Line(IReadOnlyList<KeyHint> hints) => string.Join("  ", hints.Select(h => $"{h.Key} {h.Text}"));
 }

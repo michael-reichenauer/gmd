@@ -5,6 +5,7 @@ namespace gmd.Cui.Diff;
 class DiffRows
 {
     readonly List<DiffRow> rows = [];
+    string[]? files;
 
     internal int MaxLength { get; private set; }
     internal int Count => rows.Count;
@@ -66,6 +67,7 @@ class DiffRows
             MaxLength = right.Length;
         }
 
+        files = null;
         rows.Add(
             new DiffRow(left, right, mode, filePath, commitId, leftLineNbr, rightLineNbr)
             {
@@ -103,6 +105,20 @@ class DiffRows
         }
 
         return -1;
+    }
+
+    // The file a row is in, "" above the first, as AnchorAt finds it, worked out once for all rows,
+    // since every row drawn asks
+    internal string FileAt(int index)
+    {
+        files ??= Files();
+        return index >= 0 && index < files.Length ? files[index] : "";
+    }
+
+    string[] Files()
+    {
+        var path = "";
+        return rows.Select(r => path = r.FilePath != "" ? r.FilePath : path).ToArray();
     }
 
     // The value of the closest row at or above the index that has one, "" above them all

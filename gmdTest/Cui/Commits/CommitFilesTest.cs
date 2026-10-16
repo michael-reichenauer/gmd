@@ -1,4 +1,5 @@
 using gmd.Cui.Commits;
+using gmd.Cui.Common;
 using gmd.Server;
 
 namespace gmdTest.Cui.Commits;
@@ -27,6 +28,23 @@ public class CommitFilesTest
 
         Assert.AreEqual(2, files.TickedCount);
         CollectionAssert.AreEqual(new[] { "a.txt", "c.txt" }, files.PathsToCommit!.ToArray());
+    }
+
+    // How many lines of a ticked file are left out with x in the diff, read as asked, since the diff
+    // can be opened from the dialog and change them; and the ticked files with some, which amending an
+    // older commit refuses
+    [TestMethod]
+    public void TestTheLinesLeftOutOfAFileAreCounted()
+    {
+        var leftOut = new LeftOutLines();
+        var files = new CommitFiles(Status(modified: ["a.txt", "b.txt"]), leftOut: leftOut);
+
+        leftOut.LeaveOut("b.txt", [new(true, 1, "x"), new(false, 1, "y")]);
+
+        Assert.AreEqual("0, 2", $"{files.LeftOutCount(0)}, {files.LeftOutCount(1)}");
+        Assert.AreEqual("b.txt", string.Join(", ", files.TickedWithLinesLeftOut.Select(f => f.Path)));
+        files.Toggle(1);
+        Assert.AreEqual(0, files.TickedWithLinesLeftOut.Count, "Unticked, the file is left out whole");
     }
 
     // A rename is one file to tick, and both its paths to commit: the one goes, the other comes

@@ -51,6 +51,15 @@ interface IServer
     Task<Result<string>> GetRemoteUrlAsync(string wd);
     Task<Result> CommitAllChangesAsync(string message, bool isAmend, string wd);
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
+
+    // Commits the paths with the lines left out of them, by file, left in the working tree, uncommitted
+    Task<Result> CommitLinesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, IReadOnlyList<ChosenLine>> leftOut,
+        string wd
+    );
     Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, Git.DiffOptions options, string wd);
 
     // The files the commit changed, as its diff has them, with no diff read, for the details pane

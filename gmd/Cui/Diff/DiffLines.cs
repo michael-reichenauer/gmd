@@ -28,6 +28,19 @@ static class DiffLines
         return (first, last - first + 1);
     }
 
+    // The rows of the file whose header is at the row, up to the next file, none on a row that is no
+    // file's header
+    public static (int First, int Count) FileAt(IReadOnlyList<DiffRow> rows, int index)
+    {
+        if (index < 0 || index >= rows.Count || rows[index].FilePath == "")
+            return (index, 0);
+
+        var next = index + 1;
+        while (next < rows.Count && rows[next].FilePath == "")
+            next++;
+        return (index, next - index);
+    }
+
     // The changed lines of the rows, by the file they are in, in the order they are shown
     public static IReadOnlyList<FileLines> Of(DiffRows rows, int first, int count)
     {
@@ -38,7 +51,7 @@ static class DiffLines
             if (!row.IsChange)
                 continue;
 
-            var path = rows.AnchorAt(i).FilePath;
+            var path = rows.FileAt(i);
             if (row.RemovedText is string removed)
                 lines.Add((path, new ChosenLine(false, row.LeftLineNbr, removed)));
             if (row.AddedText is string added)

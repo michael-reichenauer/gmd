@@ -9,13 +9,15 @@ static class DiffHints
     // canCommit and hasContext are the DiffSource's: commit and discard for the uncommitted changes
     // the log opened, and more and less context for all but a line history. hasSearch is a search
     // with matches for n to go on with, as the log offers it for its own, and isWhitespaceHidden
-    // whether w shows whitespace changes again or hides them.
+    // whether w shows whitespace changes again or hides them. leaveOut is what x does where the
+    // cursor is, "leave out" or "put back", "" where it does nothing.
     public static IReadOnlyList<KeyHint> For(
         bool canCommit,
         bool hasContext,
         bool hasConflicts,
         bool hasSearch,
-        bool isWhitespaceHidden
+        bool isWhitespaceHidden,
+        string leaveOut = ""
     )
     {
         List<KeyHint> hints = [KeyHintLine.Menu, new("Esc", "close")];
@@ -23,6 +25,8 @@ static class DiffHints
             hints.Add(new("Enter", "resolve"));
         if (canCommit)
             hints.Add(new("c", "commit"));
+        if (leaveOut != "")
+            hints.Add(new("x", leaveOut));
         if (hasContext)
             hints.Add(new("+ -", "context"));
         hints.Add(new("s", "to file"));

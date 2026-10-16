@@ -1,3 +1,5 @@
+using gmd.Cui.Common;
+
 namespace gmd.Cui.Commits;
 
 // The files a commit takes, each ticked or not: the checklist of the commit dialog. Every file is
@@ -16,9 +18,13 @@ class CommitFiles
     public record File(char Kind, string Path, IReadOnlyList<string> GitPaths);
 
     readonly bool[] ticked;
+    readonly LeftOutLines? leftOut;
 
-    public CommitFiles(Server.Status status, bool isTicked = true)
+    // leftOut is the lines left out of the commit, chosen in the diff, which a ticked file with some
+    // is committed without (LeftOutLines)
+    public CommitFiles(Server.Status status, bool isTicked = true, LeftOutLines? leftOut = null)
     {
+        this.leftOut = leftOut;
         List<File> files =
         [
             .. status.ModifiedFiles.Select(p => new File('M', p, [p])),
@@ -38,6 +44,14 @@ class CommitFiles
     public int TickedCount => ticked.Count(t => t);
 
     public bool IsTicked(int index) => ticked[index];
+
+    // How many lines of the file are left out, read when asked, since they can be changed in the diff
+    // while the dialog is open (Ctrl-D)
+    public int LeftOutCount(int index) => leftOut == null ? 0 : Files[index].GitPaths.Sum(leftOut.CountOf);
+
+    // The ticked files with lines left out, which only a commit of the uncommitted changes leaves out
+    public IReadOnlyList<File> TickedWithLinesLeftOut =>
+        Files.Where((_, i) => ticked[i] && LeftOutCount(i) > 0).ToList();
 
     public void Toggle(int index)
     {

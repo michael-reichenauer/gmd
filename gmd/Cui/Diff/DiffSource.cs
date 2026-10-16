@@ -24,6 +24,10 @@ record DiffSource(DiffReload Reload)
     // files are not all uncommitted.
     public bool CanCommit { get; init; }
 
+    // A merge, a rebase or the like in progress, whose result git commits whole, so no line of it can
+    // be left out of the commit (LeftOutLines)
+    public bool IsCommittedWhole { get; init; }
+
     // The diff, with its files of whitespace changes alone listed when whitespace is left out, which
     // git leaves out (DiffWhitespace). They are found in the diff read again with whitespace, with
     // no context, since only which files it has is wanted of it.
