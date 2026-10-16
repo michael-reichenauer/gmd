@@ -286,11 +286,11 @@ class DiffRowService : IDiffRowService
         return text;
     }
 
-    static string PathOf(FileDiff fd) => fd.IsRenamed ? $"{fd.PathBefore} → {fd.PathAfter}" : fd.PathAfter;
+    internal static string PathOf(FileDiff fd) => fd.IsRenamed ? $"{fd.PathBefore} → {fd.PathAfter}" : fd.PathAfter;
 
     // Every changed line is in the hunks whatever their context, so the lines are counted as
     // 'git diff --stat' counts them; a binary file has none, and a conflict's markers are not counted
-    static int CountOf(FileDiff fd, DiffMode mode) =>
+    internal static int CountOf(FileDiff fd, DiffMode mode) =>
         fd.SectionDiffs.SelectMany(s => s.LineDiffs).Count(l => l.DiffMode == mode);
 
     // "3 files changed  1 added, 2 modified  +25 -7": how many files of each kind, worded and colored
@@ -332,7 +332,7 @@ class DiffRowService : IDiffRowService
     ];
 
     // A file renamed and modified is counted as renamed, which the list says it is too
-    static char KindOf(FileDiff fd) =>
+    internal static char KindOf(FileDiff fd) =>
         fd.DiffMode switch
         {
             DiffMode.DiffAdded => 'A',

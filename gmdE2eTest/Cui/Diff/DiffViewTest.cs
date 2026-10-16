@@ -181,7 +181,7 @@ public class DiffViewTest
         gmd.Send("d");
         StringAssert.Contains(ScreenText.Of(gmd.WaitFor("A epsilon.txt"), repo.Path), "    1 alpha\n▌   2 changed");
 
-        gmd.Resize(150, 30);
+        gmd.Resize(140, 30); // Side by side, and narrower than the list of files is drawn at
         gmd.WaitFor("│▌   2 changed");
 
         gmd.Send("v");
@@ -196,6 +196,43 @@ public class DiffViewTest
         );
         gmd.Send("v");
         gmd.WaitFor("│▌   2 changed");
+    }
+
+    // On a terminal 150 wide or more, the files are listed beside the diff, the one the cursor is in
+    // marked. Tab moves the keys to the list, where down goes to the next file, and Esc moves them back
+    // before it closes the diff.
+    [TestMethod]
+    public async Task TestTheFilesAreListedBesideAWideDiff()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160, height: 30);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        var screen = ScreenText.Of(gmd.WaitFor("Files 2"), repo.Path).Split('\n');
+        StringAssert.StartsWith(screen[1], " M long.txt  +1 -1");
+        StringAssert.StartsWith(screen[2], " M short.txt  +1 -1");
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        gmd.WaitFor("▌M short.txt");
+
+        // The diff's cursor went with it: there is no file below short.txt's header
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("}");
+        Assert.AreEqual("No more files below: { goes up", ScreenText.LastLine(gmd.WaitFor("No more files")));
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Escape");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        StringAssert.Contains(gmd.WaitForStable(), "Files 2", "Esc left the list, and the diff is still open");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Files 2");
     }
 
     // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the

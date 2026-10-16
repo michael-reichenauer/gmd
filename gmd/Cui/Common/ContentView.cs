@@ -222,6 +222,13 @@ class ContentView : View
             Scroll(-1);
             return true;
         }
+        // and a click on it goes to what it registered for it, e.g. the diff's list of files, which
+        // goes to the file clicked on
+        if (!HasFocus && !CanFocus && mouses.TryGetValue(ev.Flags, out var unfocusedCallback))
+        {
+            unfocusedCallback(ev.X, ev.Y);
+            return true;
+        }
 
         if (!HasFocus)
             return base.MouseEvent(ev);

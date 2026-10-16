@@ -74,6 +74,13 @@ class DiffView : IDiffView
 
     bool IsOneColumnFor(int contentWidth) => isOneColumnChosen ?? contentWidth < OneColumnBelow;
 
+    // The list of files beside a wide diff, or of the commits of a file history, how wide it is, 0 when
+    // it is not shown, and whether it has the keys, as Tab moves them there and back
+    ContentView listView = null!;
+    DiffFileList fileList = DiffFileList.None;
+    int listWidth;
+    bool isListFocus;
+
     bool IsSelected => contentView.SelectCount > 0;
 
     // How wide each of the two columns is, as OnGetContent lays them out
@@ -119,6 +126,15 @@ class DiffView : IDiffView
         this.isOneColumnChosen = null;
         this.isOneColumn = IsOneColumnFor(Application.Driver.Cols - 1); // The view's width, but for its scrollbar
         this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
+        this.fileList = DiffFileList.Of(diffs, diffRows);
+        this.listWidth = fileList.WidthFor(Application.Driver.Cols);
+        this.isListFocus = false;
+        if (IsOneColumnFor(Application.Driver.Cols - listWidth - 1) != isOneColumn)
+        { // Narrowed by the list
+            isOneColumn = !isOneColumn;
+            diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
+            fileList = DiffFileList.Of(diffs, diffRows);
+        }
         this.search = RowSearch.None;
         this.status = new StatusLine();
         this.isIgnoreWhitespace = false;
@@ -134,9 +150,22 @@ class DiffView : IDiffView
         };
         // The keys worth knowing here on the bottom row, as the log view has them, unless turned off
         var hintsHeight = config.ShowKeyHints ? 1 : 0;
-        contentView = new ContentView(OnGetContent)
+        // Never focused, so the keys stay with the diff, which hands them on while the list has them
+        listView = new ContentView(OnGetListContent)
         {
             X = 0,
+            Y = 0,
+            Width = listWidth,
+            Height = Dim.Fill(hintsHeight),
+            IsShowCursor = false,
+            IsScrollMode = false,
+            IsFocus = false,
+            CanFocus = false,
+        };
+        listView.RegisterMouseHandler(MouseFlags.Button1Pressed, (_, y) => OnListClick(y));
+        contentView = new ContentView(OnGetContent)
+        {
+            X = listWidth,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(hintsHeight),
@@ -146,7 +175,7 @@ class DiffView : IDiffView
             TopRow = TopRowText,
         };
 
-        diffView.Add(contentView);
+        diffView.Add(listView, contentView);
         // The bar is there with the hints off too, for what a search found, as the log has it
         hintBar = new KeyHintBar(
             () =>
@@ -157,13 +186,15 @@ class DiffView : IDiffView
                     search.IsActive,
                     isIgnoreWhitespace,
                     LeaveOutHint(),
-                    isOneColumn
+                    isOneColumn,
+                    listWidth > 0
                 ),
             () => status.Current
         );
         diffView.Add(hintBar);
         hintBar.FollowStatus(status, config.ShowKeyHints, diffView);
         contentView.CurrentIndexChange += () => hintBar.SetNeedsDisplay(); // x leaves out or puts back
+        contentView.CurrentIndexChange += FollowCursorInList;
         RegisterShortcuts(contentView);
 
         contentView.SetNeedsDisplay();
@@ -176,7 +207,27 @@ class DiffView : IDiffView
 
     void RegisterShortcuts(ContentView view)
     {
-        view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
+        // Esc leaves the file list for the diff, and closes the diff
+        view.RegisterKeyHandler(
+            Key.Esc,
+            () =>
+            {
+                if (isListFocus)
+                    ToggleListFocus();
+                else
+                    Application.RequestStop();
+            }
+        );
+
+        // Tab moves the keys to the list of files beside the diff and back, and while the list has
+        // them, up and down go to the file above and below, which the diff shows as they do
+        view.RegisterKeyHandler(Key.Tab, ToggleListFocus);
+        view.RegisterKeyHandler(Key.CursorUp, () => MoveInList(-1));
+        view.RegisterKeyHandler(Key.CursorDown, () => MoveInList(1));
+        view.RegisterKeyHandler(Key.PageUp, () => MoveInList(-ListPage));
+        view.RegisterKeyHandler(Key.PageDown, () => MoveInList(ListPage));
+        view.RegisterKeyHandler(Key.Home, () => MoveInList(-fileList.Items.Count));
+        view.RegisterKeyHandler(Key.End, () => MoveInList(fileList.Items.Count));
 
         // Letters in both cases, since the menu writes them in upper case. The view is modal (see
         // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
@@ -213,7 +264,16 @@ class DiffView : IDiffView
 
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
         // was bound to it in this view before.
-        view.RegisterKeyHandler(Key.Enter, ResolveCurrentConflict);
+        view.RegisterKeyHandler(
+            Key.Enter,
+            () =>
+            {
+                if (isListFocus)
+                    ToggleListFocus();
+                else
+                    ResolveCurrentConflict();
+            }
+        );
 
         // More/less context around the changes of the file the cursor is on. Terminal.Gui 1.x has
         // no Key value for these, so use the ascii code, as the '?' key does in RepoViewInput.
@@ -396,6 +456,13 @@ class DiffView : IDiffView
             .Item("Previous Change", "[", () => GoToChange(-1), () => CanGo(-1, true), () => NoMore(-1, true))
             .Item("Next File", "}", () => GoToFile(1), () => CanGo(1, false), () => NoMore(1, false))
             .Item("Previous File", "{", () => GoToFile(-1), () => CanGo(-1, false), () => NoMore(-1, false))
+            .Item(
+                isListFocus ? "Back to the Diff" : "File List",
+                "Tab",
+                ToggleListFocus,
+                () => listWidth > 0,
+                () => $"The list is beside a diff of more than one file, {DiffFileList.MinTerminalWidth} columns wide"
+            )
             .Separator();
 
         if (diffs.Length > 1)
@@ -458,6 +525,64 @@ class DiffView : IDiffView
             (false, true) => "No more files below: { goes up",
             (false, false) => "No more files above: } goes down",
         };
+
+    // Moves the keys to the list of files and back
+    void ToggleListFocus()
+    {
+        if (listWidth == 0)
+            return;
+
+        isListFocus = !isListFocus;
+        listView.IsFocus = isListFocus;
+        contentView.IsFocus = !isListFocus;
+        listView.SetNeedsDisplay();
+        contentView.SetNeedsDisplay();
+    }
+
+    // Goes to the file a step above or below in the list, while it has the keys, true then; with the
+    // diff having them the key is left to it
+    bool MoveInList(int step)
+    {
+        if (!isListFocus || fileList.Items.Count == 0)
+            return false;
+
+        var current = fileList.IndexAt(contentView.CurrentIndex);
+        var index = Math.Clamp(current == -1 && step > 0 ? step - 1 : current + step, 0, fileList.Items.Count - 1);
+        ShowAtTop(fileList.Items[index].Row);
+        return true;
+    }
+
+    int ListPage => Math.Max(1, listView.ContentHeight - 2);
+
+    // The list's title is its first row, the files after it
+    void OnListClick(int y)
+    {
+        var index = listView.FirstIndex + y - 1;
+        if (index >= 0 && index < fileList.Items.Count)
+            ShowAtTop(fileList.Items[index].Row);
+    }
+
+    // The list keeps the file the diff's cursor is in, which it marks, in sight
+    void FollowCursorInList()
+    {
+        if (listWidth == 0)
+            return;
+
+        listView.ScrollToShowIndex(fileList.IndexAt(contentView.CurrentIndex) + 1, 1);
+        listView.SetNeedsDisplay();
+    }
+
+    (IEnumerable<Text> rows, int total) OnGetListContent(int firstRow, int rowCount, int _, int contentWidth)
+    {
+        var current = fileList.IndexAt(contentView.CurrentIndex);
+        var rows = fileList.Rows(
+            contentWidth,
+            current,
+            isListFocus,
+            path => source.CanCommit ? leftOut.CountOf(path) : 0
+        );
+        return (rows.Skip(firstRow).Take(rowCount), rows.Count);
+    }
 
     // The top row: the commit the diff is of, and once their headers have scrolled out of sight, the
     // file and the hunk the top of the view is in, so that a line deep in a long diff still says
@@ -1066,15 +1191,33 @@ class DiffView : IDiffView
     // made for, e.g. the terminal resized. Posted, since the rows cannot change while they are drawn.
     void FollowWidth(int contentWidth)
     {
-        if (isLayoutPosted || IsOneColumnFor(contentWidth) == isOneColumn)
+        var width = Application.Driver.Cols;
+        var isListChanged = fileList.WidthFor(width) != listWidth;
+        if (isLayoutPosted || (!isListChanged && IsOneColumnFor(contentWidth) == isOneColumn))
             return;
 
         isLayoutPosted = true;
         UI.Post(() =>
         {
             isLayoutPosted = false;
-            SetLayout(IsOneColumnFor(contentView.ContentWidth));
+            SetListWidth(fileList.WidthFor(Application.Driver.Cols));
+            SetLayout(IsOneColumnFor(Application.Driver.Cols - listWidth - 1));
         });
+    }
+
+    // Shows the list of files at the width, or hides it at 0, the diff beside it taking the rest
+    void SetListWidth(int width)
+    {
+        if (width == listWidth)
+            return;
+
+        listWidth = width;
+        if (listWidth == 0 && isListFocus)
+            ToggleListFocus();
+        listView.Width = listWidth;
+        contentView.X = listWidth;
+        listView.SuperView?.LayoutSubviews();
+        listView.SuperView?.SetNeedsDisplay();
     }
 
     void SetLayout(bool isOneColumn)
@@ -1099,6 +1242,7 @@ class DiffView : IDiffView
     {
         diffs = newDiffs;
         diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), isIgnoreWhitespace, isOneColumn);
+        fileList = DiffFileList.Of(diffs, diffRows);
         search = FindInRows(search.Text); // The rows the search found are other rows now
         RefindLeftOutLines(); // As the lines left out may have moved
         hintBar.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers

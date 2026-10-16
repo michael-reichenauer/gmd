@@ -11,7 +11,8 @@ static class DiffHints
     // with matches for n to go on with, as the log offers it for its own, and isWhitespaceHidden
     // whether w shows whitespace changes again or hides them. leaveOut is what x does where the
     // cursor is, "leave out" or "put back", "" where it does nothing. isOneColumn is the layout v
-    // switches from, where ← and → only scroll.
+    // switches from, where ← and → only scroll, and hasList whether the list of files Tab moves to
+    // is beside the diff.
     public static IReadOnlyList<KeyHint> For(
         bool canCommit,
         bool hasContext,
@@ -19,7 +20,8 @@ static class DiffHints
         bool hasSearch,
         bool isWhitespaceHidden,
         string leaveOut = "",
-        bool isOneColumn = false
+        bool isOneColumn = false,
+        bool hasList = false
     )
     {
         List<KeyHint> hints = [KeyHintLine.Menu, new("Esc", "close")];
@@ -33,6 +35,8 @@ static class DiffHints
         if (hasContext)
             hints.Add(new("+ -", "context"));
         hints.Add(new("} {", "file"));
+        if (hasList)
+            hints.Add(new("Tab", "file list"));
         if (hasSearch)
             hints.Add(new("n", "next match"));
         hints.Add(new("f", "search"));

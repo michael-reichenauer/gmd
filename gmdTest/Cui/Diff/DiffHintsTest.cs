@@ -120,4 +120,15 @@ public class DiffHintsTest
 
         StringAssert.Contains(Line(hints), "v side by side  ←→ scroll");
     }
+
+    // Tab is offered where the list of files is beside the diff, which it moves the keys to
+    [TestMethod]
+    public void TestTheFileListIsOfferedWhereItIsShown()
+    {
+        StringAssert.Contains(
+            Line(DiffHints.For(false, true, false, false, false, "", hasList: true)),
+            "} { file  Tab file list"
+        );
+        Assert.IsFalse(Line(DiffHints.For(false, true, false, false, false)).Contains("Tab"));
+    }
 }
