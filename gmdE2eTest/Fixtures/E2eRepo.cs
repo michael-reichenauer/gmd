@@ -287,7 +287,13 @@ static class E2eRepo
     // side changed other words, or only added lines above the other's: what Combine takes both of.
     // 'main' made the rate a field and rounded the total, and rewrote the discount as one line; 'dev'
     // discounted the total and added a gold discount above the member one.
-    public static async Task<TempRepo> CreateWithCombinableConflictsAsync()
+    public static Task<TempRepo> CreateWithCombinableConflictsAsync() => CreateWithPricingConflictsAsync(false);
+
+    // The same, with a conflict in a second file, Shipping.cs, where each branch set its own cost:
+    // for resolving the files of a merge one after the other
+    public static Task<TempRepo> CreateWithConflictsInTwoFilesAsync() => CreateWithPricingConflictsAsync(true);
+
+    static async Task<TempRepo> CreateWithPricingConflictsAsync(bool isShipping)
     {
         var repo = await TempRepo.CreateAsync();
         var t = TempRepo.BaseTime;
@@ -307,6 +313,8 @@ static class E2eRepo
             "    return 0m;",
             "}",
         ];
+        if (isShipping)
+            repo.WriteFile("Shipping.cs", Shipping("6m"));
         await repo.CommitFileAtAsync("Pricing.cs", Text(ancestor), "Add pricing", t);
 
         await repo.GitAsync("checkout -q -b dev");
@@ -314,6 +322,8 @@ static class E2eRepo
         dev[3] = "    return discounted + discounted * VatRate;";
         dev.Insert(3, "    var discounted = sum - sum * Discount(order.Customer);");
         dev.InsertRange(9, ["    if (customer.IsGold)", "        return 0.10m;"]);
+        if (isShipping)
+            repo.WriteFile("Shipping.cs", Shipping("5m"));
         await repo.CommitFileAtAsync("Pricing.cs", Text(dev), "Gold customers get ten percent", t.AddMinutes(1));
 
         await repo.GitAsync("checkout -q main");
@@ -321,12 +331,15 @@ static class E2eRepo
         main[3] = "    return Math.Round(sum + sum * vatRate, 2);";
         main.RemoveRange(8, 3);
         main.Insert(8, "    return customer.IsMember ? 0.05m : 0m;");
+        if (isShipping)
+            repo.WriteFile("Shipping.cs", Shipping("7m"));
         await repo.CommitFileAtAsync("Pricing.cs", Text(main), "Round the total", t.AddMinutes(2));
 
         await repo.GitAllowFailAsync("merge dev");
         return repo;
 
         static string Text(IEnumerable<string> lines) => string.Join("\n", lines) + "\n";
+        static string Shipping(string cost) => Text(["class Shipping", "{", $"    decimal Cost() => {cost};", "}"]);
     }
 
     // The same two branches before the merge, so that the merge that conflicts is gmd's own:

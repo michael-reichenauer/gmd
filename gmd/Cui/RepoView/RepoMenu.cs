@@ -142,7 +142,7 @@ class RepoMenu : IRepoMenu
         var hasSkip = status.Operation is GitOperation.Rebase or GitOperation.Am;
 
         return Menu
-            .Items.Item(status.Conflicted > 0, "Resolve Conflicts", "", () => commands.CommitCmds.ShowUncommittedDiff())
+            .Items.Item(status.Conflicted > 0, "Resolve Conflicts", "", () => commands.RepoCmds.ResolveConflicts())
             .Item(hasContinue, $"Continue {name}", "", () => cmds.ContinueOperation())
             .Item(hasSkip, "Skip This Commit", "", () => cmds.SkipOperationCommit())
             .Item($"Abort {name}", "", () => cmds.AbortOperation());

@@ -36,24 +36,23 @@ public class OperationTest
         );
         Assert.AreEqual(
             """
-                                       ╭ Merge Stopped on Conflicts ────────────────────────────────────╮
-                                       │Merge stopped on conflicts in 1 file:                           │
-                                       │                                                                │
-                                       │  long.txt                                                      │
-                                       │                                                                │
-                                       │Resolve them in the diff of the uncommitted changes, where Enter│
-                                       │on a file opens it, then commit (c) to finish the merge.        │
-                                       │⇧m opens the repo menu, to abort it later.                      │
-                                       │                                                                │
-                                       │       [◦ Resolve Conflicts ◦] [ Abort Merge ] [ Later ]        │
-                                       ╰────────────────────────────────────────────────────────────────╯
+                                 ╭ Merge Stopped on Conflicts ───────────────────────────────────────────────╮
+                                 │Merge stopped on conflicts in 1 file:                                      │
+                                 │                                                                           │
+                                 │  long.txt                                                                 │
+                                 │                                                                           │
+                                 │Resolve them one file after the other, then commit (c) to finish the merge.│
+                                 │⇧m opens the repo menu, to resolve or to abort it later.                   │
+                                 │                                                                           │
+                                 │             [◦ Resolve Conflicts ◦] [ Abort Merge ] [ Later ]             │
+                                 ╰───────────────────────────────────────────────────────────────────────────╯
             """,
-            ScreenText.Rows(screen, repo.Path, 14, 11)
+            ScreenText.Rows(screen, repo.Path, 15, 10)
         );
 
-        // Resolve Conflicts is the default, and opens the diff where Enter resolves a file
+        // Resolve Conflicts is the default, and opens the resolver on the file
         gmd.Send("Enter");
-        gmd.WaitFor("C long.txt");
+        gmd.WaitFor("─── Conflict 1");
     }
 
     // A continue that stops again, on the conflicts of the rebase's next commit, says so as the first

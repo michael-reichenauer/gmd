@@ -644,18 +644,31 @@ lines, `m` opens the menu, and `Esc` or `q` closes the view.
 
 When a merge, rebase, cherry pick, revert or pull that gmd runs stops on
 conflicts, a box says so and names the files; its **Resolve Conflicts**
-opens the diff described below. For as long as the operation lasts, the top
-bar says what is in progress, e.g. `Merging: 1 conflict` in red, and in
-yellow once the conflicts are resolved. A click on it, or `Shift-M` for the
-repo menu, offers Resolve Conflicts, Continue, Skip and Abort.
+opens the resolver described below on the first of them. For as long as the
+operation lasts, the top bar says what is in progress, e.g.
+`Merging: 1 conflict` in red, and in yellow once the conflicts are
+resolved. A click on it, or `Shift-M` for the repo menu, offers Resolve
+Conflicts, Continue, Skip and Abort.
 
-To resolve the conflicts, open the diff of the uncommitted changes (`d` on
-the `©` row) and press `Enter` on a conflicted file. That opens the file
-the cursor is on, or the list of the conflicted files if the cursor is
-elsewhere. The same list is under **Resolve Conflicts** in the diff menu,
-and it names every conflicted file, including those the diff cannot show,
-such as one a side deleted, or a binary file. **Run External Merge Tool**
-in the diff menu opens a file in the tool git is configured with instead
+The files are resolved one after the other. Saving a file with every
+conflict decided marks it resolved and opens the next one still conflicted,
+and `}` and `{` go to the next or previous one without saving, asking first
+if there are decisions to keep. The header says which file it is, e.g.
+`file 1 of 3`, and a terminal at least 150 columns wide lists the files at
+the left, the resolved ones ticked; `Tab` moves into the list, where `↑`
+`↓` and `Enter` open another. A file with no text to merge, such as one a
+side deleted, or a binary file, asks its question as its turn comes (see
+below). Once no conflict is left, a box asks whether to finish: **Commit**
+opens the commit dialog for a merge, a cherry pick or a revert, and
+**Continue** goes on with a rebase. **Later** leaves it for the commit
+(`c`) or the repo menu.
+
+The diff of the uncommitted changes (`d` on the `©` row) shows a conflicted
+file as one row saying how many conflicts it has, since its sides are in
+the resolver, where `Enter` on it opens it. With the cursor elsewhere,
+`Enter` offers the list of the conflicted files, which is also under
+**Resolve Conflicts** in the diff menu. **Run External Merge Tool** in the
+diff menu opens a file in the tool git is configured with instead
 (`git mergetool`).
 
 The two sides are shown beside each other, titled by name rather than
@@ -691,14 +704,17 @@ next and previous one from wherever the cursor is.
 | ]  [       | Next or previous conflict (n and p do the same)            |
 | b          | Show the version both sides started from                   |
 | a          | Whole file: take one side, or put the conflicts back       |
-| s          | Save and mark the file resolved                            |
+| s          | Save and mark the file resolved, then on to the next file  |
+| }  {       | Next or previous file still conflicted                     |
+| Tab        | Into the list of files, and back                           |
 | m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
 | Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 
 Nothing is written until `s`, so closing without saving leaves the file as
-it was, and closing with decisions unsaved asks first. A file saved with
+it was, and closing or going to another file with decisions unsaved asks
+first. A file saved with
 conflicts still undecided keeps their markers, and is marked resolved once
 none is left.
 

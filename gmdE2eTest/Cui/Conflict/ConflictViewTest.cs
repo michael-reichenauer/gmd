@@ -378,6 +378,12 @@ public class ConflictViewTest
         gmd.WaitForStable();
         gmd.Send("Enter");
 
+        // The last conflict resolved, the merge can be finished; later, back to the diff
+        StringAssert.Contains(gmd.WaitFor("Conflicts Resolved"), "Every conflict of the merge is resolved.");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
         gmd.WaitUntilGone("Enter resolve"); // The diff, read again, has no conflict left to resolve
         Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has it resolved");
         Assert.AreEqual(
@@ -411,7 +417,10 @@ public class ConflictViewTest
         }
         gmd.Send("Enter");
 
-        gmd.WaitUntilGone("Enter resolve");
+        // The last conflict resolved, Commit, the default, closes the diff for the commit of the merge
+        gmd.WaitFor("Conflicts Resolved");
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor("Commit 1 change"), "Merge branch 'dev'");
         Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has it resolved");
         Assert.AreEqual(merged, await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt")), "As it was merged");
     }
@@ -551,6 +560,76 @@ public class ConflictViewTest
         );
         StringAssert.Contains(gmd.Capture(), "── unresolved", "Nothing decided");
     }
+
+    // The files of a merge are resolved one after the other, from the bar's Resolve Conflicts: a
+    // terminal wide enough lists them beside the resolver, } goes to the next, and saving a file
+    // resolved opens the next one still conflicted. Once none is left, the merge is committed, or
+    // not yet, as asked; it was a box saying to resolve them in the diff, and a commit from the log.
+    [TestMethod]
+    public async Task TestTheFilesOfAMergeAreResolvedOneAfterTheOther()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        var bar = gmd.WaitFor("Merging: 2 conflicts");
+        var (x, y) = TmuxSession.PositionOf(bar, "Merging: 2 conflicts");
+        gmd.Click(x + 2, y);
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("─── Conflict 1");
+        Assert.AreEqual(
+            """
+            Merge  Pricing.cs   conflict 1 of 2   2 still to resolve   file 1 of 2
+            """,
+            ScreenText.Rows(screen, repo.Path, 0, 1)
+        );
+        Assert.AreEqual(
+            """
+            Conflicts 2 left       │
+            ▌● Pricing.cs  0 of 2  │
+             ● Shipping.cs         │
+            """,
+            ListOf(screen)
+        );
+
+        // } goes to the other file, the one main and dev each set a cost in
+        gmd.Send("}");
+        screen = gmd.WaitFor("file 2 of 2");
+        StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "Merge  Shipping.cs   conflict 1 of 1");
+        gmd.Send("1"); // main's cost
+        gmd.WaitForStable();
+
+        // Saved, it is ticked, and the one still conflicted opens
+        gmd.Send("s");
+        screen = gmd.WaitFor("file 1 of 2");
+        Assert.AreEqual(
+            """
+            Conflicts 1 left       │
+            ▌● Pricing.cs  0 of 2  │
+             ✓ Shipping.cs         │
+            """,
+            ListOf(screen)
+        );
+        Assert.AreEqual("", (await repo.GitAsync("diff --name-only HEAD -- Shipping.cs")).Trim(), "main's cost");
+
+        gmd.Send("c");
+        gmd.WaitForStable();
+        gmd.Send("]");
+        gmd.WaitForStable();
+        gmd.Send("c");
+        gmd.WaitFor("conflict 2 of 2   all resolved");
+
+        // The last file saved, every conflict is resolved, and Commit, the default, commits the merge
+        gmd.Send("s");
+        StringAssert.Contains(gmd.WaitFor("Conflicts Resolved"), "A commit finishes it.");
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor("Commit 1 change on 'main'"), "Merge branch 'dev'");
+        Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has them resolved");
+    }
+
+    // The list of files at the left of the resolver, the rows below the header
+    static string ListOf(string screen) =>
+        string.Join("\n", ScreenText.Rows(screen, "", 2, 3).Split('\n').Select(r => r[..Math.Min(r.Length, 24)]));
 
     static void OpenTheResolver(TmuxSession gmd)
     {

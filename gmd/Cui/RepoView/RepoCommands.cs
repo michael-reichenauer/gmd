@@ -1,6 +1,7 @@
 using gmd.Common;
 using gmd.Cui.App;
 using gmd.Cui.Common;
+using gmd.Cui.Conflict;
 using gmd.Cui.Start;
 using gmd.Server;
 
@@ -28,6 +29,7 @@ interface IRepoCommands
     Task<bool> ConfirmConflictsResolvedAsync(string action);
     void AbortOperation();
     void ShowConflicts();
+    void ResolveConflicts();
     void ContinueOperation();
     void SkipOperationCommit();
 
@@ -56,6 +58,7 @@ class RepoCommands : IRepoCommands
     readonly IUpdateDlg updateDlg;
     readonly IClipboardService clipboard;
     readonly IWebCommands webCmds;
+    readonly IConflictWorkspace conflictWorkspace;
 
     internal RepoCommands(
         CommandContext context,
@@ -66,9 +69,11 @@ class RepoCommands : IRepoCommands
         Config config,
         IUpdateDlg updateDlg,
         IClipboardService clipboard,
-        Func<CommandContext, IWebCommands> newWebCommands
+        Func<CommandContext, IWebCommands> newWebCommands,
+        IConflictWorkspace conflictWorkspace
     )
     {
+        this.conflictWorkspace = conflictWorkspace;
         this.context = context;
         this.repoView = context.View;
         this.server = context.Server;
@@ -289,10 +294,9 @@ class RepoCommands : IRepoCommands
     }
 
     // After a command stopped on conflicts: what stopped, the files, and the way on, where there used
-    // to be git's output in a red error box. Resolving is done in the diff of the uncommitted
-    // changes, Enter on a conflicted file opening the resolver, and then a commit or a continue
-    // finishes the operation. Aborting throws it away; chosen here it is not asked about again, since
-    // nothing has been resolved yet to lose.
+    // to be git's output in a red error box. Resolving is done in the resolver, file by file, which
+    // then asks to commit or continue to finish the operation. Aborting throws it away; chosen here
+    // it is not asked about again, since nothing has been resolved yet to lose.
     public void ShowConflicts()
     {
         var repo = context.ViewRepo;
@@ -308,9 +312,8 @@ class RepoCommands : IRepoCommands
         var text =
             $"{what} stopped on conflicts in {Count(s.Conflicted, "file")}:\n\n"
             + $"{FileList(s.ConflictsFiles)}\n\n"
-            + "Resolve them in the diff of the uncommitted changes, where Enter\n"
-            + $"on a file opens it, then {finish}.\n"
-            + "⇧m opens the repo menu, to abort it later.";
+            + $"Resolve them one file after the other, then {finish}.\n"
+            + "⇧m opens the repo menu, to resolve or to abort it later.";
 
         var choice = UI.InfoMessage(
             $"{name} Stopped on Conflicts",
@@ -319,9 +322,23 @@ class RepoCommands : IRepoCommands
             ["Resolve Conflicts", $"Abort {name}", "Later"]
         );
         if (choice == 0)
-            context.CommitCmds.ShowUncommittedDiff();
+            ResolveConflicts();
         else if (choice == 1)
             Abort(isAsked: true);
+    }
+
+    // The conflicts of the operation stopped on them, resolved file by file in the resolver
+    // (ConflictWorkspace), and once none is left, the commit or the continue that finishes it, as
+    // the user chose there
+    public async void ResolveConflicts()
+    {
+        var next = await conflictWorkspace.ResolveAsync(context.ViewRepo.Path);
+        if (next == ResolveNext.Commit)
+            repoView.RefreshAndCommit();
+        else if (next == ResolveNext.Continue)
+            ContinueOperation();
+        else
+            Refresh();
     }
 
     static string UnresolvedText(IReadOnlyList<string> paths, string action) =>

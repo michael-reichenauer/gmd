@@ -496,7 +496,8 @@ class Server : IServer
 
         return new ConflictState(
             GitConverter.ToOperation(status.Operation),
-            status.Conflicts.Select(GitConverter.ToConflictedFile).ToList()
+            status.Conflicts.Select(GitConverter.ToConflictedFile).ToList(),
+            status.IsFinishedByCommit
         );
     }
 

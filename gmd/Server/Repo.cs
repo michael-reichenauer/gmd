@@ -269,7 +269,9 @@ public enum ConflictKind
 
 // What is conflicted right now and what git is in the middle of, which is one status read rather
 // than two — the operation is what names the resolver and says which side is which.
-public record ConflictState(GitOperation Operation, IReadOnlyList<ConflictedFile> Files)
+// IsFinishedByCommit is whether a commit finishes the operation once its conflicts are resolved, a
+// merge's, rather than a continue, a rebase's, see Status.IsFinishedByCommit
+public record ConflictState(GitOperation Operation, IReadOnlyList<ConflictedFile> Files, bool IsFinishedByCommit = true)
 {
     public static readonly ConflictState None = new ConflictState(GitOperation.None, []);
 

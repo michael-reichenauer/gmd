@@ -12,6 +12,7 @@ enum DiffResult
     None,
     Commit,
     Refresh,
+    Continue, // The operation, its conflicts resolved, as the resolver asked
 }
 
 interface IDiffView
@@ -31,7 +32,7 @@ class DiffView : IDiffView
     private readonly IProgress progress;
     private readonly IServer server;
     readonly IClipboardService clipboard;
-    readonly IConflictView conflictView;
+    readonly IConflictWorkspace conflictWorkspace;
     readonly Config config;
     readonly LeftOutLines leftOut;
 
@@ -52,6 +53,7 @@ class DiffView : IDiffView
     string repoPath = "";
     bool isFocusLeft = true;
     bool isCommitTriggered = false;
+    bool isContinueTriggered;
     bool isRefreshNeeded;
 
     // The search of the lines, f and then n and Shift-N, and the status line of this view, which says
@@ -99,7 +101,7 @@ class DiffView : IDiffView
         IProgress progress,
         IServer server,
         IClipboardService clipboard,
-        IConflictView conflictView,
+        IConflictWorkspace conflictWorkspace,
         IHelpPage helpPage,
         Config config,
         LeftOutLines leftOut
@@ -112,7 +114,7 @@ class DiffView : IDiffView
         this.progress = progress;
         this.server = server;
         this.clipboard = clipboard;
-        this.conflictView = conflictView;
+        this.conflictWorkspace = conflictWorkspace;
     }
 
     public DiffResult Show(CommitDiff[] diffs, DiffSource source, string repoPath, ConflictState? conflicts = null)
@@ -123,6 +125,7 @@ class DiffView : IDiffView
         this.repoPath = repoPath;
         this.isFocusLeft = true;
         this.isCommitTriggered = false;
+        this.isContinueTriggered = false;
         this.isRefreshNeeded = false;
         this.fileContext.Clear();
         this.conflictState = conflicts ?? ConflictState.None;
@@ -205,6 +208,7 @@ class DiffView : IDiffView
         using (Menu.SayingWhyNotOn(status))
             UI.RunDialog(diffView);
         return isCommitTriggered ? DiffResult.Commit
+            : isContinueTriggered ? DiffResult.Continue
             : isRefreshNeeded ? DiffResult.Refresh
             : DiffResult.None;
     }
@@ -703,32 +707,26 @@ class DiffView : IDiffView
             Menu.Show("Resolve Conflicts", Menu.Center, 2, GetConflictItems());
     }
 
-    // Loaded here rather than inside the resolver, so the read is awaited off the main loop: a
-    // Terminal.Gui SynchronizationContext posts an await's continuation to that loop, so blocking
-    // it on a Task deadlocks the application outright
+    // Resolves the conflicts in the resolver (ConflictWorkspace), from the file, and the other
+    // conflicted files after it, and finishes the operation once none is left, if asked to: the diff
+    // closes for the commit or the continue, which the log does
     async void ResolveConflict(ConflictedFile conflict)
     {
-        ConflictFile file;
-        ConflictSides sides;
-        using (progress.Show())
+        var next = await conflictWorkspace.ResolveAsync(repoPath, conflict.Path);
+        if (next == ResolveNext.Commit)
         {
-            // With the common ancestor, which the sides are drawn against, and without it where it
-            // cannot be had, e.g. the file changed since git wrote the conflicts into it
-            var read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, true, repoPath);
-            if (read is Error)
-                read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath);
-            // What git knows of the two sides names them, the branch and the subjects, and their
-            // names in the markers do where it knows nothing
-            sides = await server.GetConflictSidesAsync(repoPath) is ConflictSides known ? known : ConflictSides.None;
-            if (read is not ConflictFile conflictFile)
-            {
-                UI.ErrorMessage($"Failed to open {conflict.Path}\n{read.Error.AllMessages()}");
-                return;
-            }
-            file = conflictFile;
+            isCommitTriggered = true;
+            Application.RequestStop();
         }
-
-        conflictView.Show(file, sides, conflictState.Operation, repoPath, RefreshDiff);
+        else if (next == ResolveNext.Continue)
+        {
+            isContinueTriggered = true;
+            Application.RequestStop();
+        }
+        else
+        {
+            RefreshDiff();
+        }
     }
 
     // The cursor is put on the commit or the file, which + and - and Enter act on: scrolled to alone
