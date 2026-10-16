@@ -1052,6 +1052,22 @@ public class GitIntegrationTest
         );
     }
 
+    // A REBASE_HEAD left behind, as git leaves it after a rebase that stopped and was continued,
+    // names no side of another operation, here a squash merge, which records no MERGE_HEAD: the
+    // merged in side was named by the subject of that old rebase's last commit applied
+    [TestMethod]
+    public async Task TestARebaseHeadLeftBehindNamesNoSideOfAMerge()
+    {
+        var d1 = await TwoBranchesThatConflictAsync();
+        await File.WriteAllTextAsync(Path.Join(repo.Path, ".git", "REBASE_HEAD"), d1 + "\n");
+        await repo.GitAllowFailAsync("merge --squash dev");
+
+        Assert.AreEqual(
+            new ConflictSides("main", "Main work", ""),
+            Value(await repo.Git.GetConflictSidesAsync(repo.Path))
+        );
+    }
+
     // Abort puts the working folder back as it was, from each of the operations gmd can start
     [TestMethod]
     public async Task TestAbortOfAConflictedMerge()

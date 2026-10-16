@@ -134,20 +134,11 @@ class ConflictService : IConflictService
         return parsed with { HasOurs = hasOurs, HasTheirs = hasTheirs };
     }
 
-    // Fills in the common ancestor of each conflict, i.e. what the base pane shows.
-    //
-    // The default 'merge' conflict style records no ancestor in the file, so it has to be recovered
-    // by re-running the merge with '--diff3' over the three index stages and taking the base blocks
-    // out of the result. It is display only: nothing here is ever written back to the file.
-    //
-    // Nothing touches the working tree. 'git unpack-file' writes its temp file into the *current
-    // directory* and returns its name, so pointing that at a scratch folder inside the git dir keeps
-    // the whole thing out of the user's sight — where 'git checkout-index --temp' would have been
-    // the obvious tool but always writes to the worktree root, whatever its cwd, and those files
-    // show up as untracked in the very status gmd is displaying.
     // The branch HEAD is on and the subjects of the two sides' commits: HEAD's, and the other side's
     // from the ref git keeps to it while the operation is stopped, MERGE_HEAD, CHERRY_PICK_HEAD or
-    // REVERT_HEAD (OperationState), or during a rebase REBASE_HEAD, which is the commit being applied
+    // REVERT_HEAD (OperationState), or during a rebase REBASE_HEAD, which is the commit being applied.
+    // REBASE_HEAD is read during a rebase alone: git leaves it behind once a rebase that stopped is
+    // continued, and an operation with no ref of its own, e.g. a squash merge, was named by it.
     public async Task<Result<ConflictSides>> GetConflictSidesAsync(string wd)
     {
         var branchResult = await cmd.RunAsync("git", "rev-parse --abbrev-ref HEAD", wd);
@@ -156,9 +147,10 @@ class ConflictService : IConflictService
 
         var state = OperationState.Read(wd);
         var theirs =
-            state.MergeHeadId != ""
-                ? state.MergeHeadId
-                : OperationState.ReadFirstLine(System.IO.Path.Join(GitDir.GitDirPathOf(wd), "REBASE_HEAD"));
+            state.MergeHeadId != "" ? state.MergeHeadId
+            : state.Operation == GitOperation.Rebase
+                ? OperationState.ReadFirstLine(System.IO.Path.Join(GitDir.GitDirPathOf(wd), "REBASE_HEAD"))
+            : "";
 
         // In the order given, HEAD's first, and with nothing but the subject whatever log's config
         var args = $"log --no-walk=unsorted --no-show-signature --format=%s HEAD {theirs}".TrimEnd();
@@ -174,6 +166,17 @@ class ConflictService : IConflictService
         );
     }
 
+    // Fills in the common ancestor of each conflict, i.e. what the base pane shows.
+    //
+    // The default 'merge' conflict style records no ancestor in the file, so it has to be recovered
+    // by re-running the merge with '--diff3' over the three index stages and taking the base blocks
+    // out of the result. It is display only: nothing here is ever written back to the file.
+    //
+    // Nothing touches the working tree. 'git unpack-file' writes its temp file into the *current
+    // directory* and returns its name, so pointing that at a scratch folder inside the git dir keeps
+    // the whole thing out of the user's sight — where 'git checkout-index --temp' would have been
+    // the obvious tool but always writes to the worktree root, whatever its cwd, and those files
+    // show up as untracked in the very status gmd is displaying.
     public async Task<Result<ConflictFile>> WithBaseAsync(ConflictFile file, string wd)
     {
         // Already there: the user's conflict style is 'diff3' or 'zdiff3', so git wrote it into the
