@@ -181,6 +181,17 @@ interface IGit
     Task<Result> StashPopAsync(string name, string wd);
     Task<Result> StashApplyAsync(string name, string wd);
     Task<Result> StashDropAsync(string name, string wd);
+    Task<Result> StashStoreAsync(string id, string message, string wd);
+
+    // The working tree kept in objects, see SnapshotService: its files, the changed and the new ones,
+    // as a tree, a commit of a tree on no branch, a ref pointed at a commit with an entry in its
+    // reflog, which keeps the commit, the ref's reflog, and the difference between two commits applied
+    // to the working tree
+    Task<Result<string>> WriteWorkingTreeAsync(string wd);
+    Task<Result<string>> WriteCommitAsync(string tree, IReadOnlyList<string> parents, string message, string wd);
+    Task<Result> LogRefAsync(string refName, string id, string message, string wd);
+    Task<Result<IReadOnlyList<RefLogRecord>>> GetRefLogAsync(string refName, string wd);
+    Task<Result> ApplyDiffAsync(string fromId, string toId, string wd);
     Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd);
     Task<Result> AddTagAsync(string name, string commitId, string wd);
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);
@@ -251,6 +262,9 @@ public record Worktree(
 // index in that ref's reflog (0 is the latest) and git's message for the move, e.g. 'commit: <subject>'
 // or 'branch: Created from main'
 public record ReflogEntry(string Id, string Ref, int Index, string Message);
+
+// An entry of a ref's reflog: the commit, its time, and the entry's message
+public record RefLogRecord(string Id, DateTime Time, string Message);
 
 // What git is in the middle of, i.e. something it has stopped part way through and has to be told
 // to finish or abort. No porcelain command reports this, so it is probed from the files git leaves

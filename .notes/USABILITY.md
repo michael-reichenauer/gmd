@@ -162,6 +162,15 @@ Ranked by how soon someone new meets the gap.
      the header saying how many. An older commit's amend refuses a file with lines left out. Phase
      1's patch of a file in a repository with no commit yet was not read: with a path git says
      'bad revision', not 'unknown revision', so HEAD is asked about first now.
+     *Phase 4's way back done (2026-10-16):* every discard, the lines, a file, all changes, all with
+     the ignored files, and a stash dropped, keeps what it throws away (`Server.DiscardedChanges`):
+     the working tree before and after it as commits on `refs/gmd/discarded`, whose reflog keeps
+     them for git's 30 days, a dropped stash as a commit whose parent is the stash. Restore
+     Discarded Changes, in the Undo menu, lists them, diffs them, and puts one back, the difference
+     applied to the working tree, which git refuses whole if its files changed since. `git stash
+     create`, which this plan named, leaves out the new files, so the snapshot is a copy of the index
+     with everything added and written as a tree (`SnapshotService`). The questions say the way back
+     now, and the status line after each discard. The ignored files are not kept.
    - Open, in the order they would be met: a cherry-pick of the selected commits, whose range the
      copy menu offers for the command line; opening a file in the editor at a line of the diff or the
      blame; a rebase of a published branch without its force push; and a reset of a branch to any
@@ -814,7 +823,8 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    it is fetched, and a pull then moves the branch's own commits onto the new version rather than
    merging the two; *Restore origin* puts origin back, asking first, since that is a force push too. Left for later: a key for Undo
    and a key hint, and a way back from Discard All Changes and Drop Stash, which the reflog does not
-   record (see MODERNIZATION.md).
+   record (see MODERNIZATION.md). *The way back done (2026-10-16):* Restore Discarded Changes, see
+   the product review's part 2, item 8.
 
 ---
 

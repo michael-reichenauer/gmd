@@ -506,7 +506,8 @@ class RepoBuilder
             new DeletedBranchService(git, Config),
             new ViewRepoConverter(),
             NewViewRepoCreater(),
-            monitor
+            monitor,
+            new DiscardedChanges(git)
         );
     }
 

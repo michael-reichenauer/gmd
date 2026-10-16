@@ -384,7 +384,10 @@ public class DiffViewTest
         gmd.WaitForStable();
         gmd.Send("Enter");
 
-        Assert.AreEqual("Discarded 3 lines of lines.txt", ScreenText.LastLine(gmd.WaitFor("Discarded")));
+        Assert.AreEqual(
+            "Discarded 3 lines of lines.txt: Restore Discarded Changes in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Discarded"))
+        );
         Assert.AreEqual(
             "line 1\nTWO\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\n",
             File.ReadAllText(Path.Join(repo.Path, "lines.txt"))
@@ -411,7 +414,10 @@ public class DiffViewTest
         gmd.WaitForStable();
         gmd.Send("Enter");
 
-        Assert.AreEqual("Discarded 1 line of lines.txt", ScreenText.LastLine(gmd.WaitFor("Discarded")));
+        Assert.AreEqual(
+            "Discarded 1 line of lines.txt: Restore Discarded Changes in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Discarded"))
+        );
         StringAssert.EndsWith(File.ReadAllText(Path.Join(repo.Path, "lines.txt")), "line 10\nELEVEN\nline 12\n");
     }
 
@@ -471,6 +477,61 @@ public class DiffViewTest
 
         StringAssert.Contains(gmd.WaitFor("has changed since the diff was read"), "lines.txt");
         Assert.AreEqual(head, await repo.GitAsync("rev-parse HEAD"), "Nothing committed");
+    }
+
+    // Every discard is kept, and Restore Discarded Changes, in the commit menu's Undo, puts it back:
+    // here all changes, a file changed and a new one, discarded from the diff and back as they were,
+    // the new file untracked again and nothing staged. The status line says where the way back is.
+    [TestMethod]
+    public async Task TestDiscardedChangesArePutBack()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("©2 uncommitted changes");
+        var before = await repo.GitAsync("status --porcelain");
+        gmd.Send("d");
+        gmd.WaitFor("Added: epsilon.txt");
+        gmd.Send("u");
+        gmd.WaitFor("All Changes");
+        gmd.Send("End");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor("Discard all uncommitted changes?"), "Restore Discarded Changes");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        Assert.AreEqual(
+            "Discarded all changes: Restore Discarded Changes in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Discarded all changes"))
+        );
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Added: epsilon.txt");
+
+        // The commit menu starts on 'Amend ...', and 'Undo' is three moves down, past 'Commit Diff'
+        // and 'Mark for Diff'; in it, on 'Undo Commit', main's last change, as DeletedBranchesDlgTest
+        // counts, the item is three moves down, past the two Recover and Restore before it
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Right");
+        gmd.WaitFor("Restore Discarded Changes ...");
+        for (var i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor("Time              Discarded"), "All changes");
+        gmd.Send("r");
+
+        Assert.AreEqual("Restored all changes", ScreenText.LastLine(gmd.WaitFor("Restored all changes")));
+        Assert.AreEqual(before, await repo.GitAsync("status --porcelain"));
+        Assert.AreEqual("alpha\nchanged\n", File.ReadAllText(Path.Join(repo.Path, "alpha.txt")));
     }
 
     // A greyed out item of the diff's menu says why on the diff's own status line, where it is seen;

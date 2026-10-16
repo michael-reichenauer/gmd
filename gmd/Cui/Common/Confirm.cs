@@ -5,10 +5,18 @@ namespace gmd.Cui.Common;
 // reach the same git commands by paths of their own, and the question should read the same on both.
 //
 // No is the default throughout. These commands are chosen from a menu, where the slip to guard
-// against is an Enter on the wrong item, and an Enter on the question would only repeat it.
+// against is an Enter on the wrong item, and an Enter on the question would only repeat it. What
+// they throw away gmd keeps, for Restore Discarded Changes (Server.DiscardedChanges), which the
+// questions say, and the status line once it is done.
 static class Confirm
 {
     const int MaxListedPaths = 10;
+
+    const string WayBack = "Restore Discarded Changes, in the Undo menu, brings it back.";
+
+    // What the status line says once something is discarded
+    internal static string Discarded(string what) =>
+        $"Discarded {what}: Restore Discarded Changes in the Undo menu brings it back";
 
     internal static bool UndoAllUncommitted() =>
         Ask(
@@ -18,7 +26,8 @@ static class Confirm
 
             Every changed file is reset to the last commit,
             and every new file is deleted.
-            This cannot be undone.
+            Restore Discarded Changes, in the Undo menu,
+            brings them back.
             """
         );
 
@@ -31,7 +40,7 @@ static class Confirm
 
                   {path}
 
-                It has never been committed, so it cannot be restored.
+                {WayBack}
                 """
             )
             : Ask(
@@ -41,7 +50,8 @@ static class Confirm
 
                   {path}
 
-                It is reset to the last commit. This cannot be undone.
+                It is reset to the last commit.
+                {WayBack}
                 """
             );
 
@@ -53,8 +63,8 @@ static class Confirm
         var listed = lines.Take(MaxListedPaths).Select(l => $"  {l.Max(60)}");
         string[] more = lines.Count > MaxListedPaths ? [$"  ... and {lines.Count - MaxListedPaths} more lines"] : [];
         var after = isNewFileWhole
-            ? "These are all the lines of a new file, which is deleted.\nIt has never been committed, so it cannot be restored."
-            : "Removed lines are put back, added lines taken out, and the\nfile's other changes stay as they are. This cannot be undone.";
+            ? $"These are all the lines of a new file, which is deleted.\n{WayBack}"
+            : $"Removed lines are put back, added lines taken out, and the\nfile's other changes stay as they are.\n{WayBack}";
 
         return Ask("Discard Lines", $"Discard {what}?\n\n{string.Join("\n", listed.Concat(more))}\n\n{after}");
     }
@@ -68,7 +78,7 @@ static class Confirm
             "Discard Changes in Files",
             $"Discard the changes to {Files(paths.Count)}?\n\n"
                 + string.Join("\n", listed.Concat(more))
-                + "\n\nNew files are deleted, the others reset to the last commit.\nThis cannot be undone."
+                + $"\n\nNew files are deleted, the others reset to the last commit.\n{WayBack}"
         );
     }
 
@@ -92,8 +102,9 @@ static class Confirm
                 + "not track is deleted, the files it ignores too: secrets such\n"
                 + "as .env files, local settings, dependencies, build output.\n\n"
                 + deleted
-                + "\n\nNone of it can be brought back, not by Undo, nor by Recover\n"
-                + "Lost Commits, since git never had it."
+                + "\n\nThe changes and the new files can be brought back with Restore\n"
+                + "Discarded Changes, in the Undo menu, but none of the ignored\n"
+                + "files, which git never had."
         );
     }
 
@@ -105,7 +116,8 @@ static class Confirm
 
               {message}
 
-            The changes in it are deleted. This cannot be undone.
+            The changes in it are deleted.
+            {WayBack}
             """
         );
 

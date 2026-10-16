@@ -488,8 +488,8 @@ public class CommitTest
     // Menu.Show starts on the first item that is not — so 'Undo' is three moves away, past 'Commit
     // Diff' and 'Mark for Diff'. In it the cursor starts on 'Undo Commit', the last change of the branch, and 'Discard
     // Changes in a File' is disabled, and so is 'Drop 17d85ba8', since the tag v1.0 is on the commit,
-    // so 'Uncommit Last Commit' is four moves down, past 'Recover Lost Commits ...', 'Restore Deleted
-    // Branch ...' and 'Revert Commit'.
+    // so 'Uncommit Last Commit' is five moves down, past 'Recover Lost Commits ...', 'Restore Deleted
+    // Branch ...', 'Restore Discarded Changes ...' and 'Revert Commit'.
     [TestMethod]
     public async Task TestUncommitTheLastCommit()
     {
@@ -506,7 +506,7 @@ public class CommitTest
         }
         gmd.Send("Right");
         gmd.WaitFor("Uncommit");
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 5; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -595,8 +595,8 @@ public class CommitTest
 
     // Dropping a commit asks first, with No the default, then takes it and its changes out of the
     // branch, and it is Undo's last change, which brings it back. Undo is four moves from where the
-    // menu opens, past this commit's own Amend, 'Commit Diff' and 'Mark for Diff'; Drop is four into it, past 'Recover
-    // Lost Commits ...', 'Restore Deleted Branch ...' and 'Revert Commit'.
+    // menu opens, past this commit's own Amend, 'Commit Diff' and 'Mark for Diff'; Drop is five into it, past 'Recover
+    // Lost Commits ...', 'Restore Deleted Branch ...', 'Restore Discarded Changes ...' and 'Revert Commit'.
     [TestMethod]
     public async Task TestDropACommitAndUndoIt()
     {
@@ -612,7 +612,7 @@ public class CommitTest
             gmd.Send("m");
             gmd.WaitFor($"Amend {sid} ...");
             OpenSubMenu(gmd, 4, "Recover Lost Commits");
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 5; i++)
             {
                 gmd.Send("Down");
                 gmd.WaitForStable();

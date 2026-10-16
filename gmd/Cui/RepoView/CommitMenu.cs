@@ -165,6 +165,8 @@ class CommitMenu : ICommitMenu
             .Item("Recover Lost Commits ...", "", () => commands.UndoCmds.RecoverLostCommits())
             // The branches gmd deleted, whose reflogs git deleted with them
             .Item("Restore Deleted Branch ...", "", () => commands.UndoCmds.RestoreDeletedBranch())
+            // What the discards threw away, and the stashes dropped, which gmd keeps, as git does not
+            .Item("Restore Discarded Changes ...", "", () => commands.UndoCmds.RestoreDiscarded())
             .Separator()
             .SubMenu(
                 "Discard Changes in a File",

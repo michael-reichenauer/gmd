@@ -161,6 +161,10 @@ Key types and flow:
   `Repo.RemoteRewrites`). A deleted branch is the one thing the reflog cannot bring back, since git
   deletes the branch's reflog with it, so gmd records each branch it deletes itself
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
+  Nor can it bring back what a discard throws away, uncommitted changes, which git never had, or a
+  stash dropped: `Server/Private/DiscardedChanges.cs` keeps them, the working tree before and after
+  each discard as commits on `refs/gmd/discarded`, whose reflog keeps them for git's 30 days, which
+  Restore Discarded Changes puts back (`SnapshotService` in the git layer).
 - `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
   data so they can be pushed/pulled and shared.
 - `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,

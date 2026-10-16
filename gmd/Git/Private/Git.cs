@@ -20,6 +20,7 @@ internal class Git : IGit
     readonly IWorktreeService worktreeService;
     readonly IReflogService reflogService;
     readonly IPatchService patchService;
+    readonly ISnapshotService snapshotService;
     readonly ICmd cmd;
 
     public Git(
@@ -38,12 +39,14 @@ internal class Git : IGit
         IWorktreeService worktreeService,
         IReflogService reflogService,
         IPatchService patchService,
+        ISnapshotService snapshotService,
         ICmd cmd
     )
     {
         this.worktreeService = worktreeService;
         this.reflogService = reflogService;
         this.patchService = patchService;
+        this.snapshotService = snapshotService;
         this.logService = logService;
         this.branchService = branchService;
         this.statusService = statusService;
@@ -314,6 +317,27 @@ internal class Git : IGit
     public Task<Result> StashApplyAsync(string name, string wd) => stashService.ApplyAsync(name, wd);
 
     public Task<Result> StashDropAsync(string name, string wd) => stashService.DropAsync(name, wd);
+
+    public Task<Result> StashStoreAsync(string id, string message, string wd) =>
+        stashService.StoreAsync(id, message, wd);
+
+    public Task<Result<string>> WriteWorkingTreeAsync(string wd) => snapshotService.WriteWorkingTreeAsync(wd);
+
+    public Task<Result<string>> WriteCommitAsync(
+        string tree,
+        IReadOnlyList<string> parents,
+        string message,
+        string wd
+    ) => snapshotService.WriteCommitAsync(tree, parents, message, wd);
+
+    public Task<Result> LogRefAsync(string refName, string id, string message, string wd) =>
+        snapshotService.LogRefAsync(refName, id, message, wd);
+
+    public Task<Result<IReadOnlyList<RefLogRecord>>> GetRefLogAsync(string refName, string wd) =>
+        snapshotService.GetRefLogAsync(refName, wd);
+
+    public Task<Result> ApplyDiffAsync(string fromId, string toId, string wd) =>
+        snapshotService.ApplyDiffAsync(fromId, toId, wd);
 
     public Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd) => stashService.ListAsync(wd);
 
