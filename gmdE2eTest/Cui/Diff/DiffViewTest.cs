@@ -276,6 +276,22 @@ public class DiffViewTest
         gmd.WaitForStable();
         gmd.Send("Down");
         StringAssert.Contains(gmd.WaitForStable(), "Files 2", "Esc left the list, and the diff is still open");
+
+        // A click on a line of the diff while the list has the keys gives them back to the diff: down
+        // then goes a line down, not to the next file
+        gmd.Send("{");
+        gmd.WaitForStable();
+        gmd.Send("Tab");
+        var (lineX, lineY) = TmuxSession.PositionOf(gmd.WaitForStable(), "line 18");
+        gmd.Click(lineX, lineY);
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        StringAssert.StartsWith(
+            ScreenText.Of(gmd.WaitForStable(), repo.Path).Split('\n')[1],
+            "▌M long.txt",
+            "Still in long.txt"
+        );
+
         gmd.Send("Escape");
         gmd.WaitUntilGone("Files 2");
     }
@@ -539,6 +555,15 @@ public class DiffViewTest
         var hidden = ScreenText.Of(gmd.Capture(), repo.Path);
         StringAssert.Contains(hidden, "▌ M lines.txt  +3 -2  lines hidden  (3 lines left out) ─");
         Assert.IsFalse(hidden.Contains("ELEVEN"), "Its lines are not drawn");
+
+        // + shows no more of a file whose lines are hidden: it re-read the diff, and the header said the
+        // context it had now, of lines not shown
+        gmd.Send("+");
+        StringAssert.Contains(
+            ScreenText.Of(gmd.WaitForStable(), repo.Path),
+            "▌ M lines.txt  +3 -2  lines hidden  (3 lines left out) ─",
+            "As it was"
+        );
 
         gmd.Send("h");
         Assert.AreEqual("The lines of lines.txt are shown", ScreenText.LastLine(gmd.WaitFor("are shown")));

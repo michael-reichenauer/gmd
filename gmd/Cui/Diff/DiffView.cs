@@ -86,6 +86,11 @@ class DiffView : IDiffView
     int listWidth;
     bool isListFocus;
 
+    // Whether the list is wanted, as l last left it, read from the config as the diff opens. Kept
+    // here and saved, not read from the config, which another gmd can change under it, and which a
+    // save of any setting copies in whole: l flipped what the config said rather than what was shown.
+    bool isListWanted;
+
     bool IsSelected => contentView.SelectCount > 0;
 
     // How wide each of the two columns is, as OnGetContent lays them out
@@ -134,6 +139,7 @@ class DiffView : IDiffView
         this.isOneColumn = IsOneColumnFor(Application.Driver.Cols - 1); // The view's width, but for its scrollbar
         this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
         this.fileList = DiffFileList.Of(diffs, diffRows);
+        this.isListWanted = config.ShowDiffFileList;
         this.listWidth = ListWidth();
         this.isListFocus = false;
         if (IsOneColumnFor(Application.Driver.Cols - listWidth - 1) != isOneColumn)
@@ -299,6 +305,11 @@ class DiffView : IDiffView
 
     private bool OnMouseClick(int x, int y)
     {
+        // A click in the diff gives it the keys back from the list of files, as a click on a side is
+        // where the keys then act
+        if (isListFocus)
+            ToggleListFocus();
+
         if (y < contentView.ContentY)
             return true; // The top row, which is no row of the diff
 
@@ -346,8 +357,20 @@ class DiffView : IDiffView
                 )
                 // Named after the file they act on, since that is the part of these that is not
                 // obvious, and disabled when the cursor is on no file or that file is at an end
-                .Item(ContextItemText("More Context", 1), "+", () => StepContext(1), () => CanStepContext(1))
-                .Item(ContextItemText("Less Context", -1), "-", () => StepContext(-1), () => CanStepContext(-1))
+                .Item(
+                    ContextItemText("More Context", 1),
+                    "+",
+                    () => StepContext(1),
+                    () => CanStepContext(1),
+                    () => WhyNotStepContext(CurrentAnchor(), 1)
+                )
+                .Item(
+                    ContextItemText("Less Context", -1),
+                    "-",
+                    () => StepContext(-1),
+                    () => CanStepContext(-1),
+                    () => WhyNotStepContext(CurrentAnchor(), -1)
+                )
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
                 .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
                 .Item(HiddenItemText(), "h", ToggleHidden, () => CurrentAnchor().FilePath != "", () => NoFile)
@@ -571,7 +594,9 @@ class DiffView : IDiffView
             return;
         }
 
-        config.Set(c => c.ShowDiffFileList = !c.ShowDiffFileList);
+        isListWanted = !isListWanted;
+        var isWanted = isListWanted;
+        config.Set(c => c.ShowDiffFileList = isWanted);
         SetListWidth(ListWidth());
         SetLayout(IsOneColumnFor(Application.Driver.Cols - listWidth - 1));
         FollowCursorInList();
@@ -580,7 +605,7 @@ class DiffView : IDiffView
     }
 
     // How wide the list of files is: as wide as it can be at the terminal's width, unless hidden
-    int ListWidth() => config.ShowDiffFileList ? fileList.WidthFor(Application.Driver.Cols) : 0;
+    int ListWidth() => isListWanted ? fileList.WidthFor(Application.Driver.Cols) : 0;
 
     // Hidden by l, where it would be shown, which the hints then say l shows
     bool IsListHidden => listWidth == 0 && fileList.WidthFor(Application.Driver.Cols) > 0;
@@ -978,7 +1003,10 @@ class DiffView : IDiffView
         var anchor = CurrentAnchor();
         var wanted = WantedContext(anchor, step);
         if (wanted == 0)
+        {
+            status.Notice(WhyNotStepContext(anchor, step));
             return;
+        }
 
         using (progress.Show())
         {
@@ -996,8 +1024,9 @@ class DiffView : IDiffView
 
     // The context the file would then be shown with, or 0 if the step would do nothing: the diff has
     // no context to step, there is no file under the cursor, that file has no lines shown, its changes
-    // being whitespace that is hidden, or it is already at the widest or the narrowest. Also what the
-    // menu asks to know whether to offer the item.
+    // being whitespace that is hidden, its lines hidden with h, or it being in conflict, which is a
+    // row saying so, or it is already at the widest or the narrowest. Also what the menu asks to know
+    // whether to offer the item.
     int WantedContext(DiffAnchor anchor, int step)
     {
         var filePath = anchor.FilePath;
@@ -1005,7 +1034,7 @@ class DiffView : IDiffView
             return 0;
         if (filePath == "")
             return 0; // The cursor is above the first file, so there is nothing to step
-        if (IsWhitespaceOnly(anchor))
+        if (IsWhitespaceOnly(anchor) || hiddenFiles.Contains(filePath) || IsInConflict(filePath))
             return 0;
 
         var current = fileContext.GetValueOrDefault(filePath, DiffContext.Default);
@@ -1015,6 +1044,18 @@ class DiffView : IDiffView
     }
 
     bool CanStepContext(int step) => WantedContext(CurrentAnchor(), step) != 0;
+
+    bool IsInConflict(string path) => conflictState.Files.Any(c => c.Path == path);
+
+    // Why + or - does nothing where the cursor is, in the order WantedContext rules it out
+    string WhyNotStepContext(DiffAnchor anchor, int step) =>
+        !source.HasContext ? "A line's history has no context to show more or less of"
+        : anchor.FilePath == "" ? NoFile
+        : IsWhitespaceOnly(anchor) ? "Its changes are whitespace alone, which is hidden: w shows them"
+        : hiddenFiles.Contains(anchor.FilePath) ? HiddenText(anchor.FilePath)
+        : IsInConflict(anchor.FilePath) ? $"{anchor.FilePath} is in conflict: Enter resolves it"
+        : step > 0 ? "The whole file is shown"
+        : "The least context is shown";
 
     // Whether the file the anchor is in, in the commit it is in, has whitespace changes alone, which
     // it is listed with no lines for while whitespace is hidden
