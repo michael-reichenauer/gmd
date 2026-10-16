@@ -111,6 +111,7 @@ sealed class TempRepo : IDisposable
             new WorktreeService(cmd),
             new ReflogService(cmd),
             new PatchService(cmd),
+            new SnapshotService(cmd),
             cmd
         );
     }

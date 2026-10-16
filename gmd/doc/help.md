@@ -356,7 +356,8 @@ back on origin after **Undo Rebase** took it back here.
 ## Undo and Recovery
 
 The ways back are under **Undo** in the commit menu (`m`). The items that
-throw changes away for good ask first.
+throw changes away ask first, and what they throw away gmd keeps, for
+**Restore Discarded Changes**.
 
 - **Undo** the last change of the current branch, named after it, e.g.
   **Undo Rebase** or **Undo Commit 'Fix'**: the branch goes back to where
@@ -387,12 +388,22 @@ throw changes away for good ask first.
   since restoring origin's is a push, and origin's is left alone if someone
   pushed a branch of the name since. A branch deleted outside gmd is not
   listed: Recover Lost Commits finds its work, if no other branch has it.
+- **Restore Discarded Changes ...**: what the discards below threw away,
+  and the stashes dropped, newest first. Uncommitted changes were never in
+  git's history, so gmd keeps them itself: the files before and after each
+  discard, as commits on a ref of its own, `refs/gmd/discarded`, whose
+  reflog keeps them for about 30 days, as git keeps lost commits. `d`
+  shows what was discarded, and `r` puts it back in the working tree, new
+  files untracked again and nothing staged, or a stash back in the list of
+  stashes. Git refuses, whole, to put back changes whose files have changed
+  since; the diff is still there to copy from. The files git ignores are
+  not kept, being none of the uncommitted changes.
 - **Discard Lines** (`u` in the diff of the uncommitted changes, on a
   change, or with lines selected with `Shift-↑↓`): **This Change**, at the
   top of the menu, takes back the change the cursor is on, and **Selected
   Lines** those lines: removed lines are put back and added lines taken
   out, and the rest of the file's changes stay as they are. It asks first,
-  and cannot be undone. It is refused if the file has changed since the
+  and Restore Discarded Changes brings them back. It is refused if the file has changed since the
   diff was read, rather than taking back other lines (`r` reads it again),
   and is not for a renamed file or one with conflicts, nor while
   whitespace is hidden (`w`), which are discarded whole.
@@ -414,6 +425,7 @@ throw changes away for good ask first.
   has it, to check that nothing left over makes a build or a test pass.
   The files git ignores go too, also those kept on purpose, such as a
   .env file of secrets, so the question lists everything it deletes.
+  Restore Discarded Changes brings back the rest, but not those.
 
 
 ## More Commands
@@ -499,7 +511,8 @@ throw changes away for good ask first.
   **Stash Changes ...** puts the uncommitted changes aside, new files too.
   **Stash Pop** brings a stash back and drops it, **Stash Apply** brings it
   back and keeps it, e.g. for the same changes on another branch as well,
-  and **Stash Diff** and **Stash Drop** show it and throw it away.
+  and **Stash Diff** and **Stash Drop** show it and throw it away, which
+  Restore Discarded Changes, under Undo, takes back.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on

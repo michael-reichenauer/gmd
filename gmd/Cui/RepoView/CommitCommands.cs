@@ -462,6 +462,7 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
+            status.Info(Confirm.Discarded($"the stash '{message}'"));
             return Result.Ok;
         });
 
@@ -642,6 +643,7 @@ class CommitCommands : ICommitCommands
             }
 
             Refresh();
+            status.Info(Confirm.Discarded(path));
             return Result.Ok;
         });
 
@@ -653,6 +655,7 @@ class CommitCommands : ICommitCommands
 
             await UndoUncommittedFilesAsync(paths);
             Refresh();
+            status.Info(Confirm.Discarded($"{paths.Count} file{(paths.Count == 1 ? "" : "s")}"));
             return Result.Ok;
         });
 

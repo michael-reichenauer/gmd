@@ -404,6 +404,25 @@ class FakeGit : IGit
 
     public Task<Result> StashDropAsync(string name, string wd) => throw new NotSupportedException();
 
+    public Task<Result> StashStoreAsync(string id, string message, string wd) => throw new NotSupportedException();
+
+    public Task<Result<string>> WriteWorkingTreeAsync(string wd) => throw new NotSupportedException();
+
+    public Task<Result<string>> WriteCommitAsync(
+        string tree,
+        IReadOnlyList<string> parents,
+        string message,
+        string wd
+    ) => throw new NotSupportedException();
+
+    public Task<Result> LogRefAsync(string refName, string id, string message, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result<IReadOnlyList<RefLogRecord>>> GetRefLogAsync(string refName, string wd) =>
+        throw new NotSupportedException();
+
+    public Task<Result> ApplyDiffAsync(string fromId, string toId, string wd) => throw new NotSupportedException();
+
     public Task<Result<CommitDiff>> GetStashDiffAsync(string name, DiffOptions options, string wd) =>
         throw new NotSupportedException();
 

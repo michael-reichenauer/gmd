@@ -584,7 +584,7 @@ class DiffView : IDiffView
 
         contentView.ClearSelection();
         RefreshDiff();
-        status.Info($"Discarded {lines.Count} line{(lines.Count == 1 ? "" : "s")} of {where}");
+        status.Info(Confirm.Discarded($"{lines.Count} line{(lines.Count == 1 ? "" : "s")} of {where}"));
     }
 
     // All the lines of a new file are the file, which their discard deletes
@@ -610,6 +610,7 @@ class DiffView : IDiffView
         }
 
         RefreshDiff();
+        status.Info(Confirm.Discarded($"{binaryPaths.Count} binary file{(binaryPaths.Count == 1 ? "" : "s")}"));
     }
 
     async void UndoFile(string path, bool isNew)
@@ -622,10 +623,13 @@ class DiffView : IDiffView
             if (await server.UndoUncommittedFileAsync(path, repoPath) is Error e)
             {
                 UI.ErrorMessage($"Failed to undo file\n{e.AllMessages()}");
+                RefreshDiff();
+                return;
             }
         }
 
         RefreshDiff();
+        status.Info(Confirm.Discarded(path));
     }
 
     async void UndoAll()
@@ -638,10 +642,13 @@ class DiffView : IDiffView
             if (await server.UndoAllUncommittedChangesAsync(repoPath) is Error e)
             {
                 UI.ErrorMessage($"Failed to undo all changes\n{e.AllMessages()}");
+                RefreshDiff();
+                return;
             }
         }
 
         RefreshDiff();
+        status.Info(Confirm.Discarded("all changes"));
     }
 
     // Shows the file the cursor is on with more (step 1) or less (step -1) context around its

@@ -185,6 +185,7 @@ class RepoCommands : IRepoCommands
             }
 
             Refresh();
+            status.Info(Confirm.Discarded("all changes"));
             return Result.Ok;
         });
 
@@ -205,6 +206,7 @@ class RepoCommands : IRepoCommands
             }
 
             Refresh();
+            status.Info(Confirm.Discarded("all changes, not the ignored files"));
             return Result.Ok;
         });
 

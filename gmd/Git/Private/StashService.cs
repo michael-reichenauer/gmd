@@ -6,6 +6,7 @@ interface IStashService
     Task<Result> PopAsync(string name, string wd);
     Task<Result> ApplyAsync(string name, string wd);
     Task<Result> DropAsync(string name, string wd);
+    Task<Result> StoreAsync(string id, string message, string wd);
     Task<Result<IReadOnlyList<Stash>>> ListAsync(string wd);
 }
 
@@ -33,6 +34,10 @@ class StashService : IStashService
         await cmd.RunAsync("git", $"stash apply {name}", wd);
 
     public async Task<Result> DropAsync(string name, string wd) => await cmd.RunAsync("git", $"stash drop {name}", wd);
+
+    // A stash commit put in the list of stashes again, at its top, e.g. one dropped
+    public async Task<Result> StoreAsync(string id, string message, string wd) =>
+        await cmd.RunAsync("git", $"stash store -m {Cmd.Quote(message)} {id}", wd);
 
     public async Task<Result<IReadOnlyList<Stash>>> ListAsync(string wd)
     {
