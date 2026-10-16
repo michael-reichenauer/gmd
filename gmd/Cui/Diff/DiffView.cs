@@ -658,9 +658,10 @@ class DiffView : IDiffView
                 : title.ToTextBuilder();
         text.Add(title.Length > 0 ? where : where.ToText().Subtext(3, Math.Max(0, where.Length - 3)));
 
+        // The line in the color of the log's under its application bar and of the key hints' below
         return text.Length + 1 >= width
             ? text
-            : text.Dark(" ").Add(Text.Dark("─").ToText().ToLine(width - text.Length - 1));
+            : text.Dark(" ").Add(Text.BrightMagenta("─").ToText().ToLine(width - text.Length - 1));
     }
 
     // As short as the commit's id and subject are cut, to make room for the file

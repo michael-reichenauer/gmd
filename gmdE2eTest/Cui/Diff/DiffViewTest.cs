@@ -19,7 +19,7 @@ public class DiffViewTest
         gmd.Send("d");
 
         // The diff view is a Toplevel filling the screen, so the application bar is gone, and its own
-        // top row is the commit, with the file and the hunk once the view scrolls down into one
+        // top row is the commit, with the file once the view scrolls down into one
         ScreenText.AssertEqual(
             """
             17d85ba8  Add delta ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -33,6 +33,12 @@ public class DiffViewTest
             """,
             gmd.WaitFor("A delta.txt"),
             repo.Path
+        );
+        // Its line is in the color of the log's under the application bar, and of the key hints' line
+        Assert.AreEqual(
+            "CCCCCCCC  WWW WWWWW mmmmm",
+            ScreenText.ColorRows(gmd.CaptureColors(), 0, 1)[..25],
+            "The id and subject, and the line in bright magenta"
         );
 
         // Escape leaves the diff and the log view is back
@@ -126,8 +132,8 @@ public class DiffViewTest
 
     // ] and [ go to the next and the previous change, } and { to the next and the previous file, each
     // saying which of how many it went to, or that there is none that way. The top row is the commit,
-    // and once a file's header has scrolled out of sight, the file and the hunk the top of the view is
-    // in, as a breadcrumb.
+    // and once a file's header has scrolled out of sight, the file the top of the view is in, as a
+    // breadcrumb.
     [TestMethod]
     public async Task TestGoToTheNextChangeAndFile()
     {
