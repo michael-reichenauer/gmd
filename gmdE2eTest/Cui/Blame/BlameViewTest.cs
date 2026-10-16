@@ -238,7 +238,7 @@ public class BlameViewTest
         var history = gmd.WaitFor("Change a line");
         var reads = gmd.LogCount("-L2,2:alpha.txt");
 
-        StringAssert.Contains(ScreenText.LastLine(history), "s to file", "The diff's own hints");
+        StringAssert.Contains(ScreenText.LastLine(history), "} { file", "The diff's own hints");
         Assert.IsFalse(ScreenText.LastLine(history).Contains("context"), "No '+ -' hint");
 
         gmd.Send("+");
@@ -264,7 +264,7 @@ public class BlameViewTest
         gmd.WaitForStable();
 
         gmd.Send("d");
-        var diff = gmd.WaitFor("s to file");
+        var diff = gmd.WaitFor("} { file");
 
         Assert.IsFalse(ScreenText.LastLine(diff).Contains("commit"), "No 'c commit' hint");
         Assert.IsFalse(ScreenText.LastLine(diff).Contains("discard"), "No 'u discard' hint");
@@ -272,7 +272,7 @@ public class BlameViewTest
         gmd.WaitForStable();
         gmd.Send("u");
         var screen = gmd.WaitForStable();
-        StringAssert.Contains(ScreenText.LastLine(screen), "s to file", "The diff is still open");
+        StringAssert.Contains(ScreenText.LastLine(screen), "} { file", "The diff is still open");
         Assert.IsFalse(screen.Contains("Discard Changes"), "Nothing to discard");
         Assert.AreEqual("alpha\nchanged\n", File.ReadAllText(Path.Join(repo.Path, "alpha.txt")));
     }

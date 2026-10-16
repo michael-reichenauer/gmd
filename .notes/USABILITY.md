@@ -106,7 +106,14 @@ that does not fight the diff's colors, light themes.
   lines of a change by likeness.* `FilePatch` pairs them by position, and that decides where a line
   kept ends up when part of a change is committed or discarded, so pairing them otherwise in the
   view would show one file and commit another; and the git layer cannot use DiffPlex.
-- [ ] 2. Getting around the diff (2). S
+- [x] 2. Getting around the diff (2). S *Done (2026-10-16):* `]` `[` the next and previous change,
+  a run of changed rows or a conflict from its marker, `}` `{` the next and previous file, put at the
+  top of the view, each saying which of how many on the status line (`DiffRows.NextChange`,
+  `NextFile`); `s` is *Go to*, the four moves and then the files. The pinned file is a breadcrumb in
+  a top row of the view: the commit, which is no longer a row of a diff of one commit, and once their
+  headers are out of sight, the file and the hunk's function, the commit's subject cut short first
+  (`ContentView.TopRow`, drawn in the same draw as the rows, so it never lags a scroll by a key).
+  On the way, `Text.ToTextBuilder()` gave a builder of length 0, whatever the text.
 - [ ] 3. The file list and the unified layout (3). M to L
 - [ ] 4. The resolver's sides against the ancestor, its names and line numbers, the whole result
   (4). M

@@ -30,7 +30,7 @@ public class MenuTest
     }
 
     // The key of a sub menu opens it, beside its item, as Enter or → does: 'S' in the diff menu
-    // opens 'Scroll to', leaving the diff menu open behind it. 'Scroll to' is the first item, which
+    // opens 'Go to', leaving the diff menu open behind it. 'Go to' is the first item, which
     // is the case that used to be swallowed: the menu took index 0 for the sub menu just closed.
     // Closing it with Escape then leaves Enter to open it again, which was swallowed the same way.
     [TestMethod]
@@ -46,13 +46,13 @@ public class MenuTest
 
         gmd.Send("s");
 
-        var screen = gmd.WaitFor("╭ Scroll to");
+        var screen = gmd.WaitFor("╭ Go to");
         StringAssert.Contains(screen, "Diff Menu", "The diff menu stays open behind its sub menu");
 
         gmd.Send("Escape");
-        StringAssert.Contains(gmd.WaitUntilGone("╭ Scroll to"), "Diff Menu", "Escape closes the sub menu only");
+        StringAssert.Contains(gmd.WaitUntilGone("╭ Go to"), "Diff Menu", "Escape closes the sub menu only");
         gmd.Send("Enter");
-        gmd.WaitFor("╭ Scroll to");
+        gmd.WaitFor("╭ Go to");
     }
 
     // A greyed out item picked anyway, here by its key, says why on the status line at the bottom,

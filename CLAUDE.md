@@ -213,7 +213,9 @@ Key types and flow:
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
-  drawing through a `GetContentCallback`, so a large repo is never materialized as text. Where it is
+  drawing through a `GetContentCallback`, so a large repo is never materialized as text. `TopRow`
+  draws a row above them from the first one shown, in the same draw (the diff's breadcrumb): a view
+  of its own beside it would be redrawn only on the next key. Where it is
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
   no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,

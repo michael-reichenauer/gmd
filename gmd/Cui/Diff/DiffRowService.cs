@@ -101,11 +101,11 @@ class DiffRowService : IDiffRowService
         commitDiffs = commitDiffs.Select(d => AsConflicted(d, conflictPaths)).ToArray();
         DiffRows rows = new DiffRows();
 
-        // A file history is one file over many commits, headed with the list of them
+        // A file history is one file over many commits, headed with the list of them, which the view's
+        // top row counts
         var isHistory = commitDiffs.Length > 1;
         if (isHistory)
         {
-            rows.Add(Text.White($"{commitDiffs.Length} commits"));
             commitDiffs.ForEach(diff =>
                 rows.Add(
                     Text.Cyan($"  {diff.Id.Sid()}")
@@ -215,24 +215,20 @@ class DiffRowService : IDiffRowService
         commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext, isIgnoreWhitespace));
     }
 
-    // The commit in two rows, its id and subject, and who made it when, each field left out that the
-    // diff has none of, e.g. the id of the uncommitted changes. A rule goes above each commit of a
-    // file history, which is what tells one commit from the next.
+    // The commit: its id and subject, and who made it when, each field left out that the diff has none
+    // of, e.g. the id of the uncommitted changes. The id and subject are the view's top row, where they
+    // stay in sight as the diff is scrolled (TitleOf), so they are a row only in a file history, of
+    // many commits, where a rule goes above each, which is what tells one commit from the next.
     static void AddCommitSummery(CommitDiff commitDiff, DiffRows rows, bool isHistory)
     {
+        var title = TitleOf(commitDiff);
         if (isHistory)
         {
             rows.Add(Text.Empty);
             rows.AddLine(Text.Yellow("═"));
+            if (title.Length > 0)
+                rows.Add(title, "", commitDiff.Id);
         }
-
-        var title = new TextBuilder();
-        if (commitDiff.Id != "")
-            title.Cyan(commitDiff.Id.Sid());
-        if (commitDiff.Message != "")
-            title.Dark(title.Length > 0 ? "  " : "").White(commitDiff.Message);
-        if (title.Length > 0)
-            rows.Add(title, "", commitDiff.Id);
 
         List<string> by = [];
         if (commitDiff.Author != "")
@@ -242,8 +238,19 @@ class DiffRowService : IDiffRowService
         if (by.Count > 0)
             rows.Add(Text.Dark(string.Join("  ", by)));
 
-        if (title.Length > 0 || by.Count > 0)
+        if ((isHistory && title.Length > 0) || by.Count > 0)
             rows.Add(Text.Empty);
+    }
+
+    // A commit's id and subject, e.g. 'f44b73c6  VAT rate from config', or only one of them
+    public static Text TitleOf(CommitDiff commitDiff)
+    {
+        var title = new TextBuilder();
+        if (commitDiff.Id != "")
+            title.Cyan(commitDiff.Id.Sid());
+        if (commitDiff.Message != "")
+            title.Dark(title.Length > 0 ? "  " : "").White(commitDiff.Message);
+        return title;
     }
 
     // The files of the commit, below a row counting them, each as the commit details list it: its
@@ -393,8 +400,7 @@ class DiffRowService : IDiffRowService
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
                     AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
-                    var txt = Text.BrightMagenta("=== Start of conflict");
-                    rows.Add(txt, txt);
+                    rows.AddConflictStart(Text.BrightMagenta("=== Start of conflict"));
                     break;
 
                 // The common ancestor of a 'diff3' or 'zdiff3' conflict. It belongs to neither

@@ -200,7 +200,6 @@ public class DiffRowServiceTest
         );
         Assert.AreEqual(
             """
-            abc123  A commit
             Test  2025-01-01 00:00:00
 
             2 files changed  2 modified  +1 -1  whitespace hidden
@@ -243,7 +242,6 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            abc123  A commit|
             Test  2025-01-01 00:00:00|
             1 file changed  1 modified  +2 -1|
               M a.txt  +2 -1|
@@ -452,7 +450,8 @@ public class DiffRowServiceTest
     // into a picture, so an expected value can be reviewed by looking at it. NoLine, the side with no
     // line, is blank, and the rule after a file's header is one '─'.
 
-    // The commit summary the diff heads itself with
+    // The commit summary the diff heads itself with: who made it when, the id and the subject being
+    // the view's top row, where they stay in sight
 
     [TestMethod]
     public void TestADiffIsDrawnAsSummeryFileListAndThenTheFileItself()
@@ -461,7 +460,6 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            abc123  A commit
             Test  2025-01-01 00:00:00
 
             1 file changed  1 modified
@@ -487,15 +485,32 @@ public class DiffRowServiceTest
         Assert.AreEqual("", SummeryOf(rows));
     }
 
-    // The row carries the id so the view can open the commit from the diff
+    // In a file history each commit's title row carries its id, which is how the view finds where a
+    // commit starts; a diff of one commit has no such row, its title being the view's top row
     [TestMethod]
-    public void TestOnlyTheCommitRowCarriesTheCommitId()
+    public void TestOnlyTheCommitRowsOfAHistoryCarryTheCommitIds()
     {
-        var rows = RowsOf(FileOf("a.txt", lines: [(DiffMode.DiffSame, "one")]));
+        var file = FileOf("a.txt", lines: [(DiffMode.DiffSame, "one")]);
+        var history = new DiffRowService().ToDiffRows([
+            new CommitDiff("c2", "Test", new DateTime(2025, 1, 2), "Second", [file]),
+            new CommitDiff("c1", "Test", new DateTime(2025, 1, 1), "First", [file]),
+        ]);
 
         CollectionAssert.AreEqual(
-            new[] { "abc123" },
-            rows.Rows.Where(r => r.CommitId != "").Select(r => r.CommitId).ToArray()
+            new[] { "c2", "c1" },
+            history.Rows.Where(r => r.CommitId != "").Select(r => r.CommitId).ToArray()
+        );
+        Assert.IsFalse(RowsOf(file).Rows.Any(r => r.CommitId != ""));
+    }
+
+    // The title of the top row: the id and the subject, or what there is of them
+    [TestMethod]
+    public void TestTheTitleIsTheIdAndTheSubject()
+    {
+        Assert.AreEqual("abc123  A commit", DiffRowService.TitleOf(CommitDiffOf()).ToString());
+        Assert.AreEqual(
+            "Uncommitted changes",
+            DiffRowService.TitleOf(new CommitDiff("", "", DateTime.MinValue, "Uncommitted changes", [])).ToString()
         );
     }
 
@@ -987,7 +1002,8 @@ public class DiffRowServiceTest
         Assert.AreEqual("▌ A a.txt  +1", HeaderRowsOf(rows).Single());
     }
 
-    // Full file history is one file over many commits, so the diff is headed with the list of them
+    // Full file history is one file over many commits, so the diff is headed with the list of them,
+    // which the view's top row counts
     [TestMethod]
     public void TestAMultiCommitDiffIsHeadedWithACommitList()
     {
@@ -996,7 +1012,7 @@ public class DiffRowServiceTest
             CommitDiffOf(FileOf("a.txt", lines: [(DiffMode.DiffSame, "two")])),
         ]);
 
-        Assert.AreEqual("2 commits", DiffText.Of(rows).Split('\n')[0]);
+        StringAssert.StartsWith(DiffText.Of(rows).Split('\n')[0], "  abc123  A commit");
         Assert.AreEqual(
             2,
             DiffText.Of(rows).Split('\n').Count(l => l.StartsWith("abc123  A commit")),

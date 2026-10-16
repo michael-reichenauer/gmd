@@ -80,10 +80,17 @@ class ContentView : View
     public bool IsShowCursor { get; set; } = true;
     public bool IsScrollMode { get; set; } = false;
     public bool IsTopBorder { get; set; } = false;
+
+    // A row drawn above the rows in place of the top border, from the index of the first row shown
+    // and the width, e.g. the diff's file and hunk the top of the view is in. Drawn in the same draw
+    // as the rows, so it follows a scroll at once, which a view of its own would only on the next key.
+    public Func<int, int, Text>? TopRow { get; set; }
+
     public bool IsHideCursor { get; set; } = false;
-    public int ContentY => IsTopBorder ? topBorderHeight : 0;
+    public int ContentY => HasTopRow ? topBorderHeight : 0;
     public int ContentWidth => Frame.Width - verticalScrollbarWidth;
-    public int ContentHeight => IsTopBorder ? ViewHeight - topBorderHeight : ViewHeight;
+    public int ContentHeight => HasTopRow ? ViewHeight - topBorderHeight : ViewHeight;
+    bool HasTopRow => IsTopBorder || TopRow != null;
     public Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
     public int SelectStartIndex => selection.StartIndex;
     public int SelectCount => selection.Count;
@@ -388,7 +395,7 @@ class ContentView : View
     }
 
     // The row index of a view row, below the top border if there is one
-    int IndexAtY(int y) => y + FirstIndex + (IsTopBorder ? -1 : 0);
+    int IndexAtY(int y) => y + FirstIndex - ContentY;
 
     void MouseDrag(MouseEvent ev)
     {
@@ -407,6 +414,11 @@ class ContentView : View
 
     void DrawTopBorder()
     {
+        if (TopRow != null)
+        {
+            TopRow(FirstIndex, ViewWidth).Subtext(0, ViewWidth, isFillRest: true).Draw(this, 0, 0);
+            return;
+        }
         if (!IsTopBorder)
         {
             return;
@@ -464,7 +476,7 @@ class ContentView : View
     {
         int currentViewY = CurrentIndex - FirstIndex;
 
-        Move(viewY - currentViewY);
+        Move(viewY - ContentY - currentViewY);
     }
 
     // Puts the cursor on a row and scrolls it into view. The scroll comes first: scrolling moves the

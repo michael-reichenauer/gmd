@@ -130,6 +130,7 @@ class DiffView : IDiffView
             IsShowCursor = false,
             IsScrollMode = false,
             IsCustomShowSelection = true,
+            TopRow = TopRowText,
         };
 
         diffView.Add(contentView);
@@ -188,6 +189,13 @@ class DiffView : IDiffView
         view.RegisterLetterHandler(Key.w, ToggleWhitespace);
         view.RegisterLetterHandler(Key.x, ToggleLeftOut);
 
+        // The next and previous change, as the resolver's ] and [ go to a conflict, and file. Terminal.Gui
+        // 1.x has no Key value for these, so use the ascii code, as for '+' and '-' below.
+        view.RegisterKeyHandler((Key)93, () => GoToChange(1)); // ']'
+        view.RegisterKeyHandler((Key)91, () => GoToChange(-1)); // '['
+        view.RegisterKeyHandler((Key)125, () => GoToFile(1)); // '}'
+        view.RegisterKeyHandler((Key)123, () => GoToFile(-1)); // '{'
+
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
         // was bound to it in this view before.
         view.RegisterKeyHandler(Key.Enter, ResolveCurrentConflict);
@@ -205,6 +213,9 @@ class DiffView : IDiffView
 
     private bool OnMouseClick(int x, int y)
     {
+        if (y < contentView.ContentY)
+            return true; // The top row, which is no row of the diff
+
         // Switch focus sides if clicking on other side
         int columnWidth = (contentView.ContentWidth - 2) / 2;
         if (x > columnWidth && isFocusLeft)
@@ -229,7 +240,7 @@ class DiffView : IDiffView
             "Diff Menu",
             x,
             y,
-            Menu.Items.SubMenu("Scroll to", "s", scrollToItems)
+            Menu.Items.SubMenu("Go to", "s", scrollToItems)
                 .Item("Search ...", "f", () => Search())
                 .Item("Next Match", "n", () => StepMatch(1), () => search.IsActive, () => NoSearch)
                 .Item("Previous Match", "⇧n", () => StepMatch(-1), () => search.IsActive, () => NoSearch)
@@ -334,7 +345,7 @@ class DiffView : IDiffView
         if (!scrollToItems.Any())
             return;
 
-        Menu.Show("Scroll to", 1, 2, scrollToItems);
+        Menu.Show("Go to", 1, 2, scrollToItems);
     }
 
     void ShowUndoMenu()
@@ -355,18 +366,127 @@ class DiffView : IDiffView
         Application.RequestStop();
     }
 
+    // The next and previous change and file, and then each commit of a file history, or each file
     IEnumerable<Common.MenuItem> GetScrollToItems()
     {
+        var moves = Menu
+            .Items.Item("Next Change", "]", () => GoToChange(1), () => CanGo(1, true), () => NoMore(1, true))
+            .Item("Previous Change", "[", () => GoToChange(-1), () => CanGo(-1, true), () => NoMore(-1, true))
+            .Item("Next File", "}", () => GoToFile(1), () => CanGo(1, false), () => NoMore(1, false))
+            .Item("Previous File", "{", () => GoToFile(-1), () => CanGo(-1, false), () => NoMore(-1, false))
+            .Separator();
+
         if (diffs.Length > 1)
         {
-            return diffs.Select(cd => Menu.Item($"{cd.Time.IsoDate()} {cd.Message}", "", () => ScrollToCommit(cd.Id)));
+            return moves.Items(
+                diffs.Select(cd => Menu.Item($"{cd.Time.IsoDate()} {cd.Message}", "", () => ScrollToCommit(cd.Id)))
+            );
         }
 
         var paths = diffRowService.GetDiffFilePaths(diffs[0]);
-        if (!paths.Any())
-            return Menu.Items;
+        return moves.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+    }
 
-        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+    // Goes to where the next or the previous change starts, ] and [, a few rows below the top of the
+    // view when it is not in sight, and says which of how many it is
+    void GoToChange(int step)
+    {
+        var index = diffRows.NextChange(contentView.CurrentIndex, step);
+        if (index == -1)
+        {
+            status.Notice(NoMore(step, true));
+            return;
+        }
+
+        contentView.ClearSelection();
+        contentView.ShowCurrentIndex(index);
+        var (number, count) = diffRows.ChangeNumber(index);
+        status.Info($"Change {number} of {count}");
+    }
+
+    // Goes to the header of the next or the previous file, } and {, at the top of the view
+    void GoToFile(int step)
+    {
+        var index = diffRows.NextFile(contentView.CurrentIndex, step);
+        if (index == -1)
+        {
+            status.Notice(NoMore(step, false));
+            return;
+        }
+
+        contentView.ClearSelection();
+        ShowAtTop(index);
+        var (number, count) = diffRows.FileNumber(index);
+        status.Info($"File {number} of {count}: {diffRows.Rows[index].FilePath}");
+    }
+
+    bool CanGo(int step, bool isChange) =>
+        (
+            isChange
+                ? diffRows.NextChange(contentView.CurrentIndex, step)
+                : diffRows.NextFile(contentView.CurrentIndex, step)
+        ) != -1;
+
+    // Why there is nowhere to go, and the key that goes the other way
+    static string NoMore(int step, bool isChange) =>
+        (isChange, step > 0) switch
+        {
+            (true, true) => "No more changes below: [ goes up",
+            (true, false) => "No more changes above: ] goes down",
+            (false, true) => "No more files below: { goes up",
+            (false, false) => "No more files above: } goes down",
+        };
+
+    // The top row: the commit the diff is of, and once their headers have scrolled out of sight, the
+    // file and the hunk the top of the view is in, so that a line deep in a long diff still says
+    // where it is, e.g. 'f44b73c6  VAT rate from config › M Pricing.cs › public decimal Total()'
+    Text TopRowText(int firstRow, int width)
+    {
+        var where = new TextBuilder();
+        var (file, hunk) = diffRows.HeadersOf(firstRow);
+        if (file != -1 && file < firstRow)
+        { // The file's header without its bar, e.g. 'M Pricing.cs  +5 -5'
+            var header = diffRows.Rows[file].Left;
+            where.Dark(" › ").Add(header.Subtext(2, Math.Max(0, header.Length - 2)));
+        }
+        if (hunk != -1 && hunk < firstRow)
+        { // The hunk's header without its '@@', e.g. 'public decimal Total()'
+            var header = diffRows.Rows[hunk].Left;
+            where.Dark(" › ").Add(header.Subtext(HunkHeaderWidth, Math.Max(0, header.Length - HunkHeaderWidth)));
+        }
+
+        // The commit's subject is cut short first, since where in the commit the view is, is what
+        // changes as it scrolls
+        var title = TitleAt(firstRow);
+        var titleWidth = Math.Max(Math.Min(title.Length, MinTitleWidth), width - where.Length - 2);
+        var text =
+            title.Length > titleWidth
+                ? title.Subtext(0, titleWidth - 1).ToTextBuilder().Dark("…")
+                : title.ToTextBuilder();
+        text.Add(title.Length > 0 ? where : where.ToText().Subtext(3, Math.Max(0, where.Length - 3)));
+
+        return text.Length + 1 >= width
+            ? text
+            : text.Dark(" ").Add(Text.Dark("─").ToText().ToLine(width - text.Length - 1));
+    }
+
+    // As short as the commit's id and subject are cut, to make room for the file and the hunk
+    const int MinTitleWidth = 20;
+
+    // How wide the '   @@ ' a hunk's header starts with is
+    const int HunkHeaderWidth = 6;
+
+    // The commit at the top of the view: the diff's own, or in a file history the one the top of the
+    // view is in, and above them all how many there are
+    Text TitleAt(int firstRow)
+    {
+        if (diffs.Length == 1)
+            return DiffRowService.TitleOf(diffs[0]);
+
+        var id = diffRows.AnchorAt(firstRow).CommitId;
+        return id != "" && diffs.FirstOrDefault(d => d.Id == id) is CommitDiff diff
+            ? DiffRowService.TitleOf(diff)
+            : Text.White($"{diffs.Length} commits");
     }
 
     IEnumerable<Common.MenuItem> GetDiffItems()
@@ -460,7 +580,13 @@ class DiffView : IDiffView
     {
         if (index == -1)
             return;
-        contentView.ScrollToShowIndex(Math.Max(0, index - 1));
+        ShowAtTop(index);
+    }
+
+    // Puts the cursor on a row at the top of the view, as far as the rows after it fill the view
+    void ShowAtTop(int index)
+    {
+        contentView.Scroll(index - contentView.FirstIndex);
         contentView.SetCurrentIndex(index);
     }
 

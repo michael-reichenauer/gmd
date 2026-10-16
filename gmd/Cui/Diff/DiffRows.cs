@@ -51,11 +51,65 @@ class DiffRows
         rows[^1] = rows[^1] with { Fill = Text.Dark("─") };
     }
 
-    // A hunk's header, what the next and previous change go by
+    // A hunk's header, '@@' and the function git found it in
     internal void AddHunkHeader(Text header)
     {
         Add(header);
         rows[^1] = rows[^1] with { IsHunkHeader = true };
+    }
+
+    // The marker a conflict starts with, on both sides, which a conflict is gone to by
+    internal void AddConflictStart(Text marker)
+    {
+        Add(marker, marker);
+        rows[^1] = rows[^1] with { IsConflictStart = true };
+    }
+
+    // The row the next or previous change starts at, from a row, or -1 when there is none that way.
+    // A change is a run of changed rows, or a conflict, from its first marker. From inside a change,
+    // the previous one is its own start, as an editor's previous change is.
+    internal int NextChange(int fromRow, int step) => Next(fromRow, step, IsChangeStart);
+
+    // The header of the next or previous file, from a row, or -1 when there is none that way
+    internal int NextFile(int fromRow, int step) => Next(fromRow, step, i => rows[i].FilePath != "");
+
+    // Which change a row starts, and how many there are, e.g. (3, 9)
+    internal (int Number, int Count) ChangeNumber(int index) => Number(index, IsChangeStart);
+
+    // Which file a row is the header of, and how many there are
+    internal (int Number, int Count) FileNumber(int index) => Number(index, i => rows[i].FilePath != "");
+
+    // The header of the file a row is in, and of the hunk, -1 for none: above the first file, and
+    // between a file's header and its first hunk's
+    internal (int File, int Hunk) HeadersOf(int index)
+    {
+        var (file, hunk) = (-1, -1);
+        for (var i = Math.Min(index, rows.Count - 1); i >= 0 && file == -1; i--)
+        {
+            if (rows[i].FilePath != "")
+                file = i;
+            else if (rows[i].IsHunkHeader && hunk == -1)
+                hunk = i;
+        }
+        return (file, hunk);
+    }
+
+    bool IsChangeStart(int i) => rows[i].IsConflictStart || (rows[i].IsChange && (i == 0 || !rows[i - 1].IsChange));
+
+    int Next(int fromRow, int step, Func<int, bool> isWanted)
+    {
+        for (var i = fromRow + step; i >= 0 && i < rows.Count; i += step)
+        {
+            if (isWanted(i))
+                return i;
+        }
+        return -1;
+    }
+
+    (int Number, int Count) Number(int index, Func<int, bool> isWanted)
+    {
+        var starts = Enumerable.Range(0, rows.Count).Where(isWanted).ToList();
+        return (starts.IndexOf(index) + 1, starts.Count);
     }
 
     void Add(
@@ -179,6 +233,9 @@ record DiffRow(
 
     // Whether the row is a hunk's header, '@@' and where it is
     public bool IsHunkHeader { get; init; }
+
+    // Whether the row is the marker a conflict starts with
+    public bool IsConflictStart { get; init; }
 }
 
 // Where the cursor is, as content rather than a row index, so it survives the rows being rebuilt

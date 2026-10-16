@@ -27,9 +27,10 @@ static class DiffHints
             hints.Add(new("c", "commit"));
         if (leaveOut != "")
             hints.Add(new("x", leaveOut));
+        hints.Add(new("] [", "change"));
         if (hasContext)
             hints.Add(new("+ -", "context"));
-        hints.Add(new("s", "to file"));
+        hints.Add(new("} {", "file"));
         if (hasSearch)
             hints.Add(new("n", "next match"));
         hints.Add(new("f", "search"));

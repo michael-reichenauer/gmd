@@ -139,21 +139,23 @@ Symbols that may be missing from a font, shown as a box or a `?` when they are:
 3. `⌂`: the log, beside a branch checked out in another worktree (`git worktree add ../wt -b wt`,
    then show `wt` with `Shift-→`).
 4. `·`: the top bar while a merge or rebase is stopped on a conflict (`Merging 'dev' · 1 conflict`).
+5. `▌`: the diff (`d`), the bar beside every changed line and before each file's name.
+6. `›`: the diff's top row, once it is scrolled down into a file (`f44b73c6  Subject › M a.txt`).
 
 Keys and features that depend on the terminal or the system:
 
-5. The commit dialog (`c`): `Tab` into the file list, `Space` unticks a file, `a` all, and `Alt-O`
+7. The commit dialog (`c`): `Tab` into the file list, `Space` unticks a file, `a` all, and `Alt-O`
    commits. On macOS, Alt keys need *Use Option as Meta key* (Terminal) or *Esc+* for the Option key
    (iTerm2); without it `Alt-O` types `ø`.
-6. `Shift-→` opens Show Branch, and `Shift-↑` / `Shift-↓` select rows in the log. macOS Terminal
+8. `Shift-→` opens Show Branch, and `Shift-↑` / `Shift-↓` select rows in the log. macOS Terminal
    sends the last two as plain arrows until its profile maps them to `\033[1;2A` / `\033[1;2B` (the
    *Keys* section of the help says how); `cat -v` shows what a key sends.
-7. `i` copies the commit id and `Shift-I` its message: paste them somewhere else.
-8. In a repository on GitHub, the commit menu's Open Commit in Browser opens it in the browser.
-9. With an ssh key that has a passphrase and is not in the ssh agent, a push or `r` asks for the
+9. `i` copies the commit id and `Shift-I` its message: paste them somewhere else.
+10. In a repository on GitHub, the commit menu's Open Commit in Browser opens it in the browser.
+11. With an ssh key that has a passphrase and is not in the ssh agent, a push or `r` asks for the
    passphrase in a dialog (the Windows side is untried: gmd.exe as ssh's askpass, and a named pipe).
-10. `?` opens the help in the browser, and in the diff view at *Diff and Blame*; over ssh it copies the link.
-11. A terminal of 80 by 24: the log, the commit dialog and the menus are whole on the screen.
+12. `?` opens the help in the browser, and in the diff view at *Diff and Blame*; over ssh it copies the link.
+13. A terminal of 80 by 24: the log, the commit dialog and the menus are whole on the screen.
 
 What this list does not cover waits for reports.
 
@@ -169,10 +171,10 @@ Homebrew rather than by itself (`gmd/Installation/PackageManager.cs`).
 
 To set up the key, or to replace it:
 
-1. Make a key pair with no passphrase: `ssh-keygen -t ed25519 -N "" -C "gmd release workflow" -f tap_key`.
-2. In the tap, *Settings → Deploy keys → Add deploy key*: paste `tap_key.pub` and tick *Allow
+14. Make a key pair with no passphrase: `ssh-keygen -t ed25519 -N "" -C "gmd release workflow" -f tap_key`.
+15. In the tap, *Settings → Deploy keys → Add deploy key*: paste `tap_key.pub` and tick *Allow
    write access*.
-3. In this repository, *Settings → Secrets and variables → Actions → New repository secret*: name
+16. In this repository, *Settings → Secrets and variables → Actions → New repository secret*: name
    it `HOMEBREW_TAP_KEY` and paste the whole of `tap_key`. Then delete both files.
 
 Without the secret, the step warns and the release goes on. To put a release in the tap by hand,

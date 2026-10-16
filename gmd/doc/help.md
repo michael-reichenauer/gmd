@@ -562,7 +562,16 @@ branch. Any two commits, wherever they are, are diffed with **Mark for
 Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
 other: the changes from the older of the two to the newer.
 
-Within the diff: `r` re-reads it from git, `s` scrolls to a file, `u`
+`]` and `[` go to the next and the previous change, a run of changed lines
+or a conflict, and `}` and `{` to the next and the previous file, and the
+line at the bottom says which it went to, e.g. `Change 3 of 9`. The top row
+names the commit, and once the header of the file the view is scrolled into
+is out of sight, that file and the function or heading of the part of it at
+the top, e.g. `f44b73c6  VAT rate › M Pricing.cs  +5 -5 › public decimal
+Total(Order order)`. `s` opens **Go to**, the same moves and every file, or
+in a file history every commit.
+
+Within the diff: `r` re-reads it from git, `u`
 discards uncommitted changes (the change the cursor is on, the lines
 selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `x` leaves the change the
 cursor is on, or the lines selected, out of the next commit, or puts them

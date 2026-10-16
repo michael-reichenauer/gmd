@@ -18,10 +18,11 @@ public class DiffViewTest
 
         gmd.Send("d");
 
-        // The diff view is a Toplevel filling the screen, so the application bar is gone
+        // The diff view is a Toplevel filling the screen, so the application bar is gone, and its own
+        // top row is the commit, with the file and the hunk once the view scrolls down into one
         ScreenText.AssertEqual(
             """
-            17d85ba8  Add delta
+            17d85ba8  Add delta ───────────────────────────────────────────────────────────────────────────────────────────────────
             Test User <test@example.com>  2024-10-15 12:06:00
 
             1 file changed  1 added  +1
@@ -123,6 +124,51 @@ public class DiffViewTest
         }
     }
 
+    // ] and [ go to the next and the previous change, } and { to the next and the previous file, each
+    // saying which of how many it went to, or that there is none that way. The top row is the commit,
+    // and once a file's header has scrolled out of sight, the file and the hunk the top of the view is
+    // in, as a breadcrumb.
+    [TestMethod]
+    public async Task TestGoToTheNextChangeAndFile()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        gmd.WaitFor("M long.txt");
+        StringAssert.StartsWith(ScreenText.Of(gmd.Capture(), repo.Path), "c00a3cc9  Change both files ───");
+
+        gmd.Send("}");
+        Assert.AreEqual("File 1 of 2: long.txt", ScreenText.LastLine(gmd.WaitFor("File 1 of 2")));
+
+        // The whole of long.txt, so that its header can scroll out of sight
+        gmd.Send("+");
+        gmd.WaitFor("(context 15)");
+        gmd.Send("+");
+        gmd.WaitFor("(whole file)");
+        gmd.Send("]");
+        Assert.AreEqual("Change 1 of 2", ScreenText.LastLine(gmd.WaitFor("Change 1 of 2")));
+        gmd.Send("PageDown");
+        StringAssert.StartsWith(
+            ScreenText.Of(gmd.WaitFor("› line 1"), repo.Path),
+            "c00a3cc9  Change both files › M long.txt  +1 -1  (whole file) › line 1 ───"
+        );
+
+        // The page down took the cursor to the last row, below the last file's header and change
+        gmd.Send("}");
+        Assert.AreEqual("No more files below: { goes up", ScreenText.LastLine(gmd.WaitFor("No more files")));
+        gmd.Send("{");
+        Assert.AreEqual("File 2 of 2: short.txt", ScreenText.LastLine(gmd.WaitFor("File 2 of 2")));
+        gmd.Send("]");
+        Assert.AreEqual("Change 2 of 2", ScreenText.LastLine(gmd.WaitFor("Change 2 of 2")));
+        gmd.Send("]");
+        Assert.AreEqual("No more changes below: [ goes up", ScreenText.LastLine(gmd.WaitFor("No more changes")));
+        gmd.Send("[");
+        Assert.AreEqual("Change 1 of 2", ScreenText.LastLine(gmd.WaitFor("Change 1 of 2")));
+        gmd.Send("{");
+        Assert.AreEqual("File 1 of 2: long.txt", ScreenText.LastLine(gmd.WaitFor("File 1 of 2")));
+    }
+
     // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the
     // cursor down, with the text marked black on yellow on the cursor's row too; n and Shift-N go on
     // from there and say where they stop, as the log's do. What it found is said over the bottom row,
@@ -189,8 +235,8 @@ public class DiffViewTest
         gmd.Send("m");
         ScreenText.AssertEqual(
             """
-            c00a3cc9  Change both files           ╭ Diff Menu ────────────────────────────────╮
-            Test User <test@example.com>  2024-10-│Scroll to                               s >│
+            c00a3cc9  Change both files ──────────╭ Diff Menu ────────────────────────────────╮────────────────────────────────────
+            Test User <test@example.com>  2024-10-│Go to                                   s >│
                                                   │Search ...                              f  │
             2 files changed  2 modified  +2 -2    │Next Match                              n  │
               M long.txt   +1 -1                  │Previous Match                         ⇧n  │
@@ -219,7 +265,7 @@ public class DiffViewTest
         StringAssert.Contains(colors[0], "mWWWW WWWWWWW", "'More Context' and its shortcut are enabled");
         StringAssert.Contains(colors[1], "mDDDD DDDDDDD", "'Less Context' is dark, i.e. disabled");
 
-        // Three moves down from 'Scroll to', past 'Search ...' and 'Refresh', since the disabled
+        // Three moves down from 'Go to', past 'Search ...' and 'Refresh', since the disabled
         // items in between are skipped, 'Leave Out of Commit' too, which only the uncommitted diff has
         for (int i = 0; i < 3; i++)
         {

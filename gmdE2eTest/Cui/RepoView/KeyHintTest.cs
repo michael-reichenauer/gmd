@@ -201,7 +201,7 @@ public class KeyHintTest
         gmd.Send("d");
 
         Assert.AreEqual(
-            "m menu  Esc close  + - context  s to file  f search  w hide whitespace  ←→ columns | ? help",
+            "m menu  Esc close  ] [ change  + - context  } { file  f search  w hide whitespace  ←→ columns | ? help",
             Hints(gmd.WaitFor("Esc close"))
         );
     }
