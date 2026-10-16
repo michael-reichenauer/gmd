@@ -1,9 +1,11 @@
 # Usability review
 
-Two reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
-its author's own use, so both look at it as someone new would.
+Three reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
+its author's own use, so they look at it as someone new would.
 
-- **The product review (2026-10-07)**, first below, steps back from the keys: whether choosing which
+- **The diff and resolver review (2026-10-16)**, first below, looks at the two views most of the
+  work is read in, how they look and how they are used, and at the way through a conflict.
+- **The product review (2026-10-07)** steps back from the keys: whether choosing which
   branches are shown is a sound idea, who besides its author can use gmd, which features are missing
   or not needed, and whether the README and the help explain it.
 - **The usability review (2026-09-24)**, from *What already works well* on, covers every key binding,
@@ -23,6 +25,143 @@ ask of any new feature:
 File references are as of each review. Close items here, or move them to `MODERNIZATION.md`, as
 they land. The usability review's safety findings (section 1, and Tier 1 of its proposals) are
 fixed, and most of Tiers 2 to 4; the product review's proposals are open.
+
+---
+
+## Diff and resolver review (2026-10-16)
+
+Made from the screens as the built binary draws them, captured in tmux on a throwaway repository
+with a merge conflict, and from mockups of the proposals in the same 16 colors, rendered with agg as
+`scripts/demo` renders the animation. Both views work; what holds them back is how they read.
+
+### The diff
+
+- Loud: a whole added or removed line is drawn on bright green or red, and the side with no line as
+  a block of `░`.
+- The highlight inside a line is per character, so a changed word shows in fragments (`const` to
+  `readonly` marks scattered letters, `VatRate` to `vatRate` the `V` alone). The lines of a change
+  are paired by position, so unrelated lines are compared (`if (customer.IsMember)` with
+  `return customer.IsMember ? …`).
+- Chrome: a file takes five rows of rules and blanks, a hunk three and the commit seven, and nothing
+  says which function a hunk is in, which git's `@@` line has.
+- No key goes to the next change or file: scroll, or `s`.
+- Side by side only: at 90 columns a side has 37 characters, and most code ends in `…`.
+- The cursor is a gray band over one column that drops the colors under it, unseen on a blank row,
+  and it starts on the top rule.
+
+### The resolver
+
+- Three steps to it: the log, the diff of the uncommitted changes, `Enter`. The diff between draws a
+  conflict as `=== Start of conflict` rows, with line numbers that jump and a red and green
+  highlight between the sides, which there means neither removed nor added.
+- The sides are text as it is: what each changed is seen only by showing the ancestor (`b`) and
+  comparing by eye.
+- A decision takes a side whole, and the common conflict needs some of each. In the test conflict
+  none of 1 to 4 is right for either conflict: main rounded the total and renamed `VatRate`, the
+  branch added a discount, and taking the branch's side keeps the `VatRate` main removed. Only `e`
+  gets there, in a box that hides both sides.
+- The result pane shows the current conflict alone, in eight rows; a side is titled `HEAD`, not
+  `main`, with no commit subject; there are no line numbers.
+
+### Proposals
+
+1. **The diff's look**, in the 16 colors 1.x has: text white, a change marked by a bar in the gutter
+   and the line number's color, and only the changed words on a background; words compared rather
+   than characters (DiffPlex's word diff) and marked only where the lines are alike; a blank side
+   rather than `░`; one row per file and one per hunk, naming its function from the `@@` line; the
+   cursor a reversed line number.
+2. **Getting around the diff:** `]` `[` the next and previous change and `}` `{` file, as the
+   resolver's `]` `[`; the file the cursor is in pinned on top.
+3. **A file list beside the diff** (`Tab`), with each file's kind, its lines and what is left out of
+   the commit, and a file collapsed; a unified layout (`v`), by itself below about 120 columns.
+4. **The resolver's sides as their changes against the ancestor** (`+` added, `~` changed with its
+   words marked, `−` removed, dark), the ancestor read as the file opens; the sides named
+   `main (HEAD)` and the branch, with their subjects; line numbers; the result pane the whole file as
+   it will be saved, each region marked by the side it came from. This revisits *word-level
+   highlighting inside a conflict*, left out by choice (`MODERNIZATION.md`): that was one side
+   against the other, this is each against the ancestor.
+5. **Combine** (`3`): both sides' changes, offered where they touch no word in common, or one only
+   adds lines beside the other's, shown in the result to take and never taken by itself. In the test
+   conflict it gives the right result for both. Written test first, as the parsers are.
+6. **A Resolve workspace**, opened from the conflict box and the top bar rather than through the
+   diff: the conflicted files on the left with how far each is (`● 1 of 2`, `✓ saved`), the other
+   changed files, and the way on once all are saved (commit, Continue, Abort). In the diff a
+   conflicted file becomes one block, "2 conflicts, Enter to resolve".
+7. **Typing in the result pane**, once the focus probe in `MODERNIZATION.md` (*Inline conflict
+   editing*) says it can be done.
+
+Waiting for the Terminal.Gui 2.x port: tinted backgrounds for changed lines, syntax highlighting
+that does not fight the diff's colors, light themes.
+
+### Steps
+
+- [x] 1. The diff's look (proposal 1). M (every diff snapshot changes) *Done (2026-10-16):* a
+  gutter of a bar and the line number, red or green for a change, which stays put while the line
+  scrolls sideways; words compared (`LineWords`, in Cui/Common since the resolver uses it too, DiffPlex with a chunker of words, spaces and single
+  characters, a space between two changes joined to them) and marked only where the two lines are
+  at least half the same; the commit in two rows, the files listed as the commit details list them
+  (`ChangedFileText`, shared), a file one row with its rule, a hunk one row with git's function
+  name (`SectionDiff.Function`); a side with no line blank; the cursor the line number reversed;
+  a conflict's sides in the resolver's yellow and cyan, no word marked. *Not done: pairing the
+  lines of a change by likeness.* `FilePatch` pairs them by position, and that decides where a line
+  kept ends up when part of a change is committed or discarded, so pairing them otherwise in the
+  view would show one file and commit another; and the git layer cannot use DiffPlex.
+- [x] 2. Getting around the diff (2). S *Done (2026-10-16):* `]` `[` the next and previous change,
+  a run of changed rows or a conflict from its marker, `}` `{` the next and previous file, put at the
+  top of the view, each saying which of how many on the status line (`DiffRows.NextChange`,
+  `NextFile`); `s` is *Go to*, the four moves and then the files. The pinned file is a breadcrumb in
+  a top row of the view: the commit, which is no longer a row of a diff of one commit, and once their
+  headers are out of sight, the file and the hunk's function, the commit's subject cut short first
+  (`ContentView.TopRow`, drawn in the same draw as the rows, so it never lags a scroll by a key).
+  On the way, `Text.ToTextBuilder()` gave a builder of length 0, whatever the text.
+- [x] 3. The file list and the unified layout (3). M to L *Done (2026-10-16):* one column below 110
+  columns, a change's removed lines above its added ones and a conflict's sides one after the
+  other, each named; it follows the terminal's width, and `v` switches it for the diff. A line across
+  the view scrolls sideways now, with its gutter in place, which a file added whole never did. The
+  list of files (`DiffFileList`) on a terminal 150 wide or more, for more than one file, or the
+  commits of a file history: letters, lines, `╎3` for lines left out, the cursor's file marked;
+  `Tab` moves the keys there and back, a click goes to a file. `h` hides a file's lines, its header
+  alone then; its lines left out of the commit are not refound, and not reported lost, while hidden.
+  On the way: Terminal.Gui eats the key after a resize (MODERNIZATION.md).
+- [x] 4. The resolver's sides against the ancestor, its names and line numbers, the whole result
+  (4). M *Done (2026-10-16):* each side drawn against the ancestor (`SideChanges`: `+`, `~` with its
+  words, `-` dark, kept lines dark), a removed line paired with the most alike added one; the
+  ancestor read as the file opens, and without it where it cannot be had. The sides named by branch
+  and subject (`GetConflictSidesAsync`, `ConflictNames`): `main (HEAD) · <subject>`, a rebase's
+  commit by its id. Lines numbered as their side has them, in a gutter that stays while the text
+  scrolls. The result pane the whole file as it will be saved (`ConflictRowService.ToResult`), about
+  two fifths of the view, each decided conflict's lines barred in its side's color, an undecided one
+  a row of the keys, scrolled to the cursor's conflict. With the ancestor known, showing its own
+  pane (`b`) no longer moves any row: every line of it is in each side.
+- [x] 5. Combine (5). M *Done (2026-10-16), on `c` rather than `3`:* `3` and `4` stay the two sides
+  one after the other, as they were. `ConflictCombine`, written test first: each side aligned with the
+  ancestor line by line as `SideChanges` draws it, a line one side touched taking its change, lines
+  one added going where it added them, and a line both changed combined word by word, words written
+  at the edge of the other's change going before or after it; lines both wrote in one place, a line
+  removed by one and changed by the other, or a word both changed, and there is none. Both of the
+  test conflict's come out as the merge wanted. Taken as text written by hand, so the git layer is
+  untouched, and drawn in the result by where each line came from; offered in the undecided row and
+  the menu, `e` starts from it, `u` takes it back. The resolver has a status line now, for why not.
+- [x] 6. The Resolve workspace (6). M to L *Done (2026-10-16):* `ConflictWorkspace` runs the
+  resolver over every conflicted file, from the conflict box, the bar's and the repo menu's Resolve
+  Conflicts and the diff's Enter: saving a file resolved opens the next one still conflicted, `}`
+  `{` go to another (asking Stay, Save and Go or Discard and Go when decisions are unsaved), and a
+  file with no text to merge asks its question in its turn, Cancel passing it over. `ConflictFileList` (no view) lists them
+  at the left from 150 columns, `●` the open ones with `0 of 2` on the one shown, `✓` the resolved,
+  `Tab` into it; the header says `file 1 of 3`. Once none is left, a box asks Commit (merge, cherry
+  pick, revert: the commit dialog, from the diff too) or Continue (rebase, am), or Later; Abort stays
+  in the bar and the repo menu, where it was, rather than a button next to the finish. The diff draws
+  an unmerged file as its header and one row, "2 conflicts: Enter resolves them". Left out: the
+  other changed files in the list, which the diff shows.
+- [x] 7. Typing in the result (7), after the probe. *Done (2026-10-16):* the probe passed (see
+  `MODERNIZATION.md`, Terminal.Gui), so `e` types the conflict in the result pane rather than a box
+  over the sides: a `UITextView` laid over the conflict's rows, the file's lines above and after it,
+  its gutter numbered as the file will be (`ConflictTyping`, no view), the lines after renumbered as
+  lines are added, from a copy of the decisions with the text typed (`ConflictResolution.WithTyped`).
+  It starts from the same text the box did, which the pane's title says. Esc, Tab or a click on the
+  sides is done, and what was typed is the decision, with nothing typed left as it was; u takes it
+  back. Esc keeps rather than cancels: a reflex Esc should not throw typing away, and Ctrl-Z and u are
+  there for the rest.
 
 ---
 

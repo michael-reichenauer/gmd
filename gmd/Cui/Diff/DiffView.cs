@@ -12,6 +12,7 @@ enum DiffResult
     None,
     Commit,
     Refresh,
+    Continue, // The operation, its conflicts resolved, as the resolver asked
 }
 
 interface IDiffView
@@ -31,7 +32,7 @@ class DiffView : IDiffView
     private readonly IProgress progress;
     private readonly IServer server;
     readonly IClipboardService clipboard;
-    readonly IConflictView conflictView;
+    readonly IConflictWorkspace conflictWorkspace;
     readonly Config config;
     readonly LeftOutLines leftOut;
 
@@ -52,6 +53,7 @@ class DiffView : IDiffView
     string repoPath = "";
     bool isFocusLeft = true;
     bool isCommitTriggered = false;
+    bool isContinueTriggered;
     bool isRefreshNeeded;
 
     // The search of the lines, f and then n and Shift-N, and the status line of this view, which says
@@ -62,6 +64,32 @@ class DiffView : IDiffView
     // Whether changes of whitespace alone are hidden, 'w', for this diff: a diff opened later shows
     // them again, rather than hide a change where it was not asked for
     bool isIgnoreWhitespace;
+
+    // Whether the rows are in one column, a change's removed lines above its added ones, which a
+    // narrow view is, or as v chose for this diff, null while the width chooses
+    bool isOneColumn;
+    bool? isOneColumnChosen;
+    bool isLayoutPosted;
+
+    // A view narrower than this has too little of a line in each of two columns
+    const int OneColumnBelow = 110;
+
+    bool IsOneColumnFor(int contentWidth) => isOneColumnChosen ?? contentWidth < OneColumnBelow;
+
+    // The list of files beside a wide diff, or of the commits of a file history, how wide it is, 0 when
+    // it is not shown, and whether it has the keys, as Tab moves them there and back
+    ContentView listView = null!;
+    DiffFileList fileList = DiffFileList.None;
+
+    // The files whose lines are hidden, h, which are drawn as their header alone, for this diff
+    readonly HashSet<string> hiddenFiles = [];
+    int listWidth;
+    bool isListFocus;
+
+    // Whether the list is wanted, as l last left it, read from the config as the diff opens. Kept
+    // here and saved, not read from the config, which another gmd can change under it, and which a
+    // save of any setting copies in whole: l flipped what the config said rather than what was shown.
+    bool isListWanted;
 
     bool IsSelected => contentView.SelectCount > 0;
 
@@ -78,7 +106,7 @@ class DiffView : IDiffView
         IProgress progress,
         IServer server,
         IClipboardService clipboard,
-        IConflictView conflictView,
+        IConflictWorkspace conflictWorkspace,
         IHelpPage helpPage,
         Config config,
         LeftOutLines leftOut
@@ -91,7 +119,7 @@ class DiffView : IDiffView
         this.progress = progress;
         this.server = server;
         this.clipboard = clipboard;
-        this.conflictView = conflictView;
+        this.conflictWorkspace = conflictWorkspace;
     }
 
     public DiffResult Show(CommitDiff[] diffs, DiffSource source, string repoPath, ConflictState? conflicts = null)
@@ -102,10 +130,24 @@ class DiffView : IDiffView
         this.repoPath = repoPath;
         this.isFocusLeft = true;
         this.isCommitTriggered = false;
+        this.isContinueTriggered = false;
         this.isRefreshNeeded = false;
         this.fileContext.Clear();
         this.conflictState = conflicts ?? ConflictState.None;
-        this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths());
+        this.isOneColumnChosen = null;
+        this.hiddenFiles.Clear();
+        this.isOneColumn = IsOneColumnFor(Application.Driver.Cols - 1); // The view's width, but for its scrollbar
+        this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
+        this.fileList = DiffFileList.Of(diffs, diffRows);
+        this.isListWanted = config.ShowDiffFileList;
+        this.listWidth = ListWidth();
+        this.isListFocus = false;
+        if (IsOneColumnFor(Application.Driver.Cols - listWidth - 1) != isOneColumn)
+        { // Narrowed by the list
+            isOneColumn = !isOneColumn;
+            diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
+            fileList = DiffFileList.Of(diffs, diffRows);
+        }
         this.search = RowSearch.None;
         this.status = new StatusLine();
         this.isIgnoreWhitespace = false;
@@ -121,18 +163,32 @@ class DiffView : IDiffView
         };
         // The keys worth knowing here on the bottom row, as the log view has them, unless turned off
         var hintsHeight = config.ShowKeyHints ? 1 : 0;
-        contentView = new ContentView(OnGetContent)
+        // Never focused, so the keys stay with the diff, which hands them on while the list has them
+        listView = new ContentView(OnGetListContent)
         {
             X = 0,
+            Y = 0,
+            Width = listWidth,
+            Height = Dim.Fill(hintsHeight),
+            IsShowCursor = false,
+            IsScrollMode = false,
+            IsFocus = false,
+            CanFocus = false,
+        };
+        listView.RegisterMouseHandler(MouseFlags.Button1Pressed, (_, y) => OnListClick(y));
+        contentView = new ContentView(OnGetContent)
+        {
+            X = listWidth,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(hintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
             IsCustomShowSelection = true,
+            TopRow = TopRowText,
         };
 
-        diffView.Add(contentView);
+        diffView.Add(listView, contentView);
         // The bar is there with the hints off too, for what a search found, as the log has it
         hintBar = new KeyHintBar(
             () =>
@@ -142,26 +198,51 @@ class DiffView : IDiffView
                     conflictState.Files.Count > 0,
                     search.IsActive,
                     isIgnoreWhitespace,
-                    LeaveOutHint()
+                    LeaveOutHint(),
+                    isOneColumn,
+                    listWidth > 0,
+                    IsListHidden
                 ),
             () => status.Current
         );
         diffView.Add(hintBar);
         hintBar.FollowStatus(status, config.ShowKeyHints, diffView);
         contentView.CurrentIndexChange += () => hintBar.SetNeedsDisplay(); // x leaves out or puts back
+        contentView.CurrentIndexChange += FollowCursorInList;
         RegisterShortcuts(contentView);
 
         contentView.SetNeedsDisplay();
         using (Menu.SayingWhyNotOn(status))
             UI.RunDialog(diffView);
         return isCommitTriggered ? DiffResult.Commit
+            : isContinueTriggered ? DiffResult.Continue
             : isRefreshNeeded ? DiffResult.Refresh
             : DiffResult.None;
     }
 
     void RegisterShortcuts(ContentView view)
     {
-        view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
+        // Esc leaves the file list for the diff, and closes the diff
+        view.RegisterKeyHandler(
+            Key.Esc,
+            () =>
+            {
+                if (isListFocus)
+                    ToggleListFocus();
+                else
+                    Application.RequestStop();
+            }
+        );
+
+        // Tab moves the keys to the list of files beside the diff and back, and while the list has
+        // them, up and down go to the file above and below, which the diff shows as they do
+        view.RegisterKeyHandler(Key.Tab, ToggleListFocus);
+        view.RegisterKeyHandler(Key.CursorUp, () => MoveInList(-1));
+        view.RegisterKeyHandler(Key.CursorDown, () => MoveInList(1));
+        view.RegisterKeyHandler(Key.PageUp, () => MoveInList(-ListPage));
+        view.RegisterKeyHandler(Key.PageDown, () => MoveInList(ListPage));
+        view.RegisterKeyHandler(Key.Home, () => MoveInList(-fileList.Items.Count));
+        view.RegisterKeyHandler(Key.End, () => MoveInList(fileList.Items.Count));
 
         // Letters in both cases, since the menu writes them in upper case. The view is modal (see
         // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
@@ -186,11 +267,30 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.n, () => StepMatch(1));
         view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
         view.RegisterLetterHandler(Key.w, ToggleWhitespace);
+        view.RegisterLetterHandler(Key.v, ToggleLayout);
+        view.RegisterLetterHandler(Key.h, ToggleHidden);
+        view.RegisterLetterHandler(Key.l, ToggleList);
         view.RegisterLetterHandler(Key.x, ToggleLeftOut);
+
+        // The next and previous change, as the resolver's ] and [ go to a conflict, and file. Terminal.Gui
+        // 1.x has no Key value for these, so use the ascii code, as for '+' and '-' below.
+        view.RegisterKeyHandler((Key)93, () => GoToChange(1)); // ']'
+        view.RegisterKeyHandler((Key)91, () => GoToChange(-1)); // '['
+        view.RegisterKeyHandler((Key)125, () => GoToFile(1)); // '}'
+        view.RegisterKeyHandler((Key)123, () => GoToFile(-1)); // '{'
 
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
         // was bound to it in this view before.
-        view.RegisterKeyHandler(Key.Enter, ResolveCurrentConflict);
+        view.RegisterKeyHandler(
+            Key.Enter,
+            () =>
+            {
+                if (isListFocus)
+                    ToggleListFocus();
+                else
+                    ResolveCurrentConflict();
+            }
+        );
 
         // More/less context around the changes of the file the cursor is on. Terminal.Gui 1.x has
         // no Key value for these, so use the ascii code, as the '?' key does in RepoViewInput.
@@ -205,11 +305,19 @@ class DiffView : IDiffView
 
     private bool OnMouseClick(int x, int y)
     {
+        // A click in the diff gives it the keys back from the list of files, as a click on a side is
+        // where the keys then act
+        if (isListFocus)
+            ToggleListFocus();
+
+        if (y < contentView.ContentY)
+            return true; // The top row, which is no row of the diff
+
         // Switch focus sides if clicking on other side
         int columnWidth = (contentView.ContentWidth - 2) / 2;
-        if (x > columnWidth && isFocusLeft)
+        if (x > columnWidth && isFocusLeft && !isOneColumn)
             isFocusLeft = false;
-        if (x < columnWidth && !isFocusLeft)
+        if (x < columnWidth && !isFocusLeft && !isOneColumn)
             isFocusLeft = true;
 
         contentView.SetIndexAtViewY(y);
@@ -229,7 +337,7 @@ class DiffView : IDiffView
             "Diff Menu",
             x,
             y,
-            Menu.Items.SubMenu("Scroll to", "s", scrollToItems)
+            Menu.Items.SubMenu("Go to", "s", scrollToItems)
                 .Item("Search ...", "f", () => Search())
                 .Item("Next Match", "n", () => StepMatch(1), () => search.IsActive, () => NoSearch)
                 .Item("Previous Match", "⇧n", () => StepMatch(-1), () => search.IsActive, () => NoSearch)
@@ -249,11 +357,25 @@ class DiffView : IDiffView
                 )
                 // Named after the file they act on, since that is the part of these that is not
                 // obvious, and disabled when the cursor is on no file or that file is at an end
-                .Item(ContextItemText("More Context", 1), "+", () => StepContext(1), () => CanStepContext(1))
-                .Item(ContextItemText("Less Context", -1), "-", () => StepContext(-1), () => CanStepContext(-1))
+                .Item(
+                    ContextItemText("More Context", 1),
+                    "+",
+                    () => StepContext(1),
+                    () => CanStepContext(1),
+                    () => WhyNotStepContext(CurrentAnchor(), 1)
+                )
+                .Item(
+                    ContextItemText("Less Context", -1),
+                    "-",
+                    () => StepContext(-1),
+                    () => CanStepContext(-1),
+                    () => WhyNotStepContext(CurrentAnchor(), -1)
+                )
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
-                .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected)
-                .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected)
+                .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
+                .Item(HiddenItemText(), "h", ToggleHidden, () => CurrentAnchor().FilePath != "", () => NoFile)
+                .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected && !isOneColumn)
+                .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected && !isOneColumn)
                 .Item("Close", "Esc", () => Application.RequestStop())
         );
     }
@@ -270,7 +392,7 @@ class DiffView : IDiffView
         search = FindInRows(text);
         if (!search.IsActive)
         {
-            status.Notice($"'{text}' is not in the diff");
+            status.Notice($"'{text}' is not in {(hiddenFiles.Count > 0 ? "the lines shown" : "the diff")}");
             return;
         }
 
@@ -318,8 +440,15 @@ class DiffView : IDiffView
             var (left, right) = DiffRowService.SearchText(row);
             isFocusLeft = RowSearch.IndexOf(left, search.Text) != -1;
             var (text, lineNbr) = isFocusLeft ? (left, row.LeftLineNbr) : (right, row.RightLineNbr);
-            var start = DiffRowService.LineNbrWidth(lineNbr) + RowSearch.IndexOf(text, search.Text);
-            rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, ColumnWidth);
+            var start = RowSearch.IndexOf(text, search.Text);
+            var width = ColumnWidth - DiffRowService.LineNbrWidth(lineNbr); // The gutter does not scroll
+            rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, width);
+        }
+        else if (row.LineNbr != 0)
+        { // A line across the view, in one column
+            var start = RowSearch.IndexOf(DiffRowService.SearchText(row).Left, search.Text);
+            var width = ViewWidth - DiffRowService.LineNbrWidth(row.LineNbr);
+            rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, width);
         }
 
         contentView.ShowCurrentIndex(index);
@@ -333,7 +462,7 @@ class DiffView : IDiffView
         if (!scrollToItems.Any())
             return;
 
-        Menu.Show("Scroll to", 1, 2, scrollToItems);
+        Menu.Show("Go to", 1, 2, scrollToItems);
     }
 
     void ShowUndoMenu()
@@ -354,18 +483,226 @@ class DiffView : IDiffView
         Application.RequestStop();
     }
 
+    // The next and previous change and file, and then each commit of a file history, or each file
     IEnumerable<Common.MenuItem> GetScrollToItems()
     {
+        var moves = Menu
+            .Items.Item("Next Change", "]", () => GoToChange(1), () => CanGo(1, true), () => NoMore(1, true))
+            .Item("Previous Change", "[", () => GoToChange(-1), () => CanGo(-1, true), () => NoMore(-1, true))
+            .Item("Next File", "}", () => GoToFile(1), () => CanGo(1, false), () => NoMore(1, false))
+            .Item("Previous File", "{", () => GoToFile(-1), () => CanGo(-1, false), () => NoMore(-1, false))
+            .Item(
+                isListFocus ? "Back to the Diff" : "File List",
+                "Tab",
+                ToggleListFocus,
+                () => listWidth > 0,
+                WhyNoList
+            )
+            .Item(
+                listWidth > 0 ? "Hide File List" : "Show File List",
+                "l",
+                ToggleList,
+                () => fileList.WidthFor(Application.Driver.Cols) > 0,
+                WhyNoList
+            )
+            .Separator();
+
         if (diffs.Length > 1)
         {
-            return diffs.Select(cd => Menu.Item($"{cd.Time.IsoDate()} {cd.Message}", "", () => ScrollToCommit(cd.Id)));
+            return moves.Items(
+                diffs.Select(cd => Menu.Item($"{cd.Time.IsoDate()} {cd.Message}", "", () => ScrollToCommit(cd.Id)))
+            );
         }
 
         var paths = diffRowService.GetDiffFilePaths(diffs[0]);
-        if (!paths.Any())
-            return Menu.Items;
+        return moves.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+    }
 
-        return Menu.Items.Items(paths.Select(p => Menu.Item(p, "", () => ScrollToFile(p))));
+    // Goes to where the next or the previous change starts, ] and [, a few rows below the top of the
+    // view when it is not in sight, and says which of how many it is
+    void GoToChange(int step)
+    {
+        var index = diffRows.NextChange(contentView.CurrentIndex, step);
+        if (index == -1)
+        {
+            status.Notice(NoMore(step, true));
+            return;
+        }
+
+        contentView.ClearSelection();
+        contentView.ShowCurrentIndex(index);
+        var (number, count) = diffRows.ChangeNumber(index);
+        status.Info($"Change {number} of {count}");
+    }
+
+    // Goes to the header of the next or the previous file, } and {, at the top of the view
+    void GoToFile(int step)
+    {
+        var index = diffRows.NextFile(contentView.CurrentIndex, step);
+        if (index == -1)
+        {
+            status.Notice(NoMore(step, false));
+            return;
+        }
+
+        contentView.ClearSelection();
+        ShowAtTop(index);
+        var (number, count) = diffRows.FileNumber(index);
+        status.Info($"File {number} of {count}: {diffRows.Rows[index].FilePath}");
+    }
+
+    bool CanGo(int step, bool isChange) =>
+        (
+            isChange
+                ? diffRows.NextChange(contentView.CurrentIndex, step)
+                : diffRows.NextFile(contentView.CurrentIndex, step)
+        ) != -1;
+
+    // Why there is nowhere to go, and the key that goes the other way
+    static string NoMore(int step, bool isChange) =>
+        (isChange, step > 0) switch
+        {
+            (true, true) => "No more changes below: [ goes up",
+            (true, false) => "No more changes above: ] goes down",
+            (false, true) => "No more files below: { goes up",
+            (false, false) => "No more files above: } goes down",
+        };
+
+    // Moves the keys to the list of files and back, and away from it when it is hidden
+    void ToggleListFocus()
+    {
+        if (listWidth == 0 && !isListFocus)
+        {
+            status.Notice(WhyNoList());
+            return;
+        }
+
+        isListFocus = !isListFocus;
+        listView.IsFocus = isListFocus;
+        contentView.IsFocus = !isListFocus;
+        listView.SetNeedsDisplay();
+        contentView.SetNeedsDisplay();
+    }
+
+    // Shows or hides the list of files, l. Remembered for the diffs after, since it is hidden for the
+    // width it takes, which is as wanted in the next diff as in this one
+    void ToggleList()
+    {
+        if (fileList.WidthFor(Application.Driver.Cols) == 0)
+        {
+            status.Notice(WhyNoList());
+            return;
+        }
+
+        isListWanted = !isListWanted;
+        var isWanted = isListWanted;
+        config.Set(c => c.ShowDiffFileList = isWanted);
+        SetListWidth(ListWidth());
+        SetLayout(IsOneColumnFor(Application.Driver.Cols - listWidth - 1));
+        FollowCursorInList();
+        hintBar.SetNeedsDisplay();
+        status.Info(listWidth > 0 ? "File list shown: Tab moves into it, l hides it" : "File list hidden: l shows it");
+    }
+
+    // How wide the list of files is: as wide as it can be at the terminal's width, unless hidden
+    int ListWidth() => isListWanted ? fileList.WidthFor(Application.Driver.Cols) : 0;
+
+    // Hidden by l, where it would be shown, which the hints then say l shows
+    bool IsListHidden => listWidth == 0 && fileList.WidthFor(Application.Driver.Cols) > 0;
+
+    string WhyNoList() =>
+        IsListHidden
+            ? "The file list is hidden: l shows it"
+            : $"The file list is beside a diff of more than one file, {DiffFileList.MinTerminalWidth} columns wide";
+
+    // Goes to the file a step above or below in the list, while it has the keys, true then; with the
+    // diff having them the key is left to it
+    bool MoveInList(int step)
+    {
+        if (!isListFocus || fileList.Items.Count == 0)
+            return false;
+
+        var current = fileList.IndexAt(contentView.CurrentIndex);
+        var index = Math.Clamp(current == -1 && step > 0 ? step - 1 : current + step, 0, fileList.Items.Count - 1);
+        ShowAtTop(fileList.Items[index].Row);
+        return true;
+    }
+
+    int ListPage => Math.Max(1, listView.ContentHeight - 2);
+
+    // The list's title is its first row, the files after it
+    void OnListClick(int y)
+    {
+        var index = listView.FirstIndex + y - 1;
+        if (index >= 0 && index < fileList.Items.Count)
+            ShowAtTop(fileList.Items[index].Row);
+    }
+
+    // The list keeps the file the diff's cursor is in, which it marks, in sight
+    void FollowCursorInList()
+    {
+        if (listWidth == 0)
+            return;
+
+        listView.ScrollToShowIndex(fileList.IndexAt(contentView.CurrentIndex) + 1, 1);
+        listView.SetNeedsDisplay();
+    }
+
+    (IEnumerable<Text> rows, int total) OnGetListContent(int firstRow, int rowCount, int _, int contentWidth)
+    {
+        var current = fileList.IndexAt(contentView.CurrentIndex);
+        var rows = fileList.Rows(
+            contentWidth,
+            current,
+            isListFocus,
+            path => source.CanCommit ? leftOut.CountOf(path) : 0
+        );
+        return (rows.Skip(firstRow).Take(rowCount), rows.Count);
+    }
+
+    // The top row: the commit the diff is of, and once its header has scrolled out of sight, the file
+    // the top of the view is in, so that a line deep in a long diff still says where it is, e.g.
+    // 'f44b73c6  VAT rate from config › M Pricing.cs  +5 -5'
+    Text TopRowText(int firstRow, int width)
+    {
+        var where = new TextBuilder();
+        var file = diffRows.FileHeaderOf(firstRow);
+        if (file != -1 && file < firstRow)
+        { // The file's header without its bar, e.g. 'M Pricing.cs  +5 -5'
+            var header = diffRows.Rows[file].Left;
+            where.Dark(" › ").Add(header.Subtext(2, Math.Max(0, header.Length - 2)));
+        }
+
+        // The commit's subject is cut short first, since where in the commit the view is, is what
+        // changes as it scrolls
+        var title = TitleAt(firstRow);
+        var titleWidth = Math.Max(Math.Min(title.Length, MinTitleWidth), width - where.Length - 2);
+        var text =
+            title.Length > titleWidth
+                ? title.Subtext(0, titleWidth - 1).ToTextBuilder().Dark("…")
+                : title.ToTextBuilder();
+        text.Add(title.Length > 0 ? where : where.ToText().Subtext(3, Math.Max(0, where.Length - 3)));
+
+        // The line in the color of the log's under its application bar and of the key hints' below
+        return text.Length + 1 >= width
+            ? text
+            : text.Dark(" ").Add(Text.BrightMagenta("─").ToText().ToLine(width - text.Length - 1));
+    }
+
+    // As short as the commit's id and subject are cut, to make room for the file
+    const int MinTitleWidth = 20;
+
+    // The commit at the top of the view: the diff's own, or in a file history the one the top of the
+    // view is in, and above them all how many there are
+    Text TitleAt(int firstRow)
+    {
+        if (diffs.Length == 1)
+            return DiffRowService.TitleOf(diffs[0]);
+
+        var id = diffRows.AnchorAt(firstRow).CommitId;
+        return id != "" && diffs.FirstOrDefault(d => d.Id == id) is CommitDiff diff
+            ? DiffRowService.TitleOf(diff)
+            : Text.White($"{diffs.Length} commits");
     }
 
     IEnumerable<Common.MenuItem> GetDiffItems()
@@ -429,24 +766,26 @@ class DiffView : IDiffView
             Menu.Show("Resolve Conflicts", Menu.Center, 2, GetConflictItems());
     }
 
-    // Loaded here rather than inside the resolver, so the read is awaited off the main loop: a
-    // Terminal.Gui SynchronizationContext posts an await's continuation to that loop, so blocking
-    // it on a Task deadlocks the application outright
+    // Resolves the conflicts in the resolver (ConflictWorkspace), from the file, and the other
+    // conflicted files after it, and finishes the operation once none is left, if asked to: the diff
+    // closes for the commit or the continue, which the log does
     async void ResolveConflict(ConflictedFile conflict)
     {
-        ConflictFile file;
-        using (progress.Show())
+        var next = await conflictWorkspace.ResolveAsync(repoPath, conflict.Path);
+        if (next == ResolveNext.Commit)
         {
-            var read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath);
-            if (read is not ConflictFile conflictFile)
-            {
-                UI.ErrorMessage($"Failed to open {conflict.Path}\n{read.Error.AllMessages()}");
-                return;
-            }
-            file = conflictFile;
+            isCommitTriggered = true;
+            Application.RequestStop();
         }
-
-        conflictView.Show(file, conflictState.Operation, repoPath, RefreshDiff);
+        else if (next == ResolveNext.Continue)
+        {
+            isContinueTriggered = true;
+            Application.RequestStop();
+        }
+        else
+        {
+            RefreshDiff();
+        }
     }
 
     // The cursor is put on the commit or the file, which + and - and Enter act on: scrolled to alone
@@ -459,7 +798,13 @@ class DiffView : IDiffView
     {
         if (index == -1)
             return;
-        contentView.ScrollToShowIndex(Math.Max(0, index - 1));
+        ShowAtTop(index);
+    }
+
+    // Puts the cursor on a row at the top of the view, as far as the rows after it fill the view
+    void ShowAtTop(int index)
+    {
+        contentView.Scroll(index - contentView.FirstIndex);
         contentView.SetCurrentIndex(index);
     }
 
@@ -533,6 +878,7 @@ class DiffView : IDiffView
     // the patch of a moved file's new path has none of the old one, and a conflict's lines are markers.
     string WhyNotDiscardLines(IReadOnlyList<FileLines> files) =>
         isIgnoreWhitespace ? "Show whitespace first with w: while it is hidden, not every change is shown"
+        : files.Count == 0 && IsOnHiddenFile(out var hidden) ? HiddenText(hidden)
         : files.Count == 0
             ? IsSelected ? "The selected lines have no change"
                 : "Move to a change first, or select lines with ⇧↑ ⇧↓"
@@ -657,7 +1003,10 @@ class DiffView : IDiffView
         var anchor = CurrentAnchor();
         var wanted = WantedContext(anchor, step);
         if (wanted == 0)
+        {
+            status.Notice(WhyNotStepContext(anchor, step));
             return;
+        }
 
         using (progress.Show())
         {
@@ -675,8 +1024,9 @@ class DiffView : IDiffView
 
     // The context the file would then be shown with, or 0 if the step would do nothing: the diff has
     // no context to step, there is no file under the cursor, that file has no lines shown, its changes
-    // being whitespace that is hidden, or it is already at the widest or the narrowest. Also what the
-    // menu asks to know whether to offer the item.
+    // being whitespace that is hidden, its lines hidden with h, or it being in conflict, which is a
+    // row saying so, or it is already at the widest or the narrowest. Also what the menu asks to know
+    // whether to offer the item.
     int WantedContext(DiffAnchor anchor, int step)
     {
         var filePath = anchor.FilePath;
@@ -684,7 +1034,7 @@ class DiffView : IDiffView
             return 0;
         if (filePath == "")
             return 0; // The cursor is above the first file, so there is nothing to step
-        if (IsWhitespaceOnly(anchor))
+        if (IsWhitespaceOnly(anchor) || hiddenFiles.Contains(filePath) || IsInConflict(filePath))
             return 0;
 
         var current = fileContext.GetValueOrDefault(filePath, DiffContext.Default);
@@ -694,6 +1044,18 @@ class DiffView : IDiffView
     }
 
     bool CanStepContext(int step) => WantedContext(CurrentAnchor(), step) != 0;
+
+    bool IsInConflict(string path) => conflictState.Files.Any(c => c.Path == path);
+
+    // Why + or - does nothing where the cursor is, in the order WantedContext rules it out
+    string WhyNotStepContext(DiffAnchor anchor, int step) =>
+        !source.HasContext ? "A line's history has no context to show more or less of"
+        : anchor.FilePath == "" ? NoFile
+        : IsWhitespaceOnly(anchor) ? "Its changes are whitespace alone, which is hidden: w shows them"
+        : hiddenFiles.Contains(anchor.FilePath) ? HiddenText(anchor.FilePath)
+        : IsInConflict(anchor.FilePath) ? $"{anchor.FilePath} is in conflict: Enter resolves it"
+        : step > 0 ? "The whole file is shown"
+        : "The least context is shown";
 
     // Whether the file the anchor is in, in the commit it is in, has whitespace changes alone, which
     // it is listed with no lines for while whitespace is hidden
@@ -785,6 +1147,7 @@ class DiffView : IDiffView
         : source.IsCommittedWhole ? "What is in progress is committed whole, as git commits it"
         : isIgnoreWhitespace ? "Show whitespace first with w: while it is hidden, not every change is shown"
         : files.Count == 0 && IsOnFileHeader(out var path) && leftOut.CountOf(path) > 0 ? ""
+        : files.Count == 0 && IsOnHiddenFile(out var hidden) ? HiddenText(hidden)
         : files.Count == 0
             ? IsSelected ? "The selected lines have no change"
                 : "Move to a change first, or select lines with ⇧↑ ⇧↓"
@@ -846,19 +1209,22 @@ class DiffView : IDiffView
         var byFile = DiffLines.Of(diffRows, 0, diffRows.Count).ToDictionary(f => f.Path, f => f.Lines);
         foreach (var path in leftOut.Paths.ToList())
         {
+            // Not drawn, so not to be found: the commit itself checks them, as it does every line
+            if (hiddenFiles.Contains(path))
+                continue;
+
             var count = leftOut.Refind(path, byFile.GetValueOrDefault(path, []));
             if (count > 0)
                 notFound[path] = count;
         }
     }
 
-    // The text of a line left out, dark, its '┃' of a change a '╎'
+    // The text of a line left out, dark, the bar of its change a '╎'
     static Text LeftOutText(Text text, int lineNbr)
     {
         var line = text.ToString();
-        var width = DiffRowService.LineNbrWidth(lineNbr);
-        if (width > 0 && line.Length >= width)
-            line = $"{line[..(width - 1)]}╎{line[width..]}";
+        if (DiffRowService.LineNbrWidth(lineNbr) > 0 && line.Length > 0)
+            line = $"╎{line[1..]}";
         return Text.Dark(line);
     }
 
@@ -903,6 +1269,94 @@ class DiffView : IDiffView
         status.Info(isIgnoreWhitespace ? "Whitespace changes hidden: w shows them" : "Whitespace changes shown");
     }
 
+    // Hides the lines of the file the cursor is in, h, which is then drawn as its header alone, e.g. a
+    // file that is generated, or shows them again, for this diff
+    void ToggleHidden()
+    {
+        var path = CurrentAnchor().FilePath;
+        if (path == "")
+        {
+            status.Notice(NoFile);
+            return;
+        }
+
+        var isHidden = !hiddenFiles.Remove(path);
+        if (isHidden)
+            hiddenFiles.Add(path);
+        SetDiffs(diffs, CurrentAnchor());
+        status.Info(isHidden ? $"The lines of {path} are hidden: h shows them" : $"The lines of {path} are shown");
+    }
+
+    const string NoFile = "Move to a file first";
+
+    string HiddenItemText()
+    {
+        var path = CurrentAnchor().FilePath;
+        return path == "" ? "Hide the Lines of a File"
+            : hiddenFiles.Contains(path) ? $"Show the Lines of {path.Max(40)}"
+            : $"Hide the Lines of {path.Max(40)}";
+    }
+
+    bool IsOnHiddenFile(out string path) => IsOnFileHeader(out path) && hiddenFiles.Contains(path);
+
+    static string HiddenText(string path) => $"The lines of {path} are hidden: h shows them";
+
+    // Shows the diff in one column, or side by side again, v, for this diff: the next one is shown as
+    // its width chooses
+    void ToggleLayout()
+    {
+        isOneColumnChosen = !isOneColumn;
+        SetLayout(!isOneColumn);
+        status.Info(
+            isOneColumn ? "In one column: v shows the sides beside each other" : "Side by side: v shows one column"
+        );
+    }
+
+    // The layout the view's width calls for, once it is drawn at a width other than the rows were
+    // made for, e.g. the terminal resized. Posted, since the rows cannot change while they are drawn.
+    void FollowWidth(int contentWidth)
+    {
+        var isListChanged = ListWidth() != listWidth;
+        if (isLayoutPosted || (!isListChanged && IsOneColumnFor(contentWidth) == isOneColumn))
+            return;
+
+        isLayoutPosted = true;
+        UI.Post(() =>
+        {
+            isLayoutPosted = false;
+            SetListWidth(ListWidth());
+            SetLayout(IsOneColumnFor(Application.Driver.Cols - listWidth - 1));
+        });
+    }
+
+    // Shows the list of files at the width, or hides it at 0, the diff beside it taking the rest
+    void SetListWidth(int width)
+    {
+        if (width == listWidth)
+            return;
+
+        listWidth = width;
+        if (listWidth == 0 && isListFocus)
+            ToggleListFocus();
+        listView.Width = listWidth;
+        contentView.X = listWidth;
+        listView.SuperView?.LayoutSubviews();
+        listView.SuperView?.SetNeedsDisplay();
+    }
+
+    void SetLayout(bool isOneColumn)
+    {
+        if (isOneColumn == this.isOneColumn)
+            return;
+
+        this.isOneColumn = isOneColumn;
+        SetDiffs(diffs, CurrentAnchor());
+        hintBar.SetNeedsDisplay();
+    }
+
+    // How wide a row across the view is drawn, as OnGetContent lays it out
+    int ViewWidth => ColumnWidth * 2 + 1;
+
     // The options the diff is read with, at a context
     Git.DiffOptions Options(int contextLines) => new(contextLines, isIgnoreWhitespace);
 
@@ -911,7 +1365,18 @@ class DiffView : IDiffView
     void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
     {
         diffs = newDiffs;
-        diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), isIgnoreWhitespace);
+        diffRows = diffRowService.ToDiffRows(
+            diffs,
+            fileContext,
+            ConflictPaths(),
+            isIgnoreWhitespace,
+            isOneColumn,
+            hiddenFiles
+        );
+        fileList = DiffFileList.Of(diffs, diffRows);
+        // Counted now rather than as the views draw, for the cursor to be put back in the rows that are
+        contentView.SetTotalCount(diffRows.Count);
+        listView.SetTotalCount(fileList.Items.Count + 1);
         search = FindInRows(search.Text); // The rows the search found are other rows now
         RefindLeftOutLines(); // As the lines left out may have moved
         hintBar.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
@@ -941,7 +1406,7 @@ class DiffView : IDiffView
     // Move both sides in view left, or select left side text if text is selected
     void OnMoveLeft()
     {
-        if (!isFocusLeft)
+        if (!isFocusLeft && !isOneColumn)
         { // Text is selected, lets move selection from right to left side
             isFocusLeft = true;
             contentView.SetNeedsDisplay();
@@ -959,7 +1424,7 @@ class DiffView : IDiffView
     // Move both sides in view right, or select right side text if text is selected
     void OnMoveRight()
     {
-        if (isFocusLeft)
+        if (isFocusLeft && !isOneColumn)
         { // Text is selected, lets move selection from left to right side
             isFocusLeft = false;
             contentView.SetNeedsDisplay();
@@ -967,7 +1432,7 @@ class DiffView : IDiffView
         }
 
         // Move both sides in view right
-        int maxColumnWidth = contentView!.ContentWidth / 2;
+        int maxColumnWidth = isOneColumn ? contentView.ContentWidth : contentView.ContentWidth / 2;
         if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
         {
             rowStartX++;
@@ -978,6 +1443,7 @@ class DiffView : IDiffView
     // Returns the content for the view
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
+        FollowWidth(contentWidth);
         contentWidth++;
         int columnWidth = (contentWidth - 2) / 2;
         int viewWidth = columnWidth * 2 + 1;
@@ -1012,49 +1478,85 @@ class DiffView : IDiffView
                 isLeftOutLeft || isLeftOutRight ? LeftOutText(row.Left, row.LineNbr)
                 : row.FilePath != "" ? WithLeftOutNote(row.Left, row.FilePath)
                 : Marked(row.Left, row.LineNbr);
-            var text = spanText.Subtext(0, viewWidth);
+            // A line across the view, of a file added or removed whole or in one column, scrolls
+            // sideways as a side does, its gutter staying put
+            var text =
+                row.LineNbr != 0
+                    ? SideText(spanText, row.LineNbr, false, viewWidth)
+                    : WithFill(spanText.Subtext(0, viewWidth), row.Fill, viewWidth);
             return isSelectedRow ? text.ToSelect()
-                : isCurrentRow ? text.ToHighlight()
-                : text;
+                : !isCurrentRow ? text
+                // A line of a file drawn in one column has the cursor on its number, as a side has
+                : row.LineNbr != 0 ? WithCursor(text, DiffRowService.LineNbrWidth(row.LineNbr))
+                : text.ToHighlight();
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
         var leftText = isLeftOutLeft ? LeftOutText(row.Left, row.LeftLineNbr) : Marked(row.Left, row.LeftLineNbr);
         var rightText = isLeftOutRight ? LeftOutText(row.Right, row.RightLineNbr) : Marked(row.Right, row.RightLineNbr);
-        var left =
-            (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffRowService.NoLine)
-                ? row.Left != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…").Add(leftText.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
-                    : leftText.Subtext(rowStartX, columnWidth, true)
-                : row.Left != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…")
-                        .Add(leftText.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…")))
-                    : leftText.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
+        var left = SideText(leftText, row.LeftLineNbr, row.Left == DiffRowService.NoLine, columnWidth);
+        var right = SideText(rightText, row.RightLineNbr, row.Right == DiffRowService.NoLine, columnWidth);
 
-        var right =
-            (row.Right.Length - rowStartX <= columnWidth || row.Right == DiffRowService.NoLine)
-                ? row.Right != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…").Add(rightText.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
-                    : rightText.Subtext(rowStartX, columnWidth, true)
-                : row.Right != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…")
-                        .Add(
-                            rightText.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…"))
-                        )
-                    : rightText.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
-
-        return Text.Add(
-                isSelectedRow && isFocusLeft ? left.ToSelect()
-                : isCurrentRow && isFocusLeft ? left.ToHighlight()
-                : left
-            )
+        return Text.Add(Focused(left, true, isSelectedRow, isCurrentRow, row.LeftLineNbr, row.Left))
             .Add(splitLineChar)
-            .Add(
-                isSelectedRow && !isFocusLeft ? right.ToSelect()
-                : isCurrentRow && !isFocusLeft ? right.ToHighlight()
-                : right
-            );
+            .Add(Focused(right, false, isSelectedRow, isCurrentRow, row.RightLineNbr, row.Right));
     }
+
+    // A side of a row in its column: its gutter, which stays where it is, and its line, scrolled
+    // sideways with the other side's, with a '…' where it is cut off. The gutter scrolled away with
+    // the line, which left a line scrolled to with no number to say which it was.
+    Text SideText(Text side, int lineNbr, bool isNoLine, int columnWidth)
+    {
+        if (isNoLine)
+            return Text.Black(new string(' ', Math.Max(0, columnWidth)));
+
+        var gutterWidth = Math.Min(DiffRowService.LineNbrWidth(lineNbr), columnWidth);
+        var code = side.Subtext(gutterWidth, Math.Max(0, side.Length - gutterWidth));
+        var width = columnWidth - gutterWidth;
+
+        var isCutLeft = rowStartX > 0 && code.Length > 0;
+        var isCutRight = code.Length - rowStartX > width;
+        var shownWidth = width - (isCutLeft ? 1 : 0) - (isCutRight ? 1 : 0);
+
+        var text = side.Subtext(0, gutterWidth).ToTextBuilder();
+        if (isCutLeft)
+            text.Dark("…");
+        text.Add(code.Subtext(rowStartX + (isCutLeft ? 1 : 0), Math.Max(0, shownWidth)));
+        if (isCutRight)
+            text.Dark("…");
+        return text.ToText().Subtext(0, columnWidth, isFillRest: true);
+    }
+
+    // The side in focus is the one the cursor and a selection are drawn on, and the one a copy takes
+    // the lines of. The cursor is on the line's number, or where a side with no line would have it; a
+    // row of no line, e.g. a conflict's marker, is highlighted whole.
+    Text Focused(Text side, bool isLeft, bool isSelectedRow, bool isCurrentRow, int lineNbr, Text rowSide)
+    {
+        if (isLeft != isFocusLeft || (!isSelectedRow && !isCurrentRow))
+            return side;
+        if (isSelectedRow)
+            return side.ToSelect();
+
+        return lineNbr != 0 ? WithCursor(side, DiffRowService.LineNbrWidth(lineNbr))
+            : rowSide == DiffRowService.NoLine ? WithCursor(side, DiffRowService.LineNbrWidth(1))
+            : side.ToHighlight();
+    }
+
+    static readonly Common.Color CursorColor = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.White);
+
+    // The cursor on a line: its number reversed, black on white, with the bar beside it and the
+    // line itself as they are. A highlight of the whole side painted over the colors of the change.
+    static Text WithCursor(Text text, int gutterWidth) =>
+        text.Subtext(0, 1)
+            .ToTextBuilder()
+            .Color(CursorColor, text.Subtext(1, gutterWidth - 1, isFillRest: true).ToString())
+            .Add(text.Subtext(gutterWidth, Math.Max(0, text.Length - gutterWidth)));
+
+    // A header row followed to the end of the row by its rule, e.g. a file's
+    static Text WithFill(Text text, Text? fill, int width) =>
+        fill == null || text.Length + 1 >= width
+            ? text
+            : text.ToTextBuilder().Black(" ").Add(fill.ToLine(width - text.Length - 1));
 
     // The text with what the search found marked, after the line number, which is not searched
     Text Marked(Text text, int lineNbr) =>

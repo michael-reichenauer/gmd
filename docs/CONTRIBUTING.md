@@ -139,21 +139,27 @@ Symbols that may be missing from a font, shown as a box or a `?` when they are:
 3. `⌂`: the log, beside a branch checked out in another worktree (`git worktree add ../wt -b wt`,
    then show `wt` with `Shift-→`).
 4. `·`: the top bar while a merge or rebase is stopped on a conflict (`Merging 'dev' · 1 conflict`).
+5. `▌`: the diff (`d`), the bar beside every changed line and before each file's name.
+6. `›`: the diff's top row, once it is scrolled down into a file (`f44b73c6  Subject › M a.txt`).
+7. `⋯`: the diff, the row between two parts of a file where unchanged lines are left out (`+`
+   and `-` change how many).
+8. `✓`: the resolver, beside a file resolved, in the list of files at the left of a terminal 150
+   columns wide or more (a merge stopping on conflicts in two files, the first saved with `s`).
 
 Keys and features that depend on the terminal or the system:
 
-5. The commit dialog (`c`): `Tab` into the file list, `Space` unticks a file, `a` all, and `Alt-O`
+9. The commit dialog (`c`): `Tab` into the file list, `Space` unticks a file, `a` all, and `Alt-O`
    commits. On macOS, Alt keys need *Use Option as Meta key* (Terminal) or *Esc+* for the Option key
    (iTerm2); without it `Alt-O` types `ø`.
-6. `Shift-→` opens Show Branch, and `Shift-↑` / `Shift-↓` select rows in the log. macOS Terminal
+10. `Shift-→` opens Show Branch, and `Shift-↑` / `Shift-↓` select rows in the log. macOS Terminal
    sends the last two as plain arrows until its profile maps them to `\033[1;2A` / `\033[1;2B` (the
    *Keys* section of the help says how); `cat -v` shows what a key sends.
-7. `i` copies the commit id and `Shift-I` its message: paste them somewhere else.
-8. In a repository on GitHub, the commit menu's Open Commit in Browser opens it in the browser.
-9. With an ssh key that has a passphrase and is not in the ssh agent, a push or `r` asks for the
+11. `i` copies the commit id and `Shift-I` its message: paste them somewhere else.
+12. In a repository on GitHub, the commit menu's Open Commit in Browser opens it in the browser.
+13. With an ssh key that has a passphrase and is not in the ssh agent, a push or `r` asks for the
    passphrase in a dialog (the Windows side is untried: gmd.exe as ssh's askpass, and a named pipe).
-10. `?` opens the help in the browser, and in the diff view at *Diff and Blame*; over ssh it copies the link.
-11. A terminal of 80 by 24: the log, the commit dialog and the menus are whole on the screen.
+14. `?` opens the help in the browser, and in the diff view at *Diff and Blame*; over ssh it copies the link.
+15. A terminal of 80 by 24: the log, the commit dialog and the menus are whole on the screen.
 
 What this list does not cover waits for reports.
 

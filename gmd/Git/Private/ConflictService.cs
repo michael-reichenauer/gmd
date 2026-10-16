@@ -15,6 +15,7 @@ interface IConflictService
 
     Task<Result<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd);
     Task<Result<ConflictFile>> WithBaseAsync(ConflictFile file, string wd);
+    Task<Result<ConflictSides>> GetConflictSidesAsync(string wd);
     Task<Result> WriteAsync(ConflictFile file, string wd);
     Task<Result> ResolveAsync(string path, ConflictKind kind, IReadOnlyList<HunkResolution> choices, string wd);
     Task<Result> MarkResolvedAsync(string path, string wd);
@@ -131,6 +132,38 @@ class ConflictService : IConflictService
 
         var parsed = ConflictParser.Parse(path, kind, text, hasBom);
         return parsed with { HasOurs = hasOurs, HasTheirs = hasTheirs };
+    }
+
+    // The branch HEAD is on and the subjects of the two sides' commits: HEAD's, and the other side's
+    // from the ref git keeps to it while the operation is stopped, MERGE_HEAD, CHERRY_PICK_HEAD or
+    // REVERT_HEAD (OperationState), or during a rebase REBASE_HEAD, which is the commit being applied.
+    // REBASE_HEAD is read during a rebase alone: git leaves it behind once a rebase that stopped is
+    // continued, and an operation with no ref of its own, e.g. a squash merge, was named by it.
+    public async Task<Result<ConflictSides>> GetConflictSidesAsync(string wd)
+    {
+        var branchResult = await cmd.RunAsync("git", "rev-parse --abbrev-ref HEAD", wd);
+        if (branchResult is not string branch)
+            return branchResult.Error;
+
+        var state = OperationState.Read(wd);
+        var theirs =
+            state.MergeHeadId != "" ? state.MergeHeadId
+            : state.Operation == GitOperation.Rebase
+                ? OperationState.ReadFirstLine(System.IO.Path.Join(GitDir.GitDirPathOf(wd), "REBASE_HEAD"))
+            : "";
+
+        // In the order given, HEAD's first, and with nothing but the subject whatever log's config
+        var args = $"log --no-walk=unsorted --no-show-signature --format=%s HEAD {theirs}".TrimEnd();
+        var subjectsResult = await cmd.RunAsync("git", args, wd);
+        if (subjectsResult is not string subjects)
+            return subjectsResult.Error;
+
+        var lines = subjects.Split('\n');
+        return new ConflictSides(
+            branch == "HEAD" ? "" : branch,
+            lines[0],
+            theirs != "" && lines.Length > 1 ? lines[1] : ""
+        );
     }
 
     // Fills in the common ancestor of each conflict, i.e. what the base pane shows.

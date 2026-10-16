@@ -44,6 +44,76 @@ class DiffRows
 
     internal void AddLine(Text line) => Add(line, Text.Empty, DiffRowMode.DividerLine, "", "", 0, 0, null, null);
 
+    // A file's header, which the view follows with a rule across the rest of the row
+    internal void AddFileHeader(Text header, string filePath)
+    {
+        Add(header, filePath);
+        rows[^1] = rows[^1] with { Fill = Text.Blue("─") };
+    }
+
+    // Where unchanged lines are left out between two hunks, '⋯' and a line
+    internal void AddHunkSeparator(Text separator)
+    {
+        Add(separator);
+        rows[^1] = rows[^1] with { Fill = Text.Dark("─") };
+    }
+
+    // The marker a conflict starts with, on both sides or across them, which a conflict is gone to by
+    internal void AddConflictStart(Text marker, bool isOneColumn)
+    {
+        if (isOneColumn)
+            Add(marker);
+        else
+            Add(marker, marker);
+        rows[^1] = rows[^1] with { IsConflictStart = true };
+    }
+
+    // The row the next or previous change starts at, from a row, or -1 when there is none that way.
+    // A change is a run of changed rows, or a conflict, from its first marker. From inside a change,
+    // the previous one is its own start, as an editor's previous change is.
+    internal int NextChange(int fromRow, int step) => Next(fromRow, step, IsChangeStart);
+
+    // The header of the next or previous file, from a row, or -1 when there is none that way
+    internal int NextFile(int fromRow, int step) => Next(fromRow, step, i => rows[i].FilePath != "");
+
+    // Which change a row starts, and how many there are, e.g. (3, 9)
+    internal (int Number, int Count) ChangeNumber(int index) => Number(index, IsChangeStart);
+
+    // Which file a row is the header of, and how many there are
+    internal (int Number, int Count) FileNumber(int index) => Number(index, i => rows[i].FilePath != "");
+
+    // The header of the file a row is in, -1 above the first file, of its commit in a file history,
+    // where the file above a commit's title is the commit before's
+    internal int FileHeaderOf(int index)
+    {
+        for (var i = Math.Min(index, rows.Count - 1); i >= 0; i--)
+        {
+            if (rows[i].FilePath != "")
+                return i;
+            if (rows[i].CommitId != "")
+                return -1;
+        }
+        return -1;
+    }
+
+    bool IsChangeStart(int i) => rows[i].IsConflictStart || (rows[i].IsChange && (i == 0 || !rows[i - 1].IsChange));
+
+    int Next(int fromRow, int step, Func<int, bool> isWanted)
+    {
+        for (var i = fromRow + step; i >= 0 && i < rows.Count; i += step)
+        {
+            if (isWanted(i))
+                return i;
+        }
+        return -1;
+    }
+
+    (int Number, int Count) Number(int index, Func<int, bool> isWanted)
+    {
+        var starts = Enumerable.Range(0, rows.Count).Where(isWanted).ToList();
+        return (starts.IndexOf(index) + 1, starts.Count);
+    }
+
     void Add(
         Text left,
         Text right,
@@ -159,6 +229,12 @@ record DiffRow(
     public string? AddedText { get; init; }
 
     public bool IsChange => RemovedText != null || AddedText != null;
+
+    // The rune a header row is followed by to the end of the row, e.g. a file's '─', or null
+    public Text? Fill { get; init; }
+
+    // Whether the row is the marker a conflict starts with
+    public bool IsConflictStart { get; init; }
 }
 
 // Where the cursor is, as content rather than a row index, so it survives the rows being rebuilt
@@ -176,14 +252,24 @@ enum DiffRowMode
     DividerLine,
 }
 
-record Line(int LineNbr, string Text, Color Color);
+// What a line of a diff is: unchanged, removed or added, or a line of one side of a conflict
+enum LineKind
+{
+    Same,
+    Removed,
+    Added,
+    Ours,
+    Theirs,
+}
+
+record Line(int LineNbr, string Text, LineKind Kind);
 
 class Block
 {
     public List<Line> Lines { get; } = [];
 
-    public void Add(int lineNbr, string text, Color color)
+    public void Add(int lineNbr, string text, LineKind kind)
     {
-        Lines.Add(new Line(lineNbr, text, color));
+        Lines.Add(new Line(lineNbr, text, kind));
     }
 }

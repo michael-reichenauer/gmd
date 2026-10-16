@@ -103,6 +103,6 @@ public class SmallTerminalTest
 
         gmd.Send("d");
 
-        StringAssert.Contains(gmd.WaitFor("Added: delta.txt"), "delta");
+        StringAssert.Contains(gmd.WaitFor("A delta.txt"), "delta");
     }
 }

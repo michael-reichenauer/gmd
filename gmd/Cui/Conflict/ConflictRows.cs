@@ -13,10 +13,18 @@ enum ConflictRowMode
 //
 // HunkIndex is which conflict the row belongs to, or -1 for the stable text between them, which is
 // what the cursor is turned into a conflict number with and what next/previous conflict move by.
-record ConflictRow(IReadOnlyList<Text> Panes, ConflictRowMode Mode, int HunkIndex, bool IsHunkHeader = false)
+// GutterWidth is how much of the start of each pane is its gutter, a mark and a line number, which
+// stays where it is while the rest scrolls sideways, 0 for a row of no lines.
+record ConflictRow(
+    IReadOnlyList<Text> Panes,
+    ConflictRowMode Mode,
+    int HunkIndex,
+    bool IsHunkHeader = false,
+    int GutterWidth = 0
+)
 {
-    public static ConflictRow Span(Text text, int hunkIndex = -1) =>
-        new ConflictRow([text], ConflictRowMode.SpanAll, hunkIndex);
+    public static ConflictRow Span(Text text, int hunkIndex = -1, int gutterWidth = 0) =>
+        new ConflictRow([text], ConflictRowMode.SpanAll, hunkIndex, GutterWidth: gutterWidth);
 
     public static ConflictRow Header(Text text, int hunkIndex) =>
         new ConflictRow([text], ConflictRowMode.SpanAll, hunkIndex, IsHunkHeader: true);

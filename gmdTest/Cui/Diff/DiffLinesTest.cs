@@ -9,29 +9,29 @@ public class DiffLinesTest
 {
     // a.txt with two changes, two made TWO, and eleven made ELEVEN with a line added after it, and
     // b.txt, a new file
-    static readonly DiffRows Rows = new DiffRowService().ToDiffRows(
-        new CommitDiff(
-            "",
-            "",
-            DateTime.MinValue,
-            "",
-            [
-                File(
-                    "a.txt",
-                    DiffMode.DiffModified,
-                    (DiffMode.DiffSame, "one"),
-                    (DiffMode.DiffRemoved, "two"),
-                    (DiffMode.DiffAdded, "TWO"),
-                    (DiffMode.DiffSame, "three"),
-                    (DiffMode.DiffRemoved, "eleven"),
-                    (DiffMode.DiffAdded, "ELEVEN"),
-                    (DiffMode.DiffAdded, "extra"),
-                    (DiffMode.DiffSame, "twelve")
-                ),
-                File("b.txt", DiffMode.DiffAdded, (DiffMode.DiffAdded, "new"), (DiffMode.DiffAdded, "lines")),
-            ]
-        )
+    static readonly CommitDiff Diff = new CommitDiff(
+        "",
+        "",
+        DateTime.MinValue,
+        "",
+        [
+            File(
+                "a.txt",
+                DiffMode.DiffModified,
+                (DiffMode.DiffSame, "one"),
+                (DiffMode.DiffRemoved, "two"),
+                (DiffMode.DiffAdded, "TWO"),
+                (DiffMode.DiffSame, "three"),
+                (DiffMode.DiffRemoved, "eleven"),
+                (DiffMode.DiffAdded, "ELEVEN"),
+                (DiffMode.DiffAdded, "extra"),
+                (DiffMode.DiffSame, "twelve")
+            ),
+            File("b.txt", DiffMode.DiffAdded, (DiffMode.DiffAdded, "new"), (DiffMode.DiffAdded, "lines")),
+        ]
     );
+
+    static readonly DiffRows Rows = new DiffRowService().ToDiffRows(Diff);
 
     static FileDiff File(string path, DiffMode mode, params (DiffMode Mode, string Text)[] lines)
     {
@@ -52,6 +52,9 @@ public class DiffLinesTest
 
     static int RowOf(string text) =>
         Rows.Rows.FindIndexBy(r => r.Right.ToString().Contains(text) || r.Left.ToString().Contains(text));
+
+    // The row of a file's header, which names it
+    static int HeaderOf(string path) => Rows.Rows.FindIndexBy(r => r.FilePath == path);
 
     static int ChangeRowOf(string text) => Rows.Rows.FindIndexBy(r => r.RemovedText == text || r.AddedText == text);
 
@@ -74,16 +77,16 @@ public class DiffLinesTest
     public void TestAnUnchangedRowIsOnNoChange()
     {
         Assert.AreEqual(0, DiffLines.ChangeAt(Rows.Rows, RowOf("three")).Count);
-        Assert.AreEqual(0, DiffLines.ChangeAt(Rows.Rows, RowOf("Modified: a.txt")).Count);
+        Assert.AreEqual(0, DiffLines.ChangeAt(Rows.Rows, HeaderOf("a.txt")).Count);
     }
 
     // On a file's header, the file is its rows up to the next one, and each row knows its file
     [TestMethod]
     public void TestAFileIsItsRowsFromItsHeader()
     {
-        var (first, count) = DiffLines.FileAt(Rows.Rows, RowOf("Modified: a.txt"));
+        var (first, count) = DiffLines.FileAt(Rows.Rows, HeaderOf("a.txt"));
 
-        Assert.AreEqual(RowOf("Added: b.txt"), first + count, "Up to the next file");
+        Assert.AreEqual(HeaderOf("b.txt"), first + count, "Up to the next file");
         Assert.AreEqual(
             "a.txt: -2 two, +2 TWO, -4 eleven, +4 ELEVEN, +5 extra",
             Lines(DiffLines.Of(Rows, first, count))
@@ -105,5 +108,22 @@ public class DiffLinesTest
             Lines(DiffLines.Of(Rows, first, last - first + 1))
         );
         Assert.AreEqual("", Lines(DiffLines.Of(Rows, RowOf("three"), 1)));
+    }
+
+    // In one column the rows of a change are the removed lines and then the added ones, and the lines
+    // a discard or a commit is of are the same as side by side
+    [TestMethod]
+    public void TestTheLinesOfAChangeAreTheSameInOneColumn()
+    {
+        var oneColumn = new DiffRowService().ToDiffRows([Diff], new Dictionary<string, int>(), [], isOneColumn: true);
+        var extra = oneColumn.Rows.FindIndexBy(r => r.AddedText == "extra");
+
+        var (first, count) = DiffLines.ChangeAt(oneColumn.Rows, extra);
+        Assert.AreEqual("a.txt: -4 eleven, +4 ELEVEN, +5 extra", Lines(DiffLines.Of(oneColumn, first, count)));
+        Assert.AreEqual(
+            Lines(DiffLines.Of(Rows, 0, Rows.Count)),
+            Lines(DiffLines.Of(oneColumn, 0, oneColumn.Count)),
+            "Every changed line, as side by side"
+        );
     }
 }

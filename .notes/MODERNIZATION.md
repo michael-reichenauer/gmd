@@ -851,6 +851,32 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `Status.IsMerging`, which is any operation in progress); dead code (the
   commented blocks in `UnicodeSetsDlg`, `ExceptionHandling`, `Cmd`, `FileMonitor`,
   `WindowsClipboard`; `exampleRunes.cs` and `ConfigDlg`'s and `MainView`'s are gone); and `FakeGit` implements 12 of 76 members.
+- D, the diff and the resolver (from the 2026-10-16 review of `mr/diff-look`, left for after it):
+  - `DiffView.cs` (about 1580 lines) and `ConflictView.cs` (about 1190) hold logic that needs a
+    driver to test. The diff's top row (`TopRowText`, `TitleAt`) as a `DiffTopRow` beside
+    `DiffRows`; its layout (`IsOneColumnFor`, `ListWidth`, `FollowWidth`, `isListWanted`) as a
+    `DiffLayout`; drawing a row (`SideText`, `Focused`, `WithCursor`, `WithFill`) as a
+    `DiffRowWriter`, as `GraphWriter` is. In the resolver, the typing in the result pane
+    (`EditCurrentHunk` to `EndTyping`), and the questions of a file with no text to merge
+    (`AskWholeFile` and the four after it), which are the workspace's rather than the view's.
+  - `DiffFileList` and `ConflictFileList` repeat `Separated`, `Highlighted` and `Cut`, and count
+    the scrollbar column in their width alike: one writer of a list row beside a view.
+  - `WhyNotDiscardLines` and `WhyNotLeaveOut` repeat their chain of reasons.
+  - The "Narrowed by the list" branch of `DiffView.Show` cannot run: the list needs a terminal of
+    150 and takes a quarter of it at most, which leaves the diff 112 columns, above the 110 one
+    column starts below.
+  - `ConflictWorkspace` calls `UI.InfoMessage` and `UI.ErrorMessage` itself, so its loop is tested
+    end to end only; what it opens next (`ConflictFileList.After`) and what finishes
+    (`FinishOf`) are unit tested. `RepoCommands.ResolveConflicts` is one more `async void`, run
+    outside `Do` as the views are (see the note in `CommitCommands.ShowDiff`).
+  - `DiffRows.MaxLength` counts rows that never scroll sideways, the headers and a history's commit
+    rows, which widens the sideways scroll into blank columns.
+  - Speed, as measured then (Release): a diff of 10,000 changed lines lays out in about 110 ms, a
+    minified line of 200 KB in 26 ms, a conflict of 1,000 lines a side opens in 0.6 s and decides
+    in a millisecond. `LineWords` chunking by text element costs about 20% over a char loop, an
+    ASCII fast path if it ever matters. `SideChanges` looks only 50 lines past where the alignment
+    puts a removed line, so more lines than that added above changed ones are shown added and
+    removed rather than paired.
 - Not recommended: splitting `IServer` by area (decided 2026-10-13: every member is used and the
   command classes span the areas, so each would take several interfaces and couple no less);
   removing the one-implementation interfaces (they are the DI and test-double seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
@@ -913,18 +939,15 @@ Add new open issues and findings here as work lands; keep them short and drop th
     replacing red or green then too, for red-green color blindness.
   - *`NO_COLOR`.* Not read. Low value for gmd, whose graph tells branches apart by color alone;
     revisit if asked.
-- **Inline conflict editing** (typing in the result pane with both sides in view). The modal `E`
-  box covers the need. The gate is whether `SetFocus()` gives a `UITextView` the keyboard when it
-  shares a bare `Toplevel` with `ContentView`s — a configuration nothing in the codebase has run,
-  and a half-hour probe settles it. The cheaper change is to show both sides read-only inside the
-  edit dialog (`UIDialog.AddContentView`, as `CommitDlg` does).
 - **Combined diffs (`diff --cc`)** are skipped with a warning. Relaxing the `@@ ` check alone is
   harmful: `ParseSectionDiff` calls a bare `int.Parse` on `-1,1 -1,1 +1,1` and throws outside the
   `Result` handling. Full support needs n+1 `@` hunk headers, two-column line prefixes and a three-sided
   view; worth it as a feature, since it is the only way to show what a merge resolved by hand.
-- Not built, by choice: blame `-w` / `-M` / `-C` toggles; a diff context below 6; word-level
-  highlighting inside a conflict; submodule conflicts; `rerere`; marking local-only tags in the log
-  view (the tag mirror makes it knowable); tag pruning for remotes other than `origin`.
+- Not built, by choice: blame `-w` / `-M` / `-C` toggles; a diff context below 6; submodule
+  conflicts; `rerere`; marking local-only tags in the log view (the tag mirror makes it knowable);
+  tag pruning for remotes other than `origin`. Word-level highlighting inside a conflict, once on
+  this list as one side against the other, is built as each side against the ancestor
+  (`SideChanges`, 2026-10-16).
 - Coverage: `coverlet.collector` is referenced but nothing reports it in CI. Report it from the
   pull-request job first, then consider a floor as a ratchet.
 - IDE0305 (`.ToList()` → `[.. x]`, 13 sites) by hand, since it can change the concrete type behind
@@ -1075,6 +1098,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   on the way, which a `git add` or `commit` run there at that moment fails on; `--no-optional-locks`
   reads without either, and is what gmd's reads of the other worktrees use. So the `index` is not a
   signal of a change in a worktree, and a plain edit does not touch it.
+- `REBASE_HEAD` outlives the rebase (2026-10-16, git 2.55): it is left behind once a rebase that
+  stopped on a conflict is continued (an abort removes it), so it names the commit being applied
+  only while a rebase is in progress, and is read only then (`GetConflictSidesAsync`). A revert
+  writes its other side into the markers as `parent of <id> (<subject>)`, a rebase and a cherry
+  pick as `<id> (<subject>)`.
 
 **Inference**
 
@@ -1227,6 +1255,29 @@ Add new open issues and findings here as work lands; keep them short and drop th
   remote pointed nowhere so that gmd's background fetch could not move the corpus under the dumps.
 
 **Terminal.Gui 1.x and the UI**
+
+- A text view can be typed in beside `ContentView`s in a bare `Toplevel` (2026-10-16, the
+  resolver's result pane): `SetFocus()` on a `UITextView` added to it gives it every key, since a
+  `ContentView` acts on its registered keys in `ProcessHotKey` only while it has the focus. Esc
+  reaches the text view's `KeyPress` before its `ProcessKey`, which is where to catch it; `Leave`
+  is raised for Tab and for a click on a focusable view beside it, but not for its own right-click
+  menu, which runs over it and gives the keys back. A view laid over a `ContentView` is drawn after
+  it when added after it, and a `ContentView` clears its whole frame, so the rows under it are
+  drawn blank but for the gutter.
+- A resize of the terminal eats the next key, whatever the view (2026-10-16): after
+  `tmux resize-window`, `w` in the diff and `d` in the log did nothing the first time and worked the
+  second. So does a user's resizing of the window, presumably. Not gmd's: the key never reaches
+  `ContentView`. `TmuxSession.Resize` sends an unbound F12 for it to eat.
+- A view drawn from another's draw (a header following a scroll, say) lags by a key: what it marks
+  for redraw while a draw is under way waits for the main loop's next event. `ContentView.TopRow`
+  draws such a row in the same draw instead.
+- A `ContentView` whose rows come from its callback learns how many there are only as it draws
+  (2026-10-16): rows made anew, and the cursor put back on its line before the next draw, scroll
+  within the old count, which left the cursor out of sight in the diff laid out in one column, with
+  more rows than side by side. `SetTotalCount` first. A list beside a view is drawn at its width
+  less the scrollbar column, which its width has to count.
+- Terminal.Gui 1.x defines a `System.Rune` (NStack's), which makes .NET's `System.Text.Rune`
+  ambiguous wherever both namespaces are in scope: it is named in full (`TextWidth`, `LineWords`).
 
 - A dialog with keys of its own (`UIDialog`'s `CustomDialog`) used to override `ProcessHotKey`
   without calling the base, so its views got no hot keys at all, and `ContentView` takes its keys as

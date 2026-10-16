@@ -82,10 +82,10 @@ public class DiffRowServiceTest
     static string SummeryOf(DiffRows rows) =>
         string.Join("\n", DiffText.Of(rows).Split('\n').TakeWhile(l => !IsFilesRow(l))).TrimEnd();
 
-    // '3 Files:' and what is counted after it, or '1 File:'
-    static bool IsFilesRow(string line) => Regex.IsMatch(line, @"^\d+ Files?:");
+    // '3 files changed' and what is counted after it, or '1 file changed'
+    static bool IsFilesRow(string line) => Regex.IsMatch(line, @"^\d+ files? changed");
 
-    // The 'N Files:' row and the one row per file below it. Sliced by where they sit in the text
+    // The 'N files changed' row and the one row per file below it. Sliced by where they sit in the text
     // picture, so the color picture lines up with it.
     static string FileListOf(DiffRows rows, bool colors = false)
     {
@@ -123,21 +123,21 @@ public class DiffRowServiceTest
     [TestMethod]
     public void TestTheLineNumberGutterIsStripped()
     {
-        Assert.AreEqual("some code", DiffRowService.WithoutLineNbr("  12┃some code", 12));
+        Assert.AreEqual("some code", DiffRowService.WithoutLineNbr("▌  12 some code", 12));
     }
 
-    // The gutter is the number right aligned in 4, so it grows once the number no longer fits,
+    // The gutter is the bar, the number right aligned in 4 and a space, so it grows once the number no longer fits,
     // which whole file context on a large file reaches
     [TestMethod]
     public void TestTheGutterOfALargeLineNumberIsWider()
     {
-        Assert.AreEqual("some code", DiffRowService.WithoutLineNbr("12345┃some code", 12345));
+        Assert.AreEqual("some code", DiffRowService.WithoutLineNbr("▌12345 some code", 12345));
     }
 
     [TestMethod]
     public void TestARowOfOnlyAGutterYieldsAnEmptyLine()
     {
-        Assert.AreEqual("", DiffRowService.WithoutLineNbr("  12┃", 12));
+        Assert.AreEqual("", DiffRowService.WithoutLineNbr("▌  12 ", 12));
     }
 
     // A file added whole is drawn in one column, with the new file's line numbers, and the copy read
@@ -173,7 +173,8 @@ public class DiffRowServiceTest
 
     // With whitespace hidden the summary says so, a file of whitespace changes alone is listed as such,
     // with a row saying why it has no lines, and the new indent of a changed line is not marked,
-    // where it is otherwise, with the spaces on the green background of an added change, '+'
+    // where it is otherwise, with the spaces on the green background of an added change, '+'; the
+    // word that changed is marked either way
     [TestMethod]
     public void TestADiffWithWhitespaceHiddenSaysSoAndMarksNone()
     {
@@ -191,42 +192,30 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            2 Files:  2 modified   +1 -1 lines   whitespace hidden
-              Modified:    a.c
-              Modified:    b.txt (Whitespace only)
+            2 files changed  2 modified  +1 -1  whitespace hidden
+              M a.c    +1 -1
+              M b.txt  whitespace only
             """,
             FileListOf(hidden)
         );
         Assert.AreEqual(
             """
-            ═
-            Commit:  abc123
-            Author:  Test
-            Date:    2025-01-01 00:00:00
-            Message: A commit
+            Test  2025-01-01 00:00:00
 
-            2 Files:  2 modified   +1 -1 lines   whitespace hidden
-              Modified:    a.c
-              Modified:    b.txt (Whitespace only)
+            2 files changed  2 modified  +1 -1  whitespace hidden
+              M a.c    +1 -1
+              M b.txt  whitespace only
 
-            ━
-            Modified: a.c
+            ▌ M a.c  +1 -1 ─
+            ▌   1 bar(); │ ▌   1     baz();
 
-            ─
-               1┃bar(); │    1┃    baz();
-            ─
-
-            ━
-            Modified: b.txt  (Whitespace only)
-
-            Only whitespace changed, which is hidden
-
-            ━
+            ▌ M b.txt  whitespace only ─
+                  Only whitespace changed, which is hidden
             """,
             DiffText.Of(hidden)
         );
-        Assert.AreEqual("   DCWW-WWW │    DC    WW+WWW", DiffText.BodyColorsOf(hidden), "The indent not marked");
-        Assert.AreEqual("   DCWW-WWW │    DC++++WW+WWW", DiffText.BodyColorsOf(shown));
+        Assert.AreEqual("R   R ---WWW │ G   G     +++WWW", DiffText.BodyColorsOf(hidden), "The indent not marked");
+        Assert.AreEqual("R   R ---WWW │ G   G +++++++WWW", DiffText.BodyColorsOf(shown));
     }
 
     // A search looks in each side's line without its line number, which '12' would otherwise find on
@@ -252,13 +241,10 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            Commit:  abc123|
-            Author:  Test|
-            Date:    2025-01-01 00:00:00|
-            Message: A commit|
-            1 File:  1 modified   +2 -1 lines|
-              Modified:    a.txt|
-            Modified: a.txt|
+            Test  2025-01-01 00:00:00|
+            1 file changed  1 modified  +2 -1|
+              M a.txt  +2 -1|
+            ▌ M a.txt  +2 -1|
             same|same
             old|new
             |more
@@ -314,7 +300,7 @@ public class DiffRowServiceTest
             new Dictionary<string, int> { ["a.txt"] = DiffContext.Default }
         );
 
-        CollectionAssert.AreEqual(new[] { "Modified: a.txt" }, HeaderRowsOf(rows).ToArray());
+        CollectionAssert.AreEqual(new[] { "▌ M a.txt" }, HeaderRowsOf(rows).ToArray());
     }
 
     [TestMethod]
@@ -330,10 +316,7 @@ public class DiffRowServiceTest
             new Dictionary<string, int> { ["a.txt"] = 15 }
         );
 
-        CollectionAssert.AreEqual(
-            new[] { "Modified: a.txt  (context 15)", "Modified: b.txt" },
-            HeaderRowsOf(rows).ToArray()
-        );
+        CollectionAssert.AreEqual(new[] { "▌ M a.txt  (context 15)", "▌ M b.txt" }, HeaderRowsOf(rows).ToArray());
     }
 
     [TestMethod]
@@ -344,7 +327,7 @@ public class DiffRowServiceTest
             new Dictionary<string, int> { ["a.txt"] = DiffContext.WholeFile }
         );
 
-        CollectionAssert.AreEqual(new[] { "Modified: a.txt  (whole file)" }, HeaderRowsOf(rows).ToArray());
+        CollectionAssert.AreEqual(new[] { "▌ M a.txt  (whole file)" }, HeaderRowsOf(rows).ToArray());
     }
 
     // Splicing one file of a re-fetched diff into the one on screen
@@ -462,10 +445,11 @@ public class DiffRowServiceTest
     }
 
     // Rendering the diff itself, i.e. what the diff view draws. DiffText flattens the styled rows
-    // into a picture, so an expected value can be reviewed by looking at it. NoLine, the filler
-    // drawn where one side has no line, is collapsed to a single '░'.
+    // into a picture, so an expected value can be reviewed by looking at it. NoLine, the side with no
+    // line, is blank, and the rule after a file's header is one '─'.
 
-    // The commit summary the diff heads itself with
+    // The commit summary the diff heads itself with: who made it when, the id and the subject being
+    // the view's top row, where they stay in sight
 
     [TestMethod]
     public void TestADiffIsDrawnAsSummeryFileListAndThenTheFileItself()
@@ -474,30 +458,20 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            ═
-            Commit:  abc123
-            Author:  Test
-            Date:    2025-01-01 00:00:00
-            Message: A commit
+            Test  2025-01-01 00:00:00
 
-            1 File:  1 modified
-              Modified:    a.txt
+            1 file changed  1 modified
+              M a.txt
 
-            ━
-            Modified: a.txt
-
-            ─
-               1 one │    1 one
-            ─
-
-            ━
+            ▌ M a.txt ─
+                1 one │     1 one
             """,
             DiffText.Of(rows)
         );
     }
 
     // The uncommitted diff has no commit of its own, so DiffRowService fabricates a header with
-    // every field empty; each one is left out rather than drawn blank
+    // every field empty; each one is left out rather than drawn blank, and so are the rows they are on
     [TestMethod]
     public void TestAnEmptyCommitFieldIsLeftOutOfTheSummery()
     {
@@ -505,18 +479,35 @@ public class DiffRowServiceTest
             new CommitDiff("", "", DateTime.MinValue, "", [FileOf("a.txt", lines: [(DiffMode.DiffSame, "one")])])
         );
 
-        Assert.AreEqual("═", SummeryOf(rows));
+        Assert.AreEqual("", SummeryOf(rows));
     }
 
-    // The row carries the id so the view can open the commit from the diff
+    // In a file history each commit's title row carries its id, which is how the view finds where a
+    // commit starts; a diff of one commit has no such row, its title being the view's top row
     [TestMethod]
-    public void TestOnlyTheCommitRowCarriesTheCommitId()
+    public void TestOnlyTheCommitRowsOfAHistoryCarryTheCommitIds()
     {
-        var rows = RowsOf(FileOf("a.txt", lines: [(DiffMode.DiffSame, "one")]));
+        var file = FileOf("a.txt", lines: [(DiffMode.DiffSame, "one")]);
+        var history = new DiffRowService().ToDiffRows([
+            new CommitDiff("c2", "Test", new DateTime(2025, 1, 2), "Second", [file]),
+            new CommitDiff("c1", "Test", new DateTime(2025, 1, 1), "First", [file]),
+        ]);
 
         CollectionAssert.AreEqual(
-            new[] { "abc123" },
-            rows.Rows.Where(r => r.CommitId != "").Select(r => r.CommitId).ToArray()
+            new[] { "c2", "c1" },
+            history.Rows.Where(r => r.CommitId != "").Select(r => r.CommitId).ToArray()
+        );
+        Assert.IsFalse(RowsOf(file).Rows.Any(r => r.CommitId != ""));
+    }
+
+    // The title of the top row: the id and the subject, or what there is of them
+    [TestMethod]
+    public void TestTheTitleIsTheIdAndTheSubject()
+    {
+        Assert.AreEqual("abc123  A commit", DiffRowService.TitleOf(CommitDiffOf()).ToString());
+        Assert.AreEqual(
+            "Uncommitted changes",
+            DiffRowService.TitleOf(new CommitDiff("", "", DateTime.MinValue, "Uncommitted changes", [])).ToString()
         );
     }
 
@@ -536,18 +527,18 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            4 Files:  1 added, 1 modified, 1 removed, 1 conflicted   +1 -1 lines
-              Modified:    m.txt
-              Added:       a.txt
-              Removed:     r.txt
-              Conflicts:   c.txt
+            4 files changed  1 added, 1 modified, 1 deleted, 1 conflicted  +1 -1
+              M m.txt
+              A a.txt  +1
+              D r.txt  -1
+              C c.txt
             """,
             FileListOf(rows)
         );
     }
 
-    // The mode is what colors the row, which is the only thing telling the four kinds apart at a
-    // glance: white modified, green added, red removed and bright yellow conflicted
+    // The kind is a letter in its color, as the commit details have it: yellow modified, green added,
+    // red deleted and bright red conflicted, and the files row names the kinds in the same colors
     [TestMethod]
     public void TestTheModeColorsTheFilesRow()
     {
@@ -562,11 +553,11 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            W WWWWWW  G GGGGGD W WWWWWWWWD R RRRRRRRD y yyyyyyyyyy   GG RR DDDDD
-              WWWWWWWWW    WWWWW
-              GGGGGG       GGGGG
-              RRRRRRRR     RRRRR
-              yyyyyyyyyy   yyyyy
+            W WWWWW WWWWWWW  G GGGGGD Y YYYYYYYYD R RRRRRRRD r rrrrrrrrrr  GG RR
+              Y WWWWW
+              G WWWWW  GG
+              R WWWWW  RR
+              r WWWWW
             """,
             FileListOf(rows, colors: true)
         );
@@ -596,7 +587,7 @@ public class DiffRowServiceTest
             )
         );
 
-        Assert.AreEqual("4 Files:  1 added, 2 modified, 1 renamed   +5 -2 lines", FileListOf(rows).Split('\n')[0]);
+        Assert.AreEqual("4 files changed  1 added, 2 modified, 1 renamed  +5 -2", FileListOf(rows).Split('\n')[0]);
     }
 
     // A rename git found no content change in names both paths and is called a rename rather than
@@ -608,16 +599,15 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            1 File:  1 renamed
-              Renamed:     a.txt => b.txt (Renamed)
+            1 file changed  1 renamed
+              R a.txt → b.txt
             """,
             FileListOf(rows)
         );
-        Assert.AreEqual("Renamed: a.txt => b.txt  (Renamed)", HeaderRowsOf(rows).Single());
+        Assert.AreEqual("▌ R a.txt → b.txt", HeaderRowsOf(rows).Single());
     }
 
-    // A binary file is still called modified — only the '(Binary)' suffix and the dark color say
-    // there is nothing to show
+    // A binary file is still called modified, with 'binary' in the place of its lines, in dark
     [TestMethod]
     public void TestABinaryFileIsMarkedButStillCalledModified()
     {
@@ -625,21 +615,21 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-            1 File:  1 modified
-              Modified:    a.bin (Binary)
+            1 file changed  1 modified
+              M a.bin  binary
             """,
             FileListOf(rows)
         );
         Assert.AreEqual(
             """
-            W WWWWW  W WWWWWWWW
-              DDDDDDDDD    DDDDD DDDDDDDD
+            W WWWW WWWWWWW  Y YYYYYYYY
+              Y WWWWW  DDDDDD
             """,
             FileListOf(rows, colors: true)
         );
     }
 
-    // No section means no hunk rules and no lines at all, i.e. the file is named and nothing else
+    // No section means no hunk header and no lines at all, i.e. the file is named and nothing else
     [TestMethod]
     public void TestAFileWithNoContentChangeHasNoBody()
     {
@@ -654,11 +644,11 @@ public class DiffRowServiceTest
     {
         var rows = RowsOf(FileOf("a.txt", lines: [(DiffMode.DiffRemoved, "one"), (DiffMode.DiffAdded, "uno")]));
 
-        Assert.AreEqual("   1┃one │    1┃uno", DiffText.BodyOf(rows));
+        Assert.AreEqual("▌   1 one │ ▌   1 uno", DiffText.BodyOf(rows));
         Assert.AreEqual(DiffRowMode.SideBySide, BodyRowsOf(rows).Single().Mode);
     }
 
-    // An unchanged line is on both sides with the plain space margin, not the '┃' a change gets
+    // An unchanged line is on both sides with a space in the gutter, not the '▌' a change gets
     [TestMethod]
     public void TestAnUnchangedLineIsDrawnOnBothSidesWithNoMargin()
     {
@@ -666,17 +656,17 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-               1 one │    1 one
-               2 two │    2 two
+                1 one │     1 one
+                2 two │     2 two
             """,
             DiffText.BodyOf(rows)
         );
     }
 
     // More removed than added, so the surplus removed lines have nothing to pair with and the
-    // right side is filled instead
+    // right side is blank beside them
     [TestMethod]
-    public void TestASurplusRemovedLineLeavesTheRightSideFilled()
+    public void TestASurplusRemovedLineLeavesTheRightSideBlank()
     {
         var rows = RowsOf(
             FileOf(
@@ -687,8 +677,8 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-               1┃one │    1┃uno
-               2┃two │ ░
+            ▌   1 one │ ▌   1 uno
+            ▌   2 two │
             """,
             DiffText.BodyOf(rows)
         );
@@ -696,11 +686,11 @@ public class DiffRowServiceTest
         var surplus = BodyRowsOf(rows)[1];
         Assert.AreSame(DiffRowService.NoLine, surplus.Right, "The right side has no line of its own");
         Assert.AreEqual(2, surplus.LeftLineNbr);
-        Assert.AreEqual(0, surplus.RightLineNbr, "The filled side is numbered 0, i.e. it is not a source line");
+        Assert.AreEqual(0, surplus.RightLineNbr, "The blank side is numbered 0, i.e. it is not a source line");
     }
 
     [TestMethod]
-    public void TestASurplusAddedLineLeavesTheLeftSideFilled()
+    public void TestASurplusAddedLineLeavesTheLeftSideBlank()
     {
         var rows = RowsOf(
             FileOf(
@@ -711,8 +701,8 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-               1┃one │    1┃uno
-            ░        │    2┃dos
+            ▌   1 one │ ▌   1 uno
+                      │ ▌   2 dos
             """,
             DiffText.BodyOf(rows)
         );
@@ -760,8 +750,8 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-               1┃one
-               2┃two
+            ▌   1 one
+            ▌   2 two
             """,
             DiffText.BodyOf(rows)
         );
@@ -780,12 +770,12 @@ public class DiffRowServiceTest
     {
         var rows = RowsOf(FileOf("a.txt", DiffMode.DiffRemoved, [(DiffMode.DiffRemoved, "one")]));
 
-        Assert.AreEqual("   1┃one", DiffText.BodyOf(rows));
+        Assert.AreEqual("▌   1 one", DiffText.BodyOf(rows));
         Assert.AreEqual(DiffRowMode.SpanBoth, BodyRowsOf(rows).Single().Mode);
         Assert.AreEqual(1, BodyRowsOf(rows).Single().LeftLineNbr);
     }
 
-    // Marking what changed within a line, which is the only DiffPlex use in the codebase
+    // Marking what changed within a line, word by word (LineWords), which is where DiffPlex is used
 
     [TestMethod]
     public void TestOnlyTheChangedWordOfALineIsMarked()
@@ -794,20 +784,21 @@ public class DiffRowServiceTest
             FileOf("a.txt", lines: [(DiffMode.DiffRemoved, "the quick fox"), (DiffMode.DiffAdded, "the slow fox")])
         );
 
-        Assert.AreEqual("   1┃the quick fox │    1┃the slow fox", DiffText.BodyOf(rows));
+        Assert.AreEqual("▌   1 the quick fox │ ▌   1 the slow fox", DiffText.BodyOf(rows));
         Assert.AreEqual(
             """
-               DCWWW ----- WWW │    DCWWW ++++ WWW
+            R   R WWW ----- WWW │ G   G WWW ++++ WWW
             """,
             DiffText.BodyColorsOf(rows),
             "Only 'quick' and 'slow' are marked, the text either side of them is not"
         );
     }
 
-    // Past four separate differences the line is marked whole, since a dozen scattered marks read
-    // as noise rather than as a diff
+    // Lines that share less than half their text are rewritten rather than edited, and are not
+    // marked at all, since a dozen scattered marks read as noise rather than as a diff: the bars and
+    // the numbers in red and green say they changed
     [TestMethod]
-    public void TestALineWithManyDifferencesIsMarkedWhole()
+    public void TestALineThatSharesLittleIsNotMarked()
     {
         var rows = RowsOf(
             FileOf("a.txt", lines: [(DiffMode.DiffRemoved, "a b c d e f"), (DiffMode.DiffAdded, "1 2 3 4 5 6")])
@@ -815,23 +806,23 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-               DC----------- │    DC+++++++++++
+            R   R W W W W W W │ G   G W W W W W W
             """,
             DiffText.BodyColorsOf(rows)
         );
     }
 
-    // A changed indent is the case the character diff cannot show, since the two lines are the
-    // same once trimmed. Only the spaces one side has and the other does not are marked.
+    // A changed indent is the case the word diff cannot show, since the two lines are the same once
+    // trimmed. Only the spaces one side has and the other does not are marked.
     [TestMethod]
     public void TestAChangedIndentIsMarkedOnTheIndentAlone()
     {
         var rows = RowsOf(FileOf("a.txt", lines: [(DiffMode.DiffRemoved, "  x"), (DiffMode.DiffAdded, "    x")]));
 
-        Assert.AreEqual("   1┃  x │    1┃    x", DiffText.BodyOf(rows));
+        Assert.AreEqual("▌   1   x │ ▌   1     x", DiffText.BodyOf(rows));
         Assert.AreEqual(
             """
-               DC  W │    DC  ++W
+            R   R   W │ G   G   ++W
             """,
             DiffText.BodyColorsOf(rows),
             "The two spaces the right side has over the left are marked, the shared two are not"
@@ -845,16 +836,17 @@ public class DiffRowServiceTest
     {
         var rows = RowsOf(FileOf("a.txt", lines: [(DiffMode.DiffRemoved, "x"), (DiffMode.DiffAdded, "x  ")]));
 
-        Assert.AreEqual("   1┃x │    1┃x", DiffText.BodyOf(rows));
+        Assert.AreEqual("▌   1 x │ ▌   1 x", DiffText.BodyOf(rows));
         Assert.AreEqual(
             """
-               DCW │    DCW++
+            R   R W │ G   G W++
             """,
             DiffText.BodyColorsOf(rows)
         );
     }
 
-    // Conflicts, which are drawn ours left and theirs right between magenta markers
+    // Conflicts, which are drawn ours left and theirs right between magenta markers, in the resolver's
+    // colors, yellow and cyan, and with no word marked: neither side is removed or added
 
     [TestMethod]
     public void TestAConflictIsMarkedOnBothSidesWithOursLeftAndTheirsRight()
@@ -864,10 +856,10 @@ public class DiffRowServiceTest
         Assert.AreEqual(
             """
             === Start of conflict │ === Start of conflict
-               2┃ours             │ ░
+            ▌   2 ours            │
             === Common ancestor
             base line
-            ░                     │    6┃theirs
+                                  │ ▌   6 theirs
             === End of conflict   │ === End of conflict
             """,
             DiffText.BodyOf(rows)
@@ -897,11 +889,11 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-               1 before           │    1 before
+                1 before          │     1 before
             === Start of conflict │ === Start of conflict
-               3┃ours             │    5┃theirs
+            ▌   3 ours            │ ▌   5 theirs
             === End of conflict   │ === End of conflict
-               3 after            │    7 after
+                3 after           │     7 after
             """,
             DiffText.BodyOf(rows)
         );
@@ -929,9 +921,9 @@ public class DiffRowServiceTest
 
         Assert.AreEqual(
             """
-               1 same │    1 same
-               2┃one  │    2┃one␍
-               3┃two  │    3┃TWO
+                1 same │     1 same
+            ▌   2 one  │ ▌   2 one␍
+            ▌   3 two  │ ▌   3 TWO
             """,
             DiffText.BodyOf(rows)
         );
@@ -947,10 +939,10 @@ public class DiffRowServiceTest
         Assert.AreEqual(
             """
             mmm mmmmm mm mmmmmmmm │ mmm mmmmm mm mmmmmmmm
-               DRYYYY             │ D
+            Y   D YYYY            │
             DDD DDDDDD DDDDDDDD
             DDDD DDDD
-            D                     │    DGYYYYYY
+                                  │ C   D CCCCCC
             mmm mmm mm mmmmmmmm   │ mmm mmm mm mmmmmmmm
             """,
             DiffText.BodyColorsOf(rows)
@@ -977,20 +969,29 @@ public class DiffRowServiceTest
             ["a.txt"]
         );
 
-        Assert.AreEqual("Conflicts: a.txt", HeaderRowsOf(rows).Single());
+        Assert.AreEqual("▌ C a.txt  +1", HeaderRowsOf(rows).Single());
     }
 
-    // Re-heading it also takes it out of the one column arm, since the file is no longer 'added'
+    // A file in conflict now is its header and one row saying how many conflicts it has, which the
+    // resolver resolves, Enter there; its sides are read there, not here. One git wrote no markers
+    // for, e.g. deleted on one side, is a conflict of the whole file.
     [TestMethod]
-    public void TestAnUnmergedFileIsNoLongerDrawnInOneColumn()
+    public void TestAFileInConflictIsOneRowSayingSo()
     {
         var added = FileOf("a.txt", DiffMode.DiffAdded, [(DiffMode.DiffAdded, "one")]);
+        var marked = FileOf("b.txt", DiffMode.DiffConflicts, [.. ConflictLines, .. ConflictLines]);
 
-        Assert.AreEqual("   1┃one", DiffText.BodyOf(RowsOf(added)));
+        Assert.AreEqual("▌   1 one", DiffText.BodyOf(RowsOf(added)));
         Assert.AreEqual(
-            "░ │    1┃one",
+            "      A conflict of the whole file: Enter resolves it",
             DiffText.BodyOf(
                 new DiffRowService().ToDiffRows([CommitDiffOf(added)], new Dictionary<string, int>(), ["a.txt"])
+            )
+        );
+        Assert.AreEqual(
+            "      2 conflicts: Enter resolves them",
+            DiffText.BodyOf(
+                new DiffRowService().ToDiffRows([CommitDiffOf(marked)], new Dictionary<string, int>(), ["b.txt"])
             )
         );
     }
@@ -1004,10 +1005,11 @@ public class DiffRowServiceTest
             ["other.txt"]
         );
 
-        Assert.AreEqual("Added: a.txt", HeaderRowsOf(rows).Single());
+        Assert.AreEqual("▌ A a.txt  +1", HeaderRowsOf(rows).Single());
     }
 
-    // Full file history is one file over many commits, so the diff is headed with the list of them
+    // Full file history is one file over many commits, so the diff is headed with the list of them,
+    // which the view's top row counts
     [TestMethod]
     public void TestAMultiCommitDiffIsHeadedWithACommitList()
     {
@@ -1016,11 +1018,184 @@ public class DiffRowServiceTest
             CommitDiffOf(FileOf("a.txt", lines: [(DiffMode.DiffSame, "two")])),
         ]);
 
-        Assert.AreEqual("2 Commits:", DiffText.Of(rows).Split('\n')[1]);
+        StringAssert.StartsWith(DiffText.Of(rows).Split('\n')[0], "  abc123  A commit");
         Assert.AreEqual(
             2,
-            DiffText.Of(rows).Split('\n').Count(l => l.StartsWith("Commit:  abc123")),
+            DiffText.Of(rows).Split('\n').Count(l => l.StartsWith("abc123  A commit")),
             "Each commit still gets its own summery below the list"
+        );
+    }
+
+    // In one column, the layout of a narrow view, a change's removed lines are above its added ones,
+    // as git writes them, the unchanged line before them once, and the words that differ marked as
+    // side by side
+
+    static DiffRows OneColumnOf(FileDiff file) =>
+        new DiffRowService().ToDiffRows([CommitDiffOf(file)], new Dictionary<string, int>(), [], isOneColumn: true);
+
+    [TestMethod]
+    public void TestOneColumnHasTheRemovedLinesAboveTheAdded()
+    {
+        var rows = OneColumnOf(
+            FileOf(
+                "a.txt",
+                lines:
+                [
+                    (DiffMode.DiffSame, "one"),
+                    (DiffMode.DiffRemoved, "the quick fox"),
+                    (DiffMode.DiffRemoved, "gone"),
+                    (DiffMode.DiffAdded, "the slow fox"),
+                    (DiffMode.DiffSame, "four"),
+                ]
+            )
+        );
+
+        Assert.AreEqual(
+            """
+                1 one
+            ▌   2 the quick fox
+            ▌   3 gone
+            ▌   2 the slow fox
+                3 four
+            """,
+            DiffText.BodyOf(rows)
+        );
+        Assert.AreEqual(
+            """
+                D WWW
+            R   R WWW ----- WWW
+            R   R WWWW
+            G   G WWW ++++ WWW
+                D WWWW
+            """,
+            DiffText.BodyColorsOf(rows),
+            "The words of the pair marked, the line with no pair not"
+        );
+        CollectionAssert.AreEqual(
+            new[] { (1, 1), (2, 0), (3, 0), (0, 2), (4, 3) },
+            BodyRowsOf(rows).Select(r => (r.LeftLineNbr, r.RightLineNbr)).ToArray(),
+            "An unchanged line has both numbers, a changed one its own side's"
+        );
+    }
+
+    // A conflict's sides one after the other, each named by git's marker, ours yellow, theirs cyan
+    [TestMethod]
+    public void TestOneColumnNamesTheSidesOfAConflict()
+    {
+        var rows = OneColumnOf(
+            FileOf(
+                "a.txt",
+                DiffMode.DiffConflicts,
+                [
+                    (DiffMode.DiffConflictStart, "<<<<<< HEAD"),
+                    (DiffMode.DiffSame, "ours"),
+                    (DiffMode.DiffConflictSplit, "======"),
+                    (DiffMode.DiffSame, "theirs"),
+                    (DiffMode.DiffConflictEnd, ">>>>>> dev"),
+                ]
+            )
+        );
+
+        Assert.AreEqual(
+            """
+            === Start of conflict  HEAD
+            ▌   2 ours
+            === dev
+            ▌   4 theirs
+            === End of conflict
+            """,
+            DiffText.BodyOf(rows)
+        );
+        Assert.IsTrue(BodyRowsOf(rows)[0].IsConflictStart, "What ] goes to");
+    }
+
+    // A file whose lines are hidden, h, is its header alone, which says so; the others are as they were
+    [TestMethod]
+    public void TestAHiddenFileIsItsHeaderAlone()
+    {
+        var diff = CommitDiffOf(
+            FileOf("a.txt", lines: [(DiffMode.DiffRemoved, "one"), (DiffMode.DiffAdded, "uno")]),
+            FileOf("b.txt", lines: [(DiffMode.DiffSame, "two")])
+        );
+
+        var rows = new DiffRowService().ToDiffRows(
+            [diff],
+            new Dictionary<string, int>(),
+            [],
+            hiddenFiles: new HashSet<string> { "a.txt" }
+        );
+
+        CollectionAssert.AreEqual(
+            new[] { "▌ M a.txt  +1 -1  lines hidden", "▌ M b.txt" },
+            HeaderRowsOf(rows).ToArray()
+        );
+        Assert.IsFalse(rows.Rows.Any(r => r.IsChange), "No line of a.txt");
+        Assert.AreEqual("    1 two │     1 two", DiffText.Of(rows).Split('\n')[^1]);
+    }
+
+    // Between two hunks, where unchanged lines are left out, a line starting with '⋯', naming the
+    // function git found the hunk in where that is not the one before it: with no pattern for C#, git
+    // names the class for each, and a name on every hunk said nothing. The first hunk is under the
+    // file's header, with none, though lines are left out above it too. The file's line is blue,
+    // which sets it apart from the hunks' dark ones.
+    [TestMethod]
+    public void TestHunksAreSeparatedWhereLinesAreLeftOut()
+    {
+        var rows = RowsOf(FileWithHunks());
+        var text = DiffText.Of(rows).Split('\n');
+        var header = text.FindIndexBy(l => l.StartsWith("▌ M Pricing.cs"));
+
+        Assert.AreEqual(
+            """
+            ▌ M Pricing.cs  +4 -4 ─
+                5 same     │     5 same
+            ▌   6 using A; │ ▌   6 using B;
+               ⋯ ─
+               20 same     │    20 same
+            ▌  21 a = 1;   │ ▌  21 a = 2;
+               ⋯ decimal Total() ─
+               40 same     │    40 same
+            ▌  41 b = 1;   │ ▌  41 b = 2;
+               ⋯ ─
+               60 same     │    60 same
+            ▌  61 c = 1;   │ ▌  61 c = 2;
+            """,
+            string.Join("\n", text.Skip(header))
+        );
+        var colors = DiffText.ColorsOf(rows).Split('\n').Skip(header).ToArray();
+        Assert.AreEqual("M Y WWWWWWWWWW  GG RR B", colors[0]);
+        Assert.AreEqual("   D D", colors[3]);
+        Assert.AreEqual("   D CCCCCCC CCCCCCC D", colors[6]);
+    }
+
+    // A file of four hunks, two in each of the functions git found them in
+    static FileDiff FileWithHunks()
+    {
+        SectionDiff Hunk(int line, string function, string removed, string added) =>
+            new(
+                $"{line},2 +{line},2",
+                line,
+                2,
+                line,
+                2,
+                [new(DiffMode.DiffSame, "same"), new(DiffMode.DiffRemoved, removed), new(DiffMode.DiffAdded, added)]
+            )
+            {
+                Function = function,
+            };
+
+        return new FileDiff(
+            "Pricing.cs",
+            "Pricing.cs",
+            false,
+            false,
+            DiffMode.DiffModified,
+            [
+                Hunk(5, "class Pricing", "using A;", "using B;"),
+                Hunk(20, "class Pricing", "a = 1;", "a = 2;"),
+                Hunk(40, "decimal Total()", "b = 1;", "b = 2;"),
+                Hunk(60, "decimal Total()", "c = 1;", "c = 2;"),
+            ]
         );
     }
 }

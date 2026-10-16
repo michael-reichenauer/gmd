@@ -309,6 +309,10 @@ class CommitCommands : ICommitCommands
                 {
                     RefreshAndCommit();
                 }
+                else if (rsp == DiffResult.Continue && !isFromCommit)
+                {
+                    context.RepoCmds.ContinueOperation();
+                }
                 else if (rsp == DiffResult.Refresh && !isFromCommit)
                 {
                     Refresh();

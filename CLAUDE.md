@@ -213,7 +213,11 @@ Key types and flow:
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
-  drawing through a `GetContentCallback`, so a large repo is never materialized as text. Where it is
+  drawing through a `GetContentCallback`, so a large repo is never materialized as text. Such a
+  view learns how many rows there are only as it draws, so whoever makes its rows anew calls
+  `SetTotalCount` before putting the cursor on one, or it is scrolled to within the old count. `TopRow`
+  draws a row above them from the first one shown, in the same draw (the diff's breadcrumb): a view
+  of its own beside it would be redrawn only on the next key. Where it is
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
   no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
@@ -249,7 +253,13 @@ unit testable — `*Rows`, `*Columns`, `ConflictResolution`. Each runs through `
 makes it modal, so a key it does not handle does nothing rather than reaching the log view below;
 register a letter with `RegisterLetterHandler`, which takes both cases, as its menu writes it.
 
-- **`Cui/Diff/`** — `DiffRowService` turns a `CommitDiff` into `DiffRows` (the only user of DiffPlex).
+- **`Cui/Diff/`** — `DiffRowService` turns a `CommitDiff` into `DiffRows`, a changed line's words
+  compared with `LineWords` (in `Cui/Common`, as the resolver's `SideChanges` uses it too; the two
+  are the only users of DiffPlex), marked only where the two lines are mostly alike. A change's removed and added lines are paired by position, never by likeness: `FilePatch`
+  pairs them the same way, and that is what decides where a line kept ends up when part of a change
+  is committed or discarded, so the view would otherwise show one file and commit another. The rows
+  are side by side, or in one column (`isOneColumn`) on a narrow view, and `DiffFileList` is the list
+  of files drawn beside a wide diff.
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
   context larger than any file, since git has no "all". `DiffSource` is what the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
@@ -263,10 +273,18 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
   math, and steps detail down as the terminal narrows.
 - **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
-  per hunk; it never builds file text, the decisions go back down to be applied. `IConflictView.Show`
+  per hunk; it never builds file text, the decisions go back down to be applied. `SideChanges` is a
+  side as its change against the common ancestor, which the resolver reads as the file opens, and
+  `ConflictCombine` both sides' changes in one where they touch other words, taken as text written
+  by hand. `e` types a conflict in the result pane, a `UITextView` laid over its rows, which
+  `ConflictTyping` places. `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
+  the operation, one after the other, from the conflict box, the repo menu and the diff's Enter, and
+  asks to commit or continue once none is left, which the caller does; how a file's view ended
+  (`ConflictOutcome`) says where it goes next, and `ConflictFileList` is the list of files beside it.
+  `IConflictView.Show`
   is deliberately **synchronous** — a Terminal.Gui `SynchronizationContext` posts an await's
   continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is
-  why the caller (`DiffView`) loads the file.
+  why the caller (`ConflictWorkspace`) loads the file.
 
 Below the UI, `Git/ConflictFile.cs` is the model (a `FileLine` keeps its own terminator, so a file
 round trips byte for byte however it is written), `ConflictParser` parses and re-emits it, and
@@ -738,7 +756,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

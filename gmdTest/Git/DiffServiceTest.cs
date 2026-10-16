@@ -421,6 +421,37 @@ public class DiffServiceTest
         Assert.AreEqual(0, section.RightCount);
     }
 
+    // Git writes the line its funcname pattern finds above a hunk after the header's second '@@', the
+    // function or heading the hunk is in, and nothing when no line above it matches
+    [TestMethod]
+    public async Task TestParseSectionFunction()
+    {
+        var output = """
+            diff --git a/a.cs b/a.cs
+            index 4cb29ea..ddc897f 100644
+            --- a/a.cs
+            +++ b/a.cs
+            @@ -1,1 +1,1 @@
+            -one
+            +ONE
+            @@ -9,1 +11,1 @@ public decimal Total(Order order)
+            -    return sum;
+            +    return Math.Round(sum, 2);
+            @@ -20,1 +22,1 @@ ## A heading
+            -x
+            +y
+            """;
+
+        var diff = await GetCommitDiffAsync("commit 1\nAuthor: \nDate: \n\n \n\n" + output);
+        var sections = FileOf(diff, "a.cs").SectionDiffs;
+
+        CollectionAssert.AreEqual(
+            new[] { "", "public decimal Total(Order order)", "## A heading" },
+            sections.Select(s => s.Function).ToArray()
+        );
+        Assert.AreEqual("9,1 +11,1", sections[1].ChangedIndexes, "The indexes are left as they were");
+    }
+
     // Tabs are expanded so the diff view can align columns, since it draws each line itself
     [TestMethod]
     public async Task TestParseExpandsTabs()

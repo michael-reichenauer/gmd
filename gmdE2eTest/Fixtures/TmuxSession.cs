@@ -301,6 +301,16 @@ sealed class TmuxSession : IDisposable
     // rather than a cursor key
     public void SendText(string text) => Tmux("send-keys", "-t", "gmd", "-l", text);
 
+    // Resizes the terminal, as a user resizing the window does. Terminal.Gui 1.x eats the key after a
+    // resize, whatever it is, so an F12, which nothing in gmd is bound to, goes first for it to eat.
+    public void Resize(int width, int height)
+    {
+        Tmux("resize-window", "-t", "gmd", "-x", $"{width}", "-y", $"{height}");
+        WaitForStable();
+        Send("F12");
+        WaitForStable();
+    }
+
     // Whether gmd is still running. The pane is kept after it exits (remain-on-exit), so this is
     // about the process, not the session.
     //

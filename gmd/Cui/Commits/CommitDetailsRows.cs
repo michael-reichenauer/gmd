@@ -62,31 +62,22 @@ static class CommitDetailsRows
             return [Text.Empty, Text.Dark("No files changed")];
 
         var summary = Text.White($"{files.Count} file{(files.Count == 1 ? "" : "s")} changed");
-        AddCounts(summary, files.Sum(f => f.Added), files.Sum(f => f.Deleted));
+        ChangedFileText.AddCounts(summary, files.Sum(f => f.Added), files.Sum(f => f.Deleted));
         List<Text> rows = [Text.Empty, summary];
 
         foreach (var f in files.Take(MaxFiles))
         {
-            var row = FileRow(f.Kind, f.OldPath == "" ? f.Path : $"{f.OldPath} → {f.Path}").ToTextBuilder();
+            var row = ChangedFileText.Row(f.Kind, f.OldPath == "" ? f.Path : $"{f.OldPath} → {f.Path}").ToTextBuilder();
             if (f.IsBinary)
                 row.Dark("  binary");
             else
-                AddCounts(row, f.Added, f.Deleted);
+                ChangedFileText.AddCounts(row, f.Added, f.Deleted);
             rows.Add(row);
         }
         if (files.Count > MaxFiles)
             rows.Add(Text.Dark($"┅ {files.Count - MaxFiles} more"));
 
         return rows;
-    }
-
-    // The lines added and deleted, each only when there are any, in the diff's green and red
-    static void AddCounts(TextBuilder text, int added, int deleted)
-    {
-        if (added > 0)
-            text.Dark("  ").Green($"+{added}");
-        if (deleted > 0)
-            text.Dark(added > 0 ? " " : "  ").Red($"-{deleted}");
     }
 
     // The files with changes not committed, below the count of them: the conflicted first, since
@@ -101,24 +92,9 @@ static class CommitDetailsRows
         return
         [
             Text.Empty,
-            .. conflicts.Select(path => FileRow('C', path)),
-            .. files.Select(f => FileRow(f.Kind, f.Path)),
+            .. conflicts.Select(path => ChangedFileText.Row('C', path)),
+            .. files.Select(f => ChangedFileText.Row(f.Kind, f.Path)),
         ];
-    }
-
-    // A file and what changed in it, by the letter the commit dialog uses: 'M' modified, 'A' new,
-    // 'D' deleted, 'R' renamed, and 'C' conflicted, in the red the application bar says conflicts in
-    static Text FileRow(char kind, string path)
-    {
-        var letter = $"{kind}";
-        var text = kind switch
-        {
-            'A' => Text.Green(letter),
-            'D' => Text.Red(letter),
-            'C' => Text.BrightRed(letter),
-            _ => Text.Yellow(letter),
-        };
-        return text.White($" {path}");
     }
 
     // The full id, which is the one to copy into another tool, and the tags, as the log writes them

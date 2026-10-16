@@ -1023,6 +1023,51 @@ public class GitIntegrationTest
         Assert.AreEqual(1, status.OperationTotal);
     }
 
+    // The sides of a stopped merge: the branch HEAD is on and its subject, and the subject of the
+    // branch merged in, from MERGE_HEAD
+    [TestMethod]
+    public async Task TestTheSidesOfAStoppedMerge()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+
+        Assert.AreEqual(
+            new ConflictSides("main", "Main work", "Dev work"),
+            Value(await repo.Git.GetConflictSidesAsync(repo.Path))
+        );
+    }
+
+    // During a rebase HEAD is on no branch, and the other side is the commit being applied, from
+    // REBASE_HEAD
+    [TestMethod]
+    public async Task TestTheSidesOfAStoppedRebase()
+    {
+        await TwoBranchesThatConflictAsync();
+        Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
+        await repo.GitAllowFailAsync("rebase main");
+
+        Assert.AreEqual(
+            new ConflictSides("", "Main work", "Dev work"),
+            Value(await repo.Git.GetConflictSidesAsync(repo.Path))
+        );
+    }
+
+    // A REBASE_HEAD left behind, as git leaves it after a rebase that stopped and was continued,
+    // names no side of another operation, here a squash merge, which records no MERGE_HEAD: the
+    // merged in side was named by the subject of that old rebase's last commit applied
+    [TestMethod]
+    public async Task TestARebaseHeadLeftBehindNamesNoSideOfAMerge()
+    {
+        var d1 = await TwoBranchesThatConflictAsync();
+        await File.WriteAllTextAsync(Path.Join(repo.Path, ".git", "REBASE_HEAD"), d1 + "\n");
+        await repo.GitAllowFailAsync("merge --squash dev");
+
+        Assert.AreEqual(
+            new ConflictSides("main", "Main work", ""),
+            Value(await repo.Git.GetConflictSidesAsync(repo.Path))
+        );
+    }
+
     // Abort puts the working folder back as it was, from each of the operations gmd can start
     [TestMethod]
     public async Task TestAbortOfAConflictedMerge()
