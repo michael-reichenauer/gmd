@@ -28,25 +28,28 @@ class DiffFileList
 
     public static readonly DiffFileList None = new([], false);
 
+    // Each item found by its id or path in a dictionary, the first of them as a search would: a search
+    // for each made it quadratic, 78 ms for a commit of 5000 files, with every v, l, h, + or w
     public static DiffFileList Of(CommitDiff[] diffs, DiffRows rows)
     {
         if (diffs.Length > 1)
         {
+            var byId = FirstBy(diffs, d => d.Id);
             var commits = rows
                 .Rows.Select((r, i) => (r, i))
                 .Where(x => x.r.CommitId != "")
-                .Select(x => (Diff: diffs.FirstOrDefault(d => d.Id == x.r.CommitId), Row: x.i))
+                .Select(x => (Diff: byId.GetValueOrDefault(x.r.CommitId), Row: x.i))
                 .Where(x => x.Diff != null)
                 .Select(x => new Item(Text.Cyan(x.Diff!.Id.Sid()).White($" {x.Diff.Message}"), x.Row, ""))
                 .ToList();
             return new DiffFileList(commits, true);
         }
 
-        var files = diffs.Length == 1 ? diffs[0].FileDiffs : [];
+        var byPath = FirstBy(diffs.Length == 1 ? diffs[0].FileDiffs : [], f => f.PathAfter);
         var items = rows
             .Rows.Select((r, i) => (r, i))
             .Where(x => x.r.FilePath != "")
-            .Select(x => (File: files.FirstOrDefault(f => f.PathAfter == x.r.FilePath), Row: x.i))
+            .Select(x => (File: byPath.GetValueOrDefault(x.r.FilePath), Row: x.i))
             .Where(x => x.File != null)
             .Select(x => new Item(FileText(x.File!), x.Row, x.File!.PathAfter))
             .ToList();
@@ -62,6 +65,14 @@ class DiffFileList
         // drawn without: uncounted, the widest file was always cut
         var widest = Items.Max(i => i.Text.Length) + 4;
         return Math.Clamp(widest, MinWidth, Math.Min(MaxWidth, terminalWidth / 4));
+    }
+
+    static Dictionary<string, T> FirstBy<T>(IEnumerable<T> items, Func<T, string> keyOf)
+    {
+        Dictionary<string, T> first = [];
+        foreach (var item in items)
+            first.TryAdd(keyOf(item), item);
+        return first;
     }
 
     // The item the diff row is in, the last one starting at or above it, -1 above them all
