@@ -16,13 +16,14 @@ interface IDiffRowService
     // isIgnoreWhitespace is a diff read with whitespace left out, whose rows say so, and mark no change
     // of the spaces around a line's text, nor of its line end, either. isOneColumn is the layout of a
     // narrow view: a change's removed lines above its added ones, as git writes them, rather than
-    // beside them.
+    // beside them. hiddenFiles are the files whose lines are hidden, drawn as their header alone.
     DiffRows ToDiffRows(
         CommitDiff[] commitDiffs,
         IReadOnlyDictionary<string, int> fileContext,
         IReadOnlyList<string> conflictPaths,
         bool isIgnoreWhitespace = false,
-        bool isOneColumn = false
+        bool isOneColumn = false,
+        IReadOnlySet<string>? hiddenFiles = null
     );
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
@@ -99,11 +100,12 @@ class DiffRowService : IDiffRowService
         IReadOnlyDictionary<string, int> fileContext,
         IReadOnlyList<string> conflictPaths,
         bool isIgnoreWhitespace = false,
-        bool isOneColumn = false
+        bool isOneColumn = false,
+        IReadOnlySet<string>? hiddenFiles = null
     )
     {
         commitDiffs = commitDiffs.Select(d => AsConflicted(d, conflictPaths)).ToArray();
-        var layout = new Layout(isIgnoreWhitespace, isOneColumn);
+        var layout = new Layout(isIgnoreWhitespace, isOneColumn, hiddenFiles ?? new HashSet<string>());
         DiffRows rows = new DiffRows();
 
         // A file history is one file over many commits, headed with the list of them, which the view's
@@ -358,6 +360,11 @@ class DiffRowService : IDiffRowService
         {
             header.Dark($"  {DiffContext.ToText(contextLines)}");
         }
+        if (layout.HiddenFiles.Contains(fd.PathAfter))
+        { // Its header alone, h shows the lines again
+            rows.AddFileHeader(header.Dark("  lines hidden"), fd.PathAfter);
+            return;
+        }
         rows.AddFileHeader(header, fd.PathAfter);
 
         if (fd.IsWhitespaceOnly)
@@ -609,8 +616,9 @@ class DiffRowService : IDiffRowService
     // The name git wrote on a conflict's marker, e.g. 'HEAD' of '<<<<<<< HEAD'
     static string MarkerName(string marker) => marker.TrimStart('<', '>', '|', '=').Trim();
 
-    // How the rows are made: with whitespace left out, and in one column rather than two
-    record Layout(bool IsIgnoreWhitespace, bool IsOneColumn);
+    // How the rows are made: with whitespace left out, in one column rather than two, and with the
+    // lines of some files hidden
+    record Layout(bool IsIgnoreWhitespace, bool IsOneColumn, IReadOnlySet<string> HiddenFiles);
 
     // The text of a removed or an added line of a block, as the diff has it, null for an unchanged
     // line or a conflict's, which are no change of the commit

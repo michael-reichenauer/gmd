@@ -78,6 +78,9 @@ class DiffView : IDiffView
     // it is not shown, and whether it has the keys, as Tab moves them there and back
     ContentView listView = null!;
     DiffFileList fileList = DiffFileList.None;
+
+    // The files whose lines are hidden, h, which are drawn as their header alone, for this diff
+    readonly HashSet<string> hiddenFiles = [];
     int listWidth;
     bool isListFocus;
 
@@ -124,6 +127,7 @@ class DiffView : IDiffView
         this.fileContext.Clear();
         this.conflictState = conflicts ?? ConflictState.None;
         this.isOneColumnChosen = null;
+        this.hiddenFiles.Clear();
         this.isOneColumn = IsOneColumnFor(Application.Driver.Cols - 1); // The view's width, but for its scrollbar
         this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
         this.fileList = DiffFileList.Of(diffs, diffRows);
@@ -253,6 +257,7 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
         view.RegisterLetterHandler(Key.w, ToggleWhitespace);
         view.RegisterLetterHandler(Key.v, ToggleLayout);
+        view.RegisterLetterHandler(Key.h, ToggleHidden);
         view.RegisterLetterHandler(Key.x, ToggleLeftOut);
 
         // The next and previous change, as the resolver's ] and [ go to a conflict, and file. Terminal.Gui
@@ -339,6 +344,7 @@ class DiffView : IDiffView
                 .Item(ContextItemText("Less Context", -1), "-", () => StepContext(-1), () => CanStepContext(-1))
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
                 .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
+                .Item(HiddenItemText(), "h", ToggleHidden, () => CurrentAnchor().FilePath != "", () => NoFile)
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected && !isOneColumn)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected && !isOneColumn)
                 .Item("Close", "Esc", () => Application.RequestStop())
@@ -357,7 +363,7 @@ class DiffView : IDiffView
         search = FindInRows(text);
         if (!search.IsActive)
         {
-            status.Notice($"'{text}' is not in the diff");
+            status.Notice($"'{text}' is not in {(hiddenFiles.Count > 0 ? "the lines shown" : "the diff")}");
             return;
         }
 
@@ -807,6 +813,7 @@ class DiffView : IDiffView
     // the patch of a moved file's new path has none of the old one, and a conflict's lines are markers.
     string WhyNotDiscardLines(IReadOnlyList<FileLines> files) =>
         isIgnoreWhitespace ? "Show whitespace first with w: while it is hidden, not every change is shown"
+        : files.Count == 0 && IsOnHiddenFile(out var hidden) ? HiddenText(hidden)
         : files.Count == 0
             ? IsSelected ? "The selected lines have no change"
                 : "Move to a change first, or select lines with ⇧↑ ⇧↓"
@@ -1059,6 +1066,7 @@ class DiffView : IDiffView
         : source.IsCommittedWhole ? "What is in progress is committed whole, as git commits it"
         : isIgnoreWhitespace ? "Show whitespace first with w: while it is hidden, not every change is shown"
         : files.Count == 0 && IsOnFileHeader(out var path) && leftOut.CountOf(path) > 0 ? ""
+        : files.Count == 0 && IsOnHiddenFile(out var hidden) ? HiddenText(hidden)
         : files.Count == 0
             ? IsSelected ? "The selected lines have no change"
                 : "Move to a change first, or select lines with ⇧↑ ⇧↓"
@@ -1120,6 +1128,10 @@ class DiffView : IDiffView
         var byFile = DiffLines.Of(diffRows, 0, diffRows.Count).ToDictionary(f => f.Path, f => f.Lines);
         foreach (var path in leftOut.Paths.ToList())
         {
+            // Not drawn, so not to be found: the commit itself checks them, as it does every line
+            if (hiddenFiles.Contains(path))
+                continue;
+
             var count = leftOut.Refind(path, byFile.GetValueOrDefault(path, []));
             if (count > 0)
                 notFound[path] = count;
@@ -1175,6 +1187,38 @@ class DiffView : IDiffView
 
         status.Info(isIgnoreWhitespace ? "Whitespace changes hidden: w shows them" : "Whitespace changes shown");
     }
+
+    // Hides the lines of the file the cursor is in, h, which is then drawn as its header alone, e.g. a
+    // file that is generated, or shows them again, for this diff
+    void ToggleHidden()
+    {
+        var path = CurrentAnchor().FilePath;
+        if (path == "")
+        {
+            status.Notice(NoFile);
+            return;
+        }
+
+        var isHidden = !hiddenFiles.Remove(path);
+        if (isHidden)
+            hiddenFiles.Add(path);
+        SetDiffs(diffs, CurrentAnchor());
+        status.Info(isHidden ? $"The lines of {path} are hidden: h shows them" : $"The lines of {path} are shown");
+    }
+
+    const string NoFile = "Move to a file first";
+
+    string HiddenItemText()
+    {
+        var path = CurrentAnchor().FilePath;
+        return path == "" ? "Hide the Lines of a File"
+            : hiddenFiles.Contains(path) ? $"Show the Lines of {path.Max(40)}"
+            : $"Hide the Lines of {path.Max(40)}";
+    }
+
+    bool IsOnHiddenFile(out string path) => IsOnFileHeader(out path) && hiddenFiles.Contains(path);
+
+    static string HiddenText(string path) => $"The lines of {path} are hidden: h shows them";
 
     // Shows the diff in one column, or side by side again, v, for this diff: the next one is shown as
     // its width chooses
@@ -1241,7 +1285,14 @@ class DiffView : IDiffView
     void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
     {
         diffs = newDiffs;
-        diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), isIgnoreWhitespace, isOneColumn);
+        diffRows = diffRowService.ToDiffRows(
+            diffs,
+            fileContext,
+            ConflictPaths(),
+            isIgnoreWhitespace,
+            isOneColumn,
+            hiddenFiles
+        );
         fileList = DiffFileList.Of(diffs, diffRows);
         search = FindInRows(search.Text); // The rows the search found are other rows now
         RefindLeftOutLines(); // As the lines left out may have moved

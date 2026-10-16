@@ -1102,4 +1102,28 @@ public class DiffRowServiceTest
         );
         Assert.IsTrue(BodyRowsOf(rows)[0].IsConflictStart, "What ] goes to");
     }
+
+    // A file whose lines are hidden, h, is its header alone, which says so; the others are as they were
+    [TestMethod]
+    public void TestAHiddenFileIsItsHeaderAlone()
+    {
+        var diff = CommitDiffOf(
+            FileOf("a.txt", lines: [(DiffMode.DiffRemoved, "one"), (DiffMode.DiffAdded, "uno")]),
+            FileOf("b.txt", lines: [(DiffMode.DiffSame, "two")])
+        );
+
+        var rows = new DiffRowService().ToDiffRows(
+            [diff],
+            new Dictionary<string, int>(),
+            [],
+            hiddenFiles: new HashSet<string> { "a.txt" }
+        );
+
+        CollectionAssert.AreEqual(
+            new[] { "▌ M a.txt  +1 -1  lines hidden", "▌ M b.txt" },
+            HeaderRowsOf(rows).ToArray()
+        );
+        Assert.IsFalse(rows.Rows.Any(r => r.IsChange), "No line of a.txt");
+        Assert.AreEqual("    1 two │     1 two", DiffText.Of(rows).Split('\n')[^1]);
+    }
 }

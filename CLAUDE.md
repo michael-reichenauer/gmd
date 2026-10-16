@@ -255,7 +255,9 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   compared with `LineWords` (the only user of DiffPlex), marked only where the two lines are mostly
   alike. A change's removed and added lines are paired by position, never by likeness: `FilePatch`
   pairs them the same way, and that is what decides where a line kept ends up when part of a change
-  is committed or discarded, so the view would otherwise show one file and commit another.
+  is committed or discarded, so the view would otherwise show one file and commit another. The rows
+  are side by side, or in one column (`isOneColumn`) on a narrow view, and `DiffFileList` is the list
+  of files drawn beside a wide diff.
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
   context larger than any file, since git has no "all". `DiffSource` is what the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
@@ -744,7 +746,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

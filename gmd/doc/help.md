@@ -574,6 +574,10 @@ commit. A file history lists its commits instead. `Tab` moves the keys to
 the list, where `↑` and `↓` go from file to file, and `Tab`, `Enter` or
 `Esc` back to the diff; a click on a file goes to it.
 
+`h` hides the lines of the file the cursor is in, a file that is generated,
+say, which is then drawn as its header alone, and `h` on it shows them
+again, for the diff it is pressed in.
+
 `]` and `[` go to the next and the previous change, a run of changed lines
 or a conflict, and `}` and `{` to the next and the previous file, and the
 line at the bottom says which it went to, e.g. `Change 3 of 9`. The top row

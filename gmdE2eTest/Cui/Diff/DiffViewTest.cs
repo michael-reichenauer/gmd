@@ -317,9 +317,9 @@ public class DiffViewTest
                18 line 18                         │Less Context                            -  │
                19 line 19                         │Hide Whitespace Changes                 w  │
             ▌  20 line 20                         │Show in One Column                      v  │
-               21 line 21                         │Focus Left Column                       ←  │
-               22 line 22                         │Focus Right Column                      →  │
-               23 line 23                         │Close                                 Esc  │
+               21 line 21                         │Hide the Lines of long.txt              h  │
+               22 line 22                         │Focus Left Column                       ←  │
+               23 line 23                         │Focus Right Column                      →  │
             """,
             ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path
@@ -436,6 +436,32 @@ public class DiffViewTest
 
     // A file with two changes, two made TWO, and eleven made ELEVEN with a line added after it, not
     // committed, and the diff of it open with the cursor on the second change, which search put it on
+    // h hides the lines of the file the cursor is in, which is then its header alone, and h on it shows
+    // them again. Lines left out of the commit in a file hidden are not reported as not found for not
+    // being drawn.
+    [TestMethod]
+    public async Task TestHideTheLinesOfAFile()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("ELEVEN");
+        using var _ = repo;
+        using var __ = gmd;
+        gmd.Send("x");
+        gmd.WaitFor("out of the commit");
+
+        gmd.Send("h");
+        Assert.AreEqual(
+            "The lines of lines.txt are hidden: h shows them",
+            ScreenText.LastLine(gmd.WaitFor("are hidden"))
+        );
+        var hidden = ScreenText.Of(gmd.Capture(), repo.Path);
+        StringAssert.Contains(hidden, "▌ M lines.txt  +3 -2  lines hidden  (3 lines left out) ─");
+        Assert.IsFalse(hidden.Contains("ELEVEN"), "Its lines are not drawn");
+
+        gmd.Send("h");
+        Assert.AreEqual("The lines of lines.txt are shown", ScreenText.LastLine(gmd.WaitFor("are shown")));
+        StringAssert.Contains(ScreenText.Of(gmd.Capture(), repo.Path), "ELEVEN");
+    }
+
     static async Task<(TempRepo Repo, TmuxSession Gmd)> OnTheSecondChangeAsync(string search)
     {
         var repo = await E2eRepo.CreateAsync();

@@ -114,7 +114,15 @@ that does not fight the diff's colors, light themes.
   headers are out of sight, the file and the hunk's function, the commit's subject cut short first
   (`ContentView.TopRow`, drawn in the same draw as the rows, so it never lags a scroll by a key).
   On the way, `Text.ToTextBuilder()` gave a builder of length 0, whatever the text.
-- [ ] 3. The file list and the unified layout (3). M to L
+- [x] 3. The file list and the unified layout (3). M to L *Done (2026-10-16):* one column below 110
+  columns, a change's removed lines above its added ones and a conflict's sides one after the
+  other, each named; it follows the terminal's width, and `v` switches it for the diff. A line across
+  the view scrolls sideways now, with its gutter in place, which a file added whole never did. The
+  list of files (`DiffFileList`) on a terminal 150 wide or more, for more than one file, or the
+  commits of a file history: letters, lines, `╎3` for lines left out, the cursor's file marked;
+  `Tab` moves the keys there and back, a click goes to a file. `h` hides a file's lines, its header
+  alone then; its lines left out of the commit are not refound, and not reported lost, while hidden.
+  On the way: Terminal.Gui eats the key after a resize (MODERNIZATION.md).
 - [ ] 4. The resolver's sides against the ancestor, its names and line numbers, the whole result
   (4). M
 - [ ] 5. Combine (5). M
