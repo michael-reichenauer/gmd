@@ -26,7 +26,7 @@ class PatchService : IPatchService
     // and with no textconv either, which shows a file as a program has converted it, and no patch of
     // that applies to the file. Empty lines keep their ' ', which diff.suppressBlankEmpty drops.
     const string PatchFormat =
-        "-c diff.suppressBlankEmpty=false diff --no-color --no-ext-diff --no-textconv --no-renames"
+        "-c diff.suppressBlankEmpty=false diff --no-color --no-ext-diff --no-textconv"
         + " --src-prefix=a/ --dst-prefix=b/ --unified=3";
 
     // The bytes of a patch as text only where they are UTF-8: anything else would be changed by being
@@ -41,9 +41,11 @@ class PatchService : IPatchService
     }
 
     // From HEAD to the working tree, a file git does not track yet as a new file, as the diff of the
-    // uncommitted changes has it: it is staged first, as that diff stages everything, into a copy of
-    // the index (TempIndex). Git writes the patch to a file rather than to its output, which Cmd
-    // decodes and trims, and the last line of a patch can end in spaces, or be one.
+    // uncommitted changes has it: everything is staged first, as that diff stages it, into a copy of
+    // the index (TempIndex), which is also how a file moved is found to be renamed, and its patch is
+    // then of both paths, a rename with the lines the diff shows, the old file's and the new one's.
+    // Git writes the patch to a file rather than to its output, which Cmd decodes and trims, and the
+    // last line of a patch can end in spaces, or be one.
     public async Task<Result<FilePatch>> GetUncommittedPatchAsync(string path, string wd)
     {
         var patchPath = Path.Join(Path.GetTempPath(), $"gmd-patch-{Guid.NewGuid():N}.diff");
@@ -54,13 +56,17 @@ class PatchService : IPatchService
                 async env =>
                 {
                     var literal = new Dictionary<string, string>(env) { ["GIT_LITERAL_PATHSPECS"] = "1" };
-                    if (await cmd.RunAsync("git", $"add -A -- {Cmd.Quote(path)}", wd, environment: literal) is Error e)
+                    if (await cmd.RunAsync("git", "add -A", wd, environment: literal) is Error e)
                         return e;
 
                     // With no commit yet there is no HEAD, the file is new, and what is staged is all of it.
                     // Asked first: git's word for it with a path is not the one it has without.
-                    var since = await HasHeadAsync(wd) ? "HEAD" : "--staged";
-                    var args = $"{PatchFormat} --output={Cmd.Quote(patchPath)} {since} -- {Cmd.Quote(path)}";
+                    var hasHead = await HasHeadAsync(wd);
+                    var since = hasHead ? "HEAD" : "--staged";
+                    var renamedFrom = hasHead ? await RenamedFromAsync(path, literal, wd) : "";
+                    var paths = renamedFrom == "" ? Cmd.Quote(path) : $"{Cmd.Quote(renamedFrom)} {Cmd.Quote(path)}";
+                    var renames = renamedFrom == "" ? "--no-renames" : "--find-renames";
+                    var args = $"{PatchFormat} {renames} --output={Cmd.Quote(patchPath)} {since} -- {paths}";
                     if (await cmd.RunAsync("git", args, wd, environment: literal) is Error diffError)
                         return diffError;
 
@@ -72,6 +78,31 @@ class PatchService : IPatchService
         {
             Result.Catch(() => File.Delete(patchPath));
         }
+    }
+
+    // The path the file was renamed from, as the diff of the uncommitted changes finds it, "" when it
+    // was not. Read with -z, where paths are written as they are.
+    async Task<string> RenamedFromAsync(string path, IReadOnlyDictionary<string, string> env, string wd)
+    {
+        var args = "diff --find-renames --name-status -z HEAD";
+        if (await cmd.RunAsync("git", args, wd, environment: env) is not string output)
+            return "";
+
+        var parts = output.Split('\0');
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (parts[i].StartsWith('R') && i + 2 < parts.Length)
+            {
+                if (parts[i + 2] == path)
+                    return parts[i + 1];
+                i += 2;
+            }
+            else
+            {
+                i++; // A status and its one path
+            }
+        }
+        return "";
     }
 
     // Whether there is a commit yet, which a repository just made has not
@@ -161,7 +192,10 @@ class PatchService : IPatchService
             if (await cmd.RunAsync("git", $"commit{amend} -m {Cmd.Quote(message)}", wd, environment: env) is Error e)
                 return e;
 
-            var committed = paths.Concat(patches.Keys);
+            // A renamed file's old path goes with its rename, as gone
+            var committed = paths
+                .Concat(patches.Keys)
+                .Concat(patches.Values.Select(p => p.RenamedFrom).Where(p => p != ""));
             if (Result.Catch(() => File.WriteAllText(pathsFile, string.Join('\0', committed))) is Error pathsError)
                 return pathsError;
             var literal = new Dictionary<string, string> { ["GIT_LITERAL_PATHSPECS"] = "1" };

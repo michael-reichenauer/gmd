@@ -405,8 +405,9 @@ throw changes away ask first, and what they throw away gmd keeps, for
   out, and the rest of the file's changes stay as they are. It asks first,
   and Restore Discarded Changes brings them back. It is refused if the file has changed since the
   diff was read, rather than taking back other lines (`r` reads it again),
-  and is not for a renamed file or one with conflicts, nor while
-  whitespace is hidden (`w`), which are discarded whole.
+  and is not for a file with conflicts, nor while whitespace is hidden
+  (`w`), which are discarded whole. A renamed file stays renamed: its
+  lines are taken back where it is now.
 - **Discard Changes in a File** (also `u` in the diff of the uncommitted
   changes): `git checkout --force HEAD -- <file>`, staged changes too, or
   a new file is unstaged and deleted
@@ -442,10 +443,11 @@ throw changes away ask first, and what they throw away gmd keeps, for
   line of it back. A line left out that is not found as it was shown, the
   file having changed since, stops the commit, with nothing committed,
   rather than going in: the diff finds a line again where only its number
-  moved, and says how many it does not find. Not while something is in
-  progress, nor for a renamed file or one with conflicts, nor while
-  whitespace is hidden (`w`); and an older commit cannot be amended with
-  a file that has lines left out.
+  moved, and says how many it does not find. A renamed file's lines go in
+  with its rename, and with every line left out the rename alone does: the
+  move without the edits. Not while something is in progress, nor for a
+  file with conflicts, nor while whitespace is hidden (`w`); and an older
+  commit cannot be amended with a file that has lines left out.
   After a merge made in gmd, `Ctrl-A` in the dialog adds the subjects of
   the merged commits, one per line, and for a merged merge the list in its
   message.
