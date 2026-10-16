@@ -82,13 +82,16 @@ class DiffRows
     // Which file a row is the header of, and how many there are
     internal (int Number, int Count) FileNumber(int index) => Number(index, i => rows[i].FilePath != "");
 
-    // The header of the file a row is in, -1 above the first file
+    // The header of the file a row is in, -1 above the first file, of its commit in a file history,
+    // where the file above a commit's title is the commit before's
     internal int FileHeaderOf(int index)
     {
         for (var i = Math.Min(index, rows.Count - 1); i >= 0; i--)
         {
             if (rows[i].FilePath != "")
                 return i;
+            if (rows[i].CommitId != "")
+                return -1;
         }
         return -1;
     }

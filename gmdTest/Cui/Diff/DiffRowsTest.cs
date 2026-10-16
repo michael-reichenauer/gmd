@@ -117,6 +117,21 @@ public class DiffRowsTest
         Assert.AreEqual(Header(rows, "b.txt"), rows.FileHeaderOf(Row(rows, "new")), "In the next file");
     }
 
+    // In a file history a commit's rows above its first file are in no file: the file above them is
+    // the commit before's, which the top row named with this commit's title, and its counts
+    [TestMethod]
+    public void TestACommitsRowsAboveItsFilesAreInNoFile()
+    {
+        var rows = FileHistory();
+        var c2 = rows.Rows.FindIndexBy(r => r.CommitId == Id("c2"));
+        var c2File = c2 + rows.Rows.Skip(c2).FindIndexBy(r => r.FilePath != "");
+
+        Assert.AreNotEqual(-1, rows.FileHeaderOf(c2 - 1), "The end of c1, in its file");
+        Assert.AreEqual(-1, rows.FileHeaderOf(c2), "c2's title");
+        Assert.AreEqual(-1, rows.FileHeaderOf(c2File - 1), "Below c2's title, above its file");
+        Assert.AreEqual(c2File, rows.FileHeaderOf(c2File + 1), "In c2's file");
+    }
+
     // a.txt with two changes and a conflict, the second change in two rows, and b.txt, a new file
     static DiffRows TwoFiles()
     {
