@@ -20,8 +20,9 @@ record ConflictNames(string Ours, Text OursTitle, string Theirs, Text TheirsTitl
         var ours = isOnBranch ? sides.OursBranch : oursLabel;
         var oursTitle = Text.Yellow(ours).Dark(isOnBranch ? " (HEAD)" : "").Add(Subject(sides.OursSubject));
 
-        // A rebase or a cherry pick writes the commit and its subject, 'abc1234 (Subject)'
-        var commit = Regex.Match(theirsLabel, @"^(\S+) \((.*)\)$");
+        // A rebase or a cherry pick writes the commit and its subject, 'abc1234 (Subject)', and a
+        // revert the parent of the commit reverted, 'parent of abc1234 (Subject)'
+        var commit = Regex.Match(theirsLabel, @"^((?:parent of )?\S+) \((.*)\)$");
         var (theirs, theirsSubject) = commit.Success
             ? (commit.Groups[1].Value, commit.Groups[2].Value)
             : (theirsLabel, sides.TheirsSubject);

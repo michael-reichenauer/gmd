@@ -42,6 +42,20 @@ public class ConflictNamesTest
         Assert.AreEqual("1a2b3c4 · Dev work", names.TheirsTitle.ToString());
     }
 
+    // A revert's other side is the parent of the commit reverted, which git writes as 'parent of id
+    // (subject)', named so with the subject once: it was the whole label, and the subject again
+    [TestMethod]
+    public void TestARevertNamesTheParentOfTheCommitReverted()
+    {
+        var names = ConflictNames.Of(
+            FileLabelled("HEAD", "parent of 1a2b3c4 (Dev work)"),
+            new ConflictSides("main", "Main work", "Dev work")
+        );
+
+        Assert.AreEqual(("main", "parent of 1a2b3c4"), (names.Ours, names.Theirs));
+        Assert.AreEqual("parent of 1a2b3c4 · Dev work", names.TheirsTitle.ToString());
+    }
+
     // With nothing known of the sides, the names git wrote, as they were
     [TestMethod]
     public void TestWithNoSidesKnownTheLabelsAreTheNames()
