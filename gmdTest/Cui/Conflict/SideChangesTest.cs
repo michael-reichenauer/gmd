@@ -113,4 +113,15 @@ public class SideChangesTest
             Shown(SideChanges.Of(ancestor, theirs))
         );
     }
+
+    // A carriage return alone is text in a line, as the parser keeps it, not the end of one: a line
+    // diff that split on it as well put its pieces out of step with the lines and threw
+    [TestMethod]
+    public void TestALoneCarriageReturnIsPartOfItsLine()
+    {
+        var ancestor = Lines("a\rb", "total = 1", "d");
+        var ours = Lines("a\rb", "total = 2", "d", "e");
+
+        Assert.AreEqual("  a\rb\n~ total = [2]\n  d\n+ e", Shown(SideChanges.Of(ancestor, ours)));
+    }
 }

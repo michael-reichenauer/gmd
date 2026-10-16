@@ -25,11 +25,12 @@ record SideLine(SideLineKind Kind, string Text, IReadOnlyList<WordRun> Words, in
 static class SideChanges
 {
     static readonly Differ differ = new();
+    static readonly LineChunker chunker = new();
 
     public static IReadOnlyList<SideLine> Of(IReadOnlyList<FileLine> ancestor, IReadOnlyList<FileLine> side)
     {
         var (old, now) = (ancestor.Select(l => l.Text).ToList(), side.Select(l => l.Text).ToList());
-        var result = differ.CreateLineDiffs(string.Join('\n', old), string.Join('\n', now), false);
+        var result = differ.CreateDiffs(string.Join('\n', old), string.Join('\n', now), false, false, chunker);
         if (old.Count == 0) // An empty text is one empty line to the differ
             return now.Select((t, i) => new SideLine(SideLineKind.Added, t, [], i)).ToList();
         if (now.Count == 0)
@@ -75,5 +76,13 @@ static class SideChanges
             lines.Add(new SideLine(SideLineKind.Same, now[n], [], n));
 
         return lines;
+    }
+
+    // The lines joined above, split where they were joined. DiffPlex's own line diff also ends a line
+    // at a '\r', which a line of a file keeps when it is not followed by a '\n', so its pieces were no
+    // longer the lines, and indexing the lines by them threw.
+    class LineChunker : IChunker
+    {
+        public IReadOnlyList<string> Chunk(string text) => text.Split('\n');
     }
 }
