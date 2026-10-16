@@ -171,10 +171,10 @@ Homebrew rather than by itself (`gmd/Installation/PackageManager.cs`).
 
 To set up the key, or to replace it:
 
-14. Make a key pair with no passphrase: `ssh-keygen -t ed25519 -N "" -C "gmd release workflow" -f tap_key`.
-15. In the tap, *Settings → Deploy keys → Add deploy key*: paste `tap_key.pub` and tick *Allow
+1. Make a key pair with no passphrase: `ssh-keygen -t ed25519 -N "" -C "gmd release workflow" -f tap_key`.
+2. In the tap, *Settings → Deploy keys → Add deploy key*: paste `tap_key.pub` and tick *Allow
    write access*.
-16. In this repository, *Settings → Secrets and variables → Actions → New repository secret*: name
+3. In this repository, *Settings → Secrets and variables → Actions → New repository secret*: name
    it `HOMEBREW_TAP_KEY` and paste the whole of `tap_key`. Then delete both files.
 
 Without the secret, the step warns and the release goes on. To put a release in the tap by hand,

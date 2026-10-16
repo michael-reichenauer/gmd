@@ -917,9 +917,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   harmful: `ParseSectionDiff` calls a bare `int.Parse` on `-1,1 -1,1 +1,1` and throws outside the
   `Result` handling. Full support needs n+1 `@` hunk headers, two-column line prefixes and a three-sided
   view; worth it as a feature, since it is the only way to show what a merge resolved by hand.
-- Not built, by choice: blame `-w` / `-M` / `-C` toggles; a diff context below 6; word-level
-  highlighting inside a conflict; submodule conflicts; `rerere`; marking local-only tags in the log
-  view (the tag mirror makes it knowable); tag pruning for remotes other than `origin`.
+- Not built, by choice: blame `-w` / `-M` / `-C` toggles; a diff context below 6; submodule
+  conflicts; `rerere`; marking local-only tags in the log view (the tag mirror makes it knowable);
+  tag pruning for remotes other than `origin`. Word-level highlighting inside a conflict, once on
+  this list as one side against the other, is built as each side against the ancestor
+  (`SideChanges`, 2026-10-16).
 - Coverage: `coverlet.collector` is referenced but nothing reports it in CI. Report it from the
   pull-request job first, then consider a floor as a ratchet.
 - IDE0305 (`.ToList()` → `[.. x]`, 13 sites) by hand, since it can change the concrete type behind
@@ -1070,6 +1072,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   on the way, which a `git add` or `commit` run there at that moment fails on; `--no-optional-locks`
   reads without either, and is what gmd's reads of the other worktrees use. So the `index` is not a
   signal of a change in a worktree, and a plain edit does not touch it.
+- `REBASE_HEAD` outlives the rebase (2026-10-16, git 2.55): it is left behind once a rebase that
+  stopped on a conflict is continued (an abort removes it), so it names the commit being applied
+  only while a rebase is in progress, and is read only then (`GetConflictSidesAsync`). A revert
+  writes its other side into the markers as `parent of <id> (<subject>)`, a rebase and a cherry
+  pick as `<id> (<subject>)`.
 
 **Inference**
 
@@ -1238,6 +1245,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - A view drawn from another's draw (a header following a scroll, say) lags by a key: what it marks
   for redraw while a draw is under way waits for the main loop's next event. `ContentView.TopRow`
   draws such a row in the same draw instead.
+- A `ContentView` whose rows come from its callback learns how many there are only as it draws
+  (2026-10-16): rows made anew, and the cursor put back on its line before the next draw, scroll
+  within the old count, which left the cursor out of sight in the diff laid out in one column, with
+  more rows than side by side. `SetTotalCount` first. A list beside a view is drawn at its width
+  less the scrollbar column, which its width has to count.
+- Terminal.Gui 1.x defines a `System.Rune` (NStack's), which makes .NET's `System.Text.Rune`
+  ambiguous wherever both namespaces are in scope: it is named in full (`TextWidth`, `LineWords`).
 
 - A dialog with keys of its own (`UIDialog`'s `CustomDialog`) used to override `ProcessHotKey`
   without calling the base, so its views got no hot keys at all, and `ContentView` takes its keys as

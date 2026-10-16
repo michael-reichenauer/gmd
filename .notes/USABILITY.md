@@ -146,7 +146,7 @@ that does not fight the diff's colors, light themes.
   resolver over every conflicted file, from the conflict box, the bar's and the repo menu's Resolve
   Conflicts and the diff's Enter: saving a file resolved opens the next one still conflicted, `}`
   `{` go to another (asking Stay, Save and Go or Discard and Go when decisions are unsaved), and a
-  file with no text to merge asks its question in its turn. `ConflictFileList` (no view) lists them
+  file with no text to merge asks its question in its turn, Cancel passing it over. `ConflictFileList` (no view) lists them
   at the left from 150 columns, `●` the open ones with `0 of 2` on the one shown, `✓` the resolved,
   `Tab` into it; the header says `file 1 of 3`. Once none is left, a box asks Commit (merge, cherry
   pick, revert: the commit dialog, from the diff too) or Continue (rebase, am), or Later; Abort stays
