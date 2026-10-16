@@ -662,6 +662,45 @@ public class ConflictViewTest
         Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has them resolved");
     }
 
+    // The last conflict of a rebase resolved, Continue, the default, goes on with it at once. The
+    // check that nothing is unresolved read the repo shown, which lags the resolver's writes until
+    // the file monitor reports them, and refused, listing the file just resolved.
+    [TestMethod]
+    public async Task TestContinueRightAfterResolvingGoesOnWithTheRebase()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        var lines = Enumerable.Range(1, 20).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("file.txt", string.Join("\n", lines) + "\n", "Add the file", t);
+        await repo.GitAsync("checkout -q -b dev");
+        lines[9] = "line 10 on dev";
+        await repo.CommitFileAtAsync("file.txt", string.Join("\n", lines) + "\n", "Change it on dev", t.AddMinutes(1));
+        await repo.GitAsync("checkout -q main");
+        lines[9] = "line 10 on main";
+        await repo.CommitFileAtAsync("file.txt", string.Join("\n", lines) + "\n", "Change it on main", t.AddMinutes(2));
+        await repo.GitAsync("checkout -q dev");
+        await repo.GitAllowFailAsync("rebase main");
+        using var gmd = TmuxSession.StartGmd(repo);
+        var bar = gmd.WaitFor("1 conflict");
+        var (x, y) = TmuxSession.PositionOf(bar, "1 conflict");
+        gmd.Click(x + 2, y);
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("2"); // dev's line, the commit being applied
+        gmd.WaitForStable();
+        gmd.Send("s");
+        StringAssert.Contains(gmd.WaitFor("Conflicts Resolved"), "Continuing goes on with it.");
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Conflicts Resolved");
+        var screen = gmd.WaitUntilGone("Rebasing"); // The bar's, the rebase done
+        Assert.IsFalse(screen.Contains("Unresolved Conflicts"), "Not refused:\n" + screen);
+        StringAssert.Contains(await repo.GitAsync("status"), "nothing to commit", "The rebase is done");
+        StringAssert.Contains(await repo.GitAsync("show HEAD:file.txt"), "line 10 on dev");
+    }
+
     // The list of files at the left of the resolver, the rows below the header
     static string ListOf(string screen) =>
         string.Join("\n", ScreenText.Rows(screen, "", 2, 3).Split('\n').Select(r => r[..Math.Min(r.Length, 24)]));

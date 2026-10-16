@@ -257,13 +257,19 @@ class RepoCommands : IRepoCommands
     //     history and neither git nor gmd's own staging guards catch it.
     //
     // 'action' names what is about to happen, for the button that overrides the second warning.
+    //
+    // The conflicts are read from git, not from the repo shown, which lags what was just resolved
+    // until the file monitor reports the writes: Continue chosen as the resolver saved the last
+    // file was refused, with that file listed as unresolved.
     public async Task<bool> ConfirmConflictsResolvedAsync(string action)
     {
         var repo = context.ViewRepo;
-        if (repo.Repo.Status.Operation == GitOperation.None)
+        var (operation, conflicted) = await server.GetConflictStateAsync(repo.Path) is ConflictState state
+            ? (state.Operation, state.Files.Select(f => f.Path).ToArray())
+            : (repo.Repo.Status.Operation, repo.Repo.Status.ConflictsFiles);
+        if (operation == GitOperation.None)
             return true;
 
-        var conflicted = repo.Repo.Status.ConflictsFiles;
         if (conflicted.Length > 0)
         {
             var text = UnresolvedText(conflicted, action);
