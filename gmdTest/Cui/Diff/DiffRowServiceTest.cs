@@ -1133,13 +1133,13 @@ public class DiffRowServiceTest
         Assert.AreEqual("    1 two │     1 two", DiffText.Of(rows).Split('\n')[^1]);
     }
 
-    // A hunk after lines left out starts with '⋯' and a line, naming the function git found it in
-    // where that is not the one before it: with no pattern for C#, git names the class for each, and
-    // a name on every hunk said nothing. One from the file's first line has nothing left out above it.
-    // The row keeps the function either way, for the top row. The file's line is blue, which sets it
-    // apart from the hunks' dark ones.
+    // Between two hunks, where unchanged lines are left out, a line starting with '⋯', naming the
+    // function git found the hunk in where that is not the one before it: with no pattern for C#, git
+    // names the class for each, and a name on every hunk said nothing. The first hunk is under the
+    // file's header, with none, though lines are left out above it too. The file's line is blue,
+    // which sets it apart from the hunks' dark ones.
     [TestMethod]
-    public void TestAHunkAfterLinesLeftOutIsSeparated()
+    public void TestHunksAreSeparatedWhereLinesAreLeftOut()
     {
         var rows = RowsOf(FileWithHunks());
         var text = DiffText.Of(rows).Split('\n');
@@ -1148,15 +1148,15 @@ public class DiffRowServiceTest
         Assert.AreEqual(
             """
             ▌ M Pricing.cs  +4 -4 ─
-                1 same     │     1 same
-            ▌   2 using A; │ ▌   2 using B;
-               ⋯ class Pricing ─
+                5 same     │     5 same
+            ▌   6 using A; │ ▌   6 using B;
+               ⋯ ─
                20 same     │    20 same
             ▌  21 a = 1;   │ ▌  21 a = 2;
-               ⋯ ─
+               ⋯ decimal Total() ─
                40 same     │    40 same
             ▌  41 b = 1;   │ ▌  41 b = 2;
-               ⋯ decimal Total() ─
+               ⋯ ─
                60 same     │    60 same
             ▌  61 c = 1;   │ ▌  61 c = 2;
             """,
@@ -1164,16 +1164,11 @@ public class DiffRowServiceTest
         );
         var colors = DiffText.ColorsOf(rows).Split('\n').Skip(header).ToArray();
         Assert.AreEqual("M Y WWWWWWWWWW  GG RR B", colors[0]);
-        Assert.AreEqual("   D CCCCC CCCCCCC D", colors[3]);
-        Assert.AreEqual("   D D", colors[6]);
-        CollectionAssert.AreEqual(
-            new[] { "class Pricing", "class Pricing", "decimal Total()" },
-            rows.Rows.Where(r => r.IsHunkHeader).Select(r => r.Function).ToArray()
-        );
+        Assert.AreEqual("   D D", colors[3]);
+        Assert.AreEqual("   D CCCCCCC CCCCCCC D", colors[6]);
     }
 
-    // A file of four hunks: from its first line, and in the functions git found the others in,
-    // two in one
+    // A file of four hunks, two in each of the functions git found them in
     static FileDiff FileWithHunks()
     {
         SectionDiff Hunk(int line, string function, string removed, string added) =>
@@ -1196,9 +1191,9 @@ public class DiffRowServiceTest
             false,
             DiffMode.DiffModified,
             [
-                Hunk(1, "", "using A;", "using B;"),
+                Hunk(5, "class Pricing", "using A;", "using B;"),
                 Hunk(20, "class Pricing", "a = 1;", "a = 2;"),
-                Hunk(40, "class Pricing", "b = 1;", "b = 2;"),
+                Hunk(40, "decimal Total()", "b = 1;", "b = 2;"),
                 Hunk(60, "decimal Total()", "c = 1;", "c = 2;"),
             ]
         );

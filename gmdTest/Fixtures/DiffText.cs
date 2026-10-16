@@ -26,9 +26,9 @@ static class DiffText
     // separator stay literal so the two pictures line up.
     public static string ColorsOf(DiffRows rows) => Join(Lines(rows.Rows, TextColors.Of));
 
-    // Just the first file's lines, below its header to the next file, without the hunk headers and
-    // the blank rows between hunks. Lets a test about the lines skip the commit and the file list
-    // every diff starts with.
+    // Just the first file's lines, below its header to the next file, without the lines between
+    // hunks and blank rows. Lets a test about the lines skip the commit and the file list every diff
+    // starts with.
     public static string BodyOf(DiffRows rows) => Join(Lines(BodyRowsOf(rows), t => t.ToString()));
 
     public static string BodyColorsOf(DiffRows rows) => Join(Lines(BodyRowsOf(rows), TextColors.Of));
@@ -42,7 +42,7 @@ static class DiffText
         return rows
             .Rows.Skip(header + 1)
             .TakeWhile(r => r.FilePath == "")
-            .Where(r => !r.IsHunkHeader && !IsBlank(r))
+            .Where(r => r.Fill == null && !IsBlank(r)) // A row with a line after it separates hunks
             .ToList();
     }
 

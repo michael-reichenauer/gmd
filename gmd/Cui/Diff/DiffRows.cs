@@ -51,12 +51,11 @@ class DiffRows
         rows[^1] = rows[^1] with { Fill = Text.Blue("─") };
     }
 
-    // Where a hunk starts after unchanged lines left out, '⋯' and a line, and the function git found
-    // the hunk in, which the row keeps for the top row whether it shows it or not
-    internal void AddHunkSeparator(Text separator, string function)
+    // Where unchanged lines are left out between two hunks, '⋯' and a line
+    internal void AddHunkSeparator(Text separator)
     {
         Add(separator);
-        rows[^1] = rows[^1] with { IsHunkHeader = true, Function = function, Fill = Text.Dark("─") };
+        rows[^1] = rows[^1] with { Fill = Text.Dark("─") };
     }
 
     // The marker a conflict starts with, on both sides or across them, which a conflict is gone to by
@@ -83,19 +82,15 @@ class DiffRows
     // Which file a row is the header of, and how many there are
     internal (int Number, int Count) FileNumber(int index) => Number(index, i => rows[i].FilePath != "");
 
-    // The header of the file a row is in, and of the hunk, -1 for none: above the first file, and
-    // between a file's header and its first hunk's
-    internal (int File, int Hunk) HeadersOf(int index)
+    // The header of the file a row is in, -1 above the first file
+    internal int FileHeaderOf(int index)
     {
-        var (file, hunk) = (-1, -1);
-        for (var i = Math.Min(index, rows.Count - 1); i >= 0 && file == -1; i--)
+        for (var i = Math.Min(index, rows.Count - 1); i >= 0; i--)
         {
             if (rows[i].FilePath != "")
-                file = i;
-            else if (rows[i].IsHunkHeader && hunk == -1)
-                hunk = i;
+                return i;
         }
-        return (file, hunk);
+        return -1;
     }
 
     bool IsChangeStart(int i) => rows[i].IsConflictStart || (rows[i].IsChange && (i == 0 || !rows[i - 1].IsChange));
@@ -234,11 +229,6 @@ record DiffRow(
 
     // The rune a header row is followed by to the end of the row, e.g. a file's '─', or null
     public Text? Fill { get; init; }
-
-    // Whether the row is where a hunk starts after lines left out, and the function git found the
-    // hunk in, e.g. 'public decimal Total()', "" where git found none
-    public bool IsHunkHeader { get; init; }
-    public string Function { get; init; } = "";
 
     // Whether the row is the marker a conflict starts with
     public bool IsConflictStart { get; init; }

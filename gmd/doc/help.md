@@ -589,9 +589,8 @@ again, for the diff it is pressed in.
 or a conflict, and `}` and `{` to the next and the previous file, and the
 line at the bottom says which it went to, e.g. `Change 3 of 9`. The top row
 names the commit, and once the header of the file the view is scrolled into
-is out of sight, that file and the function or heading of the part of it at
-the top, e.g. `f44b73c6  VAT rate › M Pricing.cs  +5 -5 › public decimal
-Total(Order order)`. `s` opens **Go to**, the same moves and every file, or
+is out of sight, that file, e.g. `f44b73c6  VAT rate › M Pricing.cs  +5 -5`.
+`s` opens **Go to**, the same moves and every file, or
 in a file history every commit.
 
 Within the diff: `r` re-reads it from git, `u`

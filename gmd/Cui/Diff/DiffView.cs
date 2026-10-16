@@ -635,21 +635,17 @@ class DiffView : IDiffView
         return (rows.Skip(firstRow).Take(rowCount), rows.Count);
     }
 
-    // The top row: the commit the diff is of, and once their headers have scrolled out of sight, the
-    // file and the hunk the top of the view is in, so that a line deep in a long diff still says
-    // where it is, e.g. 'f44b73c6  VAT rate from config › M Pricing.cs › public decimal Total()'
+    // The top row: the commit the diff is of, and once its header has scrolled out of sight, the file
+    // the top of the view is in, so that a line deep in a long diff still says where it is, e.g.
+    // 'f44b73c6  VAT rate from config › M Pricing.cs  +5 -5'
     Text TopRowText(int firstRow, int width)
     {
         var where = new TextBuilder();
-        var (file, hunk) = diffRows.HeadersOf(firstRow);
+        var file = diffRows.FileHeaderOf(firstRow);
         if (file != -1 && file < firstRow)
         { // The file's header without its bar, e.g. 'M Pricing.cs  +5 -5'
             var header = diffRows.Rows[file].Left;
             where.Dark(" › ").Add(header.Subtext(2, Math.Max(0, header.Length - 2)));
-        }
-        if (hunk != -1 && hunk < firstRow && diffRows.Rows[hunk].Function != "")
-        { // The function git found the hunk in, e.g. 'public decimal Total()'
-            where.Dark(" › ").Cyan(diffRows.Rows[hunk].Function);
         }
 
         // The commit's subject is cut short first, since where in the commit the view is, is what
@@ -667,7 +663,7 @@ class DiffView : IDiffView
             : text.Dark(" ").Add(Text.Dark("─").ToText().ToLine(width - text.Length - 1));
     }
 
-    // As short as the commit's id and subject are cut, to make room for the file and the hunk
+    // As short as the commit's id and subject are cut, to make room for the file
     const int MinTitleWidth = 20;
 
     // The commit at the top of the view: the diff's own, or in a file history the one the top of the

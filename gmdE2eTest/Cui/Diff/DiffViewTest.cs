@@ -70,10 +70,10 @@ public class DiffViewTest
         ScreenText.AssertEqual(
             """
             ▌ M long.txt  +1 -1  (context 15) ─────────────────────────────────────────────────────────────────────────────────────┃
-               ⋯ line 4 ───────────────────────────────────────────────────────────────────────────────────────────────────────────┃
                 5 line 5                                               │    5 line 5                                               ┃
                 6 line 6                                               │    6 line 6                                               ┃
                 7 line 7                                               │    7 line 7                                               ┃
+                8 line 8                                               │    8 line 8                                               ┃
             """,
             ScreenText.Rows(gmd.WaitFor("(context 15)"), repo.Path, 7, 5),
             repo.Path
@@ -348,17 +348,17 @@ public class DiffViewTest
               M short.txt  +1 -1                  │Diff File                                 >│
                                                   │Resolve Conflicts                   Enter >│
             ▌ M long.txt  +1 -1 ──────────────────│Run External Merge Tool                   >│────────────────────────────────────
-               ⋯ line 13 ─────────────────────────│Discard Changes                         u >│────────────────────────────────────
-               14 line 14                         │Refresh                                 r  │
-               15 line 15                         │Commit                                  c  │
-               16 line 16                         │Leave Out of Commit                     x  │
-               17 line 17                         │More Context of long.txt (15 lines)     +  │
-               18 line 18                         │Less Context                            -  │
-               19 line 19                         │Hide Whitespace Changes                 w  │
-            ▌  20 line 20                         │Show in One Column                      v  │
-               21 line 21                         │Hide the Lines of long.txt              h  │
-               22 line 22                         │Focus Left Column                       ←  │
-               23 line 23                         │Focus Right Column                      →  │
+               14 line 14                         │Discard Changes                         u >│
+               15 line 15                         │Refresh                                 r  │
+               16 line 16                         │Commit                                  c  │
+               17 line 17                         │Leave Out of Commit                     x  │
+               18 line 18                         │More Context of long.txt (15 lines)     +  │
+               19 line 19                         │Less Context                            -  │
+            ▌  20 line 20                         │Hide Whitespace Changes                 w  │
+               21 line 21                         │Show in One Column                      v  │
+               22 line 22                         │Hide the Lines of long.txt              h  │
+               23 line 23                         │Focus Left Column                       ←  │
+               24 line 24                         │Focus Right Column                      →  │
             """,
             ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path

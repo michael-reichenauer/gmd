@@ -383,10 +383,13 @@ class DiffRowService : IDiffRowService
             rows.Add(Text.Dark("      Only whitespace changed, which is hidden"));
         }
 
+        // Between two hunks, where unchanged lines are left out, a line says so; the file's header is
+        // the first hunk's, whether lines are left out above it or not
         for (var i = 0; i < fileDiff.SectionDiffs.Count; i++)
         {
-            var previous = i > 0 ? fileDiff.SectionDiffs[i - 1].Function : "";
-            AddSectionDiff(fileDiff, fileDiff.SectionDiffs[i], previous, rows, layout);
+            if (i > 0)
+                rows.AddHunkSeparator(HunkSeparator(fileDiff.SectionDiffs[i], fileDiff.SectionDiffs[i - 1]));
+            AddSectionDiff(fileDiff, fileDiff.SectionDiffs[i], rows, layout);
         }
     }
 
@@ -404,22 +407,9 @@ class DiffRowService : IDiffRowService
         return Text.Dark("      ").Yellow(what).Dark($": Enter resolves {(count > 1 ? "them" : "it")}");
     }
 
-    // Add a file section diff (the actual diff lines for a sub section of a file), previousFunction
-    // being the function git found the hunk before it in
-    static void AddSectionDiff(
-        FileDiff fileDiff,
-        SectionDiff sectionDiff,
-        string previousFunction,
-        DiffRows rows,
-        Layout layout
-    )
+    // Add a file section diff (the actual diff lines for a sub section of a file)
+    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows, Layout layout)
     {
-        // Where unchanged lines are left out above it: a file added or removed whole is one hunk of
-        // the whole file, and a hunk from the file's first line has nothing above it
-        var isFromFirstLine = Math.Max(sectionDiff.LeftLine, sectionDiff.RightLine) <= 1;
-        if (fileDiff.DiffMode is not DiffMode.DiffAdded and not DiffMode.DiffRemoved && !isFromFirstLine)
-            rows.AddHunkSeparator(HunkSeparator(sectionDiff, previousFunction), sectionDiff.Function);
-
         var leftBlock = new Block();
         var rightBlock = new Block();
 
@@ -563,14 +553,15 @@ class DiffRowService : IDiffRowService
         AddBlocks(leftBlock, rightBlock, rows, layout);
     }
 
-    // A hunk's header: '@@' and the function or heading git found it in, lined up with the text of
-    // the lines below it, or else the line it starts at
-    // Where unchanged lines are left out, '⋯', which the line numbers say how many of, and the
-    // function git found the hunk in, e.g. 'public decimal Total()', where it is not the one before
-    // it: with no pattern for the file's language (e.g. '*.cs diff=csharp' in .gitattributes), git
-    // names the nearest line above that is not indented, a C# file's class for every hunk
-    static Text HunkSeparator(SectionDiff sd, string previousFunction) =>
-        sd.Function != "" && sd.Function != previousFunction ? Text.Dark("   ⋯ ").Cyan(sd.Function) : Text.Dark("   ⋯");
+    // Where unchanged lines are left out between two hunks, '⋯', which the line numbers say how many
+    // of, and the function git found the hunk in, e.g. 'public decimal Total()', where it is not the
+    // one before it: with no pattern for the file's language (e.g. '*.cs diff=csharp' in
+    // .gitattributes), git names the nearest line above that is not indented, a C# file's class for
+    // every hunk
+    static Text HunkSeparator(SectionDiff sd, SectionDiff previous) =>
+        sd.Function != "" && sd.Function != previous.Function
+            ? Text.Dark("   ⋯ ").Cyan(sd.Function)
+            : Text.Dark("   ⋯");
 
     // The lines of a change side by side: the removed lines on the left, each beside the added line
     // at the same place on the right, as FilePatch pairs them when some of a change's lines are
