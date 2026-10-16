@@ -312,14 +312,13 @@ public class CommitDlgTest
               A epsilon.txt  +1
 
             ▌ M alpha.txt  +1 ─────────────────────────────────────────────────────────────────────────────────────────────────────
-               @@ line 1
                 1 alpha                                                │    1 alpha
                                                                        │▌   2 changed
 
             ▌ A epsilon.txt  +1 ───────────────────────────────────────────────────────────────────────────────────────────────────
             ▌   1 epsilon
             """,
-            ScreenText.Rows(screen, repo.Path, 3, 11)
+            ScreenText.Rows(screen, repo.Path, 3, 10)
         );
 
         // Escape leaves the diff and lands back on the commit dialog rather than on the log view,

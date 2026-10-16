@@ -117,7 +117,8 @@ public class DiffRowsTest
         Assert.AreEqual((Header(rows, "b.txt"), -1), rows.HeadersOf(Row(rows, "new")), "A new file has no hunk header");
     }
 
-    // a.txt with two changes and a conflict, the second change in two rows, and b.txt, a new file
+    // a.txt with two changes and a conflict, the second change in two rows, from line 5, and b.txt,
+    // a new file
     static DiffRows TwoFiles()
     {
         LineDiff[] lines =
@@ -136,7 +137,8 @@ public class DiffRowsTest
             new(DiffMode.DiffSame, "theirs"),
             new(DiffMode.DiffConflictEnd, ">>>>>>> dev"),
         ];
-        var a = new FileDiff("a.txt", "a.txt", false, false, DiffMode.DiffConflicts, [new("", 1, 9, 1, 13, lines)]);
+        // From line 5, so lines are left out above it, which its separator row says
+        var a = new FileDiff("a.txt", "a.txt", false, false, DiffMode.DiffConflicts, [new("", 5, 9, 5, 13, lines)]);
         var b = new FileDiff(
             "b.txt",
             "b.txt",

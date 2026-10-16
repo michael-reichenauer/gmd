@@ -542,8 +542,13 @@ commit's id and subject, who made it when, and a list of its files: each
 with a letter, `M` modified, `A` added, `D` deleted, `R` renamed and `C`
 conflicted, and the lines added and deleted in it, headed by how many there
 are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`. Each file
-starts with a row naming it, and each part of it that changed with `@@` and
-the function or heading git finds that part in. A changed line has a bar
+starts with a row naming it, underlined in blue. Where unchanged lines are
+left out between the parts that changed, a dark line starting with `⋯` says
+so, with the function or heading git finds the next part in, when it is not
+the one before it. Git finds it by a pattern for the file's language, set
+in `.gitattributes`, e.g. `*.cs diff=csharp`; with none, it takes the
+nearest line above that is not indented, which in C# is the class for every
+part. A changed line has a bar
 beside its number, red for a line removed and green for a line added, and
 where a removed line and the added line beside it are mostly alike, the
 words that differ are marked. The cursor is the line number drawn reversed.

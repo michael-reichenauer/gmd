@@ -70,7 +70,7 @@ public class DiffViewTest
         ScreenText.AssertEqual(
             """
             ▌ M long.txt  +1 -1  (context 15) ─────────────────────────────────────────────────────────────────────────────────────┃
-               @@ line 4                                                                                                           ┃
+               ⋯ line 4 ───────────────────────────────────────────────────────────────────────────────────────────────────────────┃
                 5 line 5                                               │    5 line 5                                               ┃
                 6 line 6                                               │    6 line 6                                               ┃
                 7 line 7                                               │    7 line 7                                               ┃
@@ -83,10 +83,10 @@ public class DiffViewTest
         ScreenText.AssertEqual(
             """
             ▌ M long.txt  +1 -1  (whole file) ─────────────────────────────────────────────────────────────────────────────────────┃
-               @@ line 1                                                                                                           ┃
                 1 line 1                                               │    1 line 1                                               ┃
                 2 line 2                                               │    2 line 2                                               ┃
                 3 line 3                                               │    3 line 3                                               ┃
+                4 line 4                                               │    4 line 4                                               ┃
             """,
             ScreenText.Rows(gmd.WaitFor("(whole file)"), repo.Path, 7, 5),
             repo.Path
@@ -150,8 +150,8 @@ public class DiffViewTest
         Assert.AreEqual("Change 1 of 2", ScreenText.LastLine(gmd.WaitFor("Change 1 of 2")));
         gmd.Send("PageDown");
         StringAssert.StartsWith(
-            ScreenText.Of(gmd.WaitFor("› line 1"), repo.Path),
-            "c00a3cc9  Change both files › M long.txt  +1 -1  (whole file) › line 1 ───"
+            ScreenText.Of(gmd.WaitFor("› M long.txt"), repo.Path),
+            "c00a3cc9  Change both files › M long.txt  +1 -1  (whole file) ───"
         );
 
         // The page down took the cursor to the last row, below the last file's header and change
@@ -348,7 +348,7 @@ public class DiffViewTest
               M short.txt  +1 -1                  │Diff File                                 >│
                                                   │Resolve Conflicts                   Enter >│
             ▌ M long.txt  +1 -1 ──────────────────│Run External Merge Tool                   >│────────────────────────────────────
-               @@ line 13                         │Discard Changes                         u >│
+               ⋯ line 13 ─────────────────────────│Discard Changes                         u >│────────────────────────────────────
                14 line 14                         │Refresh                                 r  │
                15 line 15                         │Commit                                  c  │
                16 line 16                         │Leave Out of Commit                     x  │
@@ -453,14 +453,13 @@ public class DiffViewTest
               M beta.txt   whitespace only
 
             ▌ M alpha.txt  +1 ─────────────────────────────────────────────────────────────────────────────────────────────────────
-               @@ line 1
                 1   alpha                                              │    1   alpha
                                                                        │▌   2 more
 
             ▌ M beta.txt  whitespace only ─────────────────────────────────────────────────────────────────────────────────────────
                   Only whitespace changed, which is hidden
             """,
-            ScreenText.Rows(hidden, repo.Path, 3, 11)
+            ScreenText.Rows(hidden, repo.Path, 3, 10)
         );
         Assert.AreEqual("Whitespace changes hidden: w shows them", ScreenText.LastLine(hidden));
 

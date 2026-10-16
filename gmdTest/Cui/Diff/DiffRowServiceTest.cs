@@ -207,7 +207,6 @@ public class DiffRowServiceTest
               M b.txt  whitespace only
 
             ▌ M a.c  +1 -1 ─
-               @@ line 1
             ▌   1 bar(); │ ▌   1     baz();
 
             ▌ M b.txt  whitespace only ─
@@ -246,7 +245,6 @@ public class DiffRowServiceTest
             1 file changed  1 modified  +2 -1|
               M a.txt  +2 -1|
             ▌ M a.txt  +2 -1|
-               @@ line 1|
             same|same
             old|new
             |more
@@ -466,7 +464,6 @@ public class DiffRowServiceTest
               M a.txt
 
             ▌ M a.txt ─
-               @@ line 1
                 1 one │     1 one
             """,
             DiffText.Of(rows)
@@ -1134,5 +1131,76 @@ public class DiffRowServiceTest
         );
         Assert.IsFalse(rows.Rows.Any(r => r.IsChange), "No line of a.txt");
         Assert.AreEqual("    1 two │     1 two", DiffText.Of(rows).Split('\n')[^1]);
+    }
+
+    // A hunk after lines left out starts with '⋯' and a line, naming the function git found it in
+    // where that is not the one before it: with no pattern for C#, git names the class for each, and
+    // a name on every hunk said nothing. One from the file's first line has nothing left out above it.
+    // The row keeps the function either way, for the top row. The file's line is blue, which sets it
+    // apart from the hunks' dark ones.
+    [TestMethod]
+    public void TestAHunkAfterLinesLeftOutIsSeparated()
+    {
+        var rows = RowsOf(FileWithHunks());
+        var text = DiffText.Of(rows).Split('\n');
+        var header = text.FindIndexBy(l => l.StartsWith("▌ M Pricing.cs"));
+
+        Assert.AreEqual(
+            """
+            ▌ M Pricing.cs  +4 -4 ─
+                1 same     │     1 same
+            ▌   2 using A; │ ▌   2 using B;
+               ⋯ class Pricing ─
+               20 same     │    20 same
+            ▌  21 a = 1;   │ ▌  21 a = 2;
+               ⋯ ─
+               40 same     │    40 same
+            ▌  41 b = 1;   │ ▌  41 b = 2;
+               ⋯ decimal Total() ─
+               60 same     │    60 same
+            ▌  61 c = 1;   │ ▌  61 c = 2;
+            """,
+            string.Join("\n", text.Skip(header))
+        );
+        var colors = DiffText.ColorsOf(rows).Split('\n').Skip(header).ToArray();
+        Assert.AreEqual("M Y WWWWWWWWWW  GG RR B", colors[0]);
+        Assert.AreEqual("   D CCCCC CCCCCCC D", colors[3]);
+        Assert.AreEqual("   D D", colors[6]);
+        CollectionAssert.AreEqual(
+            new[] { "class Pricing", "class Pricing", "decimal Total()" },
+            rows.Rows.Where(r => r.IsHunkHeader).Select(r => r.Function).ToArray()
+        );
+    }
+
+    // A file of four hunks: from its first line, and in the functions git found the others in,
+    // two in one
+    static FileDiff FileWithHunks()
+    {
+        SectionDiff Hunk(int line, string function, string removed, string added) =>
+            new(
+                $"{line},2 +{line},2",
+                line,
+                2,
+                line,
+                2,
+                [new(DiffMode.DiffSame, "same"), new(DiffMode.DiffRemoved, removed), new(DiffMode.DiffAdded, added)]
+            )
+            {
+                Function = function,
+            };
+
+        return new FileDiff(
+            "Pricing.cs",
+            "Pricing.cs",
+            false,
+            false,
+            DiffMode.DiffModified,
+            [
+                Hunk(1, "", "using A;", "using B;"),
+                Hunk(20, "class Pricing", "a = 1;", "a = 2;"),
+                Hunk(40, "class Pricing", "b = 1;", "b = 2;"),
+                Hunk(60, "decimal Total()", "c = 1;", "c = 2;"),
+            ]
+        );
     }
 }

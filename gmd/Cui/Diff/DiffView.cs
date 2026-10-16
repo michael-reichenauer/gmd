@@ -647,10 +647,9 @@ class DiffView : IDiffView
             var header = diffRows.Rows[file].Left;
             where.Dark(" › ").Add(header.Subtext(2, Math.Max(0, header.Length - 2)));
         }
-        if (hunk != -1 && hunk < firstRow)
-        { // The hunk's header without its '@@', e.g. 'public decimal Total()'
-            var header = diffRows.Rows[hunk].Left;
-            where.Dark(" › ").Add(header.Subtext(HunkHeaderWidth, Math.Max(0, header.Length - HunkHeaderWidth)));
+        if (hunk != -1 && hunk < firstRow && diffRows.Rows[hunk].Function != "")
+        { // The function git found the hunk in, e.g. 'public decimal Total()'
+            where.Dark(" › ").Cyan(diffRows.Rows[hunk].Function);
         }
 
         // The commit's subject is cut short first, since where in the commit the view is, is what
@@ -670,9 +669,6 @@ class DiffView : IDiffView
 
     // As short as the commit's id and subject are cut, to make room for the file and the hunk
     const int MinTitleWidth = 20;
-
-    // How wide the '   @@ ' a hunk's header starts with is
-    const int HunkHeaderWidth = 6;
 
     // The commit at the top of the view: the diff's own, or in a file history the one the top of the
     // view is in, and above them all how many there are

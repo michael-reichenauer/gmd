@@ -48,14 +48,15 @@ class DiffRows
     internal void AddFileHeader(Text header, string filePath)
     {
         Add(header, filePath);
-        rows[^1] = rows[^1] with { Fill = Text.Dark("─") };
+        rows[^1] = rows[^1] with { Fill = Text.Blue("─") };
     }
 
-    // A hunk's header, '@@' and the function git found it in
-    internal void AddHunkHeader(Text header)
+    // Where a hunk starts after unchanged lines left out, '⋯' and a line, and the function git found
+    // the hunk in, which the row keeps for the top row whether it shows it or not
+    internal void AddHunkSeparator(Text separator, string function)
     {
-        Add(header);
-        rows[^1] = rows[^1] with { IsHunkHeader = true };
+        Add(separator);
+        rows[^1] = rows[^1] with { IsHunkHeader = true, Function = function, Fill = Text.Dark("─") };
     }
 
     // The marker a conflict starts with, on both sides or across them, which a conflict is gone to by
@@ -234,8 +235,10 @@ record DiffRow(
     // The rune a header row is followed by to the end of the row, e.g. a file's '─', or null
     public Text? Fill { get; init; }
 
-    // Whether the row is a hunk's header, '@@' and where it is
+    // Whether the row is where a hunk starts after lines left out, and the function git found the
+    // hunk in, e.g. 'public decimal Total()', "" where git found none
     public bool IsHunkHeader { get; init; }
+    public string Function { get; init; } = "";
 
     // Whether the row is the marker a conflict starts with
     public bool IsConflictStart { get; init; }
