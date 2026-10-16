@@ -471,7 +471,7 @@ public class ConflictViewTest
     {
         gmd.WaitFor("CONFLICTS");
         gmd.Send("d");
-        gmd.WaitFor("Conflicts:   long.txt");
+        gmd.WaitFor("C long.txt");
         gmd.Send("Enter");
         gmd.WaitFor("Resolve Conflicts");
         gmd.Send("Enter");

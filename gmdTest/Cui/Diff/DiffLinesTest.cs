@@ -53,6 +53,9 @@ public class DiffLinesTest
     static int RowOf(string text) =>
         Rows.Rows.FindIndexBy(r => r.Right.ToString().Contains(text) || r.Left.ToString().Contains(text));
 
+    // The row of a file's header, which names it
+    static int HeaderOf(string path) => Rows.Rows.FindIndexBy(r => r.FilePath == path);
+
     static int ChangeRowOf(string text) => Rows.Rows.FindIndexBy(r => r.RemovedText == text || r.AddedText == text);
 
     static string Lines(IReadOnlyList<FileLines> files) =>
@@ -74,16 +77,16 @@ public class DiffLinesTest
     public void TestAnUnchangedRowIsOnNoChange()
     {
         Assert.AreEqual(0, DiffLines.ChangeAt(Rows.Rows, RowOf("three")).Count);
-        Assert.AreEqual(0, DiffLines.ChangeAt(Rows.Rows, RowOf("Modified: a.txt")).Count);
+        Assert.AreEqual(0, DiffLines.ChangeAt(Rows.Rows, HeaderOf("a.txt")).Count);
     }
 
     // On a file's header, the file is its rows up to the next one, and each row knows its file
     [TestMethod]
     public void TestAFileIsItsRowsFromItsHeader()
     {
-        var (first, count) = DiffLines.FileAt(Rows.Rows, RowOf("Modified: a.txt"));
+        var (first, count) = DiffLines.FileAt(Rows.Rows, HeaderOf("a.txt"));
 
-        Assert.AreEqual(RowOf("Added: b.txt"), first + count, "Up to the next file");
+        Assert.AreEqual(HeaderOf("b.txt"), first + count, "Up to the next file");
         Assert.AreEqual(
             "a.txt: -2 two, +2 TWO, -4 eleven, +4 ELEVEN, +5 extra",
             Lines(DiffLines.Of(Rows, first, count))

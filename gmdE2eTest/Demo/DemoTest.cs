@@ -83,11 +83,11 @@ public class DemoTest
         gmd.WaitFor("Parents:");
         demo.Frame(2.5, "details");
         gmd.Send("d");
-        gmd.WaitFor("Modified: src/search.js");
+        gmd.WaitFor("M src/search.js");
         demo.Caption("The diff, side by side");
         demo.Frame(4, "diff");
         gmd.Send("Escape");
-        gmd.WaitUntilGone("Modified: src/search.js");
+        gmd.WaitUntilGone("M src/search.js");
         demo.Caption("");
         demo.Frame(0.8);
         gmd.Send("Enter");

@@ -318,8 +318,9 @@ class DiffView : IDiffView
             var (left, right) = DiffRowService.SearchText(row);
             isFocusLeft = RowSearch.IndexOf(left, search.Text) != -1;
             var (text, lineNbr) = isFocusLeft ? (left, row.LeftLineNbr) : (right, row.RightLineNbr);
-            var start = DiffRowService.LineNbrWidth(lineNbr) + RowSearch.IndexOf(text, search.Text);
-            rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, ColumnWidth);
+            var start = RowSearch.IndexOf(text, search.Text);
+            var width = ColumnWidth - DiffRowService.LineNbrWidth(lineNbr); // The gutter does not scroll
+            rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, width);
         }
 
         contentView.ShowCurrentIndex(index);
@@ -852,13 +853,12 @@ class DiffView : IDiffView
         }
     }
 
-    // The text of a line left out, dark, its '┃' of a change a '╎'
+    // The text of a line left out, dark, the bar of its change a '╎'
     static Text LeftOutText(Text text, int lineNbr)
     {
         var line = text.ToString();
-        var width = DiffRowService.LineNbrWidth(lineNbr);
-        if (width > 0 && line.Length >= width)
-            line = $"{line[..(width - 1)]}╎{line[width..]}";
+        if (DiffRowService.LineNbrWidth(lineNbr) > 0 && line.Length > 0)
+            line = $"╎{line[1..]}";
         return Text.Dark(line);
     }
 
@@ -1012,49 +1012,80 @@ class DiffView : IDiffView
                 isLeftOutLeft || isLeftOutRight ? LeftOutText(row.Left, row.LineNbr)
                 : row.FilePath != "" ? WithLeftOutNote(row.Left, row.FilePath)
                 : Marked(row.Left, row.LineNbr);
-            var text = spanText.Subtext(0, viewWidth);
+            var text = WithFill(spanText.Subtext(0, viewWidth), row.Fill, viewWidth);
             return isSelectedRow ? text.ToSelect()
-                : isCurrentRow ? text.ToHighlight()
-                : text;
+                : !isCurrentRow ? text
+                // A line of a file drawn in one column has the cursor on its number, as a side has
+                : row.LineNbr != 0 ? WithCursor(text, DiffRowService.LineNbrWidth(row.LineNbr))
+                : text.ToHighlight();
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
         var leftText = isLeftOutLeft ? LeftOutText(row.Left, row.LeftLineNbr) : Marked(row.Left, row.LeftLineNbr);
         var rightText = isLeftOutRight ? LeftOutText(row.Right, row.RightLineNbr) : Marked(row.Right, row.RightLineNbr);
-        var left =
-            (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffRowService.NoLine)
-                ? row.Left != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…").Add(leftText.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
-                    : leftText.Subtext(rowStartX, columnWidth, true)
-                : row.Left != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…")
-                        .Add(leftText.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…")))
-                    : leftText.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
+        var left = SideText(leftText, row.LeftLineNbr, row.Left == DiffRowService.NoLine, columnWidth);
+        var right = SideText(rightText, row.RightLineNbr, row.Right == DiffRowService.NoLine, columnWidth);
 
-        var right =
-            (row.Right.Length - rowStartX <= columnWidth || row.Right == DiffRowService.NoLine)
-                ? row.Right != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…").Add(rightText.Subtext(rowStartX + 1, columnWidth - 1, true)).ToText()
-                    : rightText.Subtext(rowStartX, columnWidth, true)
-                : row.Right != DiffRowService.NoLine && rowStartX > 0
-                    ? Text.Dark("…")
-                        .Add(
-                            rightText.Subtext(rowStartX + 1, columnWidth - 2, true).ToTextBuilder().Add(Text.Dark("…"))
-                        )
-                    : rightText.Subtext(rowStartX, columnWidth - 1, true).ToTextBuilder().Add(Text.Dark("…"));
-
-        return Text.Add(
-                isSelectedRow && isFocusLeft ? left.ToSelect()
-                : isCurrentRow && isFocusLeft ? left.ToHighlight()
-                : left
-            )
+        return Text.Add(Focused(left, true, isSelectedRow, isCurrentRow, row.LeftLineNbr, row.Left))
             .Add(splitLineChar)
-            .Add(
-                isSelectedRow && !isFocusLeft ? right.ToSelect()
-                : isCurrentRow && !isFocusLeft ? right.ToHighlight()
-                : right
-            );
+            .Add(Focused(right, false, isSelectedRow, isCurrentRow, row.RightLineNbr, row.Right));
     }
+
+    // A side of a row in its column: its gutter, which stays where it is, and its line, scrolled
+    // sideways with the other side's, with a '…' where it is cut off. The gutter scrolled away with
+    // the line, which left a line scrolled to with no number to say which it was.
+    Text SideText(Text side, int lineNbr, bool isNoLine, int columnWidth)
+    {
+        if (isNoLine)
+            return Text.Black(new string(' ', Math.Max(0, columnWidth)));
+
+        var gutterWidth = Math.Min(DiffRowService.LineNbrWidth(lineNbr), columnWidth);
+        var code = side.Subtext(gutterWidth, Math.Max(0, side.Length - gutterWidth));
+        var width = columnWidth - gutterWidth;
+
+        var isCutLeft = rowStartX > 0 && code.Length > 0;
+        var isCutRight = code.Length - rowStartX > width;
+        var shownWidth = width - (isCutLeft ? 1 : 0) - (isCutRight ? 1 : 0);
+
+        var text = side.Subtext(0, gutterWidth).ToTextBuilder();
+        if (isCutLeft)
+            text.Dark("…");
+        text.Add(code.Subtext(rowStartX + (isCutLeft ? 1 : 0), Math.Max(0, shownWidth)));
+        if (isCutRight)
+            text.Dark("…");
+        return text.ToText().Subtext(0, columnWidth, isFillRest: true);
+    }
+
+    // The side in focus is the one the cursor and a selection are drawn on, and the one a copy takes
+    // the lines of. The cursor is on the line's number, or where a side with no line would have it; a
+    // row of no line, e.g. a conflict's marker, is highlighted whole.
+    Text Focused(Text side, bool isLeft, bool isSelectedRow, bool isCurrentRow, int lineNbr, Text rowSide)
+    {
+        if (isLeft != isFocusLeft || (!isSelectedRow && !isCurrentRow))
+            return side;
+        if (isSelectedRow)
+            return side.ToSelect();
+
+        return lineNbr != 0 ? WithCursor(side, DiffRowService.LineNbrWidth(lineNbr))
+            : rowSide == DiffRowService.NoLine ? WithCursor(side, DiffRowService.LineNbrWidth(1))
+            : side.ToHighlight();
+    }
+
+    static readonly Common.Color CursorColor = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.White);
+
+    // The cursor on a line: its number reversed, black on white, with the bar beside it and the
+    // line itself as they are. A highlight of the whole side painted over the colors of the change.
+    static Text WithCursor(Text text, int gutterWidth) =>
+        text.Subtext(0, 1)
+            .ToTextBuilder()
+            .Color(CursorColor, text.Subtext(1, gutterWidth - 1, isFillRest: true).ToString())
+            .Add(text.Subtext(gutterWidth, Math.Max(0, text.Length - gutterWidth)));
+
+    // A header row followed to the end of the row by its rule, e.g. a file's
+    static Text WithFill(Text text, Text? fill, int width) =>
+        fill == null || text.Length + 1 >= width
+            ? text
+            : text.ToTextBuilder().Black(" ").Add(fill.ToLine(width - text.Length - 1));
 
     // The text with what the search found marked, after the line number, which is not searched
     Text Marked(Text text, int lineNbr) =>

@@ -537,11 +537,18 @@ Find more commands in the menus (the `m` key).
 
 ## Diff and Blame
 
-**Commit Diff** (`d`) shows the changes of a commit side by side, after a
-list of its files, headed by how many were added, modified, renamed and
-removed, and the lines added and removed, e.g.
-`3 Files:  1 added, 2 modified   +25 -7 lines`. A line whose line end
-alone changed, e.g. from LF to CRLF, has a `␍` on the side with the CR. `+` shows
+**Commit Diff** (`d`) shows the changes of a commit side by side, below the
+commit's id and subject, who made it when, and a list of its files: each
+with a letter, `M` modified, `A` added, `D` deleted, `R` renamed and `C`
+conflicted, and the lines added and deleted in it, headed by how many there
+are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`. Each file
+starts with a row naming it, and each part of it that changed with `@@` and
+the function or heading git finds that part in. A changed line has a bar
+beside its number, red for a line removed and green for a line added, and
+where a removed line and the added line beside it are mostly alike, the
+words that differ are marked. The cursor is the line number drawn reversed.
+A line whose line end alone changed, e.g. from LF to CRLF, has a `␍` on the
+side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
 stepping from the 6 lines of context it starts with to 15, and then to the
 whole file (and `=` does what `+` does, without the shift). It applies to
@@ -561,7 +568,8 @@ selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `
 cursor is on, or the lines selected, out of the next commit, or puts them
 back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
-two columns sideways and pick which one a selection copies from, `Ctrl-C`
+two columns sideways, their line numbers staying where they are, and pick
+which one a selection copies from, `Ctrl-C`
 copies the selected lines, and `Esc` or `q` closes the view.
 
 `f` or `/` searches the lines for a text, as it is typed and in any case,
@@ -574,7 +582,7 @@ the bottom says which one it is, e.g. `Match 2 of 7`.
 `w` hides the changes of whitespace alone, as GitHub's *Hide whitespace*
 does, and `w` again shows them. A line whose spaces alone changed is then
 unchanged, and the summary at the top says `whitespace hidden`. A file whose
-changes are all whitespace is still listed, as `(Whitespace only)` and with
+changes are all whitespace is still listed, as `whitespace only` and with
 no lines, so that it is not missed in what is committed, and can still be
 discarded. It is for the diff it was pressed in: the next one shows
 whitespace again. **Diff File**

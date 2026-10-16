@@ -302,39 +302,30 @@ public class CommitDlgTest
         gmd.WaitFor("Commit 2 changes");
 
         gmd.Send("C-d");
-        var screen = gmd.WaitFor("Added: epsilon.txt");
+        var screen = gmd.WaitFor("▌ A epsilon.txt");
 
-        // From the message row down: the row above it is the diff's own date, which is 'now'
+        // From the files row down: the row above it is the diff's own date, which is 'now'
         Assert.AreEqual(
             """
-            Message: Uncommitted changes
+            2 files changed  1 added, 1 modified  +2
+              M alpha.txt    +1
+              A epsilon.txt  +1
 
-            2 Files:  1 added, 1 modified   +2 -0 lines
-              Modified:    alpha.txt
-              Added:       epsilon.txt
+            ▌ M alpha.txt  +1 ─────────────────────────────────────────────────────────────────────────────────────────────────────
+               @@ line 1
+                1 alpha                                                │    1 alpha
+                                                                       │▌   2 changed
 
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Modified: alpha.txt
-
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-               1 alpha                                                 │   1 alpha
-            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│   2┃changed
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Added: epsilon.txt
-
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-               1┃epsilon
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ▌ A epsilon.txt  +1 ───────────────────────────────────────────────────────────────────────────────────────────────────
+            ▌   1 epsilon
             """,
-            ScreenText.Rows(screen, repo.Path, 2, 20)
+            ScreenText.Rows(screen, repo.Path, 3, 11)
         );
 
         // Escape leaves the diff and lands back on the commit dialog rather than on the log view,
         // which is a modal over a modal over the log view
         gmd.Send("Escape");
-        StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "Commit 2 changes on 'main':");
+        StringAssert.Contains(gmd.WaitUntilGone("▌ A epsilon.txt"), "Commit 2 changes on 'main':");
     }
 
     // The same from the commit menu's Commit, which was opened a moment late, by a 100 ms timeout,
@@ -352,10 +343,10 @@ public class CommitDlgTest
         gmd.WaitFor("Commit 2 changes");
 
         gmd.Send("C-d");
-        gmd.WaitFor("Added: epsilon.txt");
+        gmd.WaitFor("▌ A epsilon.txt");
         gmd.Send("Escape");
 
-        StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "Commit 2 changes on 'main':");
+        StringAssert.Contains(gmd.WaitUntilGone("▌ A epsilon.txt"), "Commit 2 changes on 'main':");
     }
 
     // A key the diff has no use for does nothing, and in particular is not typed into the message
@@ -373,12 +364,12 @@ public class CommitDlgTest
         gmd.WaitFor("[Subject");
 
         gmd.Send("C-d");
-        gmd.WaitFor("Added: epsilon.txt");
+        gmd.WaitFor("▌ A epsilon.txt");
         gmd.Send("x");
         gmd.WaitForStable();
         gmd.Send("Escape");
 
-        StringAssert.Contains(gmd.WaitUntilGone("Added: epsilon.txt"), "[Subject ", "The message is as it was");
+        StringAssert.Contains(gmd.WaitUntilGone("▌ A epsilon.txt"), "[Subject ", "The message is as it was");
     }
 
     // Ctrl-A after a merge adds the subjects of the merged commits to the message, oldest first,

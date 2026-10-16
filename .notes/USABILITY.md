@@ -67,7 +67,7 @@ with a merge conflict, and from mockups of the proposals in the same 16 colors, 
 
 1. **The diff's look**, in the 16 colors 1.x has: text white, a change marked by a bar in the gutter
    and the line number's color, and only the changed words on a background; words compared rather
-   than characters (DiffPlex's word diff) and the lines of a change paired by likeness; a blank side
+   than characters (DiffPlex's word diff) and marked only where the lines are alike; a blank side
    rather than `░`; one row per file and one per hunk, naming its function from the `@@` line; the
    cursor a reversed line number.
 2. **Getting around the diff:** `]` `[` the next and previous change and `}` `{` file, as the
@@ -95,7 +95,17 @@ that does not fight the diff's colors, light themes.
 
 ### Steps
 
-- [ ] 1. The diff's look (proposal 1). M (every diff snapshot changes)
+- [x] 1. The diff's look (proposal 1). M (every diff snapshot changes) *Done (2026-10-16):* a
+  gutter of a bar and the line number, red or green for a change, which stays put while the line
+  scrolls sideways; words compared (`LineWords`, DiffPlex with a chunker of words, spaces and single
+  characters, a space between two changes joined to them) and marked only where the two lines are
+  at least half the same; the commit in two rows, the files listed as the commit details list them
+  (`ChangedFileText`, shared), a file one row with its rule, a hunk one row with git's function
+  name (`SectionDiff.Function`); a side with no line blank; the cursor the line number reversed;
+  a conflict's sides in the resolver's yellow and cyan, no word marked. *Not done: pairing the
+  lines of a change by likeness.* `FilePatch` pairs them by position, and that decides where a line
+  kept ends up when part of a change is committed or discarded, so pairing them otherwise in the
+  view would show one file and commit another; and the git layer cannot use DiffPlex.
 - [ ] 2. Getting around the diff (2). S
 - [ ] 3. The file list and the unified layout (3). M to L
 - [ ] 4. The resolver's sides against the ancestor, its names and line numbers, the whole result

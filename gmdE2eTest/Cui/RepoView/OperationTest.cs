@@ -53,7 +53,7 @@ public class OperationTest
 
         // Resolve Conflicts is the default, and opens the diff where Enter resolves a file
         gmd.Send("Enter");
-        gmd.WaitFor("Conflicts:   long.txt");
+        gmd.WaitFor("C long.txt");
     }
 
     // A continue that stops again, on the conflicts of the rebase's next commit, says so as the first

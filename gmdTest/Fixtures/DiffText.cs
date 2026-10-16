@@ -10,7 +10,7 @@ namespace gmdTest.Fixtures;
 // Use like e.g.:
 //     Assert.AreEqual(
 //         """
-//            1┃one       │    1┃one
+//         ▌   1 one │ ▌   1 uno
 //         """,
 //         DiffText.BodyOf(rows));
 static class DiffText
@@ -19,11 +19,6 @@ static class DiffText
     // ColorsOf keeps it literal rather than turning it into a color letter.
     const string Separator = " │ ";
 
-    // The filler drawn where one side has no line at all. DiffRowService.NoLine is 300 runes wide
-    // and would swamp every picture, so it is collapsed to a single rune. Recognised by identity,
-    // which is how DiffView itself tests for it (DiffView.cs:636-687).
-    static readonly Text NoLine = Text.Dark("░");
-
     // The whole drawn diff, one line per row
     public static string Of(DiffRows rows) => Join(Lines(rows.Rows, t => t.ToString()));
 
@@ -31,8 +26,8 @@ static class DiffText
     // separator stay literal so the two pictures line up.
     public static string ColorsOf(DiffRows rows) => Join(Lines(rows.Rows, TextColors.Of));
 
-    // Just the first file's section, i.e. the diff body between the two '─' rules AddSectionDiff
-    // wraps it in. Lets a test about the body skip the dozen rows of commit and file summary that
+    // Just the first file's lines, below its header to the next file, without the hunk headers and
+    // the blank rows between hunks. Lets a test about the lines skip the commit and the file list
     // every diff starts with.
     public static string BodyOf(DiffRows rows) => Join(Lines(BodyRowsOf(rows), t => t.ToString()));
 
@@ -40,19 +35,25 @@ static class DiffText
 
     public static IReadOnlyList<DiffRow> BodyRowsOf(DiffRows rows)
     {
-        bool IsRule(DiffRow r) => r.Mode == DiffRowMode.DividerLine && r.Left.ToString() == "─";
-
-        var first = rows.Rows.FindIndexBy(IsRule);
-        var last = rows.Rows.FindLastIndexBy(IsRule);
-        if (first == -1 || last <= first)
+        var header = rows.Rows.FindIndexBy(r => r.FilePath != "");
+        if (header == -1)
             return [];
 
-        return rows.Rows.Skip(first + 1).Take(last - first - 1).ToList();
+        return rows
+            .Rows.Skip(header + 1)
+            .TakeWhile(r => r.FilePath == "")
+            .Where(r => !r.IsHunkHeader && !IsBlank(r))
+            .ToList();
     }
+
+    static bool IsBlank(DiffRow r) => r.Mode == DiffRowMode.SpanBoth && r.Left.ToString() == "";
 
     static IReadOnlyList<string> Lines(IReadOnlyList<DiffRow> rows, Func<Text, string> render)
     {
-        var drawn = rows.Select(r => (r.Mode, Left: render(Shown(r.Left)), Right: render(Shown(r.Right)))).ToList();
+        var drawn = rows.Select(r =>
+                (r.Mode, Left: render(Shown(r.Left)) + Fill(r, render), Right: render(Shown(r.Right)))
+            )
+            .ToList();
 
         // Only the side by side rows share the column, so only they decide where it ends
         var width = drawn
@@ -70,7 +71,12 @@ static class DiffText
             .ToList();
     }
 
-    static Text Shown(Text text) => ReferenceEquals(text, DiffRowService.NoLine) ? NoLine : text;
+    // The side with no line is drawn blank, and 300 wide it would swamp every picture. Recognised by
+    // identity, which is how the view itself tests for it.
+    static Text Shown(Text text) => ReferenceEquals(text, DiffRowService.NoLine) ? Text.Empty : text;
+
+    // The rule a header row is followed by to the end of the row, drawn as one rune
+    static string Fill(DiffRow row, Func<Text, string> render) => row.Fill == null ? "" : " " + render(row.Fill);
 
     static string Join(IEnumerable<string> lines) => string.Join("\n", lines);
 }

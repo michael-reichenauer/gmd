@@ -44,6 +44,20 @@ class DiffRows
 
     internal void AddLine(Text line) => Add(line, Text.Empty, DiffRowMode.DividerLine, "", "", 0, 0, null, null);
 
+    // A file's header, which the view follows with a rule across the rest of the row
+    internal void AddFileHeader(Text header, string filePath)
+    {
+        Add(header, filePath);
+        rows[^1] = rows[^1] with { Fill = Text.Dark("─") };
+    }
+
+    // A hunk's header, what the next and previous change go by
+    internal void AddHunkHeader(Text header)
+    {
+        Add(header);
+        rows[^1] = rows[^1] with { IsHunkHeader = true };
+    }
+
     void Add(
         Text left,
         Text right,
@@ -159,6 +173,12 @@ record DiffRow(
     public string? AddedText { get; init; }
 
     public bool IsChange => RemovedText != null || AddedText != null;
+
+    // The rune a header row is followed by to the end of the row, e.g. a file's '─', or null
+    public Text? Fill { get; init; }
+
+    // Whether the row is a hunk's header, '@@' and where it is
+    public bool IsHunkHeader { get; init; }
 }
 
 // Where the cursor is, as content rather than a row index, so it survives the rows being rebuilt
@@ -176,14 +196,24 @@ enum DiffRowMode
     DividerLine,
 }
 
-record Line(int LineNbr, string Text, Color Color);
+// What a line of a diff is: unchanged, removed or added, or a line of one side of a conflict
+enum LineKind
+{
+    Same,
+    Removed,
+    Added,
+    Ours,
+    Theirs,
+}
+
+record Line(int LineNbr, string Text, LineKind Kind);
 
 class Block
 {
     public List<Line> Lines { get; } = [];
 
-    public void Add(int lineNbr, string text, Color color)
+    public void Add(int lineNbr, string text, LineKind kind)
     {
-        Lines.Add(new Line(lineNbr, text, color));
+        Lines.Add(new Line(lineNbr, text, kind));
     }
 }

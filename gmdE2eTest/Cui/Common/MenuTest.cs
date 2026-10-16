@@ -25,7 +25,7 @@ public class MenuTest
 
         gmd.Send(key);
 
-        gmd.WaitFor("Added: delta.txt");
+        gmd.WaitFor("A delta.txt");
         gmd.WaitUntilGone("Commit Diff");
     }
 
@@ -40,7 +40,7 @@ public class MenuTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
         gmd.Send("d");
-        gmd.WaitFor("Added: delta.txt");
+        gmd.WaitFor("A delta.txt");
         gmd.Send("m");
         gmd.WaitFor("Diff Menu");
 
