@@ -851,6 +851,32 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `Status.IsMerging`, which is any operation in progress); dead code (the
   commented blocks in `UnicodeSetsDlg`, `ExceptionHandling`, `Cmd`, `FileMonitor`,
   `WindowsClipboard`; `exampleRunes.cs` and `ConfigDlg`'s and `MainView`'s are gone); and `FakeGit` implements 12 of 76 members.
+- D, the diff and the resolver (from the 2026-10-16 review of `mr/diff-look`, left for after it):
+  - `DiffView.cs` (about 1580 lines) and `ConflictView.cs` (about 1190) hold logic that needs a
+    driver to test. The diff's top row (`TopRowText`, `TitleAt`) as a `DiffTopRow` beside
+    `DiffRows`; its layout (`IsOneColumnFor`, `ListWidth`, `FollowWidth`, `isListWanted`) as a
+    `DiffLayout`; drawing a row (`SideText`, `Focused`, `WithCursor`, `WithFill`) as a
+    `DiffRowWriter`, as `GraphWriter` is. In the resolver, the typing in the result pane
+    (`EditCurrentHunk` to `EndTyping`), and the questions of a file with no text to merge
+    (`AskWholeFile` and the four after it), which are the workspace's rather than the view's.
+  - `DiffFileList` and `ConflictFileList` repeat `Separated`, `Highlighted` and `Cut`, and count
+    the scrollbar column in their width alike: one writer of a list row beside a view.
+  - `WhyNotDiscardLines` and `WhyNotLeaveOut` repeat their chain of reasons.
+  - The "Narrowed by the list" branch of `DiffView.Show` cannot run: the list needs a terminal of
+    150 and takes a quarter of it at most, which leaves the diff 112 columns, above the 110 one
+    column starts below.
+  - `ConflictWorkspace` calls `UI.InfoMessage` and `UI.ErrorMessage` itself, so its loop is tested
+    end to end only; what it opens next (`ConflictFileList.After`) and what finishes
+    (`FinishOf`) are unit tested. `RepoCommands.ResolveConflicts` is one more `async void`, run
+    outside `Do` as the views are (see the note in `CommitCommands.ShowDiff`).
+  - `DiffRows.MaxLength` counts rows that never scroll sideways, the headers and a history's commit
+    rows, which widens the sideways scroll into blank columns.
+  - Speed, as measured then (Release): a diff of 10,000 changed lines lays out in about 110 ms, a
+    minified line of 200 KB in 26 ms, a conflict of 1,000 lines a side opens in 0.6 s and decides
+    in a millisecond. `LineWords` chunking by text element costs about 20% over a char loop, an
+    ASCII fast path if it ever matters. `SideChanges` looks only 50 lines past where the alignment
+    puts a removed line, so more lines than that added above changed ones are shown added and
+    removed rather than paired.
 - Not recommended: splitting `IServer` by area (decided 2026-10-13: every member is used and the
   command classes span the areas, so each would take several interfaces and couple no less);
   removing the one-implementation interfaces (they are the DI and test-double seams); renaming `Cui`; AOT (the assembly scan blocks it, and nothing needs it); sharing the
