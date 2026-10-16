@@ -133,7 +133,15 @@ that does not fight the diff's colors, light themes.
   two fifths of the view, each decided conflict's lines barred in its side's color, an undecided one
   a row of the keys, scrolled to the cursor's conflict. With the ancestor known, showing its own
   pane (`b`) no longer moves any row: every line of it is in each side.
-- [ ] 5. Combine (5). M
+- [x] 5. Combine (5). M *Done (2026-10-16), on `c` rather than `3`:* `3` and `4` stay the two sides
+  one after the other, as they were. `ConflictCombine`, written test first: each side aligned with the
+  ancestor line by line as `SideChanges` draws it, a line one side touched taking its change, lines
+  one added going where it added them, and a line both changed combined word by word, words written
+  at the edge of the other's change going before or after it; lines both wrote in one place, a line
+  removed by one and changed by the other, or a word both changed, and there is none. Both of the
+  test conflict's come out as the merge wanted. Taken as text written by hand, so the git layer is
+  untouched, and drawn in the result by where each line came from; offered in the undecided row and
+  the menu, `e` starts from it, `u` takes it back. The resolver has a status line now, for why not.
 - [ ] 6. The Resolve workspace (6). M to L
 - [ ] 7. Typing in the result (7), after the probe.
 

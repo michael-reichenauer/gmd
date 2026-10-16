@@ -272,7 +272,9 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   math, and steps detail down as the terminal narrows.
 - **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
   per hunk; it never builds file text, the decisions go back down to be applied. `SideChanges` is a
-  side as its change against the common ancestor, which the resolver reads as the file opens. `IConflictView.Show`
+  side as its change against the common ancestor, which the resolver reads as the file opens, and
+  `ConflictCombine` both sides' changes in one where they touch other words, taken as text written
+  by hand. `IConflictView.Show`
   is deliberately **synchronous** — a Terminal.Gui `SynchronizationContext` posts an await's
   continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is
   why the caller (`DiffView`) loads the file.
@@ -747,7 +749,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

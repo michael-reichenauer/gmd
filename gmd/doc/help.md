@@ -684,6 +684,7 @@ next and previous one from wherever the cursor is.
 | ---------- | ---------------------------------------------------------- |
 | 1  2       | Take the left or the right side                            |
 | 3  4       | Take both, left first or right first                       |
+| c          | Combine both sides' changes, where they touch other words  |
 | 0          | Take the common ancestor, i.e. undo both sides' changes    |
 | u          | Clear the decision on this conflict                        |
 | e          | Edit the result of this conflict by hand                   |
@@ -712,9 +713,19 @@ has no such version, and says so. Where both sides added lines that were
 not there before, the ancestor is empty, so `0` removes the region, which
 is also how to drop a conflict you want gone.
 
+`c` combines both sides' changes, for the conflict git could not merge
+only because the lines the two changed touch: one side added a line above a
+line the other changed, or each changed other words of the same line. Each
+line takes the change made to it, and a line both changed takes the words
+each changed. Where they change the same words, or both write lines in one
+place, there is no one combination, and `c` says so; the result pane offers
+it for each conflict it can be had for. It is never taken by itself, and `u`
+takes it back.
+
 `e` is for the merge that is neither side but something of both. A box
-opens holding what the conflict resolves to now, or both sides if you have
-not chosen yet, and it says which of the two it gave you. Emptying the box
+opens holding what the conflict resolves to now, or if you have not chosen
+yet both sides' changes combined where `c` can combine them, and both sides
+where not, and it says which it gave you. Emptying the box
 is how to delete the conflicted region outright. `Tab` moves from the box
 to the buttons, since Enter inside it is a newline.
 

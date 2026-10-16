@@ -173,4 +173,27 @@ public class ConflictResolutionTest
 
         Assert.AreEqual(string.Join("|", written), string.Join("|", previewed), $"For {text.Replace("\n", "\\n")}");
     }
+
+    // A combination is taken as text the user wrote, as an edit by hand is, which is what goes down
+    // to be written, and is kept as its lines with where each came from until decided otherwise
+    [TestMethod]
+    public void TestACombinationIsTextKeptWithItsLines()
+    {
+        var file = FileWith(1);
+        var resolution = new ConflictResolution(file);
+        var lines = new[] { new CombinedLine("t", LineOrigin.Theirs), new CombinedLine("both", LineOrigin.Both) };
+
+        resolution.SetCombined(0, lines);
+
+        Assert.AreEqual(HunkChoice.Manual, resolution.ChoiceOf(0));
+        Assert.AreEqual("t\nboth", resolution.ToResolutions()[0].ManualText);
+        CollectionAssert.AreEqual(
+            new[] { "t", "both" },
+            resolution.ResultOf(file.Hunks[0]).Select(l => l.Text).ToArray()
+        );
+        Assert.AreSame(lines, resolution.CombinedOf(0));
+
+        resolution.Set(0, HunkChoice.Ours);
+        Assert.IsNull(resolution.CombinedOf(0), "Decided otherwise");
+    }
 }

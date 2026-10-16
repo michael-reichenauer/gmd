@@ -283,6 +283,52 @@ static class E2eRepo
         return repo;
     }
 
+    // A merge stopped on two conflicts git could not merge for their lines touching, though each
+    // side changed other words, or only added lines above the other's: what Combine takes both of.
+    // 'main' made the rate a field and rounded the total, and rewrote the discount as one line; 'dev'
+    // discounted the total and added a gold discount above the member one.
+    public static async Task<TempRepo> CreateWithCombinableConflictsAsync()
+    {
+        var repo = await TempRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+
+        string[] ancestor =
+        [
+            "decimal Total(Order order)",
+            "{",
+            "    var sum = order.Sum;",
+            "    return sum + sum * VatRate;",
+            "}",
+            "",
+            "decimal Discount(Customer customer)",
+            "{",
+            "    if (customer.IsMember)",
+            "        return 0.05m;",
+            "    return 0m;",
+            "}",
+        ];
+        await repo.CommitFileAtAsync("Pricing.cs", Text(ancestor), "Add pricing", t);
+
+        await repo.GitAsync("checkout -q -b dev");
+        var dev = ancestor.ToList();
+        dev[3] = "    return discounted + discounted * VatRate;";
+        dev.Insert(3, "    var discounted = sum - sum * Discount(order.Customer);");
+        dev.InsertRange(9, ["    if (customer.IsGold)", "        return 0.10m;"]);
+        await repo.CommitFileAtAsync("Pricing.cs", Text(dev), "Gold customers get ten percent", t.AddMinutes(1));
+
+        await repo.GitAsync("checkout -q main");
+        var main = ancestor.ToList();
+        main[3] = "    return Math.Round(sum + sum * vatRate, 2);";
+        main.RemoveRange(8, 3);
+        main.Insert(8, "    return customer.IsMember ? 0.05m : 0m;");
+        await repo.CommitFileAtAsync("Pricing.cs", Text(main), "Round the total", t.AddMinutes(2));
+
+        await repo.GitAllowFailAsync("merge dev");
+        return repo;
+
+        static string Text(IEnumerable<string> lines) => string.Join("\n", lines) + "\n";
+    }
+
     // The same two branches before the merge, so that the merge that conflicts is gmd's own:
     // 'main' is current, and 'dev' changes the line 'main' changed too
     public static async Task<TempRepo> CreateWithConflictingBranchAsync()

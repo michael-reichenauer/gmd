@@ -43,6 +43,13 @@ class ConflictView : IConflictView
     ConflictFile file = null!;
     ConflictSides sides = ConflictSides.None;
     ConflictNames names = null!;
+
+    // Both sides' changes in one, for each conflict they can be had for, null where not, found once
+    // per file read (ConflictCombine)
+    readonly Dictionary<int, IReadOnlyList<CombinedLine>?> combinations = [];
+
+    // What a key did or why it did nothing, said over the key hints, as in the diff
+    IStatusLine status = new StatusLine();
     ConflictResolution resolution = null!;
     ConflictRows rows = new ConflictRows();
     GitOperation operation;
@@ -93,6 +100,8 @@ class ConflictView : IConflictView
         this.file = file;
         this.sides = sides;
         this.names = ConflictNames.Of(file, sides);
+        this.combinations.Clear();
+        this.status = new StatusLine();
         this.operation = operation;
         this.repoPath = repoPath;
         this.rowStartX = 0;
@@ -158,8 +167,10 @@ class ConflictView : IConflictView
         };
 
         view.Add(header, border, contentView, resultView);
-        if (config.ShowKeyHints)
-            view.Add(new KeyHintBar(ConflictHints.For, () => null));
+        // The bar is there with the hints off too, for what a key did, as in the diff
+        var hintBar = new KeyHintBar(ConflictHints.For, () => status.Current);
+        view.Add(hintBar);
+        hintBar.FollowStatus(status, config.ShowKeyHints, view);
         RegisterShortcuts(contentView);
 
         // The result pane follows the cursor, so walking the file walks through the decisions
@@ -198,6 +209,7 @@ class ConflictView : IConflictView
         view.RegisterLetterHandler(Key.n, () => GotoHunk(1));
         view.RegisterLetterHandler(Key.p, () => GotoHunk(-1));
         view.RegisterLetterHandler(Key.e, EditCurrentHunk);
+        view.RegisterLetterHandler(Key.c, Combine);
         view.RegisterLetterHandler(Key.b, ToggleBase);
         view.RegisterLetterHandler(Key.s, () => Save());
         view.RegisterLetterHandler(Key.a, ShowWholeFileMenu);
@@ -225,7 +237,7 @@ class ConflictView : IConflictView
     {
         var anchor = rows.Count > 0 ? rows.AnchorAt(contentView.CurrentIndex) : null;
         rows = rowService.ToRows(file, resolution, isShowBase, names);
-        result = rowService.ToResult(file, resolution, names);
+        result = rowService.ToResult(file, resolution, names, h => CombinationOf(h) != null);
         if (anchor != null && rows.IndexOf(anchor) is var index and not -1 && index != contentView.CurrentIndex)
             contentView.ShowCurrentIndex(index);
 
@@ -290,7 +302,7 @@ class ConflictView : IConflictView
             .Cyan("▌")
             .Dark($"{names.Theirs.Max(20)} ")
             .Magenta("▌")
-            .Dark("edited ───");
+            .Dark("both or by hand ───");
         var fill = Math.Max(0, width - title.Length - legend.Length);
         return title.Dark(new string('─', fill)).Add(legend);
     }
@@ -366,9 +378,9 @@ class ConflictView : IConflictView
 
     // Says where the text in the box came from, so it is never a surprise
     string SeedNote(ConflictHunk hunk) =>
-        resolution.ChoiceOf(hunk.Index) != HunkChoice.None
-            ? "What this conflict resolves to now:"
-            : $"Both sides, {names.Ours.Max(20)} first, to cut down to what you want:";
+        resolution.ChoiceOf(hunk.Index) != HunkChoice.None ? "What this conflict resolves to now:"
+        : CombinationOf(hunk) != null ? "Both sides' changes combined, to change as you want:"
+        : $"Both sides, {names.Ours.Max(20)} first, to cut down to what you want:";
 
     string SeedText(ConflictHunk hunk)
     {
@@ -376,9 +388,48 @@ class ConflictView : IConflictView
         if (resolution.ChoiceOf(hunk.Index) != HunkChoice.None)
             return string.Join('\n', resolution.ResultOf(hunk).Select(l => l.Text));
 
-        // Otherwise both sides, which is the usual starting point for a merge written by hand
+        // Otherwise both sides' changes combined, where they can be, or both sides, which is the
+        // usual starting point for a merge written by hand
+        if (CombinationOf(hunk) is IReadOnlyList<CombinedLine> combined)
+            return string.Join('\n', combined.Select(l => l.Text));
         return string.Join('\n', hunk.Ours.Concat(hunk.Theirs).Select(l => l.Text));
     }
+
+    // Takes both sides' changes in one, c, where they touch no word in common (ConflictCombine): what
+    // git could not merge for their being in lines that touch, e.g. a line added above a line the
+    // other changed. Never taken by itself, only offered: the result shows it, and u takes it back.
+    void Combine()
+    {
+        var hunk = CurrentHunkOrNull();
+        if (hunk == null)
+            return;
+
+        if (CombinationOf(hunk) is not IReadOnlyList<CombinedLine> combined)
+        {
+            status.Notice(WhyNotCombine(hunk));
+            return;
+        }
+
+        resolution.SetCombined(hunk.Index, combined);
+        SetRows();
+        status.Info($"Conflict {hunk.Index + 1} is both changes combined: u takes it back");
+    }
+
+    IReadOnlyList<CombinedLine>? CombinationOf(ConflictHunk hunk)
+    {
+        if (!combinations.TryGetValue(hunk.Index, out var combined))
+        {
+            // What each side changed is only known against the ancestor
+            combined = file.HasBase || hunk.HasBase ? ConflictCombine.Of(hunk.Base, hunk.Ours, hunk.Theirs) : null;
+            combinations[hunk.Index] = combined;
+        }
+        return combined;
+    }
+
+    string WhyNotCombine(ConflictHunk hunk) =>
+        !file.HasBase && !hunk.HasBase
+            ? "The common ancestor is not known, so neither is what each side changed: e edits it by hand"
+            : "The two sides change the same words here, or write lines in one place: e edits it by hand";
 
     void ToggleBase()
     {
@@ -465,6 +516,7 @@ class ConflictView : IConflictView
             }
 
             file = withBase;
+            combinations.Clear();
             onBase();
         });
     }
@@ -567,6 +619,7 @@ class ConflictView : IConflictView
 
         file = reread;
         names = ConflictNames.Of(file, sides);
+        combinations.Clear();
         resolution = new ConflictResolution(file);
 
         // The ancestor is recovered per read, so a pane that cannot be filled is closed rather than
@@ -786,6 +839,13 @@ class ConflictView : IConflictView
                 .Item($"Use {theirs}", "2", () => Choose(HunkChoice.Theirs), () => hasHunk)
                 .Item($"Use {ours} then {theirs}", "3", () => Choose(HunkChoice.OursThenTheirs), () => hasHunk)
                 .Item($"Use {theirs} then {ours}", "4", () => Choose(HunkChoice.TheirsThenOurs), () => hasHunk)
+                .Item(
+                    "Combine Both Changes",
+                    "c",
+                    Combine,
+                    () => hunk != null && CombinationOf(hunk) != null,
+                    () => hunk != null ? WhyNotCombine(hunk) : "No conflict here"
+                )
                 .Item("Use the Common Ancestor", "0", ChooseBase, () => hasHunk)
                 .Item("Edit by Hand ...", "e", EditCurrentHunk, () => hasHunk)
                 .Item("Clear Decision", "u", () => Choose(HunkChoice.None), () => hasHunk)

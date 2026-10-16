@@ -8,7 +8,12 @@ interface IConflictRowService
     ConflictRows ToRows(ConflictFile file, ConflictResolution resolution, bool isShowBase, ConflictNames? names = null);
     Text ToRowText(ConflictRow row, ConflictColumns columns, int startX);
     Text ToHeader(ConflictFile file, ConflictResolution resolution, int currentHunk, GitOperation operation);
-    ConflictResult ToResult(ConflictFile file, ConflictResolution resolution, ConflictNames names);
+    ConflictResult ToResult(
+        ConflictFile file,
+        ConflictResolution resolution,
+        ConflictNames names,
+        Func<ConflictHunk, bool>? canCombine = null
+    );
 }
 
 // The file as it will be saved, as rows, and the row each conflict's lines start at in it
@@ -88,7 +93,8 @@ class ConflictRowService : IConflictRowService
     )
     {
         var choice = resolution.ChoiceOf(hunk.Index);
-        var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ").Add(ChoiceText(choice, names));
+        var isCombined = resolution.CombinedOf(hunk.Index) != null;
+        var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ").Add(ChoiceText(choice, names, isCombined));
         rows.Add(ConflictRow.Header(title, hunk.Index));
 
         // The sides by name, not 'ours' and 'theirs' — during a rebase those two mean the opposite of
@@ -189,9 +195,10 @@ class ConflictRowService : IConflictRowService
         return hunk.BaseLabel == "" ? "common ancestor" : hunk.BaseLabel.Max(60);
     }
 
-    static Text ChoiceText(HunkChoice choice, ConflictNames names) =>
+    static Text ChoiceText(HunkChoice choice, ConflictNames names, bool isCombined) =>
         choice switch
         {
+            HunkChoice.Manual when isCombined => Text.Green("── both changes combined "),
             HunkChoice.None => Text.Red("── unresolved ───────"),
             HunkChoice.Ours => Text.Green($"── using {names.Ours.Max(30)} "),
             HunkChoice.Theirs => Text.Green($"── using {names.Theirs.Max(30)} "),
@@ -252,7 +259,14 @@ class ConflictRowService : IConflictRowService
     // decided conflict's lines with a bar in the color of the side they came from, magenta where
     // written by hand, and each undecided one a row saying so, which a save leaves the conflict's
     // markers in place of. Numbered as the file will be, but for those.
-    public ConflictResult ToResult(ConflictFile file, ConflictResolution resolution, ConflictNames names)
+    //
+    // canCombine says of an undecided conflict whether Combine can be had, which its row then offers.
+    public ConflictResult ToResult(
+        ConflictFile file,
+        ConflictResolution resolution,
+        ConflictNames names,
+        Func<ConflictHunk, bool>? canCombine = null
+    )
     {
         List<Text> rows = [];
         Dictionary<int, int> starts = [];
@@ -269,7 +283,7 @@ class ConflictRowService : IConflictRowService
             var choice = resolution.ChoiceOf(hunk.Index);
             if (choice == HunkChoice.None)
             {
-                rows.Add(Undecided(hunk, names));
+                rows.Add(Undecided(hunk, names, canCombine?.Invoke(hunk) ?? false));
                 continue;
             }
 
@@ -291,6 +305,8 @@ class ConflictRowService : IConflictRowService
     {
         IEnumerable<(FileLine, Color)> Of(IReadOnlyList<FileLine> lines, Color color) => lines.Select(l => (l, color));
         var (ours, theirs) = (Of(hunk.Ours, Color.Yellow), Of(hunk.Theirs, Color.Cyan));
+        if (resolution.CombinedOf(hunk.Index) is IReadOnlyList<CombinedLine> combined)
+            return combined.Select(l => (new FileLine(l.Text), ColorOf(l.Origin))).ToList();
         return choice switch
         {
             HunkChoice.Ours => ours.ToList(),
@@ -302,7 +318,17 @@ class ConflictRowService : IConflictRowService
         };
     }
 
-    static Text Undecided(ConflictHunk hunk, ConflictNames names) =>
+    // A combined line in the color of where it came from, a line with words of both magenta
+    static Color ColorOf(LineOrigin origin) =>
+        origin switch
+        {
+            LineOrigin.Ours => Color.Yellow,
+            LineOrigin.Theirs => Color.Cyan,
+            LineOrigin.Both => Color.Magenta,
+            _ => Color.Dark,
+        };
+
+    static Text Undecided(ConflictHunk hunk, ConflictNames names, bool canCombine) =>
         Text.Red("▌")
             .Dark("      ")
             .Red($"Conflict {hunk.Index + 1} is not decided:")
@@ -310,6 +336,7 @@ class ConflictRowService : IConflictRowService
             .Yellow(names.Ours.Max(20))
             .Dark(", 2 ")
             .Cyan(names.Theirs.Max(20))
+            .Dark(canCombine ? ", c combine both" : "")
             .Dark(", 3 or 4 both, 0 neither, e edit");
 
     // 'Resolve  src/Foo.cs   conflict 2 of 5   ·  3 still to resolve'

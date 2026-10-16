@@ -12,6 +12,7 @@ class ConflictResolution
     readonly ConflictFile file;
     readonly Dictionary<int, HunkChoice> choices = [];
     readonly Dictionary<int, string> manualTexts = [];
+    readonly Dictionary<int, IReadOnlyList<CombinedLine>> combined = [];
 
     public ConflictResolution(ConflictFile file)
     {
@@ -29,6 +30,7 @@ class ConflictResolution
 
     public void Set(int hunkIndex, HunkChoice choice, string manualText = "")
     {
+        combined.Remove(hunkIndex);
         if (choice == HunkChoice.None)
         {
             choices.Remove(hunkIndex);
@@ -42,6 +44,17 @@ class ConflictResolution
         else
             manualTexts.Remove(hunkIndex);
     }
+
+    // Both sides' changes in one (ConflictCombine), taken as text the user wrote, as an edit by hand
+    // is, and kept as lines with where each came from, which is how the result draws them
+    public void SetCombined(int hunkIndex, IReadOnlyList<CombinedLine> lines)
+    {
+        Set(hunkIndex, HunkChoice.Manual, string.Join('\n', lines.Select(l => l.Text)));
+        combined[hunkIndex] = lines;
+    }
+
+    // The combination a conflict was decided with, null where it was not
+    public IReadOnlyList<CombinedLine>? CombinedOf(int hunkIndex) => combined.GetValueOrDefault(hunkIndex);
 
     // Every conflict, in order, whether decided or not — the count is what the Git layer checks the
     // file against, so a file that changed underneath is caught rather than resolved by position

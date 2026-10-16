@@ -11,6 +11,7 @@ static class ConflictHints
             KeyHintLine.Menu,
             new("Esc", "close"),
             new("] [", "next, previous"),
+            new("c", "combine"),
             new("s", "save"),
             new("e", "edit"),
             new("b", "ancestor"),

@@ -48,7 +48,7 @@ public class ConflictViewTest
                53 line 53
                54 line 54
                55 line 55
-            ─── Result, long.txt as it will be saved ──────────────────────────────────────────────────────── ▌main ▌dev ▌edited ───
+            ─── Result, long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
                37 line 37
                38 line 38
                39 line 39
@@ -167,7 +167,7 @@ public class ConflictViewTest
                53 line 53
                54 line 54
                55 line 55
-            ─── Result, long.txt as it will be saved ──────────────────────────────────────────────────────── ▌main ▌dev ▌edited ───
+            ─── Result, long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
                37 line 37
                38 line 38
                39 line 39
@@ -343,7 +343,7 @@ public class ConflictViewTest
         OpenTheResolver(gmd);
 
         var screen = gmd.WaitFor("] [ next, previous");
-        StringAssert.Contains(ScreenText.LastLine(screen), "m menu  Esc close  ] [ next, previous  s save");
+        StringAssert.Contains(ScreenText.LastLine(screen), "m menu  Esc close  ] [ next, previous  c combine  s save");
         StringAssert.Contains(screen, "is not decided: 1 main", "The result pane is still there, above the hints");
     }
 
@@ -480,6 +480,76 @@ public class ConflictViewTest
             $"the last line to read '{expected}'"
         );
         gmd.WaitForStable();
+    }
+
+    // c combines both sides' changes where they touch no word in common: in one conflict each side
+    // changed other words of a line, and added a line, and in the other one side only added lines
+    // above the lines the other rewrote. Saved, the file is both changes, and marked resolved.
+    [TestMethod]
+    public async Task TestCombineBothChanges()
+    {
+        using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        gmd.WaitFor("C Pricing.cs");
+        gmd.Send("Enter");
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+        StringAssert.Contains(
+            gmd.WaitFor("─── Conflict 1"),
+            "Conflict 1 is not decided: 1 main, 2 dev, c combine both"
+        );
+
+        gmd.Send("c");
+        Assert.AreEqual(
+            "Conflict 1 is both changes combined: u takes it back",
+            ScreenText.LastLine(gmd.WaitFor("both changes combined:"))
+        );
+        gmd.Send("]");
+        gmd.WaitFor("conflict 2 of 2");
+        gmd.Send("c");
+        gmd.WaitFor("all resolved");
+        gmd.Send("s");
+        gmd.WaitUntilGone("all resolved");
+
+        Assert.AreEqual(
+            """
+            decimal Total(Order order)
+            {
+                var sum = order.Sum;
+                var discounted = sum - sum * Discount(order.Customer);
+                return Math.Round(discounted + discounted * vatRate, 2);
+            }
+
+            decimal Discount(Customer customer)
+            {
+                if (customer.IsGold)
+                    return 0.10m;
+                return customer.IsMember ? 0.05m : 0m;
+            }
+
+            """,
+            File.ReadAllText(Path.Join(repo.Path, "Pricing.cs"))
+        );
+        Assert.AreEqual("M  Pricing.cs", (await repo.GitAsync("status --porcelain")).TrimEnd(), "Marked resolved");
+    }
+
+    // Where both change the same words there is nothing to combine, and c says why
+    [TestMethod]
+    public async Task TestCombineSaysWhyItCannot()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        OpenTheResolver(gmd);
+        gmd.WaitFor("─── Conflict 1");
+
+        gmd.Send("c");
+        Assert.AreEqual(
+            "The two sides change the same words here, or write lines in one place: e edits it by hand",
+            ScreenText.LastLine(gmd.WaitFor("change the same words"))
+        );
+        StringAssert.Contains(gmd.Capture(), "── unresolved", "Nothing decided");
     }
 
     static void OpenTheResolver(TmuxSession gmd)
