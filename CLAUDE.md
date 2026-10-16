@@ -213,7 +213,9 @@ Key types and flow:
   branch graph.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
-  drawing through a `GetContentCallback`, so a large repo is never materialized as text. `TopRow`
+  drawing through a `GetContentCallback`, so a large repo is never materialized as text. Such a
+  view learns how many rows there are only as it draws, so whoever makes its rows anew calls
+  `SetTotalCount` before putting the cursor on one, or it is scrolled to within the old count. `TopRow`
   draws a row above them from the first one shown, in the same draw (the diff's breadcrumb): a view
   of its own beside it would be redrawn only on the next key. Where it is
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with

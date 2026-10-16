@@ -1333,6 +1333,9 @@ class DiffView : IDiffView
             hiddenFiles
         );
         fileList = DiffFileList.Of(diffs, diffRows);
+        // Counted now rather than as the views draw, for the cursor to be put back in the rows that are
+        contentView.SetTotalCount(diffRows.Count);
+        listView.SetTotalCount(fileList.Items.Count + 1);
         search = FindInRows(search.Text); // The rows the search found are other rows now
         RefindLeftOutLines(); // As the lines left out may have moved
         hintBar.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers

@@ -486,6 +486,12 @@ class ContentView : View
         Move(viewY - ContentY - currentViewY);
     }
 
+    // Tells a view whose rows come from its callback how many there are, once they are made anew,
+    // e.g. the diff laid out in one column. The callback says so only as the view draws, so a row put
+    // the cursor on before then, past the count of the rows before, was scrolled to only as far as
+    // that count went, and the cursor was left out of sight.
+    internal void SetTotalCount(int totalCount) => scroll.SetTotalCount(totalCount);
+
     // Puts the cursor on a row and scrolls it into view. The scroll comes first: scrolling moves the
     // cursor with the rows, so a cursor set before it ended up as far off as the view scrolled.
     internal void ShowCurrentIndex(int index)

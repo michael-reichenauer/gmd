@@ -204,6 +204,45 @@ public class DiffViewTest
         gmd.WaitFor("│▌   2 changed");
     }
 
+    // v keeps the cursor on its line and in sight, where one column has more rows than side by side
+    // above it, here every other line changed. The view learnt how many rows there were as it drew,
+    // so the cursor was put on a row past the count before, scrolled to only as far as that count
+    // went, and left out of sight.
+    [TestMethod]
+    public async Task TestOneColumnKeepsTheCursorInSight()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 200).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("file.txt", string.Join("\n", lines) + "\n", "Add the file", TempRepo.BaseTime);
+        var changed = lines.Select((l, i) => i % 2 == 0 ? $"{l} changed" : l);
+        await repo.CommitFileAtAsync(
+            "file.txt",
+            string.Join("\n", changed) + "\n",
+            "Change every other line",
+            TempRepo.BaseTime.AddMinutes(1)
+        );
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change every other line");
+        gmd.Send("d");
+        gmd.WaitFor("M file.txt");
+        gmd.Send("End");
+        gmd.WaitFor(" 200 line 200");
+        gmd.Send("Up"); // Above the bottom row, which the status line is drawn over
+        gmd.WaitForStable();
+        gmd.Send("Up");
+        gmd.WaitForStable();
+
+        gmd.Send("v");
+        var screen = ScreenText.Of(gmd.WaitFor("In one column"), repo.Path).Split('\n');
+        var row = screen.FindIndexBy(l => l.Contains(" 198 line 198"));
+        Assert.AreNotEqual(-1, row, "The cursor's line in sight:\n" + string.Join("\n", screen));
+        StringAssert.StartsWith(
+            ScreenText.BackgroundRows(gmd.CaptureColors(), row, 1),
+            "  WWW",
+            "The cursor on its number"
+        );
+    }
+
     // On a terminal 150 wide or more, the files are listed beside the diff, the one the cursor is in
     // marked. Tab moves the keys to the list, where down goes to the next file, and Esc moves them back
     // before it closes the diff.

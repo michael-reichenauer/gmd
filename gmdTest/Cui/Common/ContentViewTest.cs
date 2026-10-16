@@ -190,6 +190,25 @@ public class ContentViewTest
         Assert.AreEqual(19, NewView(100).ContentWidth); // 20 wide, less the scrollbar
     }
 
+    // A view whose rows come from its callback learns how many there are as it draws, so rows made
+    // anew, more of them, are counted by SetTotalCount for the cursor to be put on one past the count
+    // before: scrolled only as far as that count went, the cursor was out of sight, e.g. the diff in
+    // one column, which has more rows than side by side
+    [TestMethod]
+    public void TestTheCursorIsShownInRowsCountedAnew()
+    {
+        var view = new ContentView((first, count, _, _) => ([], 100)) { Frame = new Rect(0, 0, 20, 10) };
+        view.SetTotalCount(100);
+        view.ShowCurrentIndex(95);
+        Assert.AreEqual(90, view.FirstIndex);
+
+        view.SetTotalCount(300);
+        view.ShowCurrentIndex(250);
+
+        Assert.AreEqual(250, view.CurrentIndex);
+        Assert.IsTrue(view.FirstIndex <= 250 && 250 < view.FirstIndex + 10, $"In sight, from {view.FirstIndex}");
+    }
+
     static ContentView NewView(int rowCount, int width = 20, int height = 10)
     {
         var rows = Enumerable.Range(0, rowCount).Select(i => Text.White($"row {i}").ToText()).ToList();

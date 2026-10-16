@@ -345,6 +345,10 @@ class ConflictView : IConflictView
         var anchor = rows.Count > 0 ? rows.AnchorAt(contentView.CurrentIndex) : null;
         rows = rowService.ToRows(file, resolution, isShowBase, names);
         result = rowService.ToResult(file, resolution, names, h => CombinationOf(h) != null);
+        // Counted now rather than as the views draw, for the cursor and the result to be put in the
+        // rows that are, e.g. after b shows the ancestor
+        contentView.SetTotalCount(rows.Count);
+        resultView.SetTotalCount(result.Rows.Count);
         if (anchor != null && rows.IndexOf(anchor) is var index and not -1 && index != contentView.CurrentIndex)
             contentView.ShowCurrentIndex(index);
 
