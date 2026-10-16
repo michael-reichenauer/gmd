@@ -1,6 +1,6 @@
-using gmd.Cui.Diff;
+using gmd.Cui.Common;
 
-namespace gmdTest.Cui.Diff;
+namespace gmdTest.Cui.Common;
 
 [TestClass]
 public class LineWordsTest

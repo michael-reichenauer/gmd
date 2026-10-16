@@ -1,6 +1,6 @@
 using DiffPlex;
 
-namespace gmd.Cui.Diff;
+namespace gmd.Cui.Common;
 
 // A run of a line's text, changed or as it is on the other side
 record WordRun(string Text, bool IsChanged);

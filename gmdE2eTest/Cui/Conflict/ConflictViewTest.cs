@@ -25,35 +25,35 @@ public class ConflictViewTest
             """
             Merge  long.txt   conflict 1 of 1   1 still to resolve
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            line 35
-            line 36
-            line 37
-            line 38
-            line 39
+               35 line 35
+               36 line 36
+               37 line 37
+               38 line 38
+               39 line 39
             ─── Conflict 1 ── unresolved ───────
             HEAD                                                       │dev
-            line 40 on main                                            │line 40 on dev
-            line 41
-            line 42
-            line 43
-            line 44
-            line 45                                                                                                                ┃
-            line 46                                                                                                                ┃
-            line 47                                                                                                                ┃
-            line 48                                                                                                                ┃
-            line 49                                                                                                                ┃
-            line 50                                                                                                                ┃
-            line 51                                                                                                                ┃
-            line 52                                                                                                                ┃
-            line 53                                                                                                                ┃
-            line 54                                                                                                                ┃
-            line 55                                                                                                                ┃
-            line 56                                                                                                                ┃
-            line 57
-            line 58
-            line 59
-            line 60
-            line 61
+            ~  40 line 40 on main                                      │~  40 line 40 on dev
+               41 line 41
+               42 line 42
+               43 line 43
+               44 line 44
+               45 line 45                                                                                                          ┃
+               46 line 46                                                                                                          ┃
+               47 line 47                                                                                                          ┃
+               48 line 48                                                                                                          ┃
+               49 line 49                                                                                                          ┃
+               50 line 50                                                                                                          ┃
+               51 line 51                                                                                                          ┃
+               52 line 52                                                                                                          ┃
+               53 line 53                                                                                                          ┃
+               54 line 54                                                                                                          ┃
+               55 line 55                                                                                                          ┃
+               56 line 56                                                                                                          ┃
+               57 line 57
+               58 line 58
+               59 line 59
+               60 line 60
+               61 line 61
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             Conflict 1 is not resolved yet — press 1 for HEAD, 2 for dev, 3 or 4 for both, 0 for neither
             """,
@@ -137,35 +137,35 @@ public class ConflictViewTest
             """
             Merge  long.txt   conflict 1 of 1   all resolved
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            line 35
-            line 36
-            line 37
-            line 38
-            line 39
+               35 line 35
+               36 line 36
+               37 line 37
+               38 line 38
+               39 line 39
             ─── Conflict 1 ── using the common ancestor
             HEAD                                   │common ancestor                        │dev
-            line 40 on main                        │line 40                                │line 40 on dev
-            line 41
-            line 42
-            line 43
-            line 44
-            line 45                                                                                                                ┃
-            line 46                                                                                                                ┃
-            line 47                                                                                                                ┃
-            line 48                                                                                                                ┃
-            line 49                                                                                                                ┃
-            line 50                                                                                                                ┃
-            line 51                                                                                                                ┃
-            line 52                                                                                                                ┃
-            line 53                                                                                                                ┃
-            line 54                                                                                                                ┃
-            line 55                                                                                                                ┃
-            line 56                                                                                                                ┃
-            line 57
-            line 58
-            line 59
-            line 60
-            line 61
+            ~  40 line 40 on main                  │      line 40                          │~  40 line 40 on dev
+               41 line 41
+               42 line 42
+               43 line 43
+               44 line 44
+               45 line 45                                                                                                          ┃
+               46 line 46                                                                                                          ┃
+               47 line 47                                                                                                          ┃
+               48 line 48                                                                                                          ┃
+               49 line 49                                                                                                          ┃
+               50 line 50                                                                                                          ┃
+               51 line 51                                                                                                          ┃
+               52 line 52                                                                                                          ┃
+               53 line 53                                                                                                          ┃
+               54 line 54                                                                                                          ┃
+               55 line 55                                                                                                          ┃
+               56 line 56                                                                                                          ┃
+               57 line 57
+               58 line 58
+               59 line 59
+               60 line 60
+               61 line 61
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             line 40
             """,

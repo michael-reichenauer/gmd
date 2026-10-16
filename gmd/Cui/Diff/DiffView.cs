@@ -711,7 +711,11 @@ class DiffView : IDiffView
         ConflictFile file;
         using (progress.Show())
         {
-            var read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath);
+            // With the common ancestor, which the sides are drawn against, and without it where it
+            // cannot be had, e.g. the file changed since git wrote the conflicts into it
+            var read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, true, repoPath);
+            if (read is Error)
+                read = await server.GetConflictFileAsync(conflict.Path, conflict.Kind, false, repoPath);
             if (read is not ConflictFile conflictFile)
             {
                 UI.ErrorMessage($"Failed to open {conflict.Path}\n{read.Error.AllMessages()}");

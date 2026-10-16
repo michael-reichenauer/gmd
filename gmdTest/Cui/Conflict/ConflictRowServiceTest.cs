@@ -56,13 +56,13 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            a
-            ─── Conflict 1 ── unr
-            HEAD      │topic
-            ours      │theirs
-            b
+                1 a
+            ─── Conflict 1 ── unresolved ──
+            HEAD           │topic
+                2 ours     │    2 theirs
+                3 b
             """,
-            Draw(file, new ConflictResolution(file), 22)
+            Draw(file, new ConflictResolution(file), 32)
         );
     }
 
@@ -75,11 +75,12 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            a
+                1 a
             ─── Conflict 1 ── unresolved ───────
             HEAD                              │9c2f1a                            │topic
-            ours                              │base                              │theirs
-            b
+            -     base                        │      base                        │-     base
+            +   2 ours                        │                                  │+   2 theirs
+                3 b
             """,
             Draw(file, new ConflictResolution(file), 104, isShowBase: true)
         );
@@ -110,10 +111,11 @@ public class ConflictRowServiceTest
             """
             ─── Conflict 1 ── unresolved ───────
             HEAD                              │9c2f1a                            │topic
-            ours                              │base                              │theirs
+            -     base                        │      base                        │-     base
+            +   1 ours                        │                                  │+   1 theirs
             ─── Conflict 2 ── unresolved ───────
             HEAD                              │common ancestor (nothing here)    │topic
-            o2                                │                                  │t2
+                2 o2                          │                                  │    2 t2
             """,
             Draw(file, new ConflictResolution(file), 104, isShowBase: true)
         );
@@ -137,11 +139,12 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            a
+                1 a
             ─── Conflict 1 ── unresolved ───────
             HEAD                         │topic
-            ours                         │theirs
-            b
+            -     base                   │-     base
+            +   2 ours                   │+   2 theirs
+                3 b
             """,
             drawn
         );
@@ -185,12 +188,12 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            ─── Conflict 1 ── unr
-            HEAD      │topic
-            o1        │t1
-            o2        │
+            ─── Conflict 1 ── unresolved ──
+            HEAD           │topic
+                1 o1       │    1 t1
+                2 o2       │
             """,
-            Draw(file, new ConflictResolution(file), 22)
+            Draw(file, new ConflictResolution(file), 32)
         );
     }
 
@@ -213,12 +216,12 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-               above
-            ─── Conflict 1 ── unr
-            HEAD      │topic
-               o1     │t1   x
+                1    above
+            ─── Conflict 1 ── unresolved ──
+            HEAD           │topic
+                2    o1    │    2 t1   x
             """,
-            Draw(file, new ConflictResolution(file), 22)
+            Draw(file, new ConflictResolution(file), 32)
         );
     }
 
@@ -250,6 +253,66 @@ public class ConflictRowServiceTest
         StringAssert.StartsWith(
             new ConflictRowService().ToHeader(file, new ConflictResolution(file), 0, GitOperation.Rebase).ToString(),
             "Rebase  f.txt"
+        );
+    }
+
+    // With the common ancestor known, each side is drawn against it: '~' a line it changed, its words
+    // on its own color, '+' a line it added, '-' dark a line of the ancestor's it removed, and a line
+    // it kept dark, each numbered as the side has it, the text between conflicts as ours has it
+    [TestMethod]
+    public void TestEachSideIsDrawnAgainstTheAncestor()
+    {
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [
+                new ConflictSegment(Lines("above"), null),
+                new ConflictSegment(
+                    [],
+                    new ConflictHunk(
+                        0,
+                        "HEAD",
+                        "base",
+                        "topic",
+                        Lines("var x = 1;"),
+                        Lines("var x = 0;", "gone"),
+                        Lines("new", "var x = 0;", "gone")
+                    )
+                ),
+                new ConflictSegment(Lines("below"), null),
+            ],
+            true,
+            true,
+            HasBase: true
+        );
+
+        Assert.AreEqual(
+            """
+                1 above
+            ─── Conflict 1 ── unresolved ───────
+            HEAD                         │topic
+            ~   2 var x = 1;             │+   2 new
+            -     gone                   │    3 var x = 0;
+                                         │    4 gone
+                3 below
+            """,
+            Draw(file, new ConflictResolution(file), 60)
+        );
+    }
+
+    // Scrolled sideways, the gutter of mark and number stays where it is, and the text moves
+    [TestMethod]
+    public void TestTheGutterStaysWhileTheTextScrolls()
+    {
+        var file = FileWithOneConflict();
+        var service = new ConflictRowService();
+        var rows = service.ToRows(file, new ConflictResolution(file), false);
+        var columns = ConflictColumns.Calculate(40, false);
+
+        Assert.AreEqual(
+            "    2 urs          │    2 heirs",
+            service.ToRowText(rows.Rows[3], columns, 1).ToString().TrimEnd()
         );
     }
 

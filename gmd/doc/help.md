@@ -661,8 +661,13 @@ in the diff menu opens a file in the tool git is configured with instead
 The two sides are shown beside each other, titled with the names git wrote
 into the markers (`HEAD` and `topic`, or a commit id during a rebase)
 rather than "ours" and "theirs", since during a rebase those two mean the
-opposite of what you would expect. A pane below shows what the conflict
-under the cursor resolves to as you decide.
+opposite of what you would expect. Each side is shown as what it did to
+the version both started from, the common ancestor, which is what says why
+they conflict: `+` a line it added, `~` a line it changed, with the words
+it changed marked in its color, `-` a line of the ancestor's it removed, in
+dark, and the lines it kept in dark too. A line is numbered as its side has
+it, and the text between conflicts as the left side has it. A pane below
+shows what the conflict under the cursor resolves to as you decide.
 
 The whole file is shown, not just its conflicts, since the text around a
 conflict is what tells you what it is part of. The view opens on the first
@@ -690,12 +695,13 @@ it was, and closing with decisions unsaved asks first. A file saved with
 conflicts still undecided keeps their markers, and is marked resolved once
 none is left.
 
-`b` shows the version both sides started from, which is usually what
-settles which change to keep, and `0` resolves the conflict *to* it, the
-answer when neither change should have happened here. Git records that
-version in the file only when `merge.conflictStyle` is `diff3` or `zdiff3`;
-otherwise gmd works it out on demand from the staged versions, without
-touching your files, and shows it as it takes it. A file both sides created
+`b` shows the version both sides started from in a pane of its own,
+between them, and `0` resolves the conflict *to* it, the answer when
+neither change should have happened here. Git records that version in the
+file only when `merge.conflictStyle` is `diff3` or `zdiff3`; otherwise gmd
+works it out from the staged versions as the file opens, without touching
+your files. Where it cannot, the sides are shown as they are, in their
+colors. A file both sides created
 has no such version, and says so. Where both sides added lines that were
 not there before, the ancestor is empty, so `0` removes the region, which
 is also how to drop a conflict you want gone.

@@ -81,11 +81,12 @@ public class ConflictRowsTest
         Assert.AreEqual(hunkRow, rows.NextHunkRow(hunkRow + 2, -1));
     }
 
-    // Showing the common ancestor makes a conflict as tall as its longest side, so the rows after it
-    // move down: the cursor is kept on the line it was on, where 'b' left it at its row index, which
-    // could be in another conflict
+    // With the common ancestor known each side is drawn against it, every line of the ancestor in
+    // it as kept, changed or removed, so showing the ancestor's own pane makes no conflict taller and
+    // every row stays where it was. Without it, the rows moved, and the anchor kept the cursor on its
+    // line, which it still does.
     [TestMethod]
-    public void TestTheCursorKeepsItsLineWhenTheAncestorIsShown()
+    public void TestShowingTheAncestorMovesNoRow()
     {
         var segments = new List<ConflictSegment>();
         for (int i = 0; i < 2; i++)
@@ -103,23 +104,14 @@ public class ConflictRowsTest
             segments.Add(new ConflictSegment([], hunk));
         }
         segments.Add(new ConflictSegment(Lines("after"), null));
-        var file = new ConflictFile("f.txt", ConflictKind.BothModified, false, segments, true, true);
+        var file = new ConflictFile("f.txt", ConflictKind.BothModified, false, segments, true, true, HasBase: true);
         var service = new ConflictRowService();
         var without = service.ToRows(file, new ConflictResolution(file), false);
         var with = service.ToRows(file, new ConflictResolution(file), true);
 
-        foreach (var text in new[] { "before 0", "before 1", "after", "o1 │ t1" })
-        {
-            var at = without.Rows.FindIndexBy(r => r.ToString() == text);
-            var line = with.Rows[with.IndexOf(without.AnchorAt(at))].ToString();
-            Assert.AreEqual(text, line.Replace(" │ b1", ""), $"The cursor on '{text}'");
-        }
-
-        // A row of a conflict that is not there once the ancestor is hidden again is its last row
-        var lastOfFirst = with.IndexOfHunk(1) - 2;
-        Assert.AreEqual("b3", with.Rows[lastOfFirst].ToString().Split(" │ ")[1]);
-        var back = without.IndexOf(with.AnchorAt(lastOfFirst));
-        Assert.AreEqual("o0 │ t0", without.Rows[back].ToString());
+        Assert.AreEqual(without.Count, with.Count);
+        for (int i = 0; i < without.Count; i++)
+            Assert.AreEqual(i, with.IndexOf(without.AnchorAt(i)), $"Row {i}");
     }
 
     // A file with no conflicts left to walk, e.g. one that only differs in a way git resolved

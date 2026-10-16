@@ -533,7 +533,9 @@ class ConflictView : IConflictView
         ConflictFile reread;
         using (progress.Show())
         {
-            var result = await server.GetConflictFileAsync(file.Path, file.Kind, isShowBase, repoPath);
+            var result = await server.GetConflictFileAsync(file.Path, file.Kind, true, repoPath);
+            if (result is Error)
+                result = await server.GetConflictFileAsync(file.Path, file.Kind, false, repoPath);
             if (result is not ConflictFile read)
             {
                 // There is nothing left to show the file as, so staying open would show the one it

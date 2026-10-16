@@ -20,19 +20,29 @@ class ConflictRowService : IConflictRowService
 
     // The whole file is drawn, not just the conflicts: the text between them is what tells you what
     // the conflict is part of. ']' and '[' are what make a long file navigable.
+    //
+    // Numbered as each side has it: the text between conflicts and the left side as ours, the right
+    // side as theirs, each counting its own lines of the conflicts before.
     public ConflictRows ToRows(ConflictFile file, ConflictResolution resolution, bool isShowBase)
     {
         var rows = new ConflictRows();
+        var (ours, theirs) = (1, 1); // The line numbers the next line has in each side
 
         foreach (var segment in file.Segments)
         {
             if (segment.Hunk == null)
             {
-                segment.Lines.ForEach(l => rows.Add(ConflictRow.Span(Text.White(Shown(l)))));
+                segment.Lines.ForEach(l =>
+                    rows.Add(
+                        ConflictRow.Span(Gutter(" ", Color.Dark, ours++).White(Shown(l)), gutterWidth: GutterWidth)
+                    )
+                );
+                theirs += segment.Lines.Count;
                 continue;
             }
 
-            AddHunk(rows, segment.Hunk, resolution, isShowBase);
+            AddHunk(rows, segment.Hunk, resolution, isShowBase, file.HasBase || segment.Hunk.HasBase, ours, theirs);
+            (ours, theirs) = (ours + segment.Hunk.Ours.Count, theirs + segment.Hunk.Theirs.Count);
         }
 
         if (rows.Count == 0)
@@ -41,7 +51,18 @@ class ConflictRowService : IConflictRowService
         return rows;
     }
 
-    static void AddHunk(ConflictRows rows, ConflictHunk hunk, ConflictResolution resolution, bool isShowBase)
+    // How wide a line's gutter is: its mark, its number in 4 and a space
+    const int GutterWidth = 6;
+
+    static void AddHunk(
+        ConflictRows rows,
+        ConflictHunk hunk,
+        ConflictResolution resolution,
+        bool isShowBase,
+        bool hasAncestor,
+        int oursStart,
+        int theirsStart
+    )
     {
         var choice = resolution.ChoiceOf(hunk.Index);
         var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ").Add(ChoiceText(choice, hunk));
@@ -60,27 +81,78 @@ class ConflictRowService : IConflictRowService
 
         rows.Add(new ConflictRow(labels, ConflictRowMode.Panes, hunk.Index));
 
-        var sides = new List<IReadOnlyList<FileLine>> { hunk.Ours, hunk.Theirs };
-        var colors = new List<Color> { Color.Yellow, Color.Cyan };
-        if (isShowBase)
+        // Each side as what it did to the common ancestor, which is what says why they conflict, when
+        // the ancestor is known; else as it is, in the side's color
+        var sides = new List<IReadOnlyList<Text>>
         {
-            sides.Insert(1, hunk.Base);
-            colors.Insert(1, Color.Dark);
-        }
+            SideTexts(hunk.Ours, hunk.Base, hasAncestor, oursStart, Color.Yellow, OursWords),
+            SideTexts(hunk.Theirs, hunk.Base, hasAncestor, theirsStart, Color.Cyan, TheirsWords),
+        };
+        if (isShowBase)
+            sides.Insert(
+                1,
+                hunk.Base.Select(l => (Text)Text.Black(new string(' ', GutterWidth)).Dark(Shown(l))).ToList()
+            );
 
         var height = sides.Max(s => s.Count);
         for (int i = 0; i < height; i++)
         {
-            var panes = sides
-                .Select((s, p) => (Text)(i < s.Count ? Text.Color(colors[p], Shown(s[i])) : Text.Dark("")))
-                .ToList();
-            rows.Add(new ConflictRow(panes, ConflictRowMode.Panes, hunk.Index));
+            var panes = sides.Select(s => i < s.Count ? s[i] : Text.Empty).ToList();
+            rows.Add(new ConflictRow(panes, ConflictRowMode.Panes, hunk.Index, GutterWidth: GutterWidth));
         }
+    }
+
+    // The words a side changed, on the side's own color
+    static readonly Color OursWords = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.Brown);
+    static readonly Color TheirsWords = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.Cyan);
+
+    // The lines of a side, each with its gutter: as its change against the ancestor, '+' a line it
+    // added, '~' a line it changed, its words marked, '-' a line of the ancestor's it removed, dark,
+    // and a line it kept dark too, so that what it did stands out; or with no ancestor known, as they
+    // are, in the side's color
+    static IReadOnlyList<Text> SideTexts(
+        IReadOnlyList<FileLine> side,
+        IReadOnlyList<FileLine> ancestor,
+        bool hasAncestor,
+        int start,
+        Color color,
+        Color words
+    )
+    {
+        if (!hasAncestor)
+            return side.Select((l, i) => (Text)Gutter(" ", color, start + i).Color(color, Shown(l))).ToList();
+
+        return SideChanges
+            .Of(ancestor, side)
+            .Select(l =>
+                (Text)(
+                    l.Kind switch
+                    {
+                        SideLineKind.Added => Gutter("+", color, start + l.SideIndex).White(Shown(l.Text)),
+                        SideLineKind.Changed => Gutter("~", color, start + l.SideIndex).Add(Words(l.Words, words)),
+                        SideLineKind.Removed => Text.Red("-").Dark($"{"", 4} ").Dark(Shown(l.Text)),
+                        _ => Gutter(" ", color, start + l.SideIndex).Dark(Shown(l.Text)),
+                    }
+                )
+            )
+            .ToList();
+    }
+
+    static TextBuilder Gutter(string mark, Color markColor, int lineNbr) =>
+        Text.Color(markColor, mark).Dark($"{lineNbr, 4} ");
+
+    static Text Words(IReadOnlyList<WordRun> runs, Color changed)
+    {
+        var text = new TextBuilder();
+        runs.ForEach(r => text.Color(r.IsChanged ? changed : Color.White, Shown(r.Text)));
+        return text;
     }
 
     // A line as drawn, with a tab as three spaces, as the diff and blame draw it: a tab is one
     // character, which the terminal moves to its next tab stop, pushing the panes after it out of line
-    public static string Shown(FileLine line) => line.Text.Replace("\t", "   ");
+    public static string Shown(FileLine line) => Shown(line.Text);
+
+    static string Shown(string text) => text.Replace("\t", "   ");
 
     static string BaseLabelOf(ConflictHunk hunk)
     {
@@ -118,7 +190,7 @@ class ConflictRowService : IConflictRowService
     {
         // Not padded: only the panes need to be, so their separators line up
         if (row.Mode == ConflictRowMode.SpanAll)
-            return Scroll(row.Panes[0], startX, columns.TotalWidth, isPad: false);
+            return Scroll(row.Panes[0], startX, columns.TotalWidth, row.GutterWidth, isPad: false);
 
         // The rows are built once, from what the user asked for, but the widths are worked out per
         // draw and may have dropped the ancestor because the view is too narrow for three. When they
@@ -135,17 +207,27 @@ class ConflictRowService : IConflictRowService
                 text.Dark(PaneSeparator);
 
             var pane = p < panes.Count ? panes[p] : Text.Empty;
-            text.Add(Scroll(pane, startX, columns.Pane));
+            text.Add(Scroll(pane, startX, columns.Pane, row.GutterWidth));
         }
 
         return text;
     }
 
-    // Both sides scroll together, as the diff view's two columns do. 'isFillRest' pads to the pane
-    // width so the separators of every row line up (ToLine is not that: it repeats the first
-    // character, to draw a rule).
-    static Text Scroll(Text text, int startX, int width, bool isPad = true) =>
-        width <= 0 ? Text.Empty : text.Subtext(startX, width, isFillRest: isPad);
+    // Both sides scroll together, as the diff view's two columns do, the gutter staying where it is.
+    // 'isFillRest' pads to the pane width so the separators of every row line up (ToLine is not that:
+    // it repeats the first character, to draw a rule).
+    static Text Scroll(Text text, int startX, int width, int gutterWidth, bool isPad = true)
+    {
+        if (width <= 0)
+            return Text.Empty;
+        if (gutterWidth == 0 || startX == 0)
+            return text.Subtext(startX, width, isFillRest: isPad);
+
+        var gutter = Math.Min(gutterWidth, width);
+        return text.Subtext(0, gutter, isFillRest: true)
+            .ToTextBuilder()
+            .Add(text.Subtext(gutterWidth + startX, width - gutter, isFillRest: isPad));
+    }
 
     // 'Resolve  src/Foo.cs   conflict 2 of 5   ·  3 still to resolve'
     public Text ToHeader(ConflictFile file, ConflictResolution resolution, int currentHunk, GitOperation operation)

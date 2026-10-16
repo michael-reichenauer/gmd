@@ -97,7 +97,7 @@ that does not fight the diff's colors, light themes.
 
 - [x] 1. The diff's look (proposal 1). M (every diff snapshot changes) *Done (2026-10-16):* a
   gutter of a bar and the line number, red or green for a change, which stays put while the line
-  scrolls sideways; words compared (`LineWords`, DiffPlex with a chunker of words, spaces and single
+  scrolls sideways; words compared (`LineWords`, in Cui/Common since the resolver uses it too, DiffPlex with a chunker of words, spaces and single
   characters, a space between two changes joined to them) and marked only where the two lines are
   at least half the same; the commit in two rows, the files listed as the commit details list them
   (`ChangedFileText`, shared), a file one row with its rule, a hunk one row with git's function
