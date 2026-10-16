@@ -280,7 +280,9 @@ added lines paired as the diff view pairs them. `PatchService` reads a file's un
 and applies a patch with `git apply`, to an index or in reverse to the working tree. The diff the
 view shows cannot be used for it: its parser drops the line saying a file has no final newline.
 `PatchIntegrationTest` applies every choice of a file's changes with git and holds the result to a
-model of the whole file.
+model of the whole file. The diff view's `u` discards the change the cursor is on or the lines
+selected (`DiffLines`), which `Server.DiscardLinesAsync` finds in the patch read again
+(`ChosenLines`, by version, number and text) before taking them back.
 
 Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
 `gmd/Cui/` references Terminal.Gui (`gmd/Program.cs`, the entry point, does — it is the composition
@@ -726,7 +728,7 @@ Other things to know:
 - Anything that *draws* needs a driver; constructing and driving a view does not. `ContentViewTest`
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
-  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`,
+  — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy` and `ConflictResolution` exist. `Text.ToString()`

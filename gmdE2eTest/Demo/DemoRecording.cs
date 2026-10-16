@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using gmdE2eTest.Fixtures;
@@ -90,10 +91,10 @@ sealed class DemoRecording
 
     void WaitForCaret(int x)
     {
-        var deadline = DateTime.UtcNow.AddMilliseconds(CaretTimeoutMs);
+        var clock = Stopwatch.StartNew(); // Not the time of day, which jumps, see TmuxSession.Poll
         while (gmd.CursorPosition.X != x)
         {
-            if (DateTime.UtcNow > deadline)
+            if (clock.ElapsedMilliseconds > CaretTimeoutMs)
                 Assert.Fail($"The caret did not move on to column {x}, it is at {gmd.CursorPosition.X}");
             Thread.Sleep(50);
         }

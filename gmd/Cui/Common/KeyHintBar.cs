@@ -50,6 +50,15 @@ class KeyHintBar : View
             Visible = isHintsShown || status.Current != null;
             SetNeedsDisplay();
             view.SetNeedsDisplay(); // The row under the bar, when it was shown over it
+
+            // While a menu is open over the view, Terminal.Gui redraws only the menu, and the message
+            // can be the one of a greyed out item of that menu, why it is greyed out, so the line is
+            // drawn now, beneath the menu. The log view's is in the view Terminal.Gui always redraws.
+            if (Application.Current != view && Visible)
+            {
+                Redraw(Bounds);
+                Application.Driver.Refresh();
+            }
         }
     }
 

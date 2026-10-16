@@ -417,7 +417,7 @@ class DiffRowService : IDiffRowService
                     else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
                     { // Whole file removed, use one column
                         Text removeTxt = Text.Dark($"{leftNr, 4}").Red(diffMargin).RedBg(WithoutCr(dl.Line));
-                        rows.Add(removeTxt, leftLineNbr: leftNr);
+                        rows.Add(removeTxt, leftLineNbr: leftNr, removedText: dl.Line);
                     }
                     else
                     {
@@ -443,7 +443,7 @@ class DiffRowService : IDiffRowService
                     else if (fileDiff.DiffMode == DiffMode.DiffAdded)
                     { // Whole file added, use one column
                         Text addTxt = Text.Dark($"{rightNr, 4}").Green(diffMargin).GreenBg(WithoutCr(dl.Line));
-                        rows.Add(addTxt, rightLineNbr: rightNr);
+                        rows.Add(addTxt, rightLineNbr: rightNr, addedText: dl.Line);
                     }
                     else
                     {
@@ -491,7 +491,14 @@ class DiffRowService : IDiffRowService
         {
             var (left, right) = WithCrShown(leftBlock.Lines[i], rightBlock.Lines[i], isIgnoreWhitespace);
             var (lT, rT) = GetDiffSides(left, right, isIgnoreWhitespace);
-            rows.Add(lT, rT, left.LineNbr, right.LineNbr);
+            rows.Add(
+                lT,
+                rT,
+                left.LineNbr,
+                right.LineNbr,
+                RemovedText(leftBlock.Lines[i]),
+                AddedText(rightBlock.Lines[i])
+            );
         }
 
         // Add left lines where no corresponding on right
@@ -501,7 +508,7 @@ class DiffRowService : IDiffRowService
             {
                 var lL = leftBlock.Lines[i];
                 Text lT = Text.Dark($"{lL.LineNbr, 4}").Red(diffMargin).Color(lL.Color, WithoutCr(lL.Text));
-                rows.Add(lT, NoLine, lL.LineNbr, 0);
+                rows.Add(lT, NoLine, lL.LineNbr, 0, RemovedText(lL));
             }
         }
 
@@ -512,13 +519,19 @@ class DiffRowService : IDiffRowService
             {
                 var rL = rightBlock.Lines[i];
                 Text rT = Text.Dark($"{rL.LineNbr, 4}").Green(diffMargin).Color(rL.Color, WithoutCr(rL.Text));
-                rows.Add(NoLine, rT, 0, rL.LineNbr);
+                rows.Add(NoLine, rT, 0, rL.LineNbr, addedText: AddedText(rL));
             }
         }
 
         leftBlock.Lines.Clear();
         rightBlock.Lines.Clear();
     }
+
+    // The text of a removed or an added line of a block, as the diff has it, null for an unchanged
+    // line or a conflict's, which are drawn in other colors
+    static string? RemovedText(Line line) => line.Color == Color.RedBg ? line.Text : null;
+
+    static string? AddedText(Line line) => line.Color == Color.GreenBg ? line.Text : null;
 
     // A line's '\r', kept of a file's '\r\n' line ends (DiffService reads the diff with them), is shown
     // only where it is the change, a change of line ends: as '␍' on the side of a changed pair that

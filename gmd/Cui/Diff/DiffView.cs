@@ -141,7 +141,8 @@ class DiffView : IDiffView
         RegisterShortcuts(contentView);
 
         contentView.SetNeedsDisplay();
-        UI.RunDialog(diffView);
+        using (Menu.SayingWhyNotOn(status))
+            UI.RunDialog(diffView);
         return isCommitTriggered ? DiffResult.Commit
             : isRefreshNeeded ? DiffResult.Refresh
             : DiffResult.None;
@@ -481,12 +482,95 @@ class DiffView : IDiffView
             undoItems = [new SubMenu("Files", "", undoItems)];
         }
 
+        // First the lines the cursor is on, which is where the eye is, then the files whole
+        var lines = ChosenLines();
+        var whyNotLines = WhyNotDiscardLines(lines);
         return Menu
-            .Items.Items(undoItems)
+            .Items.Item(
+                DiscardLinesText(lines),
+                "",
+                () => DiscardLines(lines),
+                () => whyNotLines == "",
+                () => whyNotLines
+            )
+            .Separator()
+            .Items(undoItems)
             .Separator()
             .Item("Binary Files", "", () => UndoAllBinaryFiles(binaryPaths), () => binaryPaths.Any())
             .Item("All Changes", "", () => UndoAll());
     }
+
+    // The lines a discard of lines is of: the selected rows, or else the change the cursor is on
+    IReadOnlyList<FileLines> ChosenLines()
+    {
+        var (first, count) = IsSelected
+            ? (contentView.SelectStartIndex, contentView.SelectCount)
+            : DiffLines.ChangeAt(diffRows.Rows, contentView.CurrentIndex);
+        return DiffLines.Of(diffRows, first, count);
+    }
+
+    // Why the lines cannot be discarded, or "" when they can. While whitespace is hidden the diff does
+    // not show every change, and git's patch of a file moved, or of a conflict, is not of its lines:
+    // the patch of a moved file's new path has none of the old one, and a conflict's lines are markers.
+    string WhyNotDiscardLines(IReadOnlyList<FileLines> files) =>
+        isIgnoreWhitespace ? "Show whitespace first with w: while it is hidden, not every change is shown"
+        : files.Count == 0
+            ? IsSelected ? "The selected lines have no change"
+                : "Move to a change first, or select lines with ⇧↑ ⇧↓"
+        : files.Select(f => WhyNotLinesOf(f.Path)).FirstOrDefault(why => why != "") ?? "";
+
+    string WhyNotLinesOf(string path) =>
+        ConflictPaths().Contains(path) ? $"{path} has conflicts: resolve them, or discard the whole file"
+        : FileOf(path) is { IsRenamed: true } ? $"{path} was renamed: it is discarded whole"
+        : "";
+
+    FileDiff? FileOf(string path) => diffs[0].FileDiffs.FirstOrDefault(f => f.PathAfter == path);
+
+    // E.g. 'This Change in a.txt', or 'Selected Lines in 2 Files'
+    string DiscardLinesText(IReadOnlyList<FileLines> files)
+    {
+        var name = IsSelected ? "Selected Lines" : "This Change";
+        return files.Count switch
+        {
+            0 => name,
+            1 => $"{name} in {files[0].Path.Max(40)}",
+            _ => $"{name} in {files.Count} Files",
+        };
+    }
+
+    // Discards the lines, asked first, and reads the diff again: the rest of each file's changes stay
+    async void DiscardLines(IReadOnlyList<FileLines> files)
+    {
+        var lines = files.SelectMany(f => f.Lines).ToList();
+        var where = files.Count == 1 ? files[0].Path : $"{files.Count} files";
+        var what = $"{(IsSelected ? "the selected lines" : "this change")} in {where}";
+        var shown = lines.Select(l => $"{(l.IsAdded ? '+' : '-')}{l.Text.TrimEnd('\r')}").ToList();
+        if (!Confirm.DiscardLines(what, shown, IsNewFileWhole(files)))
+            return;
+
+        using (progress.Show())
+        {
+            foreach (var file in files)
+            {
+                if (await server.DiscardLinesAsync(file.Path, file.Lines, repoPath) is Error e)
+                {
+                    UI.ErrorMessage($"Failed to discard the lines of {file.Path}\n{e.AllMessages()}");
+                    RefreshDiff();
+                    return;
+                }
+            }
+        }
+
+        contentView.ClearSelection();
+        RefreshDiff();
+        status.Info($"Discarded {lines.Count} line{(lines.Count == 1 ? "" : "s")} of {where}");
+    }
+
+    // All the lines of a new file are the file, which their discard deletes
+    bool IsNewFileWhole(IReadOnlyList<FileLines> files) =>
+        files is [var file]
+        && FileOf(file.Path) is { DiffMode: DiffMode.DiffAdded } added
+        && file.Lines.Count == added.SectionDiffs.Sum(s => s.LineDiffs.Count(l => l.DiffMode == DiffMode.DiffAdded));
 
     async void UndoAllBinaryFiles(IReadOnlyList<string> binaryPaths)
     {

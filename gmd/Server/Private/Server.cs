@@ -549,6 +549,25 @@ class Server : IServer
     public Task<Result> UndoUncommittedFileAsync(string path, string wd) =>
         Paused(() => git.UndoUncommittedFileAsync(path, wd));
 
+    // Takes the chosen lines of a file's uncommitted changes back in the working tree, and only those:
+    // the file's patch is read again, the lines found in it as the diff showed them (ChosenLines), and
+    // the patch of them alone applied in reverse
+    public Task<Result> DiscardLinesAsync(string path, IReadOnlyList<ChosenLine> lines, string wd) =>
+        Paused(async () =>
+        {
+            var patchResult = await git.GetUncommittedPatchAsync(path, wd);
+            if (patchResult is not FilePatch patch)
+                return patchResult.Error;
+            var chosenResult = ChosenLines.Find(patch, lines, path);
+            if (chosenResult is not IReadOnlySet<PatchLine> chosen)
+                return chosenResult.Error;
+            var discardResult = patch.ForReverseApply(chosen.Contains);
+            if (discardResult is not FilePatch discard)
+                return discardResult.Error;
+
+            return await git.ApplyPatchReversedAsync(discard, wd);
+        });
+
     public Task<Result> CleanWorkingFolderAsync(string wd) => Paused(() => git.CleanWorkingFolderAsync(wd));
 
     public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => git.GetFilesToCleanAsync(wd);
