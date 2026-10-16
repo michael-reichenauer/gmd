@@ -58,7 +58,9 @@ class DiffFileList
     {
         if (Items.Count < 2 || terminalWidth < MinTerminalWidth)
             return 0;
-        var widest = Items.Max(i => i.Text.Length) + 3; // The mark, and the separator after a space
+        // The mark, the separator after a space, and the view's scrollbar column, which the rows are
+        // drawn without: uncounted, the widest file was always cut
+        var widest = Items.Max(i => i.Text.Length) + 4;
         return Math.Clamp(widest, MinWidth, Math.Min(MaxWidth, terminalWidth / 4));
     }
 
@@ -84,9 +86,8 @@ class DiffFileList
             var item = Items[i];
             var count = item.Path != "" ? leftOut(item.Path) : 0;
             var mark = i == current ? Text.Magenta("▌") : Text.Black(" ");
-            var text = mark.Add(Cut(item.Text, textWidth - 1 - (count > 0 ? 3 : 0)));
-            if (count > 0)
-                text.Yellow($" ╎{count}");
+            var note = count > 0 ? $" ╎{count}" : "";
+            var text = mark.Add(Cut(item.Text, textWidth - 1 - note.Length)).Yellow(note);
             var row = Separated(text, textWidth);
             rows.Add(i == current && isFocused ? Highlighted(row, textWidth) : row);
         }

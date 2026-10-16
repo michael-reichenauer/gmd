@@ -91,6 +91,29 @@ public class DiffFileListTest
         );
     }
 
+    // Drawn at the width it asks for, less the view's scrollbar column, which the rows are given, the
+    // widest file is whole: the scrollbar was not counted, and the widest was always cut
+    [TestMethod]
+    public void TestTheWidestFileIsWholeAtTheWidthOfTheList()
+    {
+        var (list, _) = ListOf(Diff(File("a.txt"), File("some/longer/path/file.cs")));
+
+        var rows = Text(list.Rows(list.WidthFor(200) - 1, 0, false, _ => 0)).Split('\n');
+
+        Assert.AreEqual(" M some/longer/path/file.cs  +1 │", rows[2]);
+    }
+
+    // Lines left out of the commit are counted whole however many there are, the path cut for them
+    [TestMethod]
+    public void TestManyLinesLeftOutAreCountedWhole()
+    {
+        var (list, _) = ListOf(Diff(File("a.txt"), File("some/longer/path/file.cs")));
+
+        var rows = Text(list.Rows(list.WidthFor(200) - 1, 0, false, _ => 12)).Split('\n');
+
+        Assert.AreEqual(" M …longer/path/file.cs  +1 ╎12 │", rows[2]);
+    }
+
     // A file history lists its commits, each going to its commit's title
     [TestMethod]
     public void TestAFileHistoryListsItsCommits()

@@ -55,6 +55,18 @@ public class ConflictFileListTest
         );
     }
 
+    // Drawn at the width it asks for, less the view's scrollbar column, which the rows are given, the
+    // widest path is whole, the open one's too with ten conflicts or more to say how far it is
+    [TestMethod]
+    public void TestTheWidestPathIsWholeAtTheWidthOfTheList()
+    {
+        var list = ListOf("src/Pricing.cs", [], "src/Pricing.cs", "a.txt");
+
+        var rows = list.Rows(list.WidthFor(200) - 1, 0, false, "10 of 12").Select(r => r.ToString()).ToList();
+
+        StringAssert.StartsWith(rows[1], "▌● src/Pricing.cs  10 of 12");
+    }
+
     [TestMethod]
     public void TestTheListIsDrawnOnAWideTerminal()
     {

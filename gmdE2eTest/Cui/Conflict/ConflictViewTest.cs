@@ -620,9 +620,9 @@ public class ConflictViewTest
         );
         Assert.AreEqual(
             """
-            Conflicts 2 left       │
-            ▌● Pricing.cs  0 of 2  │
-             ● Shipping.cs         │
+            Conflicts 2 left         │
+            ▌● Pricing.cs  0 of 2    │
+             ● Shipping.cs           │
             """,
             ListOf(screen)
         );
@@ -639,9 +639,9 @@ public class ConflictViewTest
         screen = gmd.WaitFor("file 1 of 2");
         Assert.AreEqual(
             """
-            Conflicts 1 left       │
-            ▌● Pricing.cs  0 of 2  │
-             ✓ Shipping.cs         │
+            Conflicts 1 left         │
+            ▌● Pricing.cs  0 of 2    │
+             ✓ Shipping.cs           │
             """,
             ListOf(screen)
         );
@@ -732,8 +732,9 @@ public class ConflictViewTest
     }
 
     // The list of files at the left of the resolver, the rows below the header
+    // The rows of the list of files, up to its separator
     static string ListOf(string screen) =>
-        string.Join("\n", ScreenText.Rows(screen, "", 2, 3).Split('\n').Select(r => r[..Math.Min(r.Length, 24)]));
+        string.Join("\n", ScreenText.Rows(screen, "", 2, 3).Split('\n').Select(r => r[..(r.IndexOf('│') + 1)]));
 
     // e types a conflict's result by hand in the result pane, in the file around it, with the sides in
     // sight above, from both sides' changes combined where they can be. Esc is done, and what was typed

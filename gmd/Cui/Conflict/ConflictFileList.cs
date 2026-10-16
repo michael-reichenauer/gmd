@@ -20,11 +20,13 @@ record ConflictFileList(IReadOnlyList<ConflictedFile> Files, IReadOnlySet<string
 
     public int IndexOfOpen => Files.FindIndexBy(f => f.Path == Open);
 
-    // How wide the list is drawn on a terminal of the width, its separator included, 0 when it is not
+    // How wide the list is drawn on a terminal of the width, its separator included, 0 when it is not:
+    // the mark and the tick, the path, how far the open file is up to '  99 of 99', the separator after
+    // a space, and the view's scrollbar column, which the rows are drawn without
     public int WidthFor(int terminalWidth) =>
         Files.Count == 0 || terminalWidth < MinTerminalWidth
             ? 0
-            : Math.Clamp(Files.Max(f => f.Path.Length) + 14, MinWidth, Math.Min(MaxWidth, terminalWidth / 5));
+            : Math.Clamp(Files.Max(f => f.Path.Length) + 16, MinWidth, Math.Min(MaxWidth, terminalWidth / 5));
 
     // The next or the previous file still conflicted from the open one, round the end, past those
     // passed over, "" for none
