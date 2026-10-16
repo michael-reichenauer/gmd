@@ -366,7 +366,12 @@ record SectionDiff(
     int RightLine,
     int RightCount,
     IReadOnlyList<LineDiff> LineDiffs
-);
+)
+{
+    // The line git's funcname pattern found above the hunk, which its header ends with: the function
+    // or the heading the hunk is in, "" when no line above it matched
+    public string Function { get; init; } = "";
+}
 
 record LineDiff(DiffMode DiffMode, string Line);
 

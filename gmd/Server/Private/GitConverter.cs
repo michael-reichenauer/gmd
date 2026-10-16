@@ -130,7 +130,10 @@ static class GitConverter
             d.RightLine,
             d.RightCount,
             d.LineDiffs.Select(l => new LineDiff(ToDiffMode(l.DiffMode), l.Line)).ToList()
-        );
+        )
+        {
+            Function = d.Function,
+        };
 
     static DiffMode ToDiffMode(Git.DiffMode mode) =>
         mode switch

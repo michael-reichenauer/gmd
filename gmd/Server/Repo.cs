@@ -421,7 +421,11 @@ record SectionDiff(
     int RightLine,
     int RightCount,
     IReadOnlyList<LineDiff> LineDiffs
-);
+)
+{
+    // The function or heading the hunk is in, as git's hunk header names it, "" for none
+    public string Function { get; init; } = "";
+}
 
 record LineDiff(DiffMode DiffMode, string Line);
 

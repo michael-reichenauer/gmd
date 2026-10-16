@@ -534,11 +534,14 @@ class DiffService : IDiffService
         int rightLine = int.Parse(rightIndexes[0]);
         int rightCount = rightIndexes.Length > 1 ? int.Parse(rightIndexes[1]) : 0;
 
+        // What git's funcname pattern found above the hunk follows the second '@@', if anything did
+        var function = lines[i][(endIndex + 4)..].Trim();
         i++;
 
         (var linesDiffs, i) = ParseLineDiffs(i, lines);
 
-        return (new SectionDiff(changedIndexes, leftLine, leftCount, rightLine, rightCount, linesDiffs), i, true);
+        var section = new SectionDiff(changedIndexes, leftLine, leftCount, rightLine, rightCount, linesDiffs);
+        return (section with { Function = function }, i, true);
     }
 
     static (IReadOnlyList<LineDiff>, int) ParseLineDiffs(int i, string[] lines)
