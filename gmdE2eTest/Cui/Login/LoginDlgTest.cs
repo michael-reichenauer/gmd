@@ -54,7 +54,8 @@ public class LoginDlgTest
 
             """
         );
-        File.SetUnixFileMode(ssh, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(ssh, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         await repo.GitAsync($"remote set-url origin \"ssh://git@example.invalid{repo.Path}-origin\"");
         await repo.GitAsync($"config core.sshCommand \"{ssh}\"");
         return repo;

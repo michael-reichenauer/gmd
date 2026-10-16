@@ -12,6 +12,7 @@ static class TempIndex
         string wd,
         Func<IReadOnlyDictionary<string, string>, Task<Result<T>>> use
     )
+        where T : notnull
     {
         var tempIndex = Path.Join(Path.GetTempPath(), $"gmd-index-{Guid.NewGuid():N}");
         try

@@ -264,7 +264,8 @@ public class PatchIntegrationTest
         Directory.CreateDirectory(hooks);
         var hook = Path.Join(hooks, "pre-commit");
         File.WriteAllText(hook, "#!/bin/sh\necho refused >&2\nexit 1\n");
-        File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (!OperatingSystem.IsWindows()) // Not run there, but the analyzer does not see that (CA1416)
+            File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         await repo.GitAsync($"config core.hooksPath \"{hooks}\"");
 
         var patch = AssertOk(await repo.Git.GetUncommittedPatchAsync("a.txt", repo.Path));
