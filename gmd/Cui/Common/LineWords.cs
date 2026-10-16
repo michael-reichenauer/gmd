@@ -19,6 +19,10 @@ record LineWords(IReadOnlyList<WordRun> Left, IReadOnlyList<WordRun> Right, doub
     static readonly Differ differ = new();
     static readonly WordChunker chunker = new();
 
+    // How a line is split into the pieces it is compared in: words, runs of space, and every other
+    // character on its own, for a comparison of the pieces of another kind (ConflictCombine)
+    public static IChunker Chunker => chunker;
+
     // The two lines word by word. With whitespace ignored, a run of it that differs is not changed.
     // Likeness is the share of the two lines' text, not counting whitespace, that is the same on both.
     public static LineWords Of(string left, string right, bool isIgnoreWhitespace = false)
