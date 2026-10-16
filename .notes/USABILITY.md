@@ -146,6 +146,12 @@ Ranked by how soon someone new meets the gap.
      the commit and amend); 4. later, a way back from discards (`git stash create` first, recorded as
      Restore Deleted Branch records), and renamed and deleted files in part. *Phase 1 done
      (2026-10-15):* `FilePatch`, `PatchParser` and `PatchService` in the git layer, see `CLAUDE.md`.
+     *Phase 2 done (2026-10-16):* `u` in the diff of the uncommitted changes has This Change, or
+     Selected Lines, at the top of its menu, asked first (`DiffLines`, `Server.DiscardLinesAsync`,
+     `ChosenLines`); a line is matched with its tabs as the diff shows them, three spaces each. On
+     the way, a greyed out item of the diff's or the blame's menu said why on the log's status line,
+     behind the view; it says it on the view's own now (`Menu.SayingWhyNotOn`), drawn under the
+     open menu, which is all Terminal.Gui redraws then.
    - Open, in the order they would be met: a cherry-pick of the selected commits, whose range the
      copy menu offers for the command line; opening a file in the editor at a line of the diff or the
      blame; a rebase of a published branch without its force push; and a reset of a branch to any

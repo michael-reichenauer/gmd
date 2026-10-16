@@ -383,6 +383,15 @@ throw changes away for good ask first.
   since restoring origin's is a push, and origin's is left alone if someone
   pushed a branch of the name since. A branch deleted outside gmd is not
   listed: Recover Lost Commits finds its work, if no other branch has it.
+- **Discard Lines** (`u` in the diff of the uncommitted changes, on a
+  change, or with lines selected with `Shift-↑↓`): **This Change**, at the
+  top of the menu, takes back the change the cursor is on, and **Selected
+  Lines** those lines: removed lines are put back and added lines taken
+  out, and the rest of the file's changes stay as they are. It asks first,
+  and cannot be undone. It is refused if the file has changed since the
+  diff was read, rather than taking back other lines (`r` reads it again),
+  and is not for a renamed file or one with conflicts, nor while
+  whitespace is hidden (`w`), which are discarded whole.
 - **Discard Changes in a File** (also `u` in the diff of the uncommitted
   changes): `git checkout --force HEAD -- <file>`, staged changes too, or
   a new file is unstaged and deleted
@@ -516,7 +525,8 @@ Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
 other: the changes from the older of the two to the newer.
 
 Within the diff: `r` re-reads it from git, `s` scrolls to a file, `u`
-discards the changes of an uncommitted file, `c` commits, `Enter` resolves
+discards uncommitted changes (the change the cursor is on, the lines
+selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
 two columns sideways and pick which one a selection copies from, `Ctrl-C`
 copies the selected lines, and `Esc` or `q` closes the view.

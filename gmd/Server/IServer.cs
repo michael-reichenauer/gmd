@@ -125,6 +125,10 @@ interface IServer
     Task<Result<IReadOnlyList<string>>> GetIgnoredPathsAsync(IReadOnlyList<string> paths, string wd);
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
+
+    // Takes the chosen lines of a file's uncommitted changes back in the working tree, the rest of its
+    // changes left as they are; refused when the file has changed since the lines were shown
+    Task<Result> DiscardLinesAsync(string path, IReadOnlyList<ChosenLine> lines, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
     Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
     Task<Result> UndoCommitAsync(string id, int parent, string wd);

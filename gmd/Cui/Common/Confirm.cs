@@ -45,6 +45,20 @@ static class Confirm
                 """
             );
 
+    // Some lines of a file, 'what' saying which, e.g. "this change in a.txt", 'lines' the lines with
+    // '-' or '+' before them. The rest of the file's changes stay, which is the difference from
+    // discarding the file. All the lines of a new file are the file, which has never been committed.
+    internal static bool DiscardLines(string what, IReadOnlyList<string> lines, bool isNewFileWhole)
+    {
+        var listed = lines.Take(MaxListedPaths).Select(l => $"  {l.Max(60)}");
+        string[] more = lines.Count > MaxListedPaths ? [$"  ... and {lines.Count - MaxListedPaths} more lines"] : [];
+        var after = isNewFileWhole
+            ? "These are all the lines of a new file, which is deleted.\nIt has never been committed, so it cannot be restored."
+            : "Removed lines are put back, added lines taken out, and the\nfile's other changes stay as they are. This cannot be undone.";
+
+        return Ask("Discard Lines", $"Discard {what}?\n\n{string.Join("\n", listed.Concat(more))}\n\n{after}");
+    }
+
     internal static bool UndoFiles(IReadOnlyList<string> paths)
     {
         var listed = paths.Take(MaxListedPaths).Select(p => $"  {p}");

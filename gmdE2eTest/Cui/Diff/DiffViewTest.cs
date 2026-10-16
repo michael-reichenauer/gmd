@@ -337,6 +337,104 @@ public class DiffViewTest
         StringAssert.Contains(gmd.WaitUntilGone("whitespace hidden"), "Modified: beta.txt");
     }
 
+    // A file with two changes, two made TWO, and eleven made ELEVEN with a line added after it, not
+    // committed, and the diff of it open with the cursor on the second change, which search put it on
+    static async Task<(TempRepo Repo, TmuxSession Gmd)> OnTheSecondChangeAsync(string search)
+    {
+        var repo = await E2eRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 12).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("lines.txt", Text(lines), "Add lines", TempRepo.BaseTime.AddMinutes(7));
+        lines[1] = "TWO";
+        lines[10] = "ELEVEN";
+        lines.Insert(11, "extra");
+        repo.WriteFile("lines.txt", Text(lines));
+
+        var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+        gmd.Send("d");
+        gmd.WaitFor("Modified: lines.txt");
+        gmd.Send("/");
+        gmd.WaitFor("Text to find in the diff");
+        gmd.SendText(search);
+        gmd.Send("Enter");
+        gmd.WaitFor("Match 1 of 1");
+        return (repo, gmd);
+    }
+
+    static string Text(IEnumerable<string> lines) => string.Concat(lines.Select(l => l + "\n"));
+
+    // u on a change offers it first, above the files, and asks, No being the default; then that change
+    // alone is taken back, its added line taken out too, and the file's other change stays
+    [TestMethod]
+    public async Task TestDiscardTheChangeTheCursorIsOn()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("ELEVEN");
+        using var _ = repo;
+        using var __ = gmd;
+
+        gmd.Send("u");
+        gmd.WaitFor("This Change in lines.txt");
+        gmd.Send("Enter");
+        var question = gmd.WaitFor("Discard this change in lines.txt?");
+        StringAssert.Contains(question, "-line 11");
+        StringAssert.Contains(question, "+ELEVEN");
+        StringAssert.Contains(question, "+extra");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual("Discarded 3 lines of lines.txt", ScreenText.LastLine(gmd.WaitFor("Discarded")));
+        Assert.AreEqual(
+            "line 1\nTWO\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\n",
+            File.ReadAllText(Path.Join(repo.Path, "lines.txt"))
+        );
+        StringAssert.Contains(gmd.WaitUntilGone("ELEVEN"), "TWO", "The diff read again, with the other change");
+    }
+
+    // Rows selected are the lines discarded, here the added line alone of a change of three, which
+    // leaves the rest of the change as it was
+    [TestMethod]
+    public async Task TestDiscardTheSelectedLines()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("extra");
+        using var _ = repo;
+        using var __ = gmd;
+
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+        gmd.Send("u");
+        gmd.WaitFor("Selected Lines in lines.txt");
+        gmd.Send("Enter");
+        gmd.WaitFor("Discard the selected lines in lines.txt?");
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual("Discarded 1 line of lines.txt", ScreenText.LastLine(gmd.WaitFor("Discarded")));
+        StringAssert.EndsWith(File.ReadAllText(Path.Join(repo.Path, "lines.txt")), "line 10\nELEVEN\nline 12\n");
+    }
+
+    // A greyed out item of the diff's menu says why on the diff's own status line, where it is seen;
+    // the log's, which it was said on, is behind the diff
+    [TestMethod]
+    public async Task TestAGreyedOutItemSaysWhyInTheDiff()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add delta");
+        gmd.Send("d");
+        gmd.WaitFor("Added: delta.txt");
+        gmd.Send("m");
+        gmd.WaitFor("Diff Menu");
+
+        gmd.Send("n"); // Next Match, greyed out with no search
+
+        Assert.AreEqual(
+            "No search to go on with: search with f first",
+            ScreenText.LastLine(gmd.WaitFor("No search to go on with"))
+        );
+    }
+
     // Undoing uncommitted changes from the diff asks first, and No is the default: the item is
     // chosen from a menu, where the slip is an Enter on the wrong line, and a new file is deleted
     // with no way to get it back. The question says which of the two it is.

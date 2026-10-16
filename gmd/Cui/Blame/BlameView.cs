@@ -154,7 +154,8 @@ class BlameView : IBlameView
 
         SetHeader();
         contentView.SetNeedsDisplay();
-        UI.RunDialog(blameView);
+        using (Menu.SayingWhyNotOn(status))
+            UI.RunDialog(blameView);
     }
 
     void RegisterShortcuts(ContentView view)

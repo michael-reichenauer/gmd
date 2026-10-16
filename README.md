@@ -148,7 +148,7 @@ still a complete terminal client there, just not a different one.
 Known limits:
 
 - A commit takes whole files: the commit dialog lists them, all ticked, to untick what is to be
-  left out. There is no staging of single lines or hunks.
+  left out. Single changes and lines can be discarded, but not yet committed apart.
 - Only the remote named `origin` is supported.
 - The colors assume a dark terminal: on a light theme gmd is drawn on black.
 - The log reads the latest 50,000 commits.
