@@ -9,6 +9,36 @@ public class LineWordsTest
     static string Marked(IReadOnlyList<WordRun> runs) =>
         string.Concat(runs.Select(r => r.IsChanged ? $"[{r.Text}]" : r.Text));
 
+    // A script written without spaces between its words, e.g. Chinese and Japanese, is compared a
+    // character at a time: a run of it was one word, so a character changed changed it all, the lines
+    // were not alike, and nothing was marked, where the character diff marked the character
+    [TestMethod]
+    public void TestAScriptWithoutSpacesIsComparedByCharacter()
+    {
+        var chinese = LineWords.Of("// 这是一个测试用的注释", "// 这是一个考试用的注释");
+        Assert.AreEqual("// 这是一个[测]试用的注释", Marked(chinese.Left));
+        Assert.AreEqual("// 这是一个[考]试用的注释", Marked(chinese.Right));
+        Assert.IsTrue(chinese.IsAlike, $"Most of it is the same: {chinese.Likeness}");
+
+        var japanese = LineWords.Of("テストです", "テストでした");
+        Assert.AreEqual("テストで[す]", Marked(japanese.Left));
+        Assert.AreEqual("テストで[した]", Marked(japanese.Right));
+    }
+
+    // A character of two UTF-16 units, an emoji say, and a letter with its accent, are one piece: the
+    // halves of an emoji were apart, the one kept unchanged and the other changed, drawn as '��'
+    [TestMethod]
+    public void TestACharacterIsNeverSplit()
+    {
+        var emoji = LineWords.Of("ok 👍 done", "ok 👎 done");
+        Assert.AreEqual("ok [👍] done", Marked(emoji.Left));
+        Assert.AreEqual("ok [👎] done", Marked(emoji.Right));
+
+        var accent = LineWords.Of("café au lait", "cafe au lait");
+        Assert.AreEqual("[café] au lait", Marked(accent.Left));
+        Assert.AreEqual("[cafe] au lait", Marked(accent.Right));
+    }
+
     // A word changed is marked whole, where the character diff marked the letters the two words do
     // not share, 'co' and 'st' of 'const' against 'readonly'
     [TestMethod]

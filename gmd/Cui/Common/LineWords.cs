@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using DiffPlex;
 
 namespace gmd.Cui.Common;
@@ -116,27 +118,76 @@ record LineWords(IReadOnlyList<WordRun> Left, IReadOnlyList<WordRun> Right, doub
         runs.Where(isCounted).Sum(r => r.Text.Count(c => !char.IsWhiteSpace(c)));
 
     // A line as words, letters and digits running together, as whitespace does, and every other
-    // character on its own, so that 'Math.Round(sum' is five pieces and a change to one is one piece
+    // character on its own, so that 'Math.Round(sum' is five pieces and a change to one is one piece.
+    //
+    // A character is what is seen as one, a text element: a letter with its accent, or an emoji of
+    // two UTF-16 units, whose halves were pieces apart, one marked and one not. And a character of a
+    // script written without spaces between its words, e.g. Chinese or Japanese, is a piece on its
+    // own: a run of it was one word, which a character changed made changed whole.
     class WordChunker : IChunker
     {
+        enum Kind
+        {
+            Word,
+            Space,
+            Unspaced,
+            Other,
+        }
+
         public IReadOnlyList<string> Chunk(string text)
         {
             List<string> pieces = [];
-            var start = 0;
-            for (var i = 1; i <= text.Length; i++)
+            var piece = new StringBuilder();
+            var kind = Kind.Other;
+            var elements = StringInfo.GetTextElementEnumerator(text);
+            while (elements.MoveNext())
             {
-                if (i == text.Length || !IsSameKind(text[i - 1], text[i]))
+                var element = elements.GetTextElement();
+                var elementKind = KindOf(element);
+                if (piece.Length > 0 && (elementKind != kind || kind is Kind.Unspaced or Kind.Other))
                 {
-                    pieces.Add(text[start..i]);
-                    start = i;
+                    pieces.Add(piece.ToString());
+                    piece.Clear();
                 }
+                piece.Append(element);
+                kind = elementKind;
             }
+            if (piece.Length > 0)
+                pieces.Add(piece.ToString());
             return pieces;
         }
 
-        static bool IsSameKind(char a, char b) =>
-            (IsWord(a) && IsWord(b)) || (char.IsWhiteSpace(a) && char.IsWhiteSpace(b));
+        // The kind of a character, by the first code point of it, a lone surrogate being other
+        static Kind KindOf(string element)
+        {
+            System.Text.Rune.DecodeFromUtf16(element, out var rune, out _);
+            return IsUnspaced(rune.Value) ? Kind.Unspaced
+                : System.Text.Rune.IsLetterOrDigit(rune) || rune.Value == '_' ? Kind.Word
+                : System.Text.Rune.IsWhiteSpace(rune) ? Kind.Space
+                : Kind.Other;
+        }
 
-        static bool IsWord(char c) => char.IsLetterOrDigit(c) || c == '_';
+        // The scripts written without spaces between words: Thai, Lao, Myanmar and Khmer, the kana,
+        // and the Han ideographs, those of the supplementary planes too
+        static bool IsUnspaced(int c) =>
+            c
+                is >= 0x0E00
+                    and <= 0x0EFF
+                    or >= 0x1000
+                    and <= 0x109F
+                    or >= 0x1780
+                    and <= 0x17FF
+                    or >= 0x3040
+                    and <= 0x30FF
+                    or >= 0x3400
+                    and <= 0x4DBF
+                    or >= 0x4E00
+                    and <= 0x9FFF
+                    or >= 0xF900
+                    and <= 0xFAFF
+                    or >= 0xFF66
+                    and <= 0xFF9F
+                    or >= 0x20000
+                    and <= 0x3FFFF;
     }
 }
