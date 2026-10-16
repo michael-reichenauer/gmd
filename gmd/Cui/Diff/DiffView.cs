@@ -134,7 +134,7 @@ class DiffView : IDiffView
         this.isOneColumn = IsOneColumnFor(Application.Driver.Cols - 1); // The view's width, but for its scrollbar
         this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
         this.fileList = DiffFileList.Of(diffs, diffRows);
-        this.listWidth = fileList.WidthFor(Application.Driver.Cols);
+        this.listWidth = ListWidth();
         this.isListFocus = false;
         if (IsOneColumnFor(Application.Driver.Cols - listWidth - 1) != isOneColumn)
         { // Narrowed by the list
@@ -194,7 +194,8 @@ class DiffView : IDiffView
                     isIgnoreWhitespace,
                     LeaveOutHint(),
                     isOneColumn,
-                    listWidth > 0
+                    listWidth > 0,
+                    IsListHidden
                 ),
             () => status.Current
         );
@@ -262,6 +263,7 @@ class DiffView : IDiffView
         view.RegisterLetterHandler(Key.w, ToggleWhitespace);
         view.RegisterLetterHandler(Key.v, ToggleLayout);
         view.RegisterLetterHandler(Key.h, ToggleHidden);
+        view.RegisterLetterHandler(Key.l, ToggleList);
         view.RegisterLetterHandler(Key.x, ToggleLeftOut);
 
         // The next and previous change, as the resolver's ] and [ go to a conflict, and file. Terminal.Gui
@@ -471,7 +473,14 @@ class DiffView : IDiffView
                 "Tab",
                 ToggleListFocus,
                 () => listWidth > 0,
-                () => $"The list is beside a diff of more than one file, {DiffFileList.MinTerminalWidth} columns wide"
+                WhyNoList
+            )
+            .Item(
+                listWidth > 0 ? "Hide File List" : "Show File List",
+                "l",
+                ToggleList,
+                () => fileList.WidthFor(Application.Driver.Cols) > 0,
+                WhyNoList
             )
             .Separator();
 
@@ -536,11 +545,14 @@ class DiffView : IDiffView
             (false, false) => "No more files above: } goes down",
         };
 
-    // Moves the keys to the list of files and back
+    // Moves the keys to the list of files and back, and away from it when it is hidden
     void ToggleListFocus()
     {
-        if (listWidth == 0)
+        if (listWidth == 0 && !isListFocus)
+        {
+            status.Notice(WhyNoList());
             return;
+        }
 
         isListFocus = !isListFocus;
         listView.IsFocus = isListFocus;
@@ -548,6 +560,35 @@ class DiffView : IDiffView
         listView.SetNeedsDisplay();
         contentView.SetNeedsDisplay();
     }
+
+    // Shows or hides the list of files, l. Remembered for the diffs after, since it is hidden for the
+    // width it takes, which is as wanted in the next diff as in this one
+    void ToggleList()
+    {
+        if (fileList.WidthFor(Application.Driver.Cols) == 0)
+        {
+            status.Notice(WhyNoList());
+            return;
+        }
+
+        config.Set(c => c.ShowDiffFileList = !c.ShowDiffFileList);
+        SetListWidth(ListWidth());
+        SetLayout(IsOneColumnFor(Application.Driver.Cols - listWidth - 1));
+        FollowCursorInList();
+        hintBar.SetNeedsDisplay();
+        status.Info(listWidth > 0 ? "File list shown: Tab moves into it, l hides it" : "File list hidden: l shows it");
+    }
+
+    // How wide the list of files is: as wide as it can be at the terminal's width, unless hidden
+    int ListWidth() => config.ShowDiffFileList ? fileList.WidthFor(Application.Driver.Cols) : 0;
+
+    // Hidden by l, where it would be shown, which the hints then say l shows
+    bool IsListHidden => listWidth == 0 && fileList.WidthFor(Application.Driver.Cols) > 0;
+
+    string WhyNoList() =>
+        IsListHidden
+            ? "The file list is hidden: l shows it"
+            : $"The file list is beside a diff of more than one file, {DiffFileList.MinTerminalWidth} columns wide";
 
     // Goes to the file a step above or below in the list, while it has the keys, true then; with the
     // diff having them the key is left to it
@@ -1241,8 +1282,7 @@ class DiffView : IDiffView
     // made for, e.g. the terminal resized. Posted, since the rows cannot change while they are drawn.
     void FollowWidth(int contentWidth)
     {
-        var width = Application.Driver.Cols;
-        var isListChanged = fileList.WidthFor(width) != listWidth;
+        var isListChanged = ListWidth() != listWidth;
         if (isLayoutPosted || (!isListChanged && IsOneColumnFor(contentWidth) == isOneColumn))
             return;
 
@@ -1250,7 +1290,7 @@ class DiffView : IDiffView
         UI.Post(() =>
         {
             isLayoutPosted = false;
-            SetListWidth(fileList.WidthFor(Application.Driver.Cols));
+            SetListWidth(ListWidth());
             SetLayout(IsOneColumnFor(Application.Driver.Cols - listWidth - 1));
         });
     }

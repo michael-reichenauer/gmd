@@ -235,6 +235,45 @@ public class DiffViewTest
         gmd.WaitUntilGone("Files 2");
     }
 
+    // l hides the list of files, for the width it takes, and shows it again, and the next diff opens as
+    // it was left; while it is hidden, the hints say l shows it, and Tab says why it does nothing
+    [TestMethod]
+    public async Task TestTheFileListIsHiddenAndShownWithL()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160, height: 30, isKeyHints: true);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        gmd.WaitFor("Files 2");
+
+        gmd.Send("l");
+        var screen = gmd.WaitUntilGone("Files 2");
+        Assert.AreEqual("File list hidden: l shows it", ScreenText.LastLine(screen).Trim('─', ' '));
+        StringAssert.StartsWith(
+            ScreenText.Of(screen, repo.Path).Split('\n')[1],
+            "Test User",
+            "The diff is at the left"
+        );
+        gmd.Send("Tab");
+        Assert.AreEqual(
+            "The file list is hidden: l shows it",
+            ScreenText.LastLine(gmd.WaitFor("is hidden: l shows it")).Trim('─', ' ')
+        );
+
+        // Remembered: the next diff opens with no list, and the hints say how to have it back
+        gmd.Send("q");
+        gmd.WaitUntilGone("M long.txt");
+        gmd.Send("d");
+        screen = gmd.WaitFor("M long.txt");
+        Assert.IsFalse(screen.Contains("Files 2"), "Still hidden");
+        gmd.WaitUntilGone("is hidden"); // The status message, which covers the hints for a while
+        StringAssert.Contains(ScreenText.LastLine(gmd.WaitFor("l file list")), "} { file  l file list  f search");
+
+        gmd.Send("l");
+        screen = gmd.WaitFor("Files 2");
+        Assert.AreEqual("File list shown: Tab moves into it, l hides it", ScreenText.LastLine(screen).Trim('─', ' '));
+    }
+
     // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the
     // cursor down, with the text marked black on yellow on the cursor's row too; n and Shift-N go on
     // from there and say where they stop, as the log's do. What it found is said over the bottom row,

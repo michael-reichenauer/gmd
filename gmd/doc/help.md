@@ -572,7 +572,9 @@ its files listed beside it, the one the cursor is in marked, each with its
 lines added and deleted, and e.g. `╎3` for three lines left out of the
 commit. A file history lists its commits instead. `Tab` moves the keys to
 the list, where `↑` and `↓` go from file to file, and `Tab`, `Enter` or
-`Esc` back to the diff; a click on a file goes to it.
+`Esc` back to the diff; a click on a file goes to it. `l` hides the list,
+for the width it takes, and shows it again; the diffs after open as it was
+left.
 
 `h` hides the lines of the file the cursor is in, a file that is generated,
 say, which is then drawn as its header alone, and `h` on it shows them

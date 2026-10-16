@@ -131,4 +131,13 @@ public class DiffHintsTest
         );
         Assert.IsFalse(Line(DiffHints.For(false, true, false, false, false)).Contains("Tab"));
     }
+
+    // Where l has hidden the list, l is offered in its place, to have it back
+    [TestMethod]
+    public void TestAHiddenFileListOffersL()
+    {
+        var line = Line(DiffHints.For(false, true, false, false, false, "", isListHidden: true));
+        StringAssert.Contains(line, "} { file  l file list");
+        Assert.IsFalse(line.Contains("Tab"));
+    }
 }
