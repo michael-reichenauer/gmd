@@ -67,6 +67,7 @@ class CommitCommands : ICommitCommands
     readonly IRepoView repoView;
     readonly ITagsDlg tagsDlg;
     readonly DiffMark diffMark;
+    readonly LeftOutLines leftOut;
 
     public CommitCommands(
         CommandContext context,
@@ -77,7 +78,8 @@ class CommitCommands : ICommitCommands
         IAddTagDlg addTagDlg,
         IAddStashDlg addStashDlg,
         ITagsDlg tagsDlg,
-        DiffMark diffMark
+        DiffMark diffMark,
+        LeftOutLines leftOut
     )
     {
         this.context = context;
@@ -93,6 +95,7 @@ class CommitCommands : ICommitCommands
         this.repoView = context.View;
         this.tagsDlg = tagsDlg;
         this.diffMark = diffMark;
+        this.leftOut = leftOut;
     }
 
     public void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
@@ -169,17 +172,27 @@ class CommitCommands : ICommitCommands
 
         // A pre-commit hook can make a commit take a while, e.g. one that formats the code. The
         // files left unticked in the dialog are left as they are, so with some unticked only the
-        // ticked ones are committed.
+        // ticked ones are committed, and so are the lines left out with x in the diff. Not while an
+        // operation is in progress, whose result git commits whole.
+        leftOut.ForRepo(repo.Path);
+        var changes = repo.Repo.Status;
+        var committedPaths = paths ?? new CommitFiles(changes).TickedPaths;
+        var leftOutLines = changes.IsMerging
+            ? new Dictionary<string, IReadOnlyList<ChosenLine>>()
+            : committedPaths.Where(leftOut.Paths.Contains).ToDictionary(p => p, leftOut.Of);
         using (status.Progress(isAmend ? "Amending the last commit" : $"Committing to '{CurrentBranchName()}'"))
         {
             var committed =
-                paths == null
-                    ? await server.CommitAllChangesAsync(message, isAmend, repo.Path)
-                    : await server.CommitFilesAsync(message, isAmend, paths, repo.Path);
+                leftOutLines.Count > 0
+                    ? await server.CommitLinesAsync(message, isAmend, committedPaths, leftOutLines, repo.Path)
+                : paths == null ? await server.CommitAllChangesAsync(message, isAmend, repo.Path)
+                : await server.CommitFilesAsync(message, isAmend, paths, repo.Path);
             if (committed is Error e)
                 return new Error($"Failed to commit", e);
         }
 
+        // What was left out is now just uncommitted changes, which the next commit takes unless left out
+        leftOut.PutBack(committedPaths);
         return CommitResult.Committed;
     }
 
@@ -263,6 +276,7 @@ class CommitCommands : ICommitCommands
                 source = DiffSource.Single(n => server.GetCommitDiffAsync(commitId, n, repo.Path)) with
                 {
                     CanCommit = commitId == Repo.UncommittedId,
+                    IsCommittedWhole = repo.Repo.Status.IsMerging,
                 };
             }
             else

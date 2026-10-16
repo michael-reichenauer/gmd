@@ -13,22 +13,20 @@ public class PatchServiceTest
 {
     const string Patch = "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-x\n+y\n";
 
-    // A fake git whose diff writes 'patch' to the file --output names
-    static FakeCmd GitWriting(byte[] patch, string failFirstDiff = "")
-    {
-        var diffs = 0;
-        return new FakeCmd(
+    // A fake git whose diff writes 'patch' to the file --output names, in a repository with a HEAD
+    // unless not
+    static FakeCmd GitWriting(byte[] patch, bool hasHead = true) =>
+        new FakeCmd(
             (_, args, _) =>
             {
+                if (args.StartsWith("rev-parse"))
+                    return hasHead ? FakeCmd.Ok("1234abcd") : FakeCmd.Fail("", 1);
                 if (!args.Contains(" diff "))
                     return FakeCmd.Ok("");
-                if (diffs++ == 0 && failFirstDiff != "")
-                    return FakeCmd.Fail(failFirstDiff, 128);
                 File.WriteAllBytes(OutputOf(args), patch);
                 return FakeCmd.Ok("");
             }
         );
-    }
 
     static string OutputOf(string args) => Regex.Match(args, "--output=\"([^\"]+)\"").Groups[1].Value;
 
@@ -44,28 +42,31 @@ public class PatchServiceTest
 
         Assert.AreEqual(Patch, patch.ToText());
         Assert.AreEqual("add -A -- \"a*.txt\"", cmd.Calls[0].Args);
+        Assert.AreEqual("rev-parse --verify --quiet HEAD", cmd.Calls[1].Args);
         StringAssert.StartsWith(
-            cmd.Calls[1].Args,
+            cmd.Calls[2].Args,
             "-c diff.suppressBlankEmpty=false diff --no-color --no-ext-diff --no-textconv"
         );
-        StringAssert.EndsWith(cmd.Calls[1].Args, " HEAD -- \"a*.txt\"");
-        foreach (var call in cmd.Calls)
+        StringAssert.EndsWith(cmd.Calls[2].Args, " HEAD -- \"a*.txt\"");
+        foreach (var call in cmd.Calls.Where(c => !c.Args.StartsWith("rev-parse")))
         {
             StringAssert.StartsWith(call.Environment!["GIT_INDEX_FILE"], Path.Join(Path.GetTempPath(), "gmd-index-"));
             Assert.AreEqual("1", call.Environment!["GIT_LITERAL_PATHSPECS"]);
         }
-        Assert.IsFalse(File.Exists(OutputOf(cmd.Calls[1].Args)), "The patch file is deleted");
+        Assert.IsFalse(File.Exists(OutputOf(cmd.Calls[2].Args)), "The patch file is deleted");
     }
 
-    // A repo with no commit yet has no HEAD, and every file in it is new, which what is staged has
+    // A repo with no commit yet has no HEAD, and every file in it is new, which what is staged has.
+    // Asked first: with a path git says 'bad revision', where without one it says 'unknown revision',
+    // and the patch of the first commit's files was not read at all.
     [TestMethod]
     public async Task TestARepoWithNoCommitYetHasTheStagedPatch()
     {
-        var cmd = GitWriting(Encoding.UTF8.GetBytes(Patch), "fatal: ambiguous argument 'HEAD': unknown revision");
+        var cmd = GitWriting(Encoding.UTF8.GetBytes(Patch), hasHead: false);
 
         AssertOk(await new PatchService(cmd).GetUncommittedPatchAsync("a.txt", "/wd"));
 
-        StringAssert.Contains(cmd.Calls[2].Args, " --staged --output=");
+        StringAssert.EndsWith(cmd.Calls[2].Args, " --staged -- \"a.txt\"");
     }
 
     // Bytes that are not UTF-8 would be changed by being read as text and written back, so the file

@@ -275,6 +275,39 @@ class Server : IServer
     public Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd) =>
         Paused(() => git.CommitFilesAsync(message, isAmend, paths, wd));
 
+    // Commits the paths with the lines left out of them left out, in the working tree, uncommitted:
+    // a file with none whole, and one with some as the patch of the rest of its changes, the file's
+    // patch read again and the left-out lines found in it as the diff showed them (ChosenLines). One
+    // not found, the file having changed since, stops the commit, with nothing committed, rather than
+    // a line left out going in.
+    public Task<Result> CommitLinesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, IReadOnlyList<ChosenLine>> leftOut,
+        string wd
+    ) =>
+        Paused(async () =>
+        {
+            Dictionary<string, FilePatch> patches = [];
+            foreach (var (path, lines) in leftOut)
+            {
+                var patchResult = await git.GetUncommittedPatchAsync(path, wd);
+                if (patchResult is not FilePatch patch)
+                    return patchResult.Error;
+                var foundResult = ChosenLines.Find(patch, lines, path);
+                if (foundResult is not IReadOnlySet<PatchLine> found)
+                    return foundResult.Error;
+                var chosenResult = patch.ForApply(l => !found.Contains(l));
+                if (chosenResult is not FilePatch chosen)
+                    return chosenResult.Error;
+                patches[path] = chosen;
+            }
+
+            var whole = paths.Where(p => !leftOut.ContainsKey(p)).ToList();
+            return await git.CommitPatchesAsync(message, isAmend, whole, patches, wd);
+        });
+
     public async Task<Result<CommitDiff>> GetCommitDiffAsync(string commitId, DiffOptions options, string wd)
     {
         var diffTask =

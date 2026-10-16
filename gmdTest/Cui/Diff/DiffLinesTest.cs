@@ -77,6 +77,21 @@ public class DiffLinesTest
         Assert.AreEqual(0, DiffLines.ChangeAt(Rows.Rows, RowOf("Modified: a.txt")).Count);
     }
 
+    // On a file's header, the file is its rows up to the next one, and each row knows its file
+    [TestMethod]
+    public void TestAFileIsItsRowsFromItsHeader()
+    {
+        var (first, count) = DiffLines.FileAt(Rows.Rows, RowOf("Modified: a.txt"));
+
+        Assert.AreEqual(RowOf("Added: b.txt"), first + count, "Up to the next file");
+        Assert.AreEqual(
+            "a.txt: -2 two, +2 TWO, -4 eleven, +4 ELEVEN, +5 extra",
+            Lines(DiffLines.Of(Rows, first, count))
+        );
+        Assert.AreEqual(0, DiffLines.FileAt(Rows.Rows, ChangeRowOf("TWO")).Count, "Not on a header");
+        Assert.AreEqual("a.txt, b.txt", $"{Rows.FileAt(ChangeRowOf("extra"))}, {Rows.FileAt(ChangeRowOf("lines"))}");
+    }
+
     // Rows selected have their changed lines, by file, and the unchanged ones and the headers between
     // them nothing; a new file's lines are drawn in one column, and are added lines
     [TestMethod]

@@ -415,6 +415,14 @@ class FakeGit : IGit
 
     public Task<Result> ApplyPatchReversedAsync(FilePatch patch, string wd) => throw new NotSupportedException();
 
+    public Task<Result> CommitPatchesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, FilePatch> patches,
+        string wd
+    ) => throw new NotSupportedException();
+
     public Task<Result> AddTagAsync(string name, string commitId, string wd) => throw new NotSupportedException();
 
     public Task<Result> AddAnnotatedTagAsync(string name, string message, string commitID, string wd) =>

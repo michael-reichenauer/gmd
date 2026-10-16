@@ -7,6 +7,13 @@ interface IPatchService
     Task<Result<FilePatch>> GetUncommittedPatchAsync(string path, string wd);
     Task<Result> ApplyToIndexAsync(FilePatch patch, string indexPath, string wd);
     Task<Result> ApplyReversedAsync(FilePatch patch, string wd);
+    Task<Result> CommitPatchesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, FilePatch> patches,
+        string wd
+    );
 }
 
 // The patch of one file's uncommitted changes, and applying a patch, of some of its lines, to an
@@ -50,14 +57,11 @@ class PatchService : IPatchService
                     if (await cmd.RunAsync("git", $"add -A -- {Cmd.Quote(path)}", wd, environment: literal) is Error e)
                         return e;
 
-                    var args = $"{PatchFormat} --output={Cmd.Quote(patchPath)} HEAD -- {Cmd.Quote(path)}";
-                    var diff = await cmd.RunAsync("git", args, wd, environment: literal);
-                    if (diff is Error noHead && noHead.Message.Contains("ambiguous argument 'HEAD': unknown revision"))
-                    { // No commit yet, so the file is new, and what is staged is all of it
-                        args = $"{PatchFormat} --staged --output={Cmd.Quote(patchPath)} -- {Cmd.Quote(path)}";
-                        diff = await cmd.RunAsync("git", args, wd, environment: literal);
-                    }
-                    if (diff is Error diffError)
+                    // With no commit yet there is no HEAD, the file is new, and what is staged is all of it.
+                    // Asked first: git's word for it with a path is not the one it has without.
+                    var since = await HasHeadAsync(wd) ? "HEAD" : "--staged";
+                    var args = $"{PatchFormat} --output={Cmd.Quote(patchPath)} {since} -- {Cmd.Quote(path)}";
+                    if (await cmd.RunAsync("git", args, wd, environment: literal) is Error diffError)
                         return diffError;
 
                     return ReadPatch(path, patchPath);
@@ -69,6 +73,10 @@ class PatchService : IPatchService
             Result.Catch(() => File.Delete(patchPath));
         }
     }
+
+    // Whether there is a commit yet, which a repository just made has not
+    async Task<bool> HasHeadAsync(string wd) =>
+        (await cmd.RunRawAsync("git", "rev-parse --verify --quiet HEAD", wd, skipLogError: true)).ExitCode == 0;
 
     static Result<FilePatch> ReadPatch(string path, string patchPath)
     {
@@ -106,6 +114,67 @@ class PatchService : IPatchService
     // it is. Git does it as it would check the file out, with the line ends .gitattributes and
     // core.autocrlf give it.
     public Task<Result> ApplyReversedAsync(FilePatch patch, string wd) => ApplyAsync(patch, "-R", null, wd);
+
+    // Commits the paths whole and the patches, each of some of a file's changes, and nothing else, as
+    // 'git commit --only' commits paths: in an index of its own, made from HEAD, or empty in a
+    // repository with no commit yet, which 'git commit' then commits, with its hooks and signing as
+    // ever. The working tree is not written, and the repository's index is told of the commit after,
+    // for the paths committed: left as it was, it would have their files as they were before it, and
+    // show the commit's changes as staged to be taken back.
+    public async Task<Result> CommitPatchesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, FilePatch> patches,
+        string wd
+    )
+    {
+        var indexPath = Path.Join(Path.GetTempPath(), $"gmd-index-{Guid.NewGuid():N}");
+        var pathsFile = Path.GetTempFileName();
+        try
+        {
+            var env = new Dictionary<string, string>
+            {
+                ["GIT_INDEX_FILE"] = indexPath,
+                ["GIT_LITERAL_PATHSPECS"] = "1",
+            };
+            var pathspec = $"--pathspec-from-file={Cmd.Quote(pathsFile)} --pathspec-file-nul";
+
+            var readTree = await HasHeadAsync(wd) ? "read-tree HEAD" : "read-tree --empty";
+            if (await cmd.RunAsync("git", readTree, wd, environment: env) is Error readError)
+                return readError;
+
+            if (paths.Count > 0)
+            {
+                if (Result.Catch(() => File.WriteAllText(pathsFile, string.Join('\0', paths))) is Error writeError)
+                    return writeError;
+                if (await cmd.RunAsync("git", $"add -A {pathspec}", wd, environment: env) is Error addError)
+                    return addError;
+            }
+            foreach (var patch in patches.Values)
+            {
+                if (await ApplyToIndexAsync(patch, indexPath, wd) is Error applyError)
+                    return applyError;
+            }
+
+            var amend = isAmend ? " --amend" : "";
+            if (await cmd.RunAsync("git", $"commit{amend} -m {Cmd.Quote(message)}", wd, environment: env) is Error e)
+                return e;
+
+            var committed = paths.Concat(patches.Keys);
+            if (Result.Catch(() => File.WriteAllText(pathsFile, string.Join('\0', committed))) is Error pathsError)
+                return pathsError;
+            var literal = new Dictionary<string, string> { ["GIT_LITERAL_PATHSPECS"] = "1" };
+            if (await cmd.RunAsync("git", $"reset -q {pathspec}", wd, environment: literal) is Error resetError)
+                return new Error("Committed, but the index was not told of it: 'git reset' would", resetError);
+            return Result.Ok;
+        }
+        finally
+        {
+            foreach (var path in new[] { indexPath, $"{indexPath}.lock", pathsFile })
+                Result.Catch(() => File.Delete(path));
+        }
+    }
 
     // All of the patch or none of it, which is how git applies a patch. Whitespace is applied as it
     // is: the user's apply.whitespace could have git change it or refuse it.

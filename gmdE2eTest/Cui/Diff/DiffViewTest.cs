@@ -209,26 +209,27 @@ public class DiffViewTest
               Modified:    short.txt              │Discard Changes                         u >│
                                                   │Refresh                                 r  │
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Commit                                  c  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Modified: long.txt                    │More Context of long.txt (15 lines)     +  │
-                                                  │Less Context                            -  │
-            ──────────────────────────────────────│Hide Whitespace Changes                 w  │────────────────────────────────────
-              14 line 14                          │Focus Left Column                       ←  │
-              15 line 15                          │Focus Right Column                      →  │
-              16 line 16                          │Close                                 Esc  │
-              17 line 17                          ╰───────────────────────────────────────────╯
+            Modified: long.txt                    │Leave Out of Commit                     x  │
+                                                  │More Context of long.txt (15 lines)     +  │
+            ──────────────────────────────────────│Less Context                            -  │────────────────────────────────────
+              14 line 14                          │Hide Whitespace Changes                 w  │
+              15 line 15                          │Focus Left Column                       ←  │
+              16 line 16                          │Focus Right Column                      →  │
+              17 line 17                          │Close                                 Esc  │
+              18 line 18                          ╰───────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 18),
+            ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path
         );
 
         // 'Less Context' is dark, i.e. disabled, while 'More Context' is white — the file is at the
         // default, so there is nothing narrower to ask for
-        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 11, 2).Split('\n');
+        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 12, 2).Split('\n');
         StringAssert.Contains(colors[0], "mWWWW WWWWWWW", "'More Context' and its shortcut are enabled");
         StringAssert.Contains(colors[1], "mDDDD DDDDDDD", "'Less Context' is dark, i.e. disabled");
 
         // Three moves down from 'Scroll to', past 'Search ...' and 'Refresh', since the disabled
-        // items in between are skipped
+        // items in between are skipped, 'Leave Out of Commit' too, which only the uncommitted diff has
         for (int i = 0; i < 3; i++)
         {
             gmd.Send("Down");
@@ -412,6 +413,64 @@ public class DiffViewTest
 
         Assert.AreEqual("Discarded 1 line of lines.txt", ScreenText.LastLine(gmd.WaitFor("Discarded")));
         StringAssert.EndsWith(File.ReadAllText(Path.Join(repo.Path, "lines.txt")), "line 10\nELEVEN\nline 12\n");
+    }
+
+    // x leaves the change the cursor is on out of the commit: drawn dark, counted on the file's header
+    // and in the commit dialog, and a commit then takes the file's other change and leaves that one
+    // in the working tree, uncommitted, with nothing staged
+    [TestMethod]
+    public async Task TestLeaveAChangeOutOfTheCommit()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("ELEVEN");
+        using var _ = repo;
+        using var __ = gmd;
+
+        gmd.Send("x");
+        Assert.AreEqual(
+            "Left 3 lines of lines.txt out of the commit: x puts them back",
+            ScreenText.LastLine(gmd.WaitFor("out of the commit"))
+        );
+        var diff = ScreenText.Of(gmd.Capture(), repo.Path);
+        StringAssert.Contains(diff, "Modified: lines.txt  (3 lines left out)");
+        StringAssert.Contains(diff, "  11╎line 11");
+
+        gmd.Send("c");
+        StringAssert.Contains(gmd.WaitFor("Commit 1 change on 'main'"), "M lines.txt  3 lines left out");
+        gmd.SendText("Make two TWO");
+        gmd.Send("Enter");
+        gmd.WaitFor("Committed to 'main'");
+
+        Assert.AreEqual(
+            "line 1\nTWO\nline 3",
+            string.Join("\n", (await repo.GitAsync("show HEAD:lines.txt")).Split('\n').Take(3))
+        );
+        Assert.IsFalse((await repo.GitAsync("show HEAD:lines.txt")).Contains("ELEVEN"), "Left out of the commit");
+        StringAssert.Contains(File.ReadAllText(Path.Join(repo.Path, "lines.txt")), "ELEVEN\nextra\n", "Still there");
+        Assert.AreEqual(" M lines.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+    }
+
+    // A line left out that is not found as it was, the file changed since, stops the commit, with
+    // nothing committed, rather than it going in unseen
+    [TestMethod]
+    public async Task TestACommitStopsWhenALineLeftOutIsNotFound()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("ELEVEN");
+        using var _ = repo;
+        using var __ = gmd;
+        var head = await repo.GitAsync("rev-parse HEAD");
+        gmd.Send("x");
+        gmd.WaitFor("out of the commit");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Modified: lines.txt");
+        repo.WriteFile("lines.txt", File.ReadAllText(Path.Join(repo.Path, "lines.txt")).Replace("ELEVEN", "ELEVEN!"));
+
+        gmd.Send("c");
+        gmd.WaitFor("3 lines left out");
+        gmd.SendText("Make two TWO");
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitFor("has changed since the diff was read"), "lines.txt");
+        Assert.AreEqual(head, await repo.GitAsync("rev-parse HEAD"), "Nothing committed");
     }
 
     // A greyed out item of the diff's menu says why on the diff's own status line, where it is seen;

@@ -149,6 +149,14 @@ internal class Git : IGit
     public Task<Result> ApplyPatchReversedAsync(FilePatch patch, string wd) =>
         patchService.ApplyReversedAsync(patch, wd);
 
+    public Task<Result> CommitPatchesAsync(
+        string message,
+        bool isAmend,
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, FilePatch> patches,
+        string wd
+    ) => patchService.CommitPatchesAsync(message, isAmend, paths, patches, wd);
+
     public Task<Result> RunDiffToolAsync(string path, string wd) => diffService.RunDiffToolAsync(path, wd);
 
     public Task<Result> RunMergeToolAsync(string path, string wd) => diffService.RunMergeToolAsync(path, wd);

@@ -170,6 +170,10 @@ repository.
   the changed files, new ones too, all ticked: `Tab` into the list and
   `Space` unticks the file under the cursor, which is then left as it is,
   uncommitted, and `a` unticks or ticks all. `Ctrl-D` shows the diff.
+- **Commit part of a file:** in the diff of the uncommitted changes (`d`
+  on the `©` row), `x` leaves the change the cursor is on, or the lines
+  selected with `Shift-↑↓`, out of the commit, and `x` again puts them
+  back. The commit then leaves them in the working tree, uncommitted.
 - **Push and pull:** `p` and `u` for the branch you are on, or for the
   highlighted one; `Shift-P` and `Shift-U` for every shown branch.
 - **Open a pull request:** `m` on the branch, then **Create Pull Request in
@@ -418,6 +422,18 @@ throw changes away for good ask first.
   Commit the uncommitted changes, every file ticked in the dialog's list,
   with warnings for large or binary files. While a merge, a revert or the
   like is in progress there is no list: git commits its result whole.
+  Lines left out with `x` in the diff of the uncommitted changes are drawn
+  dark there, with a `╎` where a change has `┃`, counted on the file's
+  header, e.g. `(3 lines left out)`, and in the dialog, beside the file:
+  the commit takes the rest of the file and leaves those lines as they
+  are, uncommitted, and nothing staged. `x` on a file's header puts every
+  line of it back. A line left out that is not found as it was shown, the
+  file having changed since, stops the commit, with nothing committed,
+  rather than going in: the diff finds a line again where only its number
+  moved, and says how many it does not find. Not while something is in
+  progress, nor for a renamed file or one with conflicts, nor while
+  whitespace is hidden (`w`); and an older commit cannot be amended with
+  a file that has lines left out.
   After a merge made in gmd, `Ctrl-A` in the dialog adds the subjects of
   the merged commits, one per line, and for a merged merge the list in its
   message.
@@ -526,7 +542,9 @@ other: the changes from the older of the two to the newer.
 
 Within the diff: `r` re-reads it from git, `s` scrolls to a file, `u`
 discards uncommitted changes (the change the cursor is on, the lines
-selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `c` commits, `Enter` resolves
+selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `x` leaves the change the
+cursor is on, or the lines selected, out of the next commit, or puts them
+back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
 two columns sideways and pick which one a selection copies from, `Ctrl-C`
 copies the selected lines, and `Esc` or `q` closes the view.

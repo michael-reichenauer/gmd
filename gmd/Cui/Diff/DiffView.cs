@@ -33,6 +33,11 @@ class DiffView : IDiffView
     readonly IClipboardService clipboard;
     readonly IConflictView conflictView;
     readonly Config config;
+    readonly LeftOutLines leftOut;
+
+    // The left-out lines of each file not found in the diff since it was read again, which stop a
+    // commit until found again or put back (LeftOutLines.Refind)
+    readonly Dictionary<string, int> notFound = [];
     ContentView contentView = null!;
     KeyHintBar hintBar = null!;
     CommitDiff[] diffs = null!;
@@ -75,11 +80,13 @@ class DiffView : IDiffView
         IClipboardService clipboard,
         IConflictView conflictView,
         IHelpPage helpPage,
-        Config config
+        Config config,
+        LeftOutLines leftOut
     )
     {
         this.helpPage = helpPage;
         this.config = config;
+        this.leftOut = leftOut;
         this.diffRowService = diffRowService;
         this.progress = progress;
         this.server = server;
@@ -102,6 +109,8 @@ class DiffView : IDiffView
         this.search = RowSearch.None;
         this.status = new StatusLine();
         this.isIgnoreWhitespace = false;
+        leftOut.ForRepo(repoPath);
+        RefindLeftOutLines();
 
         Toplevel diffView = new Toplevel()
         {
@@ -132,12 +141,14 @@ class DiffView : IDiffView
                     this.source.HasContext,
                     conflictState.Files.Count > 0,
                     search.IsActive,
-                    isIgnoreWhitespace
+                    isIgnoreWhitespace,
+                    LeaveOutHint()
                 ),
             () => status.Current
         );
         diffView.Add(hintBar);
         hintBar.FollowStatus(status, config.ShowKeyHints, diffView);
+        contentView.CurrentIndexChange += () => hintBar.SetNeedsDisplay(); // x leaves out or puts back
         RegisterShortcuts(contentView);
 
         contentView.SetNeedsDisplay();
@@ -175,6 +186,7 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.n, () => StepMatch(1));
         view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
         view.RegisterLetterHandler(Key.w, ToggleWhitespace);
+        view.RegisterLetterHandler(Key.x, ToggleLeftOut);
 
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
         // was bound to it in this view before.
@@ -228,6 +240,13 @@ class DiffView : IDiffView
                 // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
                 .Item("Refresh", "r", () => RefreshDiff())
                 .Item("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
+                .Item(
+                    IsLeavingOut() ? "Leave Out of Commit" : "Put Back in Commit",
+                    "x",
+                    ToggleLeftOut,
+                    () => WhyNotLeaveOut(LinesToLeaveOut()) == "",
+                    () => WhyNotLeaveOut(LinesToLeaveOut())
+                )
                 // Named after the file they act on, since that is the part of these that is not
                 // obvious, and disabled when the cursor is on no file or that file is at an end
                 .Item(ContextItemText("More Context", 1), "+", () => StepContext(1), () => CanStepContext(1))
@@ -517,11 +536,12 @@ class DiffView : IDiffView
         : files.Count == 0
             ? IsSelected ? "The selected lines have no change"
                 : "Move to a change first, or select lines with ⇧↑ ⇧↓"
-        : files.Select(f => WhyNotLinesOf(f.Path)).FirstOrDefault(why => why != "") ?? "";
+        : files.Select(f => WhyNotLinesOf(f.Path, "discarded")).FirstOrDefault(why => why != "") ?? "";
 
-    string WhyNotLinesOf(string path) =>
-        ConflictPaths().Contains(path) ? $"{path} has conflicts: resolve them, or discard the whole file"
-        : FileOf(path) is { IsRenamed: true } ? $"{path} was renamed: it is discarded whole"
+    // done is what is done with the file, e.g. "discarded"
+    string WhyNotLinesOf(string path, string done) =>
+        ConflictPaths().Contains(path) ? $"{path} has conflicts: resolve them first, or it is {done} whole"
+        : FileOf(path) is { IsRenamed: true } ? $"{path} was renamed: it is {done} whole"
         : "";
 
     FileDiff? FileOf(string path) => diffs[0].FileDiffs.FirstOrDefault(f => f.PathAfter == path);
@@ -558,6 +578,7 @@ class DiffView : IDiffView
                     RefreshDiff();
                     return;
                 }
+                leftOut.Remove(file.Path, file.Lines); // Gone, so not to be left out of a commit
             }
         }
 
@@ -719,6 +740,139 @@ class DiffView : IDiffView
         isRefreshNeeded = true;
     }
 
+    // Whether x would leave lines out, or else put them back in: every line it acts on is out already
+    bool IsLeavingOut()
+    {
+        var files = LinesToLeaveOut();
+        if (files.Count == 0 && IsOnFileHeader(out var path))
+            return leftOut.CountOf(path) == 0;
+        return !files.All(f => f.Lines.All(l => leftOut.IsLeftOut(f.Path, l))) || files.Count == 0;
+    }
+
+    string LeaveOutHint() =>
+        !source.CanCommit || source.IsCommittedWhole ? ""
+        : IsLeavingOut() ? "leave out"
+        : "put back";
+
+    bool IsOnFileHeader(out string path)
+    {
+        var row =
+            contentView.CurrentIndex >= 0 && contentView.CurrentIndex < diffRows.Count
+                ? diffRows.Rows[contentView.CurrentIndex]
+                : null;
+        path = row?.Mode == DiffRowMode.SpanBoth ? row.FilePath : "";
+        return path != "";
+    }
+
+    // The lines x acts on: the selected rows, the change the cursor is on, or on a file's header the
+    // whole file
+    IReadOnlyList<FileLines> LinesToLeaveOut()
+    {
+        if (IsSelected || !IsOnFileHeader(out _))
+            return ChosenLines();
+        var (first, count) = DiffLines.FileAt(diffRows.Rows, contentView.CurrentIndex);
+        return DiffLines.Of(diffRows, first, count);
+    }
+
+    // Why x cannot leave the lines out, or "" when it can
+    string WhyNotLeaveOut(IReadOnlyList<FileLines> files) =>
+        !source.CanCommit ? "Lines are left out of a commit in the diff of the uncommitted changes"
+        : source.IsCommittedWhole ? "What is in progress is committed whole, as git commits it"
+        : isIgnoreWhitespace ? "Show whitespace first with w: while it is hidden, not every change is shown"
+        : files.Count == 0 && IsOnFileHeader(out var path) && leftOut.CountOf(path) > 0 ? ""
+        : files.Count == 0
+            ? IsSelected ? "The selected lines have no change"
+                : "Move to a change first, or select lines with ⇧↑ ⇧↓"
+        : files.Select(f => WhyNotLinesOf(f.Path, "committed")).FirstOrDefault(why => why != "") ?? "";
+
+    // Leaves the lines out of the commit, or puts them back in, x (LeftOutLines): the selected rows,
+    // the change the cursor is on, or on a file's header every line of the file, which puts back too
+    // the lines left out that are not found any more, the file having changed since
+    void ToggleLeftOut()
+    {
+        var files = LinesToLeaveOut();
+        if (WhyNotLeaveOut(files) is var why && why != "")
+        {
+            status.Notice(why);
+            return;
+        }
+
+        if (!IsSelected && IsOnFileHeader(out var path) && leftOut.CountOf(path) > 0)
+        {
+            leftOut.PutBack([path]);
+            notFound.Remove(path);
+            status.Info($"Put every line of {path} back in the commit");
+        }
+        else
+        {
+            // One way for all of them, out unless every one is out already
+            var isOut = IsLeavingOut();
+            foreach (var file in files)
+            {
+                if (isOut)
+                    leftOut.LeaveOut(file.Path, file.Lines);
+                else
+                    leftOut.Remove(file.Path, file.Lines);
+            }
+            var count = files.Sum(f => f.Lines.Count);
+            var lines =
+                $"{count} line{(count == 1 ? "" : "s")} of {(files.Count == 1 ? files[0].Path : $"{files.Count} files")}";
+            status.Info(
+                isOut ? $"Left {lines} out of the commit: x puts them back" : $"Put {lines} back in the commit"
+            );
+        }
+
+        contentView.ClearSelection();
+        contentView.SetNeedsDisplay();
+        hintBar.SetNeedsDisplay();
+    }
+
+    // The lines left out found again in the rows, each file's, and a file no longer changed forgotten.
+    // Not while whitespace is hidden, which shows a line whose spaces alone changed as unchanged, so it
+    // would not be found, or another line with its text found in its place.
+    void RefindLeftOutLines()
+    {
+        notFound.Clear();
+        if (!source.CanCommit || isIgnoreWhitespace)
+            return;
+
+        var paths = diffs.SelectMany(d => d.FileDiffs).Select(f => f.PathAfter).ToHashSet();
+        leftOut.PutBack(leftOut.Paths.Where(p => !paths.Contains(p)).ToList());
+        var byFile = DiffLines.Of(diffRows, 0, diffRows.Count).ToDictionary(f => f.Path, f => f.Lines);
+        foreach (var path in leftOut.Paths.ToList())
+        {
+            var count = leftOut.Refind(path, byFile.GetValueOrDefault(path, []));
+            if (count > 0)
+                notFound[path] = count;
+        }
+    }
+
+    // The text of a line left out, dark, its '┃' of a change a '╎'
+    static Text LeftOutText(Text text, int lineNbr)
+    {
+        var line = text.ToString();
+        var width = DiffRowService.LineNbrWidth(lineNbr);
+        if (width > 0 && line.Length >= width)
+            line = $"{line[..(width - 1)]}╎{line[width..]}";
+        return Text.Dark(line);
+    }
+
+    bool IsLeftOut(string path, bool isAdded, int lineNbr, string? text) =>
+        text != null && leftOut.IsLeftOut(path, new ChosenLine(isAdded, lineNbr, text));
+
+    // A file's header says how many of its lines are left out, and how many of those are not found
+    Text WithLeftOutNote(Text header, string path)
+    {
+        var count = leftOut.CountOf(path);
+        if (!source.CanCommit || count == 0)
+            return header;
+        var lines = $"{count} line{(count == 1 ? "" : "s")} left out";
+        var note = notFound.TryGetValue(path, out var lost)
+            ? $"  ({lines}, {lost} not found since: x here puts them all back)"
+            : $"  ({lines})";
+        return header.ToTextBuilder().Add(Text.Yellow(note));
+    }
+
     // Hides the changes of whitespace alone, or shows them again, as GitHub's 'Hide whitespace' does:
     // the diff is read again with or without them, every file at the default context as after a
     // refresh, and a file whose changes are all whitespace is listed with no lines (DiffWhitespace)
@@ -754,6 +908,7 @@ class DiffView : IDiffView
         diffs = newDiffs;
         diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), isIgnoreWhitespace);
         search = FindInRows(search.Text); // The rows the search found are other rows now
+        RefindLeftOutLines(); // As the lines left out may have moved
         hintBar.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
 
         // The old selection covers rows that no longer hold what they did, and a copy would take
@@ -842,16 +997,25 @@ class DiffView : IDiffView
             return line;
         }
 
+        var path = source.CanCommit ? diffRows.FileAt(index) : "";
+        var isLeftOutLeft = path != "" && IsLeftOut(path, false, row.LeftLineNbr, row.RemovedText);
+        var isLeftOutRight = path != "" && IsLeftOut(path, true, row.RightLineNbr, row.AddedText);
+
         if (row.Mode == DiffRowMode.SpanBoth)
         { // The left text spans over full width
-            var text = Marked(row.Left, row.LineNbr).Subtext(0, viewWidth);
+            var spanText =
+                isLeftOutLeft || isLeftOutRight ? LeftOutText(row.Left, row.LineNbr)
+                : row.FilePath != "" ? WithLeftOutNote(row.Left, row.FilePath)
+                : Marked(row.Left, row.LineNbr);
+            var text = spanText.Subtext(0, viewWidth);
             return isSelectedRow ? text.ToSelect()
                 : isCurrentRow ? text.ToHighlight()
                 : text;
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
-        var (leftText, rightText) = (Marked(row.Left, row.LeftLineNbr), Marked(row.Right, row.RightLineNbr));
+        var leftText = isLeftOutLeft ? LeftOutText(row.Left, row.LeftLineNbr) : Marked(row.Left, row.LeftLineNbr);
+        var rightText = isLeftOutRight ? LeftOutText(row.Right, row.RightLineNbr) : Marked(row.Right, row.RightLineNbr);
         var left =
             (row.Left.Length - rowStartX <= columnWidth || row.Left == DiffRowService.NoLine)
                 ? row.Left != DiffRowService.NoLine && rowStartX > 0

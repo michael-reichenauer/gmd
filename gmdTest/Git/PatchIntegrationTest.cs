@@ -167,6 +167,123 @@ public class PatchIntegrationTest
         Assert.AreEqual("ONE\nchanged since\nthree\nFOUR\n", File.ReadAllText(PathOf("a.txt")));
     }
 
+    // A commit of some lines of a file and another file whole: the chosen lines and the file go in,
+    // the rest stays in the working tree, the index is told of the commit, so nothing is left staged
+    // to be taken back, and a file the user staged but did not commit is left staged, as it was
+    [TestMethod]
+    public async Task TestACommitOfSomeLinesOfAFile()
+    {
+        await repo.CommitFileAsync("a.txt", "one\ntwo\nthree\n", "A");
+        await repo.CommitFileAsync("b.txt", "bee\n", "B");
+        await repo.CommitFileAsync("c.txt", "sea\n", "C");
+        repo.WriteFile("a.txt", "ONE\ntwo\nTHREE\n");
+        repo.WriteFile("b.txt", "BEE\n");
+        repo.WriteFile("c.txt", "SEA\n");
+        await repo.GitAsync("add c.txt");
+
+        var patch = AssertOk(await repo.Git.GetUncommittedPatchAsync("a.txt", repo.Path));
+        var chosen = AssertOk(patch.ForApply(l => l.Text.Equals("one", StringComparison.OrdinalIgnoreCase)));
+        AssertOk(
+            await repo.Git.CommitPatchesAsync(
+                "Some",
+                false,
+                ["b.txt"],
+                new Dictionary<string, FilePatch> { ["a.txt"] = chosen },
+                repo.Path
+            )
+        );
+
+        Assert.AreEqual("ONE\ntwo\nthree", await repo.GitAsync("show HEAD:a.txt"));
+        Assert.AreEqual("BEE", await repo.GitAsync("show HEAD:b.txt"));
+        Assert.AreEqual("sea", await repo.GitAsync("show HEAD:c.txt"), "Staged, not committed");
+        Assert.AreEqual("ONE\ntwo\nTHREE\n", File.ReadAllText(PathOf("a.txt")), "The working tree as it was");
+        Assert.AreEqual(" M a.txt\nM  c.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+    }
+
+    // An amend takes the chosen lines into the last commit, which keeps what it had
+    [TestMethod]
+    public async Task TestAnAmendOfSomeLines()
+    {
+        await repo.CommitFileAsync("a.txt", "one\ntwo\n", "A");
+        await repo.CommitFileAsync("b.txt", "bee\n", "Last");
+        var before = await repo.GitAsync("rev-parse HEAD~1");
+        repo.WriteFile("a.txt", "ONE\nTWO\n");
+
+        var patch = AssertOk(await repo.Git.GetUncommittedPatchAsync("a.txt", repo.Path));
+        var chosen = AssertOk(patch.ForApply(l => l.Text.Equals("two", StringComparison.OrdinalIgnoreCase)));
+        AssertOk(
+            await repo.Git.CommitPatchesAsync(
+                "Last, amended",
+                true,
+                [],
+                new Dictionary<string, FilePatch> { ["a.txt"] = chosen },
+                repo.Path
+            )
+        );
+
+        Assert.AreEqual(before, await repo.GitAsync("rev-parse HEAD~1"), "The same commit before it");
+        Assert.AreEqual("Last, amended", (await repo.GitAsync("log -1 --format=%s")).Trim());
+        Assert.AreEqual("bee", await repo.GitAsync("show HEAD:b.txt"));
+        Assert.AreEqual("one\nTWO", await repo.GitAsync("show HEAD:a.txt"));
+    }
+
+    // A repository with no commit yet has no HEAD to start the commit's files from, and every file in it
+    // is new, of which some lines can be the first commit
+    [TestMethod]
+    public async Task TestTheFirstCommitOfSomeLines()
+    {
+        repo.WriteFile("a.txt", "one\ntwo\nthree\n");
+
+        var patch = AssertOk(await repo.Git.GetUncommittedPatchAsync("a.txt", repo.Path));
+        var chosen = AssertOk(patch.ForApply(l => l.Text != "two"));
+        AssertOk(
+            await repo.Git.CommitPatchesAsync(
+                "First",
+                false,
+                [],
+                new Dictionary<string, FilePatch> { ["a.txt"] = chosen },
+                repo.Path
+            )
+        );
+
+        Assert.AreEqual("one\nthree", await repo.GitAsync("show HEAD:a.txt"));
+        Assert.AreEqual(" M a.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+    }
+
+    // The commit is git's own, so its hooks run, and one that refuses the commit leaves everything as
+    // it was: no commit, and nothing staged
+    [TestMethod]
+    public async Task TestACommitHookRunsAndCanRefuseIt()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("The hook is a shell script");
+        await repo.CommitFileAsync("a.txt", "one\ntwo\n", "A");
+        var head = await repo.GitAsync("rev-parse HEAD");
+        repo.WriteFile("a.txt", "ONE\nTWO\n");
+        var hooks = Path.Join(repo.Path, ".git", "test-hooks");
+        Directory.CreateDirectory(hooks);
+        var hook = Path.Join(hooks, "pre-commit");
+        File.WriteAllText(hook, "#!/bin/sh\necho refused >&2\nexit 1\n");
+        File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        await repo.GitAsync($"config core.hooksPath \"{hooks}\"");
+
+        var patch = AssertOk(await repo.Git.GetUncommittedPatchAsync("a.txt", repo.Path));
+        var chosen = AssertOk(patch.ForApply(l => l.Text == "ONE" || l.Text == "one"));
+        var error = AssertError(
+            await repo.Git.CommitPatchesAsync(
+                "Some",
+                false,
+                [],
+                new Dictionary<string, FilePatch> { ["a.txt"] = chosen },
+                repo.Path
+            )
+        );
+
+        StringAssert.Contains(error.AllMessages(), "refused");
+        Assert.AreEqual(head, await repo.GitAsync("rev-parse HEAD"));
+        Assert.AreEqual(" M a.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
+    }
+
     static string Text(IEnumerable<string> lines) => string.Concat(lines.Select(l => l + "\n"));
 
     string PathOf(string name) => Path.Join(repo.Path, name);
