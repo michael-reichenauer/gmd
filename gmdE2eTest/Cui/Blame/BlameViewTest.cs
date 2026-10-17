@@ -314,13 +314,14 @@ public class BlameViewTest
         gmd.Send("n");
         gmd.WaitFor("Match 3 of 3");
         gmd.WaitForStable();
-        // The cursor on the third match, 'four', highlighted, 'D', and each 'o' marked, 'y'
+        // The cursor on the third match, 'four', highlighted, 'D', and each 'o' marked, 'y', on the
+        // black of the 16 colors
         Assert.AreEqual(
             """
-            - -------- ---- ----   ---------- -   --y..
-            -                                 -   ----y
-            -                                 -   -------
-            -                                 D   DDDyDD
+            . ........ .... ....   .......... .   ..y..
+            .                                 .   ....y
+            .                                 .   .......
+            .                                 D   DDDyDD
             """,
             ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4)
         );

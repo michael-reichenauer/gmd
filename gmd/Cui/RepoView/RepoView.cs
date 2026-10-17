@@ -610,8 +610,10 @@ class RepoView : IRepoView, IRepoViewInputHost
             Selection
         );
 
-        // Whatever redraws the log may have changed what the keys do, so the hints follow it
-        keyHintBar.SetNeedsDraw();
+        // Whatever redraws the log may have changed what the keys do, so the hints follow it, once the
+        // log is drawn: Terminal.Gui marks every view drawn once a draw is done, and the line is drawn
+        // before the log, which it is added after
+        UI.Post(keyHintBar.SetNeedsDraw);
         return (page, repo.Repo.ViewCommits.Count);
     }
 

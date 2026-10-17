@@ -741,14 +741,19 @@ class ConflictView : IConflictView
         typingView.SetNeedsDraw();
     }
 
-    // The caret scrolls the text, and the gutter numbers its rows from the row it is scrolled to
+    // The caret scrolls the text, and the gutter numbers its rows from the row it is scrolled to.
+    // Called as the text is drawn, so the pane is drawn anew once that draw is done: Terminal.Gui
+    // marks every view drawn once a draw is done.
     void OnTypingRedrawn()
     {
         if (typingView == null || typingView.TopRow == typingTopRow)
             return;
         typingTopRow = typingView.TopRow;
-        resultView.SetNeedsDraw();
-        typingView.SetNeedsDraw();
+        UI.Post(() =>
+        {
+            resultView.SetNeedsDraw();
+            typingView?.SetNeedsDraw();
+        });
     }
 
     // What was typed is the conflict's decision, unless nothing was, when it is left as it was

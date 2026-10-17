@@ -149,12 +149,12 @@ public class CommitDlgTest
                                    ││             │broach                           │                      ││
                                    ││             │Add 'brnach' to dictionary       │                      ││
                                    ││             │─────────────────────────────────│                      ││
-                                   ││             │Select All                 Ctrl-T│                      ││
-                                   ││             │Copy                        Alt-C│                      ││
-                                   ││             │Cut                         Alt-W│                      ││
-                                   │└─ 3 misspelle│Paste                      Ctrl-Y│estions ──────────────┘│
+                                   ││             │Select All                 Ctrl-A│                      ││
+                                   ││             │Copy                       Ctrl-C│                      ││
+                                   ││             │Cut                        Ctrl-X│                      ││
+                                   │└─ 3 misspelle│Paste                      Ctrl-V│estions ──────────────┘│
                                    │              │Undo                       Ctrl-Z│                       │
-                                   │ Files, Space │Redo                       Ctrl-R│a all:                 │
+                                   │ Files, Space │Redo                       Ctrl-Y│a all:                 │
                                    │ ◙ M alpha.txt╰─────────────────────────────────╯                       │
             """,
             ScreenText.Rows(gmd.WaitFor("Spelling"), repo.Path, 14, 14)
@@ -175,11 +175,11 @@ public class CommitDlgTest
                                    ││                   │Spelling Suggestions ...     F7│                  ││
                                    ││                   │───────────────────────────────│                  ││
                                    ││                   │Select All               Ctrl-A│                  ││
-                                   ││                   │Copy                      Alt-C│                  ││
-                                   ││                   │Cut                       Alt-W│                  ││
-                                   ││                   │Paste                    Ctrl-Y│                  ││
+                                   ││                   │Copy                     Ctrl-C│                  ││
+                                   ││                   │Cut                      Ctrl-X│                  ││
+                                   ││                   │Paste                    Ctrl-V│                  ││
                                    ││                   │Undo                     Ctrl-Z│                  ││
-                                   ││                   │Redo                     Ctrl-R│                  ││
+                                   ││                   │Redo                     Ctrl-Y│                  ││
                                    │└─ 2 misspelled word╰───────────────────────────────╯ons ──────────────┘│
             """,
             ScreenText.Rows(gmd.WaitFor("Spelling Suggestions"), repo.Path, 14, 11)

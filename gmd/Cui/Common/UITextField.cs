@@ -134,9 +134,21 @@ class UITextField : TextField
     {
         drawnCaret = CursorPosition;
         var isDrawn = base.OnDrawingContent(context);
+        DrawSecret();
         DrawMisspelled();
         Redrawn?.Invoke();
         return isDrawn;
+    }
+
+    // A secret, e.g. a password, as '*' for each character, as gmd has always drawn it, where
+    // Terminal.Gui 2.x draws '∙'
+    void DrawSecret()
+    {
+        if (!Secret)
+            return;
+        var shown = Math.Clamp(RawText.EnumerateRunes().Count() - ScrollOffset, 0, Viewport.Width);
+        SetAttributeForRole(Terminal.Gui.Drawing.VisualRole.Editable);
+        AddStr(0, 0, new string('*', shown));
     }
 
     void DrawMisspelled()

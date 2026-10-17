@@ -472,6 +472,15 @@ class DialogView : Runnable
             button.Press();
             return true;
         }
+        // Alt and a button's hot letter press it, whichever view has the focus
+        if (
+            key.IsAlt
+            && inner.SubViews.OfType<UIButton>().FirstOrDefault(b => b.Enabled && b.HotKey == key) is UIButton hot
+        )
+        {
+            hot.Press();
+            return true;
+        }
         return false;
     }
 

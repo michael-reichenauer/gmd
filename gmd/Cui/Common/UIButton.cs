@@ -49,7 +49,21 @@ class UIButton : View
     }
 
     // The button as drawn
-    public string Label => isDefault ? $"[◦ {text} ◦]" : $"[ {text} ]";
+    public string Label => isDefault ? $"[◦ {Shown} ◦]" : $"[ {Shown} ]";
+
+    // The text with no '_', which marks the letter after it as the button's key
+    string Shown => text.Replace("_", "");
+
+    // Where in Shown the letter in the hot color is: the one after a '_', else the first capital, as
+    // Terminal.Gui 1.x drew its buttons; -1 for none
+    int HotIndex =>
+        text.IndexOf('_') is int i and >= 0 && i < text.Length - 1
+            ? i
+            : Shown.IndexOf(Shown.FirstOrDefault(char.IsUpper));
+
+    // The key that presses the button wherever the focus is in its dialog: Alt and its hot letter,
+    // e.g. Alt-O for OK, as with Terminal.Gui 1.x; null for a button with none
+    public Key? HotKey => HotIndex >= 0 ? ((Key)char.ToLowerInvariant(Shown[HotIndex])).WithAlt : null;
 
     public void Press()
     {
@@ -66,12 +80,11 @@ class UIButton : View
         SetAttributeForRole(role);
         AddStr(0, 0, Label);
 
-        // The first capital letter, in the hot color, as Terminal.Gui 1.x drew its buttons
-        var hot = text.IndexOf(text.FirstOrDefault(char.IsUpper));
+        var hot = HotIndex;
         if (Enabled && hot >= 0)
         {
             SetAttributeForRole(HasFocus ? VisualRole.HotFocus : VisualRole.HotNormal);
-            AddStr(Label.IndexOf(text) + hot, 0, text[hot].ToString());
+            AddStr(Label.IndexOf(Shown) + hot, 0, Shown[hot].ToString());
         }
         return true;
     }
