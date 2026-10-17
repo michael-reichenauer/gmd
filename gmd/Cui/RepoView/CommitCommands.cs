@@ -397,22 +397,23 @@ class CommitCommands : ICommitCommands
             var (i1, i2) = (selection.I1, selection.I2);
             if (i2 - i1 > 0)
             { // User selected range of commits
-                if (CommitsToPick(repo.Repo, i1, i2) is not { } commits)
-                    return new Notice(
-                        "The selected commits are not one line of commits: select the commits of a branch"
-                    );
+                if (WhyNotCherryPick(repo.Repo, i1, i2) is var whyNot && whyNot != "")
+                    return new Notice(whyNot);
+                var commits = CommitsToPick(repo.Repo, i1, i2)!;
 
-                foreach (var commit in commits)
+                // Each committed as it was made, by git's own cherry pick, which a conflict stops
+                // for the resolver, and Continue goes on with the rest
+                var branchName = CurrentBranchName();
+                using (status.Progress($"Cherry picking {commits.Count} commits into '{branchName}'"))
                 {
-                    if (await server.CherryPickAsync(commit.Id, repo.Path) is Error pickError)
-                    {
+                    if (await server.CherryPickCommitsAsync(repo.Repo, commits) is Error pickError)
                         return new Error($"Failed to cherry pick", pickError);
-                    }
-                    if (await server.CommitAllChangesAsync(commit.Message, false, repo.Path) is Error commitError)
-                    {
-                        return new Error($"Failed to commit", commitError);
-                    }
                 }
+
+                repoView.ClearSelection();
+                Refresh();
+                status.Info($"Cherry picked {commits.Count} commits into '{branchName}': Undo takes them back");
+                return Result.Ok;
             }
             else
             { // User selected one commit
@@ -540,6 +541,25 @@ class CommitCommands : ICommitCommands
             Refresh();
             return Result.Ok;
         });
+
+    // Why the commits of the rows selected cannot be cherry picked into the current branch, or "" when
+    // they can: one line of another branch's commits, with no merge among them, which git picks only
+    // as the changes of one of its sides
+    internal static string WhyNotCherryPick(Repo repo, int i1, int i2)
+    {
+        if (repo.Status.IsMerging)
+            return Why.InProgress;
+        if (!repo.Status.IsOk)
+            return Why.Changes;
+        if (CommitsToPick(repo, i1, i2) is not { } commits)
+            return "The selected commits are not one line of commits: select the commits of a branch";
+        var current = repo.CurrentBranch();
+        if (commits.Any(c => c.BranchPrimaryName == current.PrimaryName))
+            return "The selected commits are on the current branch already";
+        if (commits.FirstOrDefault(c => c.GitParentIds.Count > 1) is { } merge)
+            return $"{merge.Sid} is a merge, which is no commit to pick: select the commits around it";
+        return "";
+    }
 
     // The selected rows as commits to pick, oldest first: the newest and the commits down git's first
     // parents to the oldest, or null when the oldest is not on that line, e.g. rows of two branches,

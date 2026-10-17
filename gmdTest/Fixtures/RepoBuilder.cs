@@ -517,7 +517,7 @@ class RepoBuilder
         return new ServerImpl(
             git,
             NewAugmentedService(git, metaDataService, monitor, Config),
-            new BranchWriteService(git, metaDataService),
+            new BranchWriteService(git, metaDataService, Config),
             new CommitRewriteService(git, Config),
             new UndoService(git, Config),
             new DeletedBranchService(git, Config),

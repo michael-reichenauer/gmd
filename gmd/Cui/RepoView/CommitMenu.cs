@@ -111,13 +111,7 @@ class CommitMenu : ICommitMenu
                 () => isStatusOK && rb != cb,
                 () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
             )
-            .Item(
-                $"Cherry Pick into {cb?.ShortNiceUniqueName()}",
-                "",
-                () => cmds.CherryPick(),
-                () => isStatusOK && rb != cb,
-                () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
-            )
+            .Item(GetCherryPickItem(rb, cb, isStatusOK))
             .Item(
                 "Switch to Commit",
                 "",
@@ -245,6 +239,34 @@ class CommitMenu : ICommitMenu
             () => whyNot == "",
             () => whyNot
         );
+    }
+
+    // Picks the row's commit into the current branch, staged for the commit dialog, or the commits of
+    // the rows selected with ⇧↑↓, which the item counts, each committed as it was made
+    MenuItem GetCherryPickItem(Branch? rb, Branch? cb, bool isStatusOK)
+    {
+        var selection = commands.View.Selection;
+        var into = cb?.ShortNiceUniqueName();
+        if (
+            selection.IsRows
+            && CommitCommands.CommitsToPick(repo.Repo, selection.I1, selection.I2) is { Count: > 1 } picks
+        )
+        {
+            var whyNot = CommitCommands.WhyNotCherryPick(repo.Repo, selection.I1, selection.I2);
+            return new MenuItem(
+                $"Cherry Pick {picks.Count} Commits into {into}",
+                "",
+                () => cmds.CherryPick(),
+                () => whyNot == ""
+            )
+            {
+                WhyNot = () => whyNot,
+            };
+        }
+        return new MenuItem($"Cherry Pick into {into}", "", () => cmds.CherryPick(), () => isStatusOK && rb != cb)
+        {
+            WhyNot = () => !isStatusOK ? Why.Changes : "The commit is on the current branch already",
+        };
     }
 
     // The commit moved past the next one up the branch, or down it, each named by the commit it is

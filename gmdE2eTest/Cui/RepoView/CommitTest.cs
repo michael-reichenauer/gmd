@@ -576,6 +576,44 @@ public class CommitTest
         Assert.AreEqual("Add two\nAdd three\nAdd one", (await repo.GitAsync("log --format=%s")).Trim());
     }
 
+    // Commits of another branch selected with Shift-Down, here main's two, are picked as they were
+    // made, with no dialog, and the item counts them. Main has 'Add eta' on top of 'Add gamma', so the
+    // rows are eta, gamma and dev's 'Work on dev', where the cursor starts: two up, and two Shift-Down,
+    // the first of which starts the selection on eta. The item is eight moves down, as for one commit.
+    [TestMethod]
+    public async Task TestCherryPickTwoCommitsFromAnotherBranch()
+    {
+        using var repo = await E2eRepo.CreateWithUnmergedBranchAsync();
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("eta.txt", "eta\n", "Add eta", TempRepo.BaseTime.AddMinutes(3));
+        await repo.GitAsync("checkout -q dev");
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(4));
+        gmd.WaitFor("Work on dev");
+
+        gmd.Send("Up");
+        gmd.WaitForStable();
+        gmd.Send("Up");
+        gmd.WaitForStable();
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+        gmd.Send("S-Down");
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Cherry Pick 2 Commits into dev");
+        for (var i = 0; i < 8; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Cherry picked 2 commits into 'dev': Undo takes them back",
+            ScreenText.LastLine(gmd.WaitFor("Cherry picked 2 commits"))
+        );
+        Assert.AreEqual("Add eta\nAdd gamma\nWork on dev", (await repo.GitAsync("log --format=%s -3 dev")).Trim());
+    }
+
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
     // working tree. Reached through the commit menu's Undo sub menu.
     //

@@ -18,6 +18,7 @@ interface IBranchService
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
+    Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd);
 }
 
 class BranchService : IBranchService
@@ -166,6 +167,15 @@ class BranchService : IBranchService
     public async Task<Result> CherryPickAsync(string sha, string wd)
     {
         var rsp = await cmd.RunAsync("git", $"cherry-pick --no-commit {sha}", wd);
+        return ConflictError.ToConflict(rsp, "The cherry pick stopped on conflicts");
+    }
+
+    // Git's own cherry pick of several commits, which commits each as it was made rather than staging
+    // it for a message, as CherryPickAsync does, and which git can continue past a conflict, its
+    // sequence of the ones left being its own (.git/sequencer)
+    public async Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd)
+    {
+        var rsp = await cmd.RunAsync("git", $"cherry-pick {string.Join(' ', idsOldestFirst)}", wd);
         return ConflictError.ToConflict(rsp, "The cherry pick stopped on conflicts");
     }
 

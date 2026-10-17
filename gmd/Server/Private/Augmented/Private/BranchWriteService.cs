@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Git;
 
 namespace gmd.Server.Private.Augmented.Private;
@@ -7,11 +8,44 @@ class BranchWriteService : IBranchWriteService
 {
     readonly IGit git;
     readonly IMetaDataService metaDataService;
+    readonly IRepoConfigService repoConfig;
 
-    internal BranchWriteService(IGit git, IMetaDataService metaDataService)
+    internal BranchWriteService(IGit git, IMetaDataService metaDataService, IRepoConfigService repoConfig)
     {
         this.git = git;
         this.metaDataService = metaDataService;
+        this.repoConfig = repoConfig;
+    }
+
+    // Picks commits of another branch onto the current one, oldest first, each committed as it was
+    // made, which git's reflog of the branch has as one entry each: recorded as one change for Undo,
+    // named after the first, when they all go in at once. One that stops on a conflict is continued
+    // as any cherry pick, and Undo then names the last commit picked, the record no longer the latest.
+    public async Task<Result> CherryPickCommitsAsync(Repo repo, IReadOnlyList<Commit> commitsOldestFirst)
+    {
+        var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote && !b.IsDetached);
+        var beforeId = repo.CurrentCommit().Id;
+        var ids = commitsOldestFirst.Select(c => c.Id).ToList();
+        if (await git.CherryPickCommitsAsync(ids, repo.Path) is Error e)
+            return e;
+
+        if (local != null)
+        {
+            var more = commitsOldestFirst.Count > 1 ? $", and {commitsOldestFirst.Count - 1} more" : "";
+            UndoService.Record(
+                repoConfig,
+                repo,
+                local.Name,
+                new RecordedStep
+                {
+                    Kind = nameof(StepKind.CherryPick),
+                    Name = commitsOldestFirst[0].Subject.Trim() + more,
+                    BeforeId = beforeId,
+                    Moves = commitsOldestFirst.Count,
+                }
+            );
+        }
+        return Result.Ok;
     }
 
     public async Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout)

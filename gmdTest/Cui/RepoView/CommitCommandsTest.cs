@@ -120,6 +120,27 @@ public class CommitCommandsTest
         Assert.IsNull(CommitCommands.CommitsToPick(repo, 0, Row(repo, "c3")));
     }
 
+    // The rows picked are one line of another branch's commits, with no merge among them, and with
+    // nothing uncommitted for the picks to go over
+    [TestMethod]
+    public async Task TestWhichRowsAreCherryPicked()
+    {
+        var repo = await TwoLines().ViewRepoAsync("dev");
+
+        Assert.AreEqual("", CommitCommands.WhyNotCherryPick(repo, Row(repo, "d2"), Row(repo, "d1")));
+        Assert.AreEqual(
+            "The selected commits are not one line of commits: select the commits of a branch",
+            CommitCommands.WhyNotCherryPick(repo, Row(repo, "c3"), Row(repo, "d1"))
+        );
+        Assert.AreEqual(
+            "The selected commits are on the current branch already",
+            CommitCommands.WhyNotCherryPick(repo, Row(repo, "c3"), Row(repo, "c2"))
+        );
+
+        var changed = await TwoLines().WithStatus(modified: 1).ViewRepoAsync("dev");
+        Assert.AreEqual(Why.Changes, CommitCommands.WhyNotCherryPick(changed, Row(changed, "d2"), Row(changed, "d1")));
+    }
+
     static int Row(Repo repo, string name) => repo.CommitById[RepoBuilder.Sha(name)].ViewIndex;
 
     // main and dev, both from c1

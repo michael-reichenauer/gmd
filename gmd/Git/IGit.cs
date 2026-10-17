@@ -122,6 +122,10 @@ interface IGit
     // Moves the current branch's commits after the fork point onto its remote branch, e.g. 'origin/dev'
     Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
+
+    // The commits picked onto the current branch, oldest first, each committed as it was made, its
+    // author and message kept; stops on a conflict, to be continued, skipped or aborted
+    Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd);
     Task<Result> AbortOperationAsync(string wd);
     Task<Result> ContinueOperationAsync(string wd);
     Task<Result> SkipOperationAsync(string wd);

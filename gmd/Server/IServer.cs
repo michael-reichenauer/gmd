@@ -113,6 +113,10 @@ interface IServer
     Task<Result> RebaseBranchAsync(Repo repo, string branchName, bool isPush);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
+
+    // Commits of another branch picked onto the current one, oldest first, each committed as it was
+    // made, its author and message kept, and recorded as one change for Undo
+    Task<Result> CherryPickCommitsAsync(Repo repo, IReadOnlyList<Commit> commitsOldestFirst);
     Task<Result> AbortOperationAsync(string wd);
     Task<Result> ContinueOperationAsync(string wd);
     Task<Result> SkipOperationAsync(string wd);

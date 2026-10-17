@@ -103,8 +103,8 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   product review already, a cherry pick of the selected commits and a reset of a branch to any
   commit. Later, an absorb of the uncommitted changes into the commits that last touched the lines.
   *Done (2026-10-17):* Move to New Branch ..., and Reorder (Move Above and Move Below, each naming
-  the commit passed), see below. Open: squash merge, a cherry pick of the selected commits, a reset of
-  a branch to any commit, absorb.
+  the commit passed), see below. A cherry pick of the selected commits too. Open: squash merge, a
+  reset of a branch to any commit, absorb.
 
 ### E, as done so far (2026-10-17)
 
@@ -118,6 +118,11 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   in place by a sequence editor that copies it (`cp`, through git's shell, also on Windows, where it
   is not tried yet), set for that command over Cmd's `true`. On Amend's rules for the older of the
   two; a conflict stops it as any rebase; recorded as StepKind.Move for Undo.
+- *Cherry Pick N Commits into x*: the range pick there was, but hidden, committed each picked commit
+  again as the user, losing its author, and lost the rest of the range on a conflict, since a pick
+  with `--no-commit` leaves git no sequence to continue. Now git's own `cherry-pick <ids>`, oldest
+  first, recorded for Undo as one change; refused for rows of no one line, of the current branch,
+  or with a merge among them. One commit is staged for the commit dialog as before.
 
 ### A, as done (2026-10-17)
 

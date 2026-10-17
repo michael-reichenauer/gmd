@@ -545,8 +545,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - No key for Undo, nor a key hint; it is in the commit menu and the branch menus.
   - "Undo the last change in any branch" would need the times of the reflog entries, which are not
     read (`%gd` with a date would give them, and would change the selector the inference reads).
-  - Merge to is undone from the target's branch menu, not from where it was run; a range cherry
-    pick is one commit per entry, so one undo each; Pull All is an undo per branch.
+  - Merge to is undone from the target's branch menu, not from where it was run; Pull All is an undo
+    per branch. A range cherry pick is one undo since 2026-10-17 (git's own `cherry-pick` of them
+    all, recorded), unless it stopped on a conflict, when Undo names the last commit picked.
   - `RepoConfig.UndoSteps` is pruned of the branches that are gone only when a record is written.
   - A lost line of work's time is its tip's commit time, since the reflog entries carry none.
   - With no remote reflog (expired after 90 days, `core.logAllRefUpdates` off, a fresh clone), a

@@ -24,7 +24,7 @@ public class LostWorkIntegrationTest
         repo = await TempRepo.CreateAsync();
         var metaDataService = new FakeMetaDataService(new MetaData());
         service = RepoBuilder.NewAugmentedService(repo.Git, metaDataService);
-        branches = new BranchWriteService(repo.Git, metaDataService);
+        branches = new BranchWriteService(repo.Git, metaDataService, new FakeRepoConfig());
     }
 
     [TestCleanup]
