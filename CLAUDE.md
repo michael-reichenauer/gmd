@@ -728,8 +728,9 @@ The same machinery records the README's animation, `gmd/doc/Animation.gif`, whic
 re-records. `gmdE2eTest/Demo/DemoTest.cs` is the script: an end-to-end test in all but asserting,
 run only when `scripts/demo` names a cast file for it (skipped otherwise), on `DemoRepo`, a
 repository made to look like a team's. `DemoRecording` turns the settled screens into an asciicast,
-each shown for as long as the script says rather than as long as it took, with a caption bar under
-them that says what the frames show, and `scripts/demo` renders that with agg, which
+each shown for as long as the script says rather than as long as it took, with a caption panel under
+them that says what the frames show, its keys written between backticks drawn as key caps, and each
+caption a scene numbered of how many (`9/18`), and `scripts/demo` renders that with agg, which
 `scripts/installtools` installs with its fonts. Everything is pinned, including what would differ
 between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
 byte for byte the same and the GIF only changes when what gmd draws does. When gmd's UI changes in
