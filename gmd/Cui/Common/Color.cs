@@ -127,11 +127,19 @@ sealed class Palette
     // mean nothing else (main, deleted, ahead and behind have the others), twelve of RGB
     public int BranchCount { get; }
 
+    // The colors branches are drawn in: the five of the 16 colors by their own names, as gmd has
+    // always drawn them, else Branch1 and on
+    public IReadOnlyList<Color> BranchColors =>
+        IsSixteen
+            ? [Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow]
+            : Enumerable.Range(0, BranchCount).Select(Color.Branch).ToList();
+
     public TgColor this[ColorName name] => colors[name];
 
-    // The palette gmd draws with now, see Choose; a field, as the palettes are made after it
+    // The palette gmd draws with now, see Choose; a field, as the palettes are made after it. The
+    // 16 colors until one is chosen, which a unit test, with no terminal, never has.
     static Palette? current;
-    public static Palette Current => current ?? Dark;
+    public static Palette Current => current ?? Sixteen;
 
     // Raised on the main thread when Current changes, for what has to be drawn again
     public static event Action? Changed;
