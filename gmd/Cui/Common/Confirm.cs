@@ -8,6 +8,14 @@ namespace gmd.Cui.Common;
 // against is an Enter on the wrong item, and an Enter on the question would only repeat it. What
 // they throw away gmd keeps, for Restore Discarded Changes (Server.DiscardedChanges), which the
 // questions say, and the status line once it is done.
+// What the question before a rewrite of commits, a drop or a rebase, was answered with
+enum RewriteChoice
+{
+    Cancel,
+    Rewrite,
+    RewriteAndPush,
+}
+
 static class Confirm
 {
     const int MaxListedPaths = 10;
@@ -130,32 +138,63 @@ static class Confirm
         );
 
     // Undo brings a dropped commit back, but a slip of the finger should not need it: the commit's
-    // changes leave the branch with it, and later commits are rewritten
-    internal static bool DropCommit(string sid, string subject, string branchName) =>
-        Ask(
-            "Drop Commit",
-            $"""
+    // changes leave the branch with it, and later commits are rewritten. One on origin can be pushed
+    // with force once dropped, which replaces it there too, the default when offered as ticked (see
+    // ForcePush), and Cancel the default button throughout.
+    internal static RewriteChoice DropCommit(string sid, string subject, string branchName, ForcePush forcePush)
+    {
+        var question = $"""
             Drop the commit from '{branchName}'?
 
               {sid} {subject}
 
             Its changes leave the branch with it, and the commits
             after it are rewritten without it. Undo brings it back.
-            """
-        );
+            """;
+        if (forcePush == ForcePush.NotOffered)
+            return Ask("Drop Commit", question) ? RewriteChoice.Rewrite : RewriteChoice.Cancel;
 
-    // A rebase of a branch on origin is pushed with force, which replaces origin's copy for everyone,
-    // as Force Push and Restore origin do, and both ask first
-    internal static bool RebaseAndPush(string branchName, string ontoName, string remoteName) =>
-        Ask(
-            "Rebase and Push",
+        var choice = UI.InfoMessage(
+            "Drop Commit",
+            question
+                + "\n\nIt is on origin: Drop and Push replaces it there too,\nwith force, for everyone who has the branch.",
+            2,
+            ["Drop and Push", "Drop", "Cancel"]
+        );
+        return choice switch
+        {
+            0 => RewriteChoice.RewriteAndPush,
+            1 => RewriteChoice.Rewrite,
+            _ => RewriteChoice.Cancel,
+        };
+    }
+
+    // A rebase of a branch on origin is pushed with force too, when asked, which replaces origin's copy
+    // for everyone, as Force Push and Restore origin do, and both ask first; or it is left to 'p'
+    internal static RewriteChoice Rebase(string branchName, string ontoName, string remoteName, ForcePush forcePush)
+    {
+        if (forcePush == ForcePush.NotOffered)
+            return RewriteChoice.Rewrite;
+
+        var choice = UI.InfoMessage(
+            "Rebase",
             $"""
-            Rebase '{branchName}' onto '{ontoName}', and push it with force?
+            Rebase '{branchName}' onto '{ontoName}'?
 
-            The rebase rewrites the commits of '{branchName}', and the push
-            replaces {remoteName} with them, for everyone who has it.
-            """
+            The rebase rewrites the commits of '{branchName}', which are on
+            origin: Rebase and Push replaces {remoteName} with them, with force,
+            for everyone who has it. Rebase leaves that to p.
+            """,
+            2,
+            ["Rebase and Push", "Rebase", "Cancel"]
         );
+        return choice switch
+        {
+            0 => RewriteChoice.RewriteAndPush,
+            1 => RewriteChoice.Rewrite,
+            _ => RewriteChoice.Cancel,
+        };
+    }
 
     // Rewriting commits on origin that others may have built on: the branch is shared, or some of them
     // are someone else's (CommitRewrite.PushedWarning)

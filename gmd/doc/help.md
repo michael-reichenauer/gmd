@@ -403,6 +403,13 @@ another branch, e.g. one merged into main. On a branch others build on
 some of the commits on origin are someone else's, they ask first, with No
 the default. Uncommit is for commits not pushed only.
 
+The push can be made with the rewrite: Amend and Squash have a box, *Push
+to 'origin/...' with force when done*, ticked on a branch of your own and
+unticked once they asked first, and Drop's and **Rebase onto**'s questions
+have **Drop and Push** and **Rebase and Push** beside Drop and Rebase. A
+rewrite that stops on a conflict pushes nothing; once it is continued, `p`
+pushes it.
+
 
 ## Undo and Recovery
 

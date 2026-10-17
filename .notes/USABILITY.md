@@ -78,7 +78,7 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   names the others. The dialog says the commits are on origin and has a *Push with force when done*
   box, ticked, as Add Tag's *Push to origin* is. The way back is there already: the lease, Undo,
   Restore origin. Rebase and Push onto then becomes Rebase onto. Answers "reword an old pushed
-  commit".
+  commit". *Done (2026-10-17)*, see below.
 - **C. Branches merged on origin by a squash or a rebase.** Keep git's `gone`: "deleted on origin",
   `p` asking before publishing it again. Tell merged: a rebase merge by patch id (`git cherry
   origin/main <branch>`, every commit `-`), a squash merge by the branch's whole change as one patch
@@ -116,6 +116,24 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   tip the branch never was at; and a branch only behind, e.g. a reset back, which a pull brings back
   as before. Rebase and Push onto of a branch rewritten here asks for the force push first, rather
   than rebasing and pushing once.
+
+### B, as done (2026-10-17)
+
+- One rule in `CommitRewrite` for Amend (`a` and an older commit's), Drop and Squash, pushed or not:
+  the current branch's commits, origin's copy of it being no other branch on them; not while origin
+  has commits the branch has not (unless rewritten here already, when they are its old version), and
+  not a commit on another branch of origin, which the server asks git (`CheckRewritableAsync`,
+  origin/HEAD passed over). `PushedWarning` asks first, No the default, on a shared branch
+  (`Branch.IsShared`: main, integration, release) or of someone else's commits on origin, by author.
+- The push with the rewrite: a *Push to 'origin/x' with force when done* box in the amend and squash
+  dialogs (`ForcePush`), ticked unless the rewrite was asked about first; *Drop and Push* in Drop's
+  question; *Rebase onto*, renamed from Rebase and Push onto, asks *Rebase and Push*, *Rebase* or
+  Cancel. Leased on origin's tip as shown; a refused push leaves the branch rewritten here (A).
+- Found on the way: a squash of pushed and unpushed commits together was refused as "on different
+  branches", the two halves of a branch having different names.
+- Left: Undo of an amend pushed by force is refused, as for a pushed commit ("would come back with a
+  pull"), where Recover Lost Commits has the old one; Rebase onto of a branch rewritten here asks for
+  its force push first; Uncommit stays for commits not pushed.
 
 ### C, as done (2026-10-17)
 

@@ -11,6 +11,7 @@ namespace gmd.Cui.RepoView;
 enum CommitResult
 {
     Committed,
+    CommittedAndPushed, // An amend of a commit on origin, pushed with force once made
     NothingToCommit, // The working folder was already clean, so nothing was staged to commit
     Cancelled, // The user backed out, so whatever was staged is still staged
 }
@@ -120,10 +121,15 @@ class CommitCommands : ICommitCommands
             // Said rather than nothing happening, as it used to for a key pressed with nothing to do
             if (result == CommitResult.NothingToCommit)
                 return new Notice(isAmend ? CommitRewrite.WhyNotAmendLast(repo.Repo) : "Nothing to commit");
-            if (result == CommitResult.Committed)
+            if (result is CommitResult.Committed or CommitResult.CommittedAndPushed)
             {
                 Refresh();
-                status.Info(isAmend ? "Amended the last commit" : $"Committed to '{CurrentBranchName()}'");
+                status.Info(
+                    result == CommitResult.CommittedAndPushed
+                        ? $"Amended the last commit, and pushed '{CurrentBranchName()}' with force"
+                    : isAmend ? "Amended the last commit"
+                    : $"Committed to '{CurrentBranchName()}'"
+                );
             }
             return Result.Ok;
         });
@@ -160,14 +166,19 @@ class CommitCommands : ICommitCommands
         if (!await CheckBinaryOrLargeAddedFilesAsync())
             return CommitResult.Cancelled;
 
+        var forcePush = isAmend
+            ? CommitRewrite.ForcePushOf(repo.Repo, [repo.Repo.CurrentCommit()])
+            : ForcePush.NotOffered;
         if (
             !commitDlg.Show(
                 repo.Repo,
                 () => ShowUncommittedDiff(true),
                 isAmend,
                 commits,
+                forcePush,
                 out var message,
-                out var paths
+                out var paths,
+                out var isForcePush
             )
         )
             return CommitResult.Cancelled;
@@ -195,7 +206,30 @@ class CommitCommands : ICommitCommands
 
         // What was left out is now just uncommitted changes, which the next commit takes unless left out
         leftOut.PutBack(committedPaths);
-        return CommitResult.Committed;
+
+        if (!isForcePush)
+            return CommitResult.Committed;
+        if (await ForcePushRewrittenAsync(repo.Repo) is Error pushError)
+        {
+            Refresh();
+            return pushError;
+        }
+        return CommitResult.CommittedAndPushed;
+    }
+
+    // Pushes the current branch with force once its commits on origin were rewritten, leased on
+    // origin's tip as the repo shown before the rewrite has it, so that a commit pushed there since is
+    // not dropped with the old version: the push is then refused, and the branch is one rewritten here
+    // (RewrittenHere), which 'p' pushes once that commit is dealt with
+    async Task<Result> ForcePushRewrittenAsync(Repo shown)
+    {
+        var branch = shown.CurrentBranch();
+        using (status.Progress($"Force pushing '{branch.NiceNameUnique}'"))
+        {
+            if (await server.ForcePushBranchAsync(shown, branch.Name) is Error e)
+                return new Error($"Rewritten here, but not pushed to '{branch.RemoteName}'", e);
+        }
+        return Result.Ok;
     }
 
     string CurrentBranchName() => context.ViewRepo.Repo.CurrentBranch().NiceNameUnique;
@@ -568,7 +602,8 @@ class CommitCommands : ICommitCommands
                 c = repo.Repo.CommitById[c.ParentIds[0]];
             }
 
-            if (!squashDlg.Show(commits, out var message))
+            var forcePush = CommitRewrite.ForcePushOf(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, c2));
+            if (!squashDlg.Show(repo.Repo, commits, forcePush, out var message, out var isForcePush))
                 return Result.Ok;
 
             if (await server.SquashCommitsAsync(repo.Repo, id1, id2, message) is Error e)
@@ -577,7 +612,14 @@ class CommitCommands : ICommitCommands
             }
             repoView.ClearSelection();
 
+            if (isForcePush && await ForcePushRewrittenAsync(repo.Repo) is Error pushError)
+            {
+                RefreshAndCommit();
+                return pushError;
+            }
             RefreshAndCommit();
+            if (isForcePush)
+                status.Info($"Squashed {commits.Count} commits, and pushed '{CurrentBranchName()}' with force");
 
             return Result.Ok;
         });
@@ -595,7 +637,18 @@ class CommitCommands : ICommitCommands
         if (!IsPushedRewriteConfirmed(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, commit)))
             return Result.Ok;
 
-        if (!commitDlg.ShowAmend(repo.Repo, () => ShowUncommittedDiff(true), commit, out var message, out var paths))
+        var forcePush = CommitRewrite.ForcePushOf(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, commit));
+        if (
+            !commitDlg.ShowAmend(
+                repo.Repo,
+                () => ShowUncommittedDiff(true),
+                commit,
+                forcePush,
+                out var message,
+                out var paths,
+                out var isForcePush
+            )
+        )
             return Result.Ok;
 
         using (status.Progress($"Amending {commit.Sid}"))
@@ -603,9 +656,19 @@ class CommitCommands : ICommitCommands
             if (await server.AmendOlderCommitAsync(repo.Repo, id, message, paths) is Error e)
                 return new Error($"Failed to amend {commit.Sid}", e);
         }
+        if (isForcePush && await ForcePushRewrittenAsync(repo.Repo) is Error pushError)
+        {
+            Refresh();
+            return pushError;
+        }
 
         Refresh();
-        status.Info($"Amended '{message.Split('\n')[0].Trim()}' on '{CurrentBranchName()}': Undo takes it back");
+        var subject = message.Split('\n')[0].Trim();
+        status.Info(
+            isForcePush
+                ? $"Amended '{subject}', and pushed '{CurrentBranchName()}' with force"
+                : $"Amended '{subject}' on '{CurrentBranchName()}': Undo takes it back"
+        );
         return Result.Ok;
     }
 
@@ -616,9 +679,12 @@ class CommitCommands : ICommitCommands
             var commit = repo.Repo.CommitById[id];
             if (CommitRewrite.WhyNotDrop(repo.Repo, commit) is var whyNot && whyNot != "")
                 return new Notice(whyNot);
-            if (!IsPushedRewriteConfirmed(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, commit)))
+            var rewritten = CommitRewrite.RewrittenBy(repo.Repo, commit);
+            if (!IsPushedRewriteConfirmed(repo.Repo, rewritten))
                 return Result.Ok;
-            if (!Confirm.DropCommit(commit.Sid, commit.Subject, CurrentBranchName()))
+            var forcePush = CommitRewrite.ForcePushOf(repo.Repo, rewritten);
+            var choice = Confirm.DropCommit(commit.Sid, commit.Subject, CurrentBranchName(), forcePush);
+            if (choice == RewriteChoice.Cancel)
                 return Result.Ok;
 
             using (status.Progress($"Dropping {commit.Sid}"))
@@ -626,9 +692,18 @@ class CommitCommands : ICommitCommands
                 if (await server.DropCommitAsync(repo.Repo, id) is Error e)
                     return new Error($"Failed to drop {commit.Sid}", e);
             }
+            if (choice == RewriteChoice.RewriteAndPush && await ForcePushRewrittenAsync(repo.Repo) is Error pushError)
+            {
+                Refresh();
+                return pushError;
+            }
 
             Refresh();
-            status.Info($"Dropped '{commit.Subject}' from '{CurrentBranchName()}': Undo brings it back");
+            status.Info(
+                choice == RewriteChoice.RewriteAndPush
+                    ? $"Dropped '{commit.Subject}', and pushed '{CurrentBranchName()}' with force"
+                    : $"Dropped '{commit.Subject}' from '{CurrentBranchName()}': Undo brings it back"
+            );
             return Result.Ok;
         });
 

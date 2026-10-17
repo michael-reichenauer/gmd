@@ -468,8 +468,8 @@ public class CommitTest
         Assert.AreEqual("Add zeta", await repo.GitAsync("log --format=%s -1"), "Nothing should be rewritten");
     }
 
-    // On a branch of one's own nothing is asked: the dialog opens, and once amended the branch is one
-    // rewritten here, which 'p' pushes with force, replacing the old commit on origin
+    // On a branch of one's own nothing is asked: the dialog opens with its box to push with force when
+    // done ticked, and the amend is pushed at once, replacing the old commit on origin
     [TestMethod]
     public async Task TestAmendAPushedCommitOfABranchOfOnesOwnAndForcePushIt()
     {
@@ -482,25 +482,70 @@ public class CommitTest
         gmd.WaitFor("Add feature");
 
         gmd.Send("a");
-        gmd.WaitFor("Amend the last commit on 'feature'");
+        StringAssert.Contains(
+            gmd.WaitFor("Amend the last commit on 'feature'"),
+            "Push to 'origin/feature' with force when done"
+        );
         gmd.SendText(", reworded");
         gmd.WaitFor("Add feature, reworded");
         gmd.Send("M-o");
 
         Assert.AreEqual(
-            "'feature' was rewritten here by the amend: p pushes it with force, over origin's old version",
-            ScreenText.LastLine(gmd.WaitFor("was rewritten here"))
+            "Amended the last commit, and pushed 'feature' with force",
+            ScreenText.LastLine(gmd.WaitFor("Amended the last commit"))
         );
-        gmd.Send("p");
-        StringAssert.Contains(gmd.WaitFor("Force Push replaces"), "and origin still has the 1 commit it replaced:");
-        gmd.Send("Left"); // From Cancel, the default, to Force Push
-        gmd.WaitForStable();
-        gmd.Send("Enter");
-
-        gmd.WaitFor("Pushed 'feature' with force");
         Assert.AreEqual(
             "Add feature, reworded",
             (await repo.GitAsync($"-C \"{repo.Path}-origin\" log --format=%s -1 feature")).Trim()
+        );
+    }
+
+    // A pushed commit of a branch of one's own is dropped as one not pushed is, and its question has
+    // Drop and Push too, which replaces the branch on origin, Cancel still the default. The menu opens
+    // on 'Amend ...', the last commit's, and Undo is four moves down, past this commit's own Amend,
+    // 'Commit Diff' and 'Mark for Diff'; in it Drop is four past 'Recover Lost Commits ...', where it
+    // opens, the last change, a commit on origin, being no change to undo.
+    [TestMethod]
+    public async Task TestDropAPushedCommitAndPushIt()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("one.txt", "one\n", "Add one", TempRepo.BaseTime.AddMinutes(8));
+        await repo.CommitFileAtAsync("two.txt", "two\n", "Add two", TempRepo.BaseTime.AddMinutes(9));
+        await repo.GitAsync("push -q --set-upstream origin feature");
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..8];
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(10));
+        gmd.WaitFor("Add one");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor($"Amend {sid} ...");
+        OpenSubMenu(gmd, 4, "Recover Lost Commits");
+        for (int i = 0; i < 4; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+        StringAssert.Contains(
+            gmd.WaitFor("Drop the commit from 'feature'?"),
+            "It is on origin: Drop and Push replaces it there too"
+        );
+        gmd.Send("Left"); // From Cancel, the default, past Drop to Drop and Push
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Dropped 'Add one', and pushed 'feature' with force",
+            ScreenText.LastLine(gmd.WaitFor("Dropped 'Add one'"))
+        );
+        Assert.AreEqual(
+            "Add two\nAdd zeta",
+            (await repo.GitAsync($"-C \"{repo.Path}-origin\" log --format=%s -2 feature")).Trim()
         );
     }
 

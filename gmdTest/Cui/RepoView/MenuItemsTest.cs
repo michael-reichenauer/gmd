@@ -24,7 +24,7 @@ public class MenuItemsTest
             Switch to Branch  [s]
             Merge dev into main  [e]
             Merge main into dev  [⇧e]
-            Rebase and Push onto >  (disabled)
+            Rebase onto >  (disabled)
             Hide Branch  [h]
             Pull  [u]  (disabled)
             Push  [p]
@@ -56,7 +56,7 @@ public class MenuItemsTest
             Switch to Branch  [s]  (disabled)
             Merge into main >  [e]  (disabled)
             Merge main into >  [⇧e]  (disabled)
-            Rebase and Push onto >  (disabled)
+            Rebase onto >  (disabled)
             Hide Branch  [h]  (disabled)
             Pull  [u]  (disabled)
             Push  [p]
@@ -98,7 +98,7 @@ public class MenuItemsTest
             Open Worktree /home/me/repo-dev  [s]
             Merge dev into main  [e]
             Merge main into dev  [⇧e]  (disabled)
-            Rebase and Push onto >  (disabled)
+            Rebase onto >  (disabled)
             Hide Branch  [h]
             Pull  [u]  (disabled)
             Push  [p]

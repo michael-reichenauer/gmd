@@ -341,7 +341,7 @@ public class ForcePushIntegrationTest
     }
 
     // A rebase that stopped on a conflict, and was continued: the rebase itself, as git's reflog of the
-    // branch has it once it finishes, which Rebase and Push onto leaves to be pushed, since its push
+    // branch has it once it finishes, which Rebase onto leaves to be pushed, since its push
     // never came
     [TestMethod]
     public async Task TestARebaseContinuedAfterAConflictIsARewriteHere()

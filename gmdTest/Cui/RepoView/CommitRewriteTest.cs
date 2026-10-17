@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using gmd.Cui.RepoView;
 using gmd.Server;
 using gmdTest.Fixtures;
@@ -145,6 +146,14 @@ public class CommitRewriteTest
             Rewrite all the same?
             """,
             CommitRewrite.PushedWarning(develop, CommitRewrite.RewrittenBy(develop, C(develop, "f1")))
+        );
+
+        Assert.AreEqual(ForcePush.Ticked, CommitRewrite.ForcePushOf(own, CommitRewrite.RewrittenBy(own, C(own, "f1"))));
+        Assert.AreEqual(ForcePush.NotOffered, CommitRewrite.ForcePushOf(own, [C(own, "f3")]), "Not on origin");
+        Assert.AreEqual(
+            ForcePush.Offered,
+            CommitRewrite.ForcePushOf(others, CommitRewrite.RewrittenBy(others, C(others, "f1"))),
+            "Not ticked once asked about"
         );
 
         var main = await Ahead().ViewRepoAsync();

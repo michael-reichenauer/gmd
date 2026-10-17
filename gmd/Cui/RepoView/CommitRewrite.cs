@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
@@ -148,6 +149,13 @@ static class CommitRewrite
             : count == pushed.Count ? (count == 2 ? "Both are" : "All are")
             : $"{count} of them {(count == 1 ? "is" : "are")}";
     }
+
+    // Whether the dialog of a rewrite offers to push the branch with force when done: when some of the
+    // commits it replaces are on origin, ticked unless the rewrite was asked about first
+    public static ForcePush ForcePushOf(Repo repo, IReadOnlyList<Commit> commits) =>
+        !commits.Any(c => !c.IsUncommitted && !IsNotPushed(repo, c)) ? ForcePush.NotOffered
+        : PushedWarning(repo, commits) == "" ? ForcePush.Ticked
+        : ForcePush.Offered;
 
     // The commits a rewrite of this commit replaces: it and the newer ones of the current branch,
     // which the rebase replays, newest first, or none when it is not on the current branch

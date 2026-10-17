@@ -470,8 +470,8 @@ class Server : IServer
         return converter.ToViewCommits(commits).ToList();
     }
 
-    public Task<Result> RebaseBranchAsync(Repo repo, string branchName) =>
-        Paused(() => branchWriteService.RebaseBranchAsync(repo, branchName));
+    public Task<Result> RebaseBranchAsync(Repo repo, string branchName, bool isPush) =>
+        Paused(() => branchWriteService.RebaseBranchAsync(repo, branchName, isPush));
 
     public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
         Paused(() => git.RebaseOntoAsync(newBase, oldBase, wd));

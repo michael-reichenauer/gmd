@@ -274,7 +274,7 @@ public class AugmentedServiceIntegrationTest
         Assert.IsFalse(status.IsMerging, "Nothing was merged, so there is nothing to commit");
     }
 
-    // Rebase and Push onto force pushes over origin's branch as the repo had it when the user chose
+    // Rebase onto, asked to push, force pushes over origin's branch as the repo had it when the user chose
     // it, not as a fetch may have moved it since, so a commit someone else pushed meanwhile is kept,
     // and the error says the rebase is done and the push is not
     [TestMethod]
@@ -292,7 +292,7 @@ public class AugmentedServiceIntegrationTest
         await repo.GitAsync("push -q origin dev"); // As pushed elsewhere and fetched here
         await repo.GitAsync("reset -q --hard HEAD~1");
 
-        var error = AssertError(await BranchWrites().RebaseBranchAsync(shown, "main"));
+        var error = AssertError(await BranchWrites().RebaseBranchAsync(shown, "main", isPush: true));
 
         StringAssert.Contains(error.AllMessages(), "Rebased 'dev' onto 'main', but did not push it");
         StringAssert.Contains(error.AllMessages(), "origin/dev has changed since gmd showed it");

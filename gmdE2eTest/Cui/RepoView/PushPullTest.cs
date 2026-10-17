@@ -9,11 +9,12 @@ namespace gmdE2eTest.Cui.RepoView;
 [TestClass]
 public class PushPullTest
 {
-    // Rebase and Push onto pushes the rebased branch over origin's copy with force, for everyone, and
-    // ran it with no question, an Enter on the sub menu's first item, where Force Push and Restore
-    // origin both ask. It asks now, No the default, and No leaves both sides where they were.
+    // Rebase onto of a branch on origin asks whether to push it with force too, for everyone, which
+    // Rebase and Push onto did with no question, on an Enter on the sub menu's first item. Cancel is
+    // the default and leaves both sides where they were; Rebase and Push rebases and replaces
+    // origin's copy.
     [TestMethod]
-    public async Task TestRebaseAndPushAsksBeforeItPushesWithForce()
+    public async Task TestRebaseOntoAsksWhetherToPushWithForce()
     {
         using var repo = await E2eRepo.CreateWithOriginAsync();
         await repo.GitAsync("checkout -q -b feature");
@@ -31,26 +32,42 @@ public class PushPullTest
         gmd.WaitForStable();
         gmd.Send("Left");
         gmd.WaitForStable();
-        gmd.Send("m");
-        gmd.WaitFor("Branch: feature");
-        // Past 'Merge into feature' and 'Merge feature into' to 'Rebase and Push onto', and main in it
-        for (var i = 0; i < 2; i++)
+        void PickRebaseOntoMain()
         {
-            gmd.Send("Down");
+            gmd.Send("m");
+            gmd.WaitFor("Branch: feature");
+            // Past 'Merge into feature' and 'Merge feature into' to 'Rebase onto', and main in it
+            for (var i = 0; i < 2; i++)
+            {
+                gmd.Send("Down");
+                gmd.WaitForStable();
+            }
+            gmd.Send("Right");
             gmd.WaitForStable();
+            gmd.Send("Enter");
+            StringAssert.Contains(gmd.WaitFor("Rebase and Push replaces"), "Rebase 'feature' onto 'main'?");
         }
-        gmd.Send("Right");
+
+        PickRebaseOntoMain();
+        gmd.Send("Enter"); // Cancel, the default
+        gmd.WaitUntilGone("Rebase and Push replaces");
+        Assert.AreEqual(before, await repo.GitAsync("rev-parse feature origin/feature"), "Neither side moved");
+
+        PickRebaseOntoMain();
+        gmd.Send("Left"); // From Cancel, the default, past Rebase to Rebase and Push
+        gmd.WaitForStable();
+        gmd.Send("Left");
         gmd.WaitForStable();
         gmd.Send("Enter");
 
-        StringAssert.Contains(
-            gmd.WaitFor("push it with force"),
-            "Rebase 'feature' onto 'main', and push it with force?"
+        Assert.AreEqual(
+            "Rebased 'feature' onto 'main', and pushed it with force",
+            ScreenText.LastLine(gmd.WaitFor("Rebased 'feature'"))
         );
-        gmd.Send("Enter");
-
-        gmd.WaitUntilGone("push it with force");
-        Assert.AreEqual(before, await repo.GitAsync("rev-parse feature origin/feature"), "Neither side moved");
+        Assert.AreEqual(
+            "Feature work\nAdd eta",
+            (await repo.GitAsync($"-C \"{repo.Path}-origin\" log --format=%s -2 feature")).Trim()
+        );
     }
 
     // Pushing the current branch with 'p'. The fixture has one commit that is not on the remote,

@@ -14,7 +14,7 @@ interface IBranchWriteService
     Task<Result> SwitchToAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string name);
     Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
-    Task<Result> RebaseBranchAsync(Repo repo, string name);
+    Task<Result> RebaseBranchAsync(Repo repo, string name, bool isPush);
 
     // The branch of the ambiguous tip of a branch, of any commit, or none any more
     Task<Result> ResolveAmbiguityAsync(Repo repo, string branchName, string setHumanName);
