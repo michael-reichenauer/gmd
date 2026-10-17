@@ -925,17 +925,78 @@ Add new open issues and findings here as work lands; keep them short and drop th
   line), and is held to before/after dumps on real repositories. Fetch and push of a chosen remote,
   for the other cases, is a separate and smaller change. Today gmd fetches and pushes `origin` only.
 
-- **Terminal.Gui 1.x → 2.x.** When, not if. For: v1 is frozen (last commit June 2025); true color
-  would lift the five-color branch palette, which a tool built on showing many branches runs out of;
-  2.x's input injection reaches the views directly. Against: it is one branch that does not compile
-  until finished — 32 files, ~11.7k lines, 9 custom views, with `ColorScheme`, `Toplevel`, the
-  whole `Key` API, `Redraw`, `ScrollBarView`, `RootKeyEvent` and the tree view all replaced — and
-  2.x still ships breaking changes inside minor releases. The end-to-end tier names no Terminal.Gui
-  type and is the port's acceptance suite. Order when it starts: `Color.cs` + `ColorSchemes.cs`,
-  `UI.cs`, `ContentView`, `UIDialog`, the two browse dialogs; `MessageDlg` and `BorderView` are
-  deleted rather than ported. Trap: the migration guide describes `v2_develop`, not the released
-  package; check the shipped assembly before believing any specific API.
-- **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7):
+- **Terminal.Gui 1.x → 2.x.** When, not if, and a spike (2026-10-17) found it feasible now: branch
+  `spike/tgui2`, whose `.notes/tgui2-spike/` has the pictures and how to run it. For: v1 is frozen
+  (last commit June 2025); 2.x is released (2.5.0 on 2026-09-11, 2.4.x stable before it), and though
+  its minor releases still break the API, they announce it a release ahead with `[Obsolete]` (2.5
+  broke three small things); true color lifts the five branch colors; it draws emoji, which 1.x's
+  curses could not. Against: one branch that does not compile until finished — 43 files, ~12.1k
+  lines, 11 custom views. The end-to-end tier names no Terminal.Gui type and is the port's
+  acceptance suite. What the spike found, with the log and the diff ported over the real server
+  and row writers:
+  - *The core ports mechanically.* `ContentView` changed 187 of 520 lines, nearly all of them `Key`,
+    a class with a `KeyCode` now, so a `switch` on keys became `if` chains and Shift a property
+    (`Key.A.WithShift`); `Redraw` became `OnDrawingContent`, `ProcessHotKey` `OnKeyDown`, and
+    `MouseEvent` `OnMouseEvent(Mouse)`, with flags renamed (`LeftButtonPressed`, `PositionReport`).
+    `Text.Draw` changed 3 lines. The application is an instance (`IApplication`), kept in `UI`;
+    `RootKeyEvent` became the application's `KeyDown` with `key.Handled`; a `Runnable` run with
+    `app.Run` is modal as `UI.RunDialog` needs. `await` resumes on the main loop as in 1.x (a
+    `MainLoopSyncContext` while `Run` runs), so the trap of blocking it is the same. Inside a `View`
+    subclass `Text` is the view's string property, which hides gmd's `Text` (`Common.Text`). The
+    declarations alone name `MouseEvent`, `Rect`, `KeyEvent`, `Toplevel`, NStack's `Rune`,
+    `ColorScheme` and `MainLoop`, all gone, and 2.x's own `Menu` and `View.Border` clash with gmd's.
+    The bulk of the work is past the spike: `UIDialog` and the text inputs with spell checking,
+    `Menu`, and the keys of the log, diff, blame and resolver views.
+  - *Keys and the mouse arrive*, in tmux: Shift letters, Ctrl-C, Alt and Alt-Shift, F-keys,
+    Ctrl-arrows, Shift-Tab, the wheel. A resize no longer eats the next key (so the F12
+    `TmuxSession.Resize` sends could go), and quitting gives the terminal back clean.
+  - *The colors are gmd's own.* 2.x writes every color as 24-bit RGB, its named ones too, at W3C
+    values (`Color.Blue` is 0,0,255), so gmd's look no longer follows the terminal's 16-color theme
+    and needs a palette of its own; the spike's is Campbell, as the README's pictures are. Twelve
+    branch colors (Material 300–400 hues) told apart the neighbours five did not; a hash still lets
+    two neighbours collide, so a port should pick one unlike its parent's and neighbours'. A light
+    terminal works: `Color.None` is the terminal's own background (`CSI 49m`), and 2.x asks the
+    terminal for its colors at start (OSC 10/11, `IDriver.DefaultAttribute`), which can pick the
+    light palette or the dark. With 16 colors forced (`Driver.Force16Colors`, set for `TERM=linux`,
+    `TERM=dumb` and `NO_COLOR`) the RGB is mapped to the nearest of 16; drawn with 2.x's named
+    colors that is exactly today's look, a setting for users who want their theme's colors.
+  - *No 256-color output.* 2.x detects a 256-color terminal (`TERM=*-256color` and no `COLORTERM`)
+    but writes 24-bit colors to it anyway (`OutputBase.AppendOrWriteAttribute` knows RGB and 16
+    only), which a terminal without true color garbles (Terminal.app before macOS 26, as far as is
+    known). The 16-color setting is the way out. Worth an issue upstream.
+  - *Syntax colors work*: 2.x's `TextMateSyntaxHighlighter` (TextMateSharp, VS Code's grammars,
+    picked by the file's extension) colors a line in `DiffRowService.LineText`, and the changed
+    words of `ChangedSides` keep its colors on the change's background. Its roles are coarse
+    (`public`, a `storage.modifier`, has none), so a port would call TextMateSharp itself with
+    gmd's own scope colors. It costs ~0.14 ms a row, 280 ms for a diff of 2,000 rows against
+    12–23 ms without, and gmd makes every row up front: color only the rows drawn, cached, with a
+    highlighter per side of a hunk, so that a multi-line comment is colored (the spike resets it
+    per line).
+  - *Packaging.* The single-file linux-arm64 build grows from 112 to 126 MB (2.5 brings
+    TextMateSharp's grammars, Markdig and Microsoft.Extensions.Configuration). The highlighter's
+    native `libonigwrap` is put beside the binary, where the updater, which swaps one file, would
+    leave it behind: `IncludeNativeLibrariesForSelfExtract=true` bundles it, extracted to
+    `~/.net/gmd/` at the first start. Without it highlighting is silently off. It is built for
+    linux, osx and win, x64 and arm64.
+  - *Costs.* Start to a drawn log 340 ms against 270 ms (release builds in tmux, the spike drawing
+    less than 1.x). Idle CPU about 3% of a core against 0.4%: 2.x polls, its input thread every
+    20 ms (`InputImpl`, not configurable) and the main loop 25 times a second
+    (`Application.MaximumIterationsPerSecond`, lowering which changed nothing), where 1.x waits.
+    Worth an issue upstream too.
+  - *Tests.* The end-to-end tier drives the spike as it is, but `ScreenText`'s color letters read
+    the 16 SGR codes, in 24 tests: run them with 16 colors forced, or teach it the palette's RGB.
+    `gmdTest`'s view tests (`ContentViewTest` and the like) are ported with the views.
+  - *Untested*: real terminals (iTerm2, Terminal.app, Windows Terminal, Ghostty, all of which 2.x
+    sends queries to at start), the Windows driver, dialogs, text input, paste.
+
+  Order when it starts: `Color.cs` with the palettes and the choice between them, `UI.cs`,
+  `ContentView` (the spike's three are a start), `UIDialog` and the text inputs, `Menu`, then the
+  views; `MessageDlg` and `BorderView` are deleted rather than ported. Trap: the migration guide
+  describes the development branch, not the released package; check the shipped assembly (its XML
+  docs, or the source at the release tag) before believing any specific API. The source has
+  `ai-v2-primer.md`, the 1.x habits to drop.
+- **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7), the first two of
+  which the spike above shows working:
   - *Light terminals.* Every color is on a forced black background (`Color.Make` pairs each with
     `Terminal.Gui.Color.Black`), so a light-themed terminal shows gmd as a black box: readable, but
     not the user's theme. The fix is the terminal's own default background, which 1.x has no color
