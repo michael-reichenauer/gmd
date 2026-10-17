@@ -541,10 +541,12 @@ Find more commands in the menus (the `m` key).
 commit's id and subject, who made it when, and a list of its files: each
 with a letter, `M` modified, `A` added, `D` deleted, `R` renamed and `C`
 conflicted, and the lines added and deleted in it, headed by how many there
-are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`. Each file
+are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`; the files
+are left out of it, that row kept, while they are listed beside the diff
+(below). Each file
 starts with a row naming it, underlined in blue. Where unchanged lines are
-left out between the parts that changed, a dark line starting with `⋯` says
-so, with the function or heading git finds the next part in, when it is not
+left out between the parts that changed, a dark line with `⋯` where the line
+numbers are says so, with the function or heading git finds the next part in, when it is not
 the one before it. Git finds it by a pattern for the file's language, set
 in `.gitattributes`, e.g. `*.cs diff=csharp`; with none, it takes the
 nearest line above that is not indented, which in C# is the class for every
@@ -572,10 +574,11 @@ each change's removed lines above its added ones, as git writes them, and
 a conflict's two sides one after the other, each named. `v` switches
 between the two, for the diff it is pressed in.
 
-On a terminal 150 columns wide or more, a diff of more than one file has
-its files listed beside it, the one the cursor is in marked, each with its
-lines added and deleted, and e.g. `╎3` for three lines left out of the
-commit. A file history lists its commits instead. `Tab` moves the keys to
+On a terminal 150 columns wide or more, a diff has its files listed beside
+it, one file too, the one the cursor is in marked, each with its lines
+added and deleted, and e.g. `╎3` for three lines left out of the
+commit. A file history lists its commits instead, which its top then leaves
+out as the diff of a commit leaves out its files. `Tab` moves the keys to
 the list, where `↑` and `↓` go from file to file, and `Tab`, `Enter` or
 `Esc` back to the diff; a click on a file goes to it. `l` hides the list,
 for the width it takes, and shows it again; the diffs after open as it was
@@ -662,7 +665,8 @@ and `}` and `{` go to the next or previous one without saving, asking first
 if there are decisions to keep. The header says which file it is, e.g.
 `file 1 of 3`, and a terminal at least 150 columns wide lists the files at
 the left, the resolved ones ticked; `Tab` moves into the list, where `↑`
-`↓` and `Enter` open another. A file with no text to merge, such as one a
+`↓` and `Enter` open another, and `l` hides it and shows it again, as in the
+diff, which the files after keep. A file with no text to merge, such as one a
 side deleted, or a binary file, asks its question as its turn comes (see
 below), and Cancel passes it over until the resolver is opened again. Once
 no conflict is left, a box asks whether to finish: **Commit** opens the
@@ -690,13 +694,14 @@ it changed marked in its color, `-` a line of the ancestor's it removed, in
 dark, and the lines it kept in dark too. A line is numbered as its side has
 it, and the text between conflicts as the left side has it.
 
-A pane below, **Result of conflict 2**, shows the file as it will be saved,
-as your decisions so far make it, at the conflict the cursor is in, or the
-last one above it: each decided conflict's lines with a bar in the color of
-the side they came from, magenta where written by hand, and each undecided
-one as a row saying which keys decide it. It stays on that conflict while
-the cursor is in the text after it; `Shift-↑` `↓` or the mouse wheel over it
-scroll it.
+A pane below, **Result**, shows the file as it will be saved, as your
+decisions so far make it: each decided conflict's lines with a bar in the
+color of the side they came from, magenta where written by hand, and each
+undecided one as a row saying which keys decide it. It goes along with the
+cursor: the line the cursor is on is marked in it, at the same place in the
+file, or the lines of the conflict the cursor is in, a third of the way down
+the pane. Its line numbers are the saved file's. `Shift-↑` `↓` or the mouse
+wheel over it scroll it on its own, until the cursor moves again.
 
 The whole file is shown, not just its conflicts, since the text around a
 conflict is what tells you what it is part of. The view opens on the first
@@ -717,6 +722,7 @@ next and previous one from wherever the cursor is.
 | s          | Save and mark the file resolved, then on to the next file  |
 | }  {       | Next or previous file still conflicted                     |
 | Tab        | Into the list of files, and back                           |
+| l          | Hide or show the list of files                             |
 | m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
 | Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |

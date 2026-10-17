@@ -30,7 +30,7 @@ public class ConflictViewTest
                37 line 37
                38 line 38
                39 line 39
-            ─── Conflict 1 ── unresolved ───────
+            ─── Conflict 1 ── unresolved ──────────────────────────────────────────────────────────────────────────────────────────
             main (HEAD) · Change it on main                            │dev · Change it on dev
             ~  40 line 40 on main                                      │~  40 line 40 on dev
                41 line 41
@@ -48,21 +48,21 @@ public class ConflictViewTest
                53 line 53
                54 line 54
                55 line 55
-            ─── Result of conflict 1 ─────────────────────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
+            ─── Result: long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
+               36 line 36
                37 line 37
                38 line 38
                39 line 39
             ▌      Conflict 1 is not decided: 1 main, 2 dev, 3 or 4 both, 0 neither, e edit
                40 line 41
-               41 line 42
+               41 line 42                                                                                                          ┃
                42 line 43                                                                                                          ┃
                43 line 44                                                                                                          ┃
                44 line 45                                                                                                          ┃
-               45 line 46                                                                                                          ┃
+               45 line 46
                46 line 47
                47 line 48
                48 line 49
-               49 line 50
             """,
             gmd.WaitFor("─── Conflict 1"),
             repo.Path
@@ -149,7 +149,7 @@ public class ConflictViewTest
                37 line 37
                38 line 38
                39 line 39
-            ─── Conflict 1 ── using the common ancestor
+            ─── Conflict 1 ── using the common ancestor ───────────────────────────────────────────────────────────────────────────
             main (HEAD) · Change it on main        │common ancestor                        │dev · Change it on dev
             ~  40 line 40 on main                  │      line 40                          │~  40 line 40 on dev
                41 line 41
@@ -167,21 +167,21 @@ public class ConflictViewTest
                53 line 53
                54 line 54
                55 line 55
-            ─── Result of conflict 1 ─────────────────────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
+            ─── Result: long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
+               36 line 36
                37 line 37
                38 line 38
                39 line 39
             ▌  40 line 40
                41 line 41
-               42 line 42
+               42 line 42                                                                                                          ┃
                43 line 43                                                                                                          ┃
                44 line 44                                                                                                          ┃
                45 line 45                                                                                                          ┃
-               46 line 46                                                                                                          ┃
+               46 line 46
                47 line 47
                48 line 48
                49 line 49
-               50 line 50
             """,
             gmd.WaitFor("all resolved"),
             repo.Path
@@ -479,52 +479,87 @@ public class ConflictViewTest
         StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "conflict 2 of 2");
     }
 
-    // The result pane below is the file as it will be saved, scrolled to the conflict the cursor is in,
-    // a few lines above it in sight, which its title names. It is scrolled with Shift-↓ and Shift-↑,
-    // since the pane never takes the focus from the file, or by the mouse wheel over it. Back on a
-    // conflict, its result is shown from its start again.
+    // The result pane is the file as it will be saved, and goes along with the cursor: the line the
+    // cursor is on is marked in it, at the same place in the file, or the lines of the conflict it is
+    // in, a third of the way down the pane. It used to stay on the conflict the cursor was last in,
+    // and looked stuck while the cursor went on through the text after it. Scrolled on its own, by
+    // Shift-↑↓ or the mouse wheel over it, it is back with the cursor at its next move.
     [TestMethod]
-    public async Task TestALongResultIsScrolled()
+    public async Task TestTheResultGoesAlongWithTheCursor()
     {
         using var repo = await E2eRepo.CreateWithUnevenConflictsAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         OpenTheResolver(gmd);
-        StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "─── Result of conflict 1 ───");
-        gmd.Send("]");
-        StringAssert.Contains(gmd.WaitFor("conflict 2 of 2"), "─── Result of conflict 2 ───");
-        gmd.Send("1");
-        WaitForLastLine(gmd, "▌  64 line 60 on main, 11 of 12");
+        StringAssert.Contains(gmd.WaitFor("─── Conflict 1"), "─── Result: long.txt as it will be saved ───");
+        CollectionAssert.AreEqual(
+            new[] { "▌      Conflict 1 is not decided: 1 main, 2 dev, 3 or 4 both, 0 neither, e edit" },
+            MarkedInResult(gmd).Rows.ToArray(),
+            "The conflict the cursor is on, undecided"
+        );
 
-        for (int i = 0; i < 4; i++)
-        {
-            gmd.Send("S-Down");
-            gmd.WaitForStable();
-        }
-        WaitForLastLine(gmd, "68 line 63");
-
-        var bottom = gmd.Capture().Split('\n').Length - 1;
-        gmd.Wheel(10, bottom, -1);
-        WaitForLastLine(gmd, "67 line 62");
-        gmd.Send("S-Up");
-        WaitForLastLine(gmd, "66 line 61");
-
-        gmd.Send("[");
-        gmd.WaitFor("conflict 1 of 2");
         gmd.Send("]");
         gmd.WaitFor("conflict 2 of 2");
-        WaitForLastLine(gmd, "▌  64 line 60 on main, 11 of 12");
+        gmd.Send("1");
+        gmd.WaitFor("using main");
+        var (rows, first) = MarkedInResult(gmd);
+        Assert.AreEqual("▌  54 line 60 on main, 1 of 12", rows[0], "Its lines, as many as there is room for");
+        Assert.AreEqual((10, 4), (rows.Count, first), "From a third of the way down");
+
+        // Into the text after it, the same line, numbered as the file will be
+        for (int i = 0; i < 16; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        Assert.AreEqual("68 line 63 @4", Shown(MarkedInResult(gmd)));
+        Assert.AreEqual("69 line 63", CursorRowAbove(gmd), "The cursor, black on white on the number");
+
+        // Scrolled on its own, and back with the cursor at its next move
+        for (int i = 0; i < 3; i++)
+        {
+            gmd.Send("S-Up");
+            gmd.WaitForStable();
+        }
+        Assert.AreEqual("68 line 63 @7", Shown(MarkedInResult(gmd)));
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        Assert.AreEqual("69 line 64 @4", Shown(MarkedInResult(gmd)));
     }
 
-    // The bottom row, the result pane's last when the hints are off, read as it settles and without
-    // the pane's scrollbar
-    static void WaitForLastLine(TmuxSession gmd, string expected)
+    // The rows of the result pane marked as at the cursor, and the first one's row in the pane, read
+    // by the background of their line numbers, gray, 'D', which a row of no number has blank
+    static (IReadOnlyList<string> Rows, int First) MarkedInResult(TmuxSession gmd)
     {
-        gmd.WaitForMoving(
-            s => ScreenText.LastLine(s).TrimEnd('┃').TrimEnd() == expected,
-            $"the last line to read '{expected}'"
-        );
-        gmd.WaitForStable();
+        var screen = ScreenText.Of(gmd.WaitForStable()).Split('\n');
+        var title = screen.FindIndexBy(l => l.StartsWith("─── Result") || l.StartsWith("─── Typing"));
+        var pane = screen.Skip(title + 1).ToList(); // To the bottom, the key hints being off
+        var backgrounds = ScreenText
+            .BackgroundRows(gmd.CaptureColors(), title + 1, pane.Count, isBlankShown: true)
+            .Split('\n');
+        var marked = pane.Select((r, i) => (Row: r.TrimEnd('┃').TrimEnd(), IsMarked: IsNumberOn(backgrounds[i], 'D')))
+            .Select((r, i) => (r.Row, r.IsMarked, Index: i))
+            .Where(r => r.IsMarked)
+            .ToList();
+        return (marked.Select(r => r.Row).ToList(), marked.Count > 0 ? marked[0].Index : -1);
     }
+
+    // The row of the file above the result whose line number is black on white, the cursor's
+    static string CursorRowAbove(TmuxSession gmd)
+    {
+        var screen = ScreenText.Of(gmd.WaitForStable()).Split('\n');
+        var title = screen.FindIndexBy(l => l.StartsWith("─── Result") || l.StartsWith("─── Typing"));
+        var backgrounds = ScreenText.BackgroundRows(gmd.CaptureColors(), 0, title, isBlankShown: true).Split('\n');
+        var rows = Enumerable.Range(0, title).Where(i => IsNumberOn(backgrounds[i], 'W')).ToList();
+        return string.Join(" | ", rows.Select(i => screen[i].TrimEnd('┃').Trim()));
+    }
+
+    // Whether the line number of a row is on the background, its five cells after the mark
+    static bool IsNumberOn(string background, char color) =>
+        background.Length > 5 && background[1..6] == new string(color, 5);
+
+    // The marked rows without their line numbers' indent, and the row of the first in the pane, '@4'
+    static string Shown((IReadOnlyList<string> Rows, int First) marked) =>
+        $"{string.Join(" | ", marked.Rows.Select(r => r.Trim()))} @{marked.First}";
 
     // c combines both sides' changes where they touch no word in common: in one conflict each side
     // changed other words of a line, and added a line, and in the other one side only added lines
@@ -730,6 +765,68 @@ public class ConflictViewTest
         StringAssert.Contains(await repo.GitAsync("status"), "nothing to commit", "The rebase is done");
         StringAssert.Contains(await repo.GitAsync("show HEAD:file.txt"), "line 10 on dev");
     }
+
+    // The resolver follows the terminal's size: the result pane is about two fifths of the view, and
+    // the list of files is there from 150 columns; both were as the view opened, whatever came after
+    [TestMethod]
+    public async Task TestTheResolverFollowsTheTerminalsSize()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        OpenTheResolverFromTheBar(gmd);
+        var screen = gmd.WaitFor("─── Conflict 1");
+        Assert.AreEqual((25, true), (ResultTitleRow(screen), screen.Contains("Conflicts 2 left")), "160 x 40");
+
+        gmd.Resize(130, 30);
+        screen = gmd.WaitUntilGone("Conflicts 2 left");
+        Assert.AreEqual(19, ResultTitleRow(screen), "130 x 30: (30 - 2) * 2 / 5 rows from the bottom");
+
+        gmd.Resize(170, 50);
+        screen = gmd.WaitFor("Conflicts 2 left");
+        Assert.AreEqual(31, ResultTitleRow(screen), "170 x 50: (50 - 2) * 2 / 5 rows from the bottom");
+    }
+
+    // l hides the list of files, for the width it takes, and shows it again, as in the diff; the
+    // files after open as it was left, and while it is hidden the hints say l shows it, and Tab why it
+    // does nothing
+    [TestMethod]
+    public async Task TestTheResolversFileListIsHiddenAndShownWithL()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160, isKeyHints: true);
+        OpenTheResolverFromTheBar(gmd);
+        gmd.WaitFor("Conflicts 2 left");
+
+        gmd.Send("l");
+        var screen = gmd.WaitUntilGone("Conflicts 2 left");
+        Assert.AreEqual("File list hidden: l shows it", ScreenText.LastLine(screen).Trim('─', ' '));
+        gmd.Send("Tab");
+        StringAssert.Contains(ScreenText.LastLine(gmd.WaitFor("is hidden: l shows it")), "The file list is hidden");
+
+        // Remembered: the next file opens with no list, and the hints say how to have it back
+        gmd.Send("}");
+        screen = gmd.WaitFor("file 2 of 2");
+        Assert.IsFalse(screen.Contains("Conflicts 2 left"), "Still hidden");
+        gmd.WaitUntilGone("is hidden"); // The status message, which covers the hints for a while
+        StringAssert.Contains(ScreenText.LastLine(gmd.WaitFor("l file list")), "} { file  l file list");
+
+        gmd.Send("l");
+        screen = gmd.WaitFor("Conflicts 2 left");
+        Assert.AreEqual("File list shown: Tab moves into it, l hides it", ScreenText.LastLine(screen).Trim('─', ' '));
+    }
+
+    // From the application bar's Resolve Conflicts, as a merge stopped outside gmd leaves it
+    static void OpenTheResolverFromTheBar(TmuxSession gmd)
+    {
+        var bar = gmd.WaitFor("Merging: 2 conflicts");
+        var (x, y) = TmuxSession.PositionOf(bar, "Merging: 2 conflicts");
+        gmd.Click(x + 2, y);
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+    }
+
+    // The row of the result pane's title
+    static int ResultTitleRow(string screen) => screen.Split('\n').FindIndexBy(l => l.Contains("─── Result:"));
 
     // The list of files at the left of the resolver, the rows below the header
     // The rows of the list of files, up to its separator

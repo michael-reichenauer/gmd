@@ -77,7 +77,9 @@ class DiffView : IDiffView
     bool IsOneColumnFor(int contentWidth) => isOneColumnChosen ?? contentWidth < OneColumnBelow;
 
     // The list of files beside a wide diff, or of the commits of a file history, how wide it is, 0 when
-    // it is not shown, and whether it has the keys, as Tab moves them there and back
+    // it is not shown, and whether it has the keys, as Tab moves them there and back; whether the rows
+    // were made with it beside them, which leaves out their own list of them at the top
+    bool isRowsBesideList;
     ContentView listView = null!;
     DiffFileList fileList = DiffFileList.None;
 
@@ -142,12 +144,13 @@ class DiffView : IDiffView
         this.isListWanted = config.ShowDiffFileList;
         this.listWidth = ListWidth();
         this.isListFocus = false;
-        if (IsOneColumnFor(Application.Driver.Cols - listWidth - 1) != isOneColumn)
-        { // Narrowed by the list
-            isOneColumn = !isOneColumn;
-            diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
+        if (listWidth > 0)
+        { // Narrowed by the list, and the files or commits listed in it rather than above the diff
+            isOneColumn = IsOneColumnFor(Application.Driver.Cols - listWidth - 1);
+            diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn, null, true);
             fileList = DiffFileList.Of(diffs, diffRows);
         }
+        this.isRowsBesideList = listWidth > 0;
         this.search = RowSearch.None;
         this.status = new StatusLine();
         this.isIgnoreWhitespace = false;
@@ -611,9 +614,9 @@ class DiffView : IDiffView
     bool IsListHidden => listWidth == 0 && fileList.WidthFor(Application.Driver.Cols) > 0;
 
     string WhyNoList() =>
-        IsListHidden
-            ? "The file list is hidden: l shows it"
-            : $"The file list is beside a diff of more than one file, {DiffFileList.MinTerminalWidth} columns wide";
+        IsListHidden ? "The file list is hidden: l shows it"
+        : fileList.Items.Count == 0 ? "The diff has no files to list"
+        : $"The file list is beside a diff on a terminal {DiffFileList.MinTerminalWidth} columns wide or more";
 
     // Goes to the file a step above or below in the list, while it has the keys, true then; with the
     // diff having them the key is left to it
@@ -1344,9 +1347,11 @@ class DiffView : IDiffView
         listView.SuperView?.SetNeedsDisplay();
     }
 
+    // The rows for a layout, made again where it is not theirs: in one column or two, and with the
+    // list beside them or not, which lists the files or commits the rows would otherwise list at the top
     void SetLayout(bool isOneColumn)
     {
-        if (isOneColumn == this.isOneColumn)
+        if (isOneColumn == this.isOneColumn && (listWidth > 0) == isRowsBesideList)
             return;
 
         this.isOneColumn = isOneColumn;
@@ -1365,13 +1370,15 @@ class DiffView : IDiffView
     void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
     {
         diffs = newDiffs;
+        isRowsBesideList = listWidth > 0;
         diffRows = diffRowService.ToDiffRows(
             diffs,
             fileContext,
             ConflictPaths(),
             isIgnoreWhitespace,
             isOneColumn,
-            hiddenFiles
+            hiddenFiles,
+            isRowsBesideList
         );
         fileList = DiffFileList.Of(diffs, diffRows);
         // Counted now rather than as the views draw, for the cursor to be put back in the rows that are
@@ -1481,9 +1488,9 @@ class DiffView : IDiffView
             // A line across the view, of a file added or removed whole or in one column, scrolls
             // sideways as a side does, its gutter staying put
             var text =
-                row.LineNbr != 0
-                    ? SideText(spanText, row.LineNbr, false, viewWidth)
-                    : WithFill(spanText.Subtext(0, viewWidth), row.Fill, viewWidth);
+                row.LineNbr != 0 ? SideText(spanText, row.LineNbr, false, viewWidth)
+                : row.IsSeparator && !isOneColumn ? SeparatorText(spanText, row.Fill!, columnWidth, viewWidth)
+                : WithFill(spanText.Subtext(0, viewWidth), row.Fill, viewWidth);
             return isSelectedRow ? text.ToSelect()
                 : !isCurrentRow ? text
                 // A line of a file drawn in one column has the cursor on its number, as a side has
@@ -1551,6 +1558,25 @@ class DiffView : IDiffView
             .ToTextBuilder()
             .Color(CursorColor, text.Subtext(1, gutterWidth - 1, isFillRest: true).ToString())
             .Add(text.Subtext(gutterWidth, Math.Max(0, text.Length - gutterWidth)));
+
+    // Where unchanged lines are left out between two hunks, side by side: '⋯' where each side's line
+    // numbers are, the function git found the hunk in after the left one, cut short of the right one,
+    // and the line through both on to the end of the row
+    static Text SeparatorText(Text text, Text fill, int columnWidth, int viewWidth)
+    {
+        var right = columnWidth + 1 + DiffRowService.LeftOutIndent.Length; // The right side's '⋯'
+        if (right + 2 >= viewWidth)
+            return WithFill(text.Subtext(0, viewWidth), fill, viewWidth);
+
+        // Room for a space, a rune of line and a space before the right '⋯'
+        var left = text.Length <= right - 3 ? text : text.Subtext(0, right - 4).ToTextBuilder().Dark("…").ToText();
+        return WithFill(left, fill, right - 1)
+            .ToTextBuilder()
+            .Black(" ")
+            .Dark(DiffRowService.LeftOutMark)
+            .Black(" ")
+            .Add(fill.ToLine(viewWidth - right - 2));
+    }
 
     // A header row followed to the end of the row by its rule, e.g. a file's
     static Text WithFill(Text text, Text? fill, int width) =>

@@ -25,6 +25,22 @@ record ConflictResult(
 )
 {
     public static readonly ConflictResult None = new([], new Dictionary<int, int>(), new Dictionary<int, int>());
+
+    // The rows of the result at a place in the file, where the cursor is above: a conflict's lines,
+    // or its one row while undecided, and a line of the text between conflicts, the same line, which
+    // is as many rows after the conflict before it in the result as in the rows above; (0, 0) when
+    // there is nothing
+    public (int Start, int End) RangeOf(ConflictAnchor anchor)
+    {
+        if (Rows.Count == 0)
+            return (0, 0);
+        if (anchor.IsInHunk)
+            return Starts.TryGetValue(anchor.HunkIndex, out var start) ? (start, Ends[anchor.HunkIndex]) : (0, 0);
+
+        var after = anchor.HunkIndex == -1 ? 0 : Ends.GetValueOrDefault(anchor.HunkIndex);
+        var row = Math.Min(after + anchor.Offset, Rows.Count - 1);
+        return (row, row + 1);
+    }
 }
 
 // Turns a conflicted file and what the user has decided about it into drawn rows.
@@ -86,6 +102,20 @@ class ConflictRowService : IConflictRowService
     // How wide a line's gutter is: its mark, its number in 4 and a space
     internal const int GutterWidth = 6;
 
+    // The cursor on a row as the diff has it: the line number in the color, black on white in the
+    // file above and white on gray in the result below, the mark beside it and the line itself as
+    // they are; a row of no line number, e.g. a conflict's header, highlighted whole
+    internal static Text WithCursor(Text row, int gutterWidth, Color color) =>
+        gutterWidth == 0
+            ? row.ToHighlight()
+            : row.Subtext(0, 1)
+                .ToTextBuilder()
+                .Color(color, row.Subtext(1, gutterWidth - 1, isFillRest: true).ToString())
+                .Add(row.Subtext(gutterWidth, Math.Max(0, row.Length - gutterWidth)));
+
+    internal static readonly Color CursorColor = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.White);
+    internal static readonly Color ResultCursorColor = new(Terminal.Gui.Color.White, Terminal.Gui.Color.DarkGray);
+
     static void AddHunk(
         ConflictRows rows,
         ConflictHunk hunk,
@@ -99,7 +129,8 @@ class ConflictRowService : IConflictRowService
     {
         var choice = resolution.ChoiceOf(hunk.Index);
         var isCombined = resolution.CombinedOf(hunk.Index) != null;
-        var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ").Add(ChoiceText(choice, names, isCombined));
+        // Its line is drawn on to the end of the row, in the same color, as the row is drawn
+        var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ── ").Add(ChoiceText(choice, names, isCombined));
         rows.Add(ConflictRow.Header(title, hunk.Index));
 
         // The sides by name, not 'ours' and 'theirs' — during a rebase those two mean the opposite of
@@ -203,25 +234,32 @@ class ConflictRowService : IConflictRowService
     static Text ChoiceText(HunkChoice choice, ConflictNames names, bool isCombined) =>
         choice switch
         {
-            HunkChoice.Manual when isCombined => Text.Green("── both changes combined "),
-            HunkChoice.None => Text.Red("── unresolved ───────"),
-            HunkChoice.Ours => Text.Green($"── using {names.Ours.Max(30)} "),
-            HunkChoice.Theirs => Text.Green($"── using {names.Theirs.Max(30)} "),
-            HunkChoice.OursThenTheirs => Text.Green($"── using {names.Ours.Max(20)} then {names.Theirs.Max(20)} "),
-            HunkChoice.TheirsThenOurs => Text.Green($"── using {names.Theirs.Max(20)} then {names.Ours.Max(20)} "),
+            HunkChoice.Manual when isCombined => Text.Green("both changes combined"),
+            HunkChoice.None => Text.Red("unresolved"),
+            HunkChoice.Ours => Text.Green($"using {names.Ours.Max(30)}"),
+            HunkChoice.Theirs => Text.Green($"using {names.Theirs.Max(30)}"),
+            HunkChoice.OursThenTheirs => Text.Green($"using {names.Ours.Max(20)} then {names.Theirs.Max(20)}"),
+            HunkChoice.TheirsThenOurs => Text.Green($"using {names.Theirs.Max(20)} then {names.Ours.Max(20)}"),
             // Not the ancestor's own label, which is 'base' for a recovered one and whatever git
             // wrote for a diff3 one — neither says what taking it means the way these words do
-            HunkChoice.Base => Text.Green("── using the common ancestor "),
-            HunkChoice.Manual => Text.Green("── edited by hand "),
+            HunkChoice.Base => Text.Green("using the common ancestor"),
+            HunkChoice.Manual => Text.Green("edited by hand"),
             _ => Text.Dark(""),
         };
 
     // One drawn line: the panes side by side, or one text across the whole width
     public Text ToRowText(ConflictRow row, ConflictColumns columns, int startX)
     {
-        // Not padded: only the panes need to be, so their separators line up
+        // Not padded: only the panes need to be, so their separators line up. A conflict's header has
+        // its line drawn on to the end of the row, which the panes may stop a column or two short of.
         if (row.Mode == ConflictRowMode.SpanAll)
-            return Scroll(row.Panes[0], startX, columns.TotalWidth, row.GutterWidth, isPad: false);
+        {
+            var span = Scroll(row.Panes[0], startX, columns.TotalWidth, row.GutterWidth, isPad: false);
+            var width = Math.Max(columns.Width, columns.TotalWidth);
+            return row.IsHunkHeader && span.Length + 1 < width
+                ? span.ToTextBuilder().BrightMagenta(" " + new string('─', width - span.Length - 1))
+                : span;
+        }
 
         // The rows are built once, from what the user asked for, but the widths are worked out per
         // draw and may have dropped the ancestor because the view is too narrow for three. When they

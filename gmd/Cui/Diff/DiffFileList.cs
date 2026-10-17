@@ -12,7 +12,9 @@ class DiffFileList
     public record Item(Text Text, int Row, string Path);
 
     // The list is drawn on a terminal at least this wide, where the diff beside it is still side by
-    // side, and only for more than one file, which it would add nothing to
+    // side, for a diff of one file too, so that a wide diff always has its files beside it rather
+    // than at its top: for one file it was not, and a wide diff was laid out one way or the other by
+    // how many files it had
     public const int MinTerminalWidth = 150;
     const int MinWidth = 24;
     const int MaxWidth = 40;
@@ -59,7 +61,7 @@ class DiffFileList
     // How wide the list is drawn on a terminal of the width, its separator included, 0 when it is not
     public int WidthFor(int terminalWidth)
     {
-        if (Items.Count < 2 || terminalWidth < MinTerminalWidth)
+        if (Items.Count == 0 || terminalWidth < MinTerminalWidth)
             return 0;
         // The mark, the separator after a space, and the view's scrollbar column, which the rows are
         // drawn without: uncounted, the widest file was always cut

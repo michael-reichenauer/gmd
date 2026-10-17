@@ -50,9 +50,12 @@ interface IConflictView
 class ConflictView : IConflictView
 {
     // How many rows the result pane takes, its title below the file included: about two fifths of the
-    // view, and 8 at least, worked out as the view opens
+    // view, and 8 at least, worked out as the view opens and again as the terminal is resized
     int resultHeight = MinResultHeight;
     const int MinResultHeight = 8;
+
+    // A layout posted for the size the view was drawn at, which is not laid out while it is drawn
+    bool isLayoutPosted;
 
     // The file as it will be saved, which the result pane shows, made again with every decision
     ConflictResult result = ConflictResult.None;
@@ -82,7 +85,9 @@ class ConflictView : IConflictView
     int rowStartX;
     bool isShowBase;
     bool isMovedToFirstHunk;
-    int resultHunk = -1;
+
+    // The rows of the result at the cursor, which the result pane marks
+    (int Start, int End) resultAtCursor;
 
     // How the view ended, which Show returns
     ConflictOutcome outcome = new(ConflictEnd.Closed);
@@ -163,7 +168,7 @@ class ConflictView : IConflictView
         this.rowStartX = 0;
         this.isShowBase = false;
         this.isMovedToFirstHunk = false;
-        this.resultHunk = -1;
+        this.resultAtCursor = (0, 0);
         this.rows = new ConflictRows();
         this.resolution = new ConflictResolution(file);
 
@@ -191,11 +196,11 @@ class ConflictView : IConflictView
         };
 
         // The keys worth knowing here on the bottom row, below the result pane, unless turned off
-        var hintsHeight = config.ShowKeyHints ? 1 : 0;
-        resultHeight = Math.Max(MinResultHeight, (Application.Driver.Rows - 2 - hintsHeight) * 2 / 5);
+        var hintsHeight = HintsHeight;
+        resultHeight = ResultHeightFor(Application.Driver.Rows);
 
         // Never focused, so the keys stay with the file, which hands them on while the list has them
-        listWidth = files.WidthFor(Application.Driver.Cols);
+        listWidth = ListWidth();
         listView = new ContentView(OnGetListContent)
         {
             X = 0,
@@ -216,7 +221,6 @@ class ConflictView : IConflictView
             Height = Dim.Fill(resultHeight + hintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
-            IsHighlightCurrentIndex = true,
         };
 
         // Its title row is the border above it
@@ -238,7 +242,7 @@ class ConflictView : IConflictView
         view.Add(header, border, listView, contentView, resultView);
         // The bar is there with the hints off too, for what a key did, as in the diff
         var hintBar = new KeyHintBar(
-            () => typingView != null ? ConflictHints.Typing : ConflictHints.For(files.Files.Count > 1),
+            () => typingView != null ? ConflictHints.Typing : ConflictHints.For(files.Files.Count > 1, IsListHidden),
             () => status.Current
         );
         view.Add(hintBar);
@@ -318,6 +322,7 @@ class ConflictView : IConflictView
         view.RegisterLetterHandler(Key.e, EditCurrentHunk);
         view.RegisterLetterHandler(Key.c, Combine);
         view.RegisterLetterHandler(Key.b, ToggleBase);
+        view.RegisterLetterHandler(Key.l, ToggleList);
         view.RegisterLetterHandler(Key.s, () => Save());
         view.RegisterLetterHandler(Key.a, ShowWholeFileMenu);
         view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
@@ -353,7 +358,7 @@ class ConflictView : IConflictView
             contentView.ShowCurrentIndex(index);
 
         SetHeader();
-        ShowResultOf(CurrentHunk); // What was decided, or how it was shown
+        FollowCursorInResult(); // What was decided, or how it was shown
         contentView.SetNeedsDisplay();
         resultView.SetNeedsDisplay();
         listView.SetNeedsDisplay(); // How far the file is
@@ -372,31 +377,45 @@ class ConflictView : IConflictView
     void OnCurrentIndexChange()
     {
         SetHeader();
-        // The result follows the cursor to its conflict, a few lines of what is above it in sight
-        if (CurrentHunk != resultHunk)
-        {
-            resultHunk = CurrentHunk;
-            ShowResultOf(resultHunk);
-        }
+        FollowCursorInResult();
+    }
+
+    // The result pane goes along with the cursor: at the same place in the file as it will be saved,
+    // the line the cursor is on marked, or the lines of the conflict it is in, a third of the way down
+    // the pane. It used to stay on the conflict the cursor was last in, and looked stuck while the
+    // cursor went on through the text after it. Scrolled on its own, by Shift-↑↓ or the wheel, it is
+    // back with the cursor at the next move.
+    void FollowCursorInResult()
+    {
+        if (rows.Count == 0)
+            return;
+
+        resultAtCursor = result.RangeOf(rows.AnchorAt(contentView.CurrentIndex));
+        var first = Math.Max(0, resultAtCursor.Start - resultView.ContentHeight / 3);
+        resultView.Scroll(first - resultView.FirstIndex);
         resultView.SetNeedsDisplay();
     }
-
-    void ShowResultOf(int hunk)
-    {
-        if (!result.Starts.TryGetValue(hunk, out var start))
-            return;
-        resultView.Scroll(Math.Max(0, start - ResultAbove) - resultView.FirstIndex);
-    }
-
-    // How many lines above a conflict's own the result shows of it
-    const int ResultAbove = 3;
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
         MoveToFirstHunkOnce();
+        FollowSize();
 
+        // The cursor on the line number, as the diff draws it, while the keys are with the file
         var columns = ConflictColumns.Calculate(contentWidth, isShowBase);
-        var texts = rows.Rows.Skip(firstRow).Take(rowCount).Select(r => rowService.ToRowText(r, columns, rowStartX));
+        var texts = rows
+            .Rows.Skip(firstRow)
+            .Take(rowCount)
+            .Select(
+                (r, i) =>
+                    firstRow + i == currentIndex && contentView.HasFocus
+                        ? ConflictRowService.WithCursor(
+                            rowService.ToRowText(r, columns, rowStartX),
+                            r.GutterWidth,
+                            ConflictRowService.CursorColor
+                        )
+                        : rowService.ToRowText(r, columns, rowStartX)
+            );
 
         return (texts, rows.Count);
     }
@@ -406,14 +425,32 @@ class ConflictView : IConflictView
     // undecided conflict says which keys decide it, naming the sides as the column titles do
     //
     // While a conflict is typed, the pane is the file around it, the text view laid over its rows
-    (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int __)
+    (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int width)
     {
         if (typingView == null)
-            return (result.Rows.Skip(firstRow).Take(rowCount), result.Rows.Count);
+        {
+            var shown = result
+                .Rows.Skip(firstRow)
+                .Take(rowCount)
+                .Select(
+                    (r, i) =>
+                        IsAtCursor(firstRow + i)
+                            ? ConflictRowService.WithCursor(
+                                r,
+                                ConflictRowService.GutterWidth,
+                                ConflictRowService.ResultCursorColor
+                            )
+                            : r
+                );
+            return (shown, result.Rows.Count);
+        }
 
         var rows = typing.Rows(typingResult, typingHunk, typingView.TopRow);
         return (rows.Take(rowCount), rows.Count);
     }
+
+    // A row of the result at the cursor, which is marked as the cursor's row above is
+    bool IsAtCursor(int row) => row >= resultAtCursor.Start && row < resultAtCursor.End;
 
     // Goes to another file of the workspace, asking first about decisions not saved, as closing does
     void GoToFile(string path)
@@ -463,11 +500,84 @@ class ConflictView : IConflictView
         End(new(ConflictEnd.GoTo, path));
     }
 
+    // Shows or hides the list of files, l. Remembered for the files and the resolvers after, as the
+    // diff's list is, since it is hidden for the width it takes
+    void ToggleList()
+    {
+        if (files.WidthFor(Application.Driver.Cols) == 0)
+        {
+            status.Notice(WhyNoList());
+            return;
+        }
+
+        config.Set(c => c.ShowConflictFileList = !c.ShowConflictFileList);
+        SetLayout();
+        status.Info(listWidth > 0 ? "File list shown: Tab moves into it, l hides it" : "File list hidden: l shows it");
+    }
+
+    // The keys' row at the bottom, there unless turned off
+    int HintsHeight => config.ShowKeyHints ? 1 : 0;
+
+    // How tall the result pane is at a terminal's height, about two fifths of what is below the header
+    int ResultHeightFor(int terminalRows) => Math.Max(MinResultHeight, (terminalRows - 2 - HintsHeight) * 2 / 5);
+
+    // How wide the list of files is: as wide as it can be at the terminal's width, unless hidden by l
+    int ListWidth() => config.ShowConflictFileList ? files.WidthFor(Application.Driver.Cols) : 0;
+
+    // Hidden by l, where it would be shown, which the hints then say l shows
+    bool IsListHidden => listWidth == 0 && files.WidthFor(Application.Driver.Cols) > 0;
+
+    string WhyNoList() =>
+        IsListHidden ? "The file list is hidden: l shows it"
+        : files.Files.Count == 0 ? "There are no files with conflicts to list"
+        : $"The file list is beside the resolver on a terminal {ConflictFileList.MinTerminalWidth} columns wide or more";
+
+    // The size the terminal calls for, once the view is drawn at a size other than it was laid out
+    // for, e.g. the terminal resized: the result pane was as tall as when the view opened, and the
+    // list as wide. Posted, since the views cannot be laid out again while they are drawn.
+    void FollowSize()
+    {
+        if (isLayoutPosted || (ResultHeightFor(Application.Driver.Rows) == resultHeight && ListWidth() == listWidth))
+            return;
+
+        isLayoutPosted = true;
+        UI.Post(() =>
+        {
+            isLayoutPosted = false;
+            SetLayout();
+        });
+    }
+
+    // Lays the panes out for the terminal's size and the list shown or not: the list at the left,
+    // the file beside it, and the result pane below, the text being typed in it with it
+    void SetLayout()
+    {
+        resultHeight = ResultHeightFor(Application.Driver.Rows);
+        listWidth = ListWidth();
+        if (listWidth == 0 && isListFocus)
+            ToggleListFocus();
+
+        listView.Width = listWidth;
+        contentView.X = listWidth;
+        contentView.Height = Dim.Fill(resultHeight + HintsHeight);
+        resultView.X = listWidth;
+        resultView.Y = Pos.AnchorEnd(resultHeight + HintsHeight);
+        resultView.Height = resultHeight;
+        top.LayoutSubviews();
+
+        LayOutTyping();
+        FollowCursorInResult();
+        top.SetNeedsDisplay();
+    }
+
     // Moves the keys to the list of files and back
     void ToggleListFocus()
     {
-        if (listWidth == 0)
+        if (listWidth == 0 && !isListFocus)
+        {
+            status.Notice(WhyNoList());
             return;
+        }
 
         isListFocus = !isListFocus;
         listSelected = Math.Max(0, files.IndexOfOpen);
@@ -505,8 +615,8 @@ class ConflictView : IConflictView
         return (rows.Skip(firstRow).Take(rowCount), rows.Count);
     }
 
-    // The pane's title, its border, in the color of the conflicts' own: which conflict's result it
-    // shows, the one the cursor is in or the last above it, or what is typed in it, and the colors of
+    // The pane's title, its border, in the color of the conflicts' own: the file as it will be saved,
+    // by its name, its path being on the header above, or what is typed in it, and the colors of
     // where its lines came from
     Text ResultTitle(int firstRow, int width)
     {
@@ -514,8 +624,7 @@ class ConflictView : IConflictView
             typingView != null
                 ? Text.BrightMagenta("─── Typing ")
                     .Dark($"conflict {typingHunk + 1} by hand, {typingFrom}, Esc when done ")
-            : CurrentHunk >= 0 ? Text.BrightMagenta($"─── Result of conflict {CurrentHunk + 1} ")
-            : Text.BrightMagenta("─── Result ");
+                : Text.BrightMagenta("─── Result: ").White(Path.GetFileName(file.Path)).Dark(" as it will be saved ");
         var legend = Text.Dark(" ")
             .Yellow("▌")
             .Dark($"{names.Ours.Max(20)} ")
@@ -630,8 +739,8 @@ class ConflictView : IConflictView
         );
 
         // The pane's rows are below its title
-        var hintsHeight = config.ShowKeyHints ? 1 : 0;
-        typingView.Y = Pos.AnchorEnd(resultHeight + hintsHeight - 1 - typing.Above);
+        typingView.X = listWidth + ConflictRowService.GutterWidth;
+        typingView.Y = Pos.AnchorEnd(resultHeight + HintsHeight - 1 - typing.Above);
         typingView.Height = typing.TextHeight;
         top.LayoutSubviews();
         resultView.SetNeedsDisplay();
@@ -1159,6 +1268,13 @@ class ConflictView : IConflictView
                     () => rows.NextHunkRow(contentView.CurrentIndex, -1) != -1
                 )
                 .Item(isShowBase ? "Hide Common Ancestor" : "Show Common Ancestor", "b", ToggleBase)
+                .Item(
+                    listWidth > 0 ? "Hide File List" : "Show File List",
+                    "l",
+                    ToggleList,
+                    () => files.WidthFor(Application.Driver.Cols) > 0,
+                    WhyNoList
+                )
                 .Separator()
                 .Item("Save and Mark Resolved", "s", () => Save())
                 .SubMenu("Whole File", "a", WholeFileItems())

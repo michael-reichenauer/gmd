@@ -244,8 +244,9 @@ public class DiffViewTest
     }
 
     // On a terminal 150 wide or more, the files are listed beside the diff, the one the cursor is in
-    // marked. Tab moves the keys to the list, where down goes to the next file, and Esc moves them back
-    // before it closes the diff.
+    // marked, and the diff's own list of them at its top is left out, the row counting them kept. Tab
+    // moves the keys to the list, where down goes to the next file, and Esc moves them back before it
+    // closes the diff.
     [TestMethod]
     public async Task TestTheFilesAreListedBesideAWideDiff()
     {
@@ -256,6 +257,17 @@ public class DiffViewTest
         var screen = ScreenText.Of(gmd.WaitFor("Files 2"), repo.Path).Split('\n');
         StringAssert.StartsWith(screen[1], " M long.txt  +1 -1");
         StringAssert.StartsWith(screen[2], " M short.txt  +1 -1");
+        Assert.AreEqual(
+            """
+            Files 2               │ c00a3cc9  Change both files
+             M long.txt  +1 -1    │ Test User <test@example.com>  2024-10-15 12:02:00
+             M short.txt  +1 -1   │
+                                    2 files changed  2 modified  +2 -2
+
+                                    ▌ M long.txt  +1 -1
+            """,
+            string.Join("\n", screen.Take(6).Select(l => l.TrimEnd('─', ' ')))
+        );
 
         gmd.Send("Tab");
         gmd.WaitForStable();
@@ -310,6 +322,11 @@ public class DiffViewTest
         gmd.Send("l");
         var screen = gmd.WaitUntilGone("Files 2");
         Assert.AreEqual("File list hidden: l shows it", ScreenText.LastLine(screen).Trim('─', ' '));
+        StringAssert.Contains(
+            ScreenText.Of(screen, repo.Path),
+            "2 files changed  2 modified  +2 -2\n  M long.txt   +1 -1\n  M short.txt  +1 -1",
+            "The files are listed at the diff's top again"
+        );
         StringAssert.StartsWith(
             ScreenText.Of(screen, repo.Path).Split('\n')[1],
             "Test User",
@@ -333,6 +350,67 @@ public class DiffViewTest
         gmd.Send("l");
         screen = gmd.WaitFor("Files 2");
         Assert.AreEqual("File list shown: Tab moves into it, l hides it", ScreenText.LastLine(screen).Trim('─', ' '));
+    }
+
+    // A wide diff of one file has it beside it too, as a merge stopped on one file leaves it: it was
+    // listed at the top of the diff, and then shown, and the list was not there to show
+    [TestMethod]
+    public async Task TestADiffOfOneFileHasItsListToo()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+
+        var screen = ScreenText.Of(gmd.WaitFor("C long.txt"), repo.Path).Split('\n');
+        StringAssert.StartsWith(screen[0], "Files 1               │ Uncommitted changes ───");
+        StringAssert.StartsWith(screen[1], " C long.txt  +1       │ "); // and the time of the changes
+        Assert.AreEqual(
+            """
+                                    1 file changed  1 conflicted  +1
+
+                                    ▌ C long.txt  +1
+                                          1 conflict: Enter resolves it
+            """,
+            string.Join("\n", screen.Skip(3).Take(4).Select(l => l.TrimEnd('─', ' ')))
+        );
+    }
+
+    // Where unchanged lines are left out between two parts of a file, a dark line with '⋯' where the
+    // line numbers are, on both sides side by side, and once in one column
+    [TestMethod]
+    public async Task TestLinesLeftOutAreMarkedOnBothSides()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 40).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", TempRepo.BaseTime);
+        lines[4] = "line 5 changed";
+        lines[34] = "line 35 changed";
+        var text = string.Join("\n", lines) + "\n";
+        await repo.CommitFileAtAsync("long.txt", text, "Two changes", TempRepo.BaseTime.AddMinutes(1));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Two changes");
+        gmd.Send("d");
+
+        // Git names the nearest line above that is not indented, which in this file is the line above
+        var screen = gmd.WaitFor("line 35 changed");
+        Assert.AreEqual(
+            """
+               11 line 11                                              │   11 line 11
+               ⋯ line 28 ───────────────────────────────────────────────── ⋯ ──────────────────────────────────────────────────────
+               29 line 29                                              │   29 line 29
+            """,
+            ScreenText.Rows(screen, repo.Path, 17, 3)
+        );
+        Assert.AreEqual(
+            "   D CCCC CC DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD D DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+            ScreenText.ColorRows(gmd.CaptureColors(), 18, 1)
+        );
+
+        gmd.Resize(100, 40);
+        screen = gmd.WaitForMoving(s => !s.Contains("│"), "the one column layout");
+        StringAssert.Contains(ScreenText.Of(screen, repo.Path), "\n   ⋯ line 28 ─────");
+        Assert.IsFalse(ScreenText.Of(screen, repo.Path).Contains("─ ⋯ ─"), "One mark in one column");
     }
 
     // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the

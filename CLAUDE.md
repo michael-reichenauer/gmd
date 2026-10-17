@@ -276,8 +276,9 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   per hunk; it never builds file text, the decisions go back down to be applied. `SideChanges` is a
   side as its change against the common ancestor, which the resolver reads as the file opens, and
   `ConflictCombine` both sides' changes in one where they touch other words, taken as text written
-  by hand. `e` types a conflict in the result pane, a `UITextView` laid over its rows, which
-  `ConflictTyping` places. `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
+  by hand. The result pane below is the file as it will be saved, which goes along with the cursor:
+  `ConflictResult.RangeOf` is where the cursor's line or conflict is in it. `e` types a conflict in
+  the result pane, a `UITextView` laid over its rows, which `ConflictTyping` places. `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
   the operation, one after the other, from the conflict box, the repo menu and the diff's Enter, and
   asks to commit or continue once none is left, which the caller does; how a file's view ended
   (`ConflictOutcome`) says where it goes next, and `ConflictFileList` is the list of files beside it.

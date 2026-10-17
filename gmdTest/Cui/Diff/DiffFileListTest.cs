@@ -58,18 +58,21 @@ public class DiffFileListTest
         Assert.AreEqual(1, list.IndexAt(b + 1));
     }
 
-    // Drawn on a terminal 150 wide or more, where the diff beside it is side by side still, and only
-    // for more than one file; as wide as its widest file, within bounds
+    // Drawn on a terminal 150 wide or more, where the diff beside it is side by side still, for one
+    // file too, so that a wide diff always has its files beside it, and not for a diff of none; as
+    // wide as its widest file, within bounds
     [TestMethod]
-    public void TestTheListIsDrawnOnAWideTerminalForMoreThanOneFile()
+    public void TestTheListIsDrawnOnAWideTerminal()
     {
         var (two, _) = ListOf(Diff(File("a.txt"), File("b.txt")));
         var (one, _) = ListOf(Diff(File("a.txt")));
+        var (none, _) = ListOf(Diff());
         var (wide, _) = ListOf(Diff(File("a.txt"), File(new string('x', 60) + ".txt")));
 
         Assert.AreEqual(0, two.WidthFor(149));
         Assert.AreEqual(24, two.WidthFor(150), "At least");
-        Assert.AreEqual(0, one.WidthFor(200));
+        Assert.AreEqual(24, one.WidthFor(200), "One file too");
+        Assert.AreEqual(0, none.WidthFor(200), "No file to list");
         Assert.AreEqual(40, wide.WidthFor(200), "At most");
         Assert.AreEqual(37, wide.WidthFor(150), "A quarter of the terminal at most");
     }

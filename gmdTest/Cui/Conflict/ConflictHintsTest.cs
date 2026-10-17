@@ -17,6 +17,14 @@ public class ConflictHintsTest
         );
     }
 
+    // Where l has hidden the list of files, l is offered, to have it back
+    [TestMethod]
+    public void TestAHiddenFileListOffersL()
+    {
+        StringAssert.Contains(Line(ConflictHints.For(true, isListHidden: true)), "} { file  l file list  e edit");
+        Assert.IsFalse(Line(ConflictHints.For(true)).Contains("l file list"));
+    }
+
     // While a conflict is typed in the result pane, every other key is text
     [TestMethod]
     public void TestTypingOffersHowToBeDone()
