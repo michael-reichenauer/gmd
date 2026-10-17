@@ -25,6 +25,22 @@ record ConflictResult(
 )
 {
     public static readonly ConflictResult None = new([], new Dictionary<int, int>(), new Dictionary<int, int>());
+
+    // The rows of the result at a place in the file, where the cursor is above: a conflict's lines,
+    // or its one row while undecided, and a line of the text between conflicts, the same line, which
+    // is as many rows after the conflict before it in the result as in the rows above; (0, 0) when
+    // there is nothing
+    public (int Start, int End) RangeOf(ConflictAnchor anchor)
+    {
+        if (Rows.Count == 0)
+            return (0, 0);
+        if (anchor.IsInHunk)
+            return Starts.TryGetValue(anchor.HunkIndex, out var start) ? (start, Ends[anchor.HunkIndex]) : (0, 0);
+
+        var after = anchor.HunkIndex == -1 ? 0 : Ends.GetValueOrDefault(anchor.HunkIndex);
+        var row = Math.Min(after + anchor.Offset, Rows.Count - 1);
+        return (row, row + 1);
+    }
 }
 
 // Turns a conflicted file and what the user has decided about it into drawn rows.

@@ -82,7 +82,9 @@ class ConflictView : IConflictView
     int rowStartX;
     bool isShowBase;
     bool isMovedToFirstHunk;
-    int resultHunk = -1;
+
+    // The rows of the result at the cursor, which the result pane marks
+    (int Start, int End) resultAtCursor;
 
     // How the view ended, which Show returns
     ConflictOutcome outcome = new(ConflictEnd.Closed);
@@ -163,7 +165,7 @@ class ConflictView : IConflictView
         this.rowStartX = 0;
         this.isShowBase = false;
         this.isMovedToFirstHunk = false;
-        this.resultHunk = -1;
+        this.resultAtCursor = (0, 0);
         this.rows = new ConflictRows();
         this.resolution = new ConflictResolution(file);
 
@@ -353,7 +355,7 @@ class ConflictView : IConflictView
             contentView.ShowCurrentIndex(index);
 
         SetHeader();
-        ShowResultOf(CurrentHunk); // What was decided, or how it was shown
+        FollowCursorInResult(); // What was decided, or how it was shown
         contentView.SetNeedsDisplay();
         resultView.SetNeedsDisplay();
         listView.SetNeedsDisplay(); // How far the file is
@@ -372,24 +374,24 @@ class ConflictView : IConflictView
     void OnCurrentIndexChange()
     {
         SetHeader();
-        // The result follows the cursor to its conflict, a few lines of what is above it in sight
-        if (CurrentHunk != resultHunk)
-        {
-            resultHunk = CurrentHunk;
-            ShowResultOf(resultHunk);
-        }
+        FollowCursorInResult();
+    }
+
+    // The result pane goes along with the cursor: at the same place in the file as it will be saved,
+    // the line the cursor is on marked, or the lines of the conflict it is in, a third of the way down
+    // the pane. It used to stay on the conflict the cursor was last in, and looked stuck while the
+    // cursor went on through the text after it. Scrolled on its own, by Shift-↑↓ or the wheel, it is
+    // back with the cursor at the next move.
+    void FollowCursorInResult()
+    {
+        if (rows.Count == 0)
+            return;
+
+        resultAtCursor = result.RangeOf(rows.AnchorAt(contentView.CurrentIndex));
+        var first = Math.Max(0, resultAtCursor.Start - resultView.ContentHeight / 3);
+        resultView.Scroll(first - resultView.FirstIndex);
         resultView.SetNeedsDisplay();
     }
-
-    void ShowResultOf(int hunk)
-    {
-        if (!result.Starts.TryGetValue(hunk, out var start))
-            return;
-        resultView.Scroll(Math.Max(0, start - ResultAbove) - resultView.FirstIndex);
-    }
-
-    // How many lines above a conflict's own the result shows of it
-    const int ResultAbove = 3;
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
@@ -406,14 +408,23 @@ class ConflictView : IConflictView
     // undecided conflict says which keys decide it, naming the sides as the column titles do
     //
     // While a conflict is typed, the pane is the file around it, the text view laid over its rows
-    (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int __)
+    (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int width)
     {
         if (typingView == null)
-            return (result.Rows.Skip(firstRow).Take(rowCount), result.Rows.Count);
+        {
+            var shown = result
+                .Rows.Skip(firstRow)
+                .Take(rowCount)
+                .Select((r, i) => IsAtCursor(firstRow + i) ? r.Subtext(0, width, isFillRest: true).ToHighlight() : r);
+            return (shown, result.Rows.Count);
+        }
 
         var rows = typing.Rows(typingResult, typingHunk, typingView.TopRow);
         return (rows.Take(rowCount), rows.Count);
     }
+
+    // A row of the result at the cursor, which is marked as the cursor's row above is
+    bool IsAtCursor(int row) => row >= resultAtCursor.Start && row < resultAtCursor.End;
 
     // Goes to another file of the workspace, asking first about decisions not saved, as closing does
     void GoToFile(string path)
@@ -505,8 +516,8 @@ class ConflictView : IConflictView
         return (rows.Skip(firstRow).Take(rowCount), rows.Count);
     }
 
-    // The pane's title, its border, in the color of the conflicts' own: which conflict's result it
-    // shows, the one the cursor is in or the last above it, or what is typed in it, and the colors of
+    // The pane's title, its border, in the color of the conflicts' own: the file as it will be saved,
+    // by its name, its path being on the header above, or what is typed in it, and the colors of
     // where its lines came from
     Text ResultTitle(int firstRow, int width)
     {
@@ -514,8 +525,7 @@ class ConflictView : IConflictView
             typingView != null
                 ? Text.BrightMagenta("─── Typing ")
                     .Dark($"conflict {typingHunk + 1} by hand, {typingFrom}, Esc when done ")
-            : CurrentHunk >= 0 ? Text.BrightMagenta($"─── Result of conflict {CurrentHunk + 1} ")
-            : Text.BrightMagenta("─── Result ");
+                : Text.BrightMagenta("─── Result: ").White(Path.GetFileName(file.Path)).Dark(" as it will be saved ");
         var legend = Text.Dark(" ")
             .Yellow("▌")
             .Dark($"{names.Ours.Max(20)} ")

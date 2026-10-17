@@ -355,6 +355,14 @@ public class ConflictRowServiceTest
         Assert.AreEqual("C\nC\nY", string.Join("\n", result.Rows.Skip(1).Take(3).Select(r => TextColorsOfBar(r))));
         CollectionAssert.AreEqual(new[] { 1, 5 }, new[] { result.Starts[0], result.Starts[1] });
         CollectionAssert.AreEqual(new[] { 4, 6 }, new[] { result.Ends[0], result.Ends[1] });
+
+        // Where the cursor is above, in the result: a line of the text between conflicts is the same
+        // line, and a conflict its lines, or its one row while undecided
+        Assert.AreEqual((0, 1), result.RangeOf(new ConflictAnchor(-1, 0, false)), "'a', above the first");
+        Assert.AreEqual((1, 4), result.RangeOf(new ConflictAnchor(0, 2, true)), "In conflict 1, its 3 lines");
+        Assert.AreEqual((4, 5), result.RangeOf(new ConflictAnchor(0, 0, false)), "'b', the line after it");
+        Assert.AreEqual((5, 6), result.RangeOf(new ConflictAnchor(1, 0, true)), "Conflict 2, undecided");
+        Assert.AreEqual((0, 0), ConflictResult.None.RangeOf(new ConflictAnchor(-1, 0, false)), "Nothing");
     }
 
     // The color letter of a row's bar, its first rune
