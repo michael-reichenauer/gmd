@@ -189,8 +189,9 @@ static class E2eRepo
     // The same with 'feature' squash merged into main on origin before it was deleted there, as a pull
     // request merged with GitHub's squash merge leaves it: main on origin has a copy of its changes,
     // 'Feature (#1)', and git counts 'feature' unmerged. The squash is made on a detached HEAD, so
-    // that no branch's reflog has it, and pushed to origin's main; main here is behind it.
-    public static async Task<TempRepo> CreateWithBranchSquashMergedOnOriginAsync()
+    // that no branch's reflog has it, and pushed to origin's main; main here is behind it. 'feature' is
+    // current, or 'main', which git can delete 'feature' from.
+    public static async Task<TempRepo> CreateWithBranchSquashMergedOnOriginAsync(bool isOnMain = false)
     {
         var repo = await CreateWithOriginAsync();
         var t = TempRepo.BaseTime;
@@ -204,7 +205,7 @@ static class E2eRepo
         await repo.GitAsync("merge -q --squash feature");
         repo.GitAt(["commit", "-q", "-m", "Feature (#1)"], t.AddMinutes(10));
         await repo.GitAsync("push -q origin HEAD:main");
-        await repo.GitAsync("checkout -q feature");
+        await repo.GitAsync(isOnMain ? "checkout -q main" : "checkout -q feature");
         await repo.GitAsync($"-C \"{repo.Path}-origin\" update-ref -d refs/heads/feature");
         await repo.GitAsync("fetch -q --prune origin");
 

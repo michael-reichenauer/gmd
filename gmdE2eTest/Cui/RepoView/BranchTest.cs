@@ -783,4 +783,41 @@ public class BranchTest
         StringAssert.StartsWith(File.ReadAllText(Path.Join(repo.Path, "long.txt")), "line 1 changed\n");
         Assert.AreEqual("", await repo.GitAsync("stash list"), "and the stash is gone again");
     }
+
+    // A branch squash merged on origin and deleted there is said once found, and Delete Merged Branches,
+    // in the repo menu, lists it and deletes it here. In this repo the menu starts on Pull All Branches,
+    // main being behind, and the item is four moves down, past Search, Refresh and Worktrees, Push All
+    // and the two matches being greyed out.
+    [TestMethod]
+    public async Task TestDeleteABranchMergedOnOrigin()
+    {
+        using var repo = await E2eRepo.CreateWithBranchSquashMergedOnOriginAsync(isOnMain: true);
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            "'feature' was merged into 'main' on origin: Delete Merged Branches in the repo menu deletes it here",
+            ScreenText.LastLine(gmd.WaitFor("was merged into"))
+        );
+        gmd.WaitUntilGone("was merged into");
+
+        gmd.Send("M");
+        gmd.WaitFor("Pull All Branches");
+        for (var i = 0; i < 4; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+
+        var dialog = gmd.WaitFor("Merged into");
+        StringAssert.Contains(dialog, "feature               main, squash or rebase    Fix feature");
+        StringAssert.Contains(dialog, "Delete deletes 'feature' here: squash or rebase merged into 'main' on origin");
+        gmd.Send("d");
+
+        Assert.AreEqual(
+            "Deleted 'feature': Restore Deleted Branch in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Deleted 'feature'"))
+        );
+        Assert.AreEqual("", (await repo.GitAsync("branch --list feature")).Trim());
+    }
 }

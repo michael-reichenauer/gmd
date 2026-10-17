@@ -28,6 +28,9 @@ interface IGit
     Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
     Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
+
+    // The local branches whose tips the commit has, i.e. merged into it as git counts it
+    Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd);
     Task<Result<Status>> GetStatusAsync(string wd);
 
     // The status of a worktree someone else is working in, read without taking its index lock

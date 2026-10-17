@@ -15,6 +15,7 @@ interface IBranchCreateCommands
     void CreateBranchFromLostCommit(string commitId, string madeOnName);
     void RenameBranch(string name);
     void DeleteBranch(string name);
+    void DeleteMergedBranches();
 }
 
 class BranchCreateCommands : IBranchCreateCommands
@@ -28,13 +29,15 @@ class BranchCreateCommands : IBranchCreateCommands
     readonly ICreateBranchDlg createBranchDlg;
     readonly IRenameBranchDlg renameBranchDlg;
     readonly IDeleteBranchDlg deleteBranchDlg;
+    readonly IMergedBranchesDlg mergedBranchesDlg;
 
     public BranchCreateCommands(
         CommandContext context,
         IRepoConfigService repoConfig,
         ICreateBranchDlg createBranchDlg,
         IRenameBranchDlg renameBranchDlg,
-        IDeleteBranchDlg deleteBranchDlg
+        IDeleteBranchDlg deleteBranchDlg,
+        IMergedBranchesDlg mergedBranchesDlg
     )
     {
         this.context = context;
@@ -46,6 +49,7 @@ class BranchCreateCommands : IBranchCreateCommands
         this.createBranchDlg = createBranchDlg;
         this.renameBranchDlg = renameBranchDlg;
         this.deleteBranchDlg = deleteBranchDlg;
+        this.mergedBranchesDlg = mergedBranchesDlg;
     }
 
     public void CreateBranchFromBranch(string name) =>
@@ -208,23 +212,82 @@ class BranchCreateCommands : IBranchCreateCommands
                 return Result.Ok;
             foreach (var branch in new[] { remote, local }.OfType<Server.Branch>())
             {
-                if (!rsp.IsForce && repo.Repo.HasUnmergedCommits(branch))
+                if (!rsp.IsForce && repo.Repo.IsUnmerged(branch))
                 {
                     return new Error($"Branch {branch.Name}\nnot fully merged, use force option to delete.");
                 }
             }
 
+            // Squash merged or rebase merged on origin is merged, though git refuses it unforced
+            var isForce = rsp.IsForce || (local != null && repo.Repo.MergedOnOrigin.ContainsKey(local.Name));
+
             Result deleted;
             var deletedName = local?.Name ?? remote!.Name;
             using (status.Progress($"Deleting '{deletedName}'"))
             {
-                deleted = await server.DeleteBranchAsync(repo.Repo, local?.Name ?? "", remote?.Name ?? "", rsp.IsForce);
+                deleted = await server.DeleteBranchAsync(repo.Repo, local?.Name ?? "", remote?.Name ?? "", isForce);
             }
 
             Refresh((local ?? remote)!.PrimaryBaseName);
             if (deleted is Error e)
                 return e;
             status.Info(DeletedBranchRows.Deleted(deletedName, local != null && remote != null));
+            return Result.Ok;
+        });
+
+    // The local branches with no branch on origin whose work is in main or an integration branch
+    // already, merged as git counts it or squash or rebase merged on origin, listed to delete one at
+    // a time, or all at once after asking. Shown again after each delete with the ones left, until
+    // closed. Each is deleted forced, since gmd told it merged and git may not (a squash merge, or a
+    // merge into main when another branch is checked out), and recorded for Restore Deleted Branch.
+    public void DeleteMergedBranches() =>
+        Do(async repo =>
+        {
+            Result<IReadOnlyList<MergedBranch>> mergedResult;
+            using (status.Progress("Looking for merged branches"))
+            {
+                mergedResult = await server.GetMergedBranchesAsync(repo.Repo);
+            }
+            if (mergedResult is not IReadOnlyList<MergedBranch> found)
+                return new Error("Failed to look for merged branches", mergedResult.Error);
+            if (found.Count == 0)
+                return new Notice(MergedBranchRows.NoneToDelete);
+
+            var branches = found.ToList();
+            var deletedNames = new List<string>();
+            try
+            {
+                var selected = 0;
+                while (branches.Count > 0 && mergedBranchesDlg.Show(branches, selected) is MergedBranchChoice choice)
+                {
+                    var toDelete = choice.IsAll ? branches.Where(MergedBranchRows.CanDelete).ToList() : [choice.Branch];
+                    if (choice.IsAll && !Confirm.DeleteMergedBranches(MergedBranchRows.DeleteAllQuestion(branches)))
+                        continue;
+
+                    selected = Math.Max(0, branches.IndexOf(choice.Branch));
+                    foreach (var b in toDelete)
+                    {
+                        using (status.Progress($"Deleting '{b.Name}'"))
+                        {
+                            if (await server.DeleteBranchAsync(repo.Repo, b.Name, "", true) is Error e)
+                                return new Error($"Failed to delete '{b.Name}'", e);
+                        }
+                        deletedNames.Add(b.Name);
+                        branches.Remove(b);
+                    }
+                    selected = Math.Min(selected, Math.Max(0, branches.Count - 1));
+                }
+            }
+            finally
+            {
+                if (deletedNames.Count > 0)
+                    Refresh();
+            }
+
+            if (deletedNames.Count == 1)
+                status.Info(DeletedBranchRows.Deleted(deletedNames[0], false));
+            else if (deletedNames.Count > 1)
+                status.Info(MergedBranchRows.Deleted(deletedNames.Count));
             return Result.Ok;
         });
 

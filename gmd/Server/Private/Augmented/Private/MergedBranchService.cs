@@ -1,8 +1,9 @@
+using gmd.Common;
 using gmd.Git;
 
 namespace gmd.Server.Private.Augmented.Private;
 
-// See IMergedOnOriginService. A branch is a candidate when origin deleted it (Branch.GoneRemoteName),
+// See IMergedBranchService. A branch is a candidate when origin deleted it (Branch.GoneRemoteName),
 // as GitHub does once a pull request is merged, and its commits are merged nowhere as git sees it,
 // i.e. its tip has no child: a pull request merged with a merge commit is merged as git sees it, and
 // is drawn so. It is merged on origin when merging it into the branch it went into would change
@@ -12,9 +13,10 @@ namespace gmd.Server.Private.Augmented.Private;
 // What is known is kept by commit ids, since the answer for two commits never changes: a branch tip
 // merged into a commit of main is so for good, and one not merged is asked again once main moves.
 [SingleInstance]
-class MergedOnOriginService : IMergedOnOriginService
+class MergedBranchService : IMergedBranchService
 {
     readonly IGit git;
+    readonly IRepoConfigService repoConfig;
     readonly object syncRoot = new();
 
     // The branch tips known to be merged, and the name of the branch they are merged into
@@ -23,9 +25,10 @@ class MergedOnOriginService : IMergedOnOriginService
     // The pairs of a branch tip and the tip of a branch it may be merged into, asked of git already
     readonly HashSet<(string Tip, string IntoTip)> asked = [];
 
-    internal MergedOnOriginService(IGit git)
+    internal MergedBranchService(IGit git, IRepoConfigService repoConfig)
     {
         this.git = git;
+        this.repoConfig = repoConfig;
     }
 
     record Candidate(string BranchName, string TipId, string IntoName, string IntoTipId);
@@ -79,6 +82,72 @@ class MergedOnOriginService : IMergedOnOriginService
         }
 
         return WithKnown(repo);
+    }
+
+    // The branches a merged branch can be listed for: deleted on origin, or never pushed, and with
+    // commits of its own, i.e. not a branch just made, whose tip is another branch's commit and so
+    // merged into it, nor main or an integration branch, which branches are merged into. Merged as git
+    // counts it into main or an integration branch, as origin has them, or by content on origin.
+    public async Task<Result<IReadOnlyList<MergedBranch>>> GetMergedBranchesAsync(Repo repo)
+    {
+        var updatedResult = await GetUpdatedRepoAsync(repo);
+        if (updatedResult is not Repo updated)
+            return updatedResult.Error;
+
+        var integrationNames = repoConfig.Get(repo.Path).IntegrationBranches;
+        bool IsInto(Branch b) => b.IsMainBranch || WellKnownBranches.IsIntegrationName(b.NiceName, integrationNames);
+        var intos = updated
+            .AllBranches.Where(b => b.IsGitBranch && !b.IsDetached && IsInto(b))
+            .Select(b => OnOrigin(updated, b.Name))
+            .OfType<Branch>()
+            .DistinctBy(b => b.Name)
+            .ToList();
+
+        Dictionary<string, string> mergedInto = [];
+        foreach (var into in intos)
+        {
+            var namesResult = await git.GetMergedBranchNamesAsync(into.TipId, repo.Path);
+            if (namesResult is not IReadOnlyList<string> names)
+                return namesResult.Error;
+            foreach (var name in names)
+            {
+                mergedInto.TryAdd(name, into.NiceName);
+            }
+        }
+
+        return updated
+            .AllBranches.Where(b =>
+                !b.IsRemote
+                && b.IsGitBranch
+                && !b.IsDetached
+                && b.RemoteName == ""
+                && !IsInto(b)
+                && updated.CommitById.TryGetValue(b.TipId, out var tip)
+                && tip.BranchName == b.Name
+            )
+            .Select(b =>
+                mergedInto.TryGetValue(b.Name, out var into) ? ToMerged(updated, b, into, false)
+                : updated.MergedOnOrigin.TryGetValue(b.Name, out var onOrigin) ? ToMerged(updated, b, onOrigin, true)
+                : null
+            )
+            .OfType<MergedBranch>()
+            .OrderByDescending(m => m.Time)
+            .ToList();
+    }
+
+    static MergedBranch ToMerged(Repo repo, Branch b, string into, bool isByContent)
+    {
+        var tip = repo.CommitById[b.TipId];
+        return new MergedBranch(
+            b.Name,
+            into,
+            isByContent,
+            b.TipId,
+            tip.Subject,
+            tip.AuthorTime,
+            b.IsCurrent,
+            b.WorktreePath
+        );
     }
 
     // The candidates not known to be merged, and not asked about with the tips they have now

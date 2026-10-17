@@ -157,6 +157,9 @@ static class Confirm
             """
         );
 
+    // Deleting every merged branch listed, which Restore Deleted Branch brings back one by one
+    internal static bool DeleteMergedBranches(string question) => Ask("Delete Merged Branches", question);
+
     // Putting a remote branch back as it was before a force push, which is one in turn, for everyone
     internal static bool RestoreOrigin(string remoteName, string question) => Ask($"Restore {remoteName}", question);
 

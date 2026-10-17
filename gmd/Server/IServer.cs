@@ -134,6 +134,10 @@ interface IServer
     // whether a branch is not known yet, and the repo with all known, a git command for each not known
     bool HasUnknownMergedOnOrigin(Repo repo);
     Task<Result<Repo>> GetMergedOnOriginRepoAsync(Repo repo);
+
+    // The local branches with no branch on origin whose work is in main or an integration branch
+    // already, for Delete Merged Branches: merged as git counts it, or squash or rebase merged on origin
+    Task<Result<IReadOnlyList<MergedBranch>>> GetMergedBranchesAsync(Repo repo);
     Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
     Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd);
     Task<Result> PruneWorktreesAsync(string wd);

@@ -6,7 +6,7 @@ namespace gmdTest.Server.Private.Augmented.Private;
 // Which branches deleted on origin were squash merged or rebase merged there: which ones are asked
 // about, into which branch, and that each answer is asked of git once
 [TestClass]
-public class MergedOnOriginServiceTest
+public class MergedBranchServiceTest
 {
     static string Id(string name) => RepoBuilder.Sha(name);
 
@@ -29,7 +29,7 @@ public class MergedOnOriginServiceTest
         var repo = await builder.ViewRepoAsync();
         var git = new FakeGit();
         git.MergedByContent.Add(Id("f2"));
-        var service = new MergedOnOriginService(git);
+        var service = new MergedBranchService(git, new FakeRepoConfig());
 
         Assert.IsTrue(service.HasUnknown(repo));
         Assert.AreEqual(0, service.WithKnown(repo).MergedOnOrigin.Count, "Not known before it is asked");
@@ -57,7 +57,7 @@ public class MergedOnOriginServiceTest
     public async Task TestABranchNotMergedIsAskedAgainOnceMainMoves()
     {
         var git = new FakeGit();
-        var service = new MergedOnOriginService(git);
+        var service = new MergedBranchService(git, new FakeRepoConfig());
 
         var updated = AssertOk(await service.GetUpdatedRepoAsync(await Squashed().ViewRepoAsync()));
 
@@ -83,7 +83,7 @@ public class MergedOnOriginServiceTest
             .LocalBranch("merged", "g1", remoteName: "origin/merged")
             .ViewRepoAsync("pushed", "local", "merged");
 
-        Assert.IsFalse(new MergedOnOriginService(new FakeGit()).HasUnknown(repo));
+        Assert.IsFalse(new MergedBranchService(new FakeGit(), new FakeRepoConfig()).HasUnknown(repo));
     }
 
     // A branch made from another than main may have gone into that one, which is asked first
@@ -100,8 +100,46 @@ public class MergedOnOriginServiceTest
             .ViewRepoAsync("develop");
         var git = new FakeGit();
 
-        AssertOk(await new MergedOnOriginService(git).GetUpdatedRepoAsync(repo));
+        AssertOk(await new MergedBranchService(git, new FakeRepoConfig()).GetUpdatedRepoAsync(repo));
 
         CollectionAssert.AreEqual(new[] { (Id("d1"), Id("f1")), (Id("m1"), Id("f1")) }, git.MergedByContentAsked);
+    }
+
+    // Delete Merged Branches lists the local branches with no branch on origin whose work is in main
+    // already, newest first: merged as git counts it, or squash or rebase merged on origin. Not one just
+    // made, which git counts merged but which has no commit of its own, nor one origin has, nor main.
+    [TestMethod]
+    public async Task TestTheMergedBranchesListed()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m3", "Merge branch 'merged' into main", "m2", "g1")
+            .Commit("m2", "Login (#12)", "m1")
+            .Commit("g1", "Merged work", "m1")
+            .Commit("p1", "Pushed work", "m1")
+            .Commit("f2", "Validate", "f1")
+            .Commit("f1", "Add login", "m1")
+            .Commit("w1", "Work", "m1")
+            .Commit("m1", "Initial")
+            .BranchWithRemote("main", "m3", isCurrent: true)
+            .LocalBranch("feature", "f2", remoteName: "origin/feature")
+            .LocalBranch("merged", "g1")
+            .LocalBranch("fresh", "m1")
+            .LocalBranch("work", "w1")
+            .BranchWithRemote("pushed", "p1")
+            .ViewRepoAsync();
+        var git = new FakeGit();
+        git.MergedByContent.Add(Id("f2"));
+        git.MergedBranchNames[Id("m3")] = ["main", "merged", "fresh", "pushed"];
+
+        var merged = AssertOk(await new MergedBranchService(git, new FakeRepoConfig()).GetMergedBranchesAsync(repo));
+
+        Assert.AreEqual(
+            "merged into main, feature into main by content",
+            string.Join(", ", merged.Select(m => $"{m.Name} into {m.IntoName}{(m.IsByContent ? " by content" : "")}"))
+        );
+        Assert.AreEqual(
+            ("Validate", Id("f2"), false, ""),
+            (merged[1].Subject, merged[1].TipId, merged[1].IsCurrent, merged[1].WorktreePath)
+        );
     }
 }

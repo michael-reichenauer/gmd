@@ -33,3 +33,27 @@ static class DeletedOnOrigin
                     + "request was merged. Pushing makes it again there, for everyone."
         );
 }
+
+// Which branches merged on origin have been told on the status line, so that each is told once, when
+// a read first finds it (Repo.MergedOnOrigin): it looks unmerged, as git counts it, and is done with
+class MergedOnOriginNotes
+{
+    readonly HashSet<(string Branch, string Tip)> told = [];
+
+    // What to say of the branches of a shown repo not told yet, or null
+    public string? Untold(Repo repo)
+    {
+        var untold = repo
+            .MergedOnOrigin.OrderBy(m => m.Key)
+            .Where(m => repo.BranchByName.TryGetValue(m.Key, out var b) && told.Add((m.Key, b.TipId)))
+            .ToList();
+        return untold.Count switch
+        {
+            0 => null,
+            1 => $"'{untold[0].Key}' was merged into '{untold[0].Value}' on origin: "
+                + "Delete Merged Branches in the repo menu deletes it here",
+            _ => $"{BranchPushPullCommands.Names(untold.Select(m => m.Key))} were merged on origin: "
+                + "Delete Merged Branches in the repo menu deletes them here",
+        };
+    }
+}

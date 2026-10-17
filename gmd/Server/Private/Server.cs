@@ -12,7 +12,7 @@ class Server : IServer
     readonly ICommitRewriteService commitRewriteService;
     readonly IUndoService undoService;
     readonly IDeletedBranchService deletedBranchService;
-    readonly IMergedOnOriginService mergedOnOrigin;
+    readonly IMergedBranchService mergedBranches;
     readonly IViewRepoConverter converter;
     readonly IViewRepoCreater viewRepoCreater;
     readonly IFileMonitor fileMonitor;
@@ -25,7 +25,7 @@ class Server : IServer
         ICommitRewriteService commitRewriteService,
         IUndoService undoService,
         IDeletedBranchService deletedBranchService,
-        IMergedOnOriginService mergedOnOrigin,
+        IMergedBranchService mergedBranches,
         IViewRepoConverter converter,
         IViewRepoCreater viewRepoCreater,
         IFileMonitor fileMonitor,
@@ -39,7 +39,7 @@ class Server : IServer
         this.commitRewriteService = commitRewriteService;
         this.undoService = undoService;
         this.deletedBranchService = deletedBranchService;
-        this.mergedOnOrigin = mergedOnOrigin;
+        this.mergedBranches = mergedBranches;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
         this.fileMonitor = fileMonitor;
@@ -83,7 +83,7 @@ class Server : IServer
             return repoResult.Error;
 
         // With what is known of the branches merged on origin, so that a refresh shows it at once
-        return viewRepoCreater.GetViewRepoAsync(mergedOnOrigin.WithKnown(augmentedRepo), showBranches);
+        return viewRepoCreater.GetViewRepoAsync(mergedBranches.WithKnown(augmentedRepo), showBranches);
     }
 
     public async Task<Result<Repo>> GetUpdateStatusRepoAsync(Repo repo)
@@ -577,9 +577,12 @@ class Server : IServer
     public Task<Result<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo) =>
         augmentedService.GetUpdatedWorktreesRepoAsync(repo);
 
-    public bool HasUnknownMergedOnOrigin(Repo repo) => mergedOnOrigin.HasUnknown(repo);
+    public bool HasUnknownMergedOnOrigin(Repo repo) => mergedBranches.HasUnknown(repo);
 
-    public Task<Result<Repo>> GetMergedOnOriginRepoAsync(Repo repo) => mergedOnOrigin.GetUpdatedRepoAsync(repo);
+    public Task<Result<Repo>> GetMergedOnOriginRepoAsync(Repo repo) => mergedBranches.GetUpdatedRepoAsync(repo);
+
+    public Task<Result<IReadOnlyList<MergedBranch>>> GetMergedBranchesAsync(Repo repo) =>
+        mergedBranches.GetMergedBranchesAsync(repo);
 
     public Task<Result> AddWorktreeAsync(
         string path,

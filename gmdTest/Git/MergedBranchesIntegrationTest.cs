@@ -2,14 +2,15 @@ using gmdTest.Fixtures;
 
 namespace gmdTest.Git;
 
-// Whether a branch is merged by content, as GitHub's squash merge and rebase merge leave it, over a
-// real repository: what 'git merge-tree' says, which canned output cannot tell
+// Which branches are merged, over a real repository: as git counts it ('git branch --merged'), and by
+// content, as GitHub's squash merge and rebase merge leave it ('git merge-tree'), which canned output
+// cannot tell
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
 // wanted:  scripts/test --filter "TestCategory!=Integration"
 [TestClass]
 [TestCategory("Integration")]
-public class MergedByContentIntegrationTest
+public class MergedBranchesIntegrationTest
 {
     TempRepo repo = null!;
     int minute = 0;
@@ -88,5 +89,18 @@ public class MergedByContentIntegrationTest
         await CommitAsync("login.txt", "form\nvalidated\n", "Reword login");
 
         Assert.IsFalse(AssertOk(await repo.Git.IsMergedByContentAsync(await MainAsync(), feature, repo.Path)));
+    }
+
+    // The local branches whose tips main has, main among them, and not one merged by a squash
+    [TestMethod]
+    public async Task TestTheBranchesMergedAsGitCountsIt()
+    {
+        await FeatureAsync();
+        await repo.GitAsync("branch -q merged feature~1");
+        await repo.GitAsync("merge -q --no-ff -m \"Merge branch 'merged'\" merged");
+
+        var names = AssertOk(await repo.Git.GetMergedBranchNamesAsync(await MainAsync(), repo.Path));
+
+        CollectionAssert.AreEquivalent(new[] { "main", "merged" }, names.ToArray());
     }
 }

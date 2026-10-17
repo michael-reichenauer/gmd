@@ -101,6 +101,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly SearchMatches searchMatches = new();
     readonly CurrentBranchShown currentBranchShown = new();
     readonly ForcePushNotes forcePushNotes = new();
+    readonly MergedOnOriginNotes mergedOnOriginNotes = new();
     IReadOnlyList<HiddenBranchNews> hiddenNews = [];
     readonly RepoViewInput input;
 
@@ -770,9 +771,13 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         ShowChangesMadeMeanwhile();
 
-        // A force push on origin looks like new commits on both sides, so it is said, once
-        if (forcePushNotes.Untold(serverRepo) is string note)
-            status.Info(note);
+        // A force push on origin looks like new commits on both sides, and a branch squash merged on
+        // origin like one not merged, so each is said, once
+        var notes = new[] { forcePushNotes.Untold(serverRepo), mergedOnOriginNotes.Untold(serverRepo) }
+            .OfType<string>()
+            .ToList();
+        if (notes.Count > 0)
+            status.Info(string.Join("; ", notes));
 
         var names = repo.Repo.ViewBranches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoConfig.Set(serverRepo.Path, s => s.Branches = names);

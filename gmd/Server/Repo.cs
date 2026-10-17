@@ -89,7 +89,7 @@ record Repo
 
     // The local branches deleted on origin that were squash merged or rebase merged there, e.g. by a
     // pull request, which git does not count as merged, by name, with the branch each went into, e.g.
-    // 'main'. Read after the repo is shown, see IMergedOnOriginService. Usually none.
+    // 'main'. Read after the repo is shown, see IMergedBranchService. Usually none.
     public IReadOnlyDictionary<string, string> MergedOnOrigin { get; init; } = new Dictionary<string, string>();
 
     // The name commits are made with in the repository, its user.name, or "" when none is set

@@ -504,7 +504,7 @@ class RepoBuilder
             new CommitRewriteService(git, Config),
             new UndoService(git, Config),
             new DeletedBranchService(git, Config),
-            new MergedOnOriginService(git),
+            new MergedBranchService(git, Config),
             new ViewRepoConverter(),
             NewViewRepoCreater(),
             monitor,

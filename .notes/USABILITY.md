@@ -86,7 +86,8 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   base, then `git cherry`, gives `-` for the squash). Only for the local branches whose remote branch
   is gone, so a few git calls. Say it in the log and the worktree list, and offer *Delete Merged
   Branches ...*, a ListDlg of the local branches merged any of the three ways, with their worktrees,
-  recorded for Restore Deleted Branch: what `gh poi` and `git-delete-squashed` are for.
+  recorded for Restore Deleted Branch: what `gh poi` and `git-delete-squashed` are for. *Done
+  (2026-10-17)*, see below.
 - **D. Rebase.** `--update-refs`, so that a stack of branches (feature-b on feature-a, as agents
   make) moves along, which gmd's branch hierarchy knows; it also lifts "another branch is on this
   commit or after it" for Amend, Drop and Squash when that branch is local. `--autostash`, as Amend
@@ -115,6 +116,26 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   tip the branch never was at; and a branch only behind, e.g. a reset back, which a pull brings back
   as before. Rebase and Push onto of a branch rewritten here asks for the force push first, rather
   than rebasing and pushing once.
+
+### C, as done (2026-10-17)
+
+- `Branch.GoneRemoteName` keeps the remote branch git reports gone. `p` says the branch was deleted
+  on origin, the details pane says so, and Push in its branch menu asks before making it again.
+- `MergedBranchService` tells which of those were squash or rebase merged (`git merge-tree
+  --write-tree`, git 2.38, into the branch it was made from and into main, as origin has them), for
+  the ones with a tip no child has, after the repo is shown, its answers kept for the session by
+  commit ids and put in every read at once (`Repo.MergedOnOrigin`). The tip is marked `✓`, the
+  details pane, `p` and the push question say where it went, the status line says it once, and the
+  worktree list and Remove Worktree count it merged (git deletes it forced).
+- *Delete Merged Branches ...* in the repo menu: the local branches with no branch on origin whose
+  work is in main or an integration branch, merged as git counts it (`git branch --merged`) or by
+  content on origin; not one with no commit of its own. Delete, or Delete All after a question, each
+  forced and recorded for Restore Deleted Branch; one checked out here or in a worktree is listed and
+  left. The branch menu's Delete Branch no longer asks for force for one merged on origin.
+- Left: a branch squash merged whose origin branch was not deleted is not told, nor one whose lines
+  main changed again since (the merge conflicts), nor one merged into another branch than its parent
+  or main; merged branches still on origin are not listed, since deleting them is deleting them for
+  everyone; and Delete Merged Branches does not remove the worktree of a branch with the branch.
 
 ---
 
