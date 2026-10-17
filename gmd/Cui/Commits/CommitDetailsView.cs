@@ -1,6 +1,7 @@
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Commits;
 
@@ -103,7 +104,7 @@ class CommitDetailsView : ICommitDetailsView
     void ShowRows(IReadOnlyList<Text> rows, bool isMoveToTop)
     {
         this.rows = rows;
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
         if (isMoveToTop)
             contentView.MoveToTop();
     }

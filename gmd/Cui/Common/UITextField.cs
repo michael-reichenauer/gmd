@@ -1,23 +1,32 @@
+using System.Drawing;
 using gmd.Common.Spelling;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Terminal.Gui.Views;
 
 namespace gmd.Cui.Common;
 
-// A one line text input field, which unlike Terminal.Gui's TextField returns its text as a
-// trimmed string rather than as a ustring. With a SpellChecker set, misspelled words are drawn in
-// red and F7 or Ctrl+G opens the suggestions for the misspelled word at or after the caret. A
-// right click or Shift+F10 opens the context menu, with those suggestions on top when on a
-// misspelled word.
+// A one line text input field, which returns its text trimmed. With a SpellChecker set, misspelled
+// words are drawn in red and F7 or Ctrl+G opens the suggestions for the misspelled word at or after
+// the caret. A right click or Shift+F10 opens the context menu, with those suggestions on top when on
+// a misspelled word, in place of Terminal.Gui's own edit menu.
+//
+// Terminal.Gui counts the caret and the scroll offset in graphemes, the spell checking in runes,
+// which are the same for text with no combining marks.
 class UITextField : TextField
 {
     readonly Typing typing;
 
     internal UITextField(int x, int y, int w, string text = "")
-        : base(x, y, w, text)
     {
-        ColorScheme = ColorSchemes.TextField;
-        typing = new Typing(SetNeedsDisplay);
-        TextChanged += _ =>
+        X = x;
+        Y = y;
+        Width = w;
+        Height = 1;
+        base.Text = text;
+        this.WithScheme(() => ColorSchemes.TextField);
+        typing = new Typing(SetNeedsDraw);
+        TextChanged += (_, _) =>
         {
             if (IsSpellCheck)
                 typing.Edited();
@@ -37,53 +46,62 @@ class UITextField : TextField
 
     public new string Text
     {
-        get => base.Text?.ToString()?.Trim() ?? "";
+        get => base.Text?.Trim() ?? "";
         set => base.Text = value;
     }
 
     // The text exactly as typed, which is what the caret and the scroll offset are indexes into
-    public string RawText => base.Text?.ToString() ?? "";
+    public string RawText => base.Text ?? "";
 
-    public override bool ProcessKey(KeyEvent keyEvent)
+    // Where the caret is, as an index into the text
+    public int CursorPosition
     {
-        if (IsSpellCheck && SpellSpans.IsSpellKey(keyEvent.Key))
+        get => InsertionPoint;
+        set => InsertionPoint = value;
+    }
+
+    protected override bool OnKeyDown(Key key)
+    {
+        if (IsSpellCheck && SpellSpans.IsSpellKey(key))
         {
             ShowSpellingSuggestions();
             return true;
         }
-        if (TextContextMenu.IsMenuKey(keyEvent.Key))
+        if (TextContextMenu.IsMenuKey(key))
         {
             ShowContextMenu(CursorPosition - ScrollOffset);
             return true;
         }
-        return base.ProcessKey(keyEvent);
+        return base.OnKeyDown(key);
     }
 
     // A right click opens the context menu in place of the one Terminal.Gui would open on it, and
     // the press and release it is made of are swallowed too, so the base view sees none of it
-    public override bool MouseEvent(MouseEvent ev)
+    protected override bool OnMouseEvent(Mouse ev)
     {
-        if (ev.Flags.HasFlag(MouseFlags.Button3Clicked))
+        var x = (ev.Position ?? Point.Empty).X;
+        if (ev.Flags.HasFlag(MouseFlags.RightButtonClicked))
         {
             if (!HasFocus)
                 SetFocus();
-            CursorPosition = ScrollOffset + ev.X; // The caret goes to the click, as with a left click
-            ShowContextMenu(ev.X);
+            CursorPosition = ScrollOffset + x; // The caret goes to the click, as with a left click
+            ShowContextMenu(x);
             return true;
         }
-        if (ev.Flags.HasFlag(MouseFlags.Button3Pressed) || ev.Flags.HasFlag(MouseFlags.Button3Released))
+        if (ev.Flags.HasFlag(MouseFlags.RightButtonPressed) || ev.Flags.HasFlag(MouseFlags.RightButtonReleased))
             return true;
-        return base.MouseEvent(ev);
+        return base.OnMouseEvent(ev);
     }
 
     // TextField has no hook for coloring a rune as it is drawn, so the misspelled words are drawn
-    // once more, in red, over what the base drew: nothing of that is deferred, so what is drawn
-    // last is what shows. The caret cell is left as drawn, and a selection is left alone entirely.
-    public override void Redraw(Rect bounds)
+    // once more, in red, over what the base drew. The caret cell is left as drawn, and a selection is
+    // left alone entirely.
+    protected override bool OnDrawingContent(DrawContext? context)
     {
-        base.Redraw(bounds);
+        var isDrawn = base.OnDrawingContent(context);
         DrawMisspelled();
         Redrawn?.Invoke();
+        return isDrawn;
     }
 
     void DrawMisspelled()
@@ -91,25 +109,23 @@ class UITextField : TextField
         if (!IsSpellCheck || SelectedLength > 0)
             return;
 
-        var runes = RawText.EnumerateRunes().Select(r => new Rune((uint)r.Value)).ToList();
+        var runes = RawText.EnumerateRunes().ToList();
         var spans = SpellScanner.Misspelled(SpellSpans.LineText(runes), SpellChecker!.IsMisspelled);
         if (spans.Count == 0)
             return;
 
-        Driver.SetAttribute(SpellSpans.MisspelledColor);
+        SetAttribute(SpellSpans.MisspelledColor);
         int col = 0;
-        for (int idx = ScrollOffset; idx < runes.Count && col < Frame.Width; idx++)
+        for (int idx = ScrollOffset; idx < runes.Count && col < Viewport.Width; idx++)
         {
             var span = SpellSpans.At(spans, idx);
             if (span != null && idx != CursorPosition && !IsBeingTyped(span))
             {
                 Move(col, 0);
-                Driver.AddRune(runes[idx]);
+                AddRune(runes[idx]);
             }
-            col += Rune.ColumnWidth(runes[idx]);
+            col += TextWidth.Of(runes[idx]);
         }
-
-        PositionCursor();
     }
 
     bool IsBeingTyped(WordSpan span) => SpellSpans.IsBeingTyped(span, CursorPosition, HasFocus && typing.IsTyping);
@@ -122,10 +138,10 @@ class UITextField : TextField
         var span = next.Value.Span;
 
         // The menu is placed in screen coordinates, just under the word
-        var origin = ScreenToView(0, 0);
-        int x = span.Start - ScrollOffset - origin.X;
-        int y = 1 - origin.Y;
-        var items = SpellSpans.MenuItems(SpellChecker!, span.Word, with => Replace(span, with), SetNeedsDisplay);
+        var origin = ViewportToScreen(Point.Empty);
+        int x = span.Start - ScrollOffset + origin.X;
+        int y = 1 + origin.Y;
+        var items = SpellSpans.MenuItems(SpellChecker!, span.Word, with => Replace(span, with), SetNeedsDraw);
         Menu.Show("Spelling", x, y, items);
     }
 
@@ -143,12 +159,12 @@ class UITextField : TextField
             spans.Count > 0,
             with => Replace(at!, with),
             ShowSpellingSuggestions,
-            SetNeedsDisplay
+            SetNeedsDraw
         );
 
-        var origin = ScreenToView(0, 0);
+        var origin = ViewportToScreen(Point.Empty);
         var items = TextContextMenu.Items(spelling, this, () => SelectedLength > 0);
-        Menu.Show(TextContextMenu.Title(at), x - origin.X, 1 - origin.Y, items);
+        Menu.Show(TextContextMenu.Title(at), x + origin.X, 1 + origin.Y, items);
     }
 
     // The misspelled words of the text, or nothing at all when not spell checking
@@ -160,6 +176,6 @@ class UITextField : TextField
         (string text, int caret) = SpellSpans.Replace(RawText, span, with);
         Text = text;
         CursorPosition = caret;
-        SetNeedsDisplay();
+        SetNeedsDraw();
     }
 }

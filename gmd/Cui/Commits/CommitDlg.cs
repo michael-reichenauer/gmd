@@ -1,7 +1,8 @@
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Commits;
 
@@ -141,7 +142,7 @@ class CommitDlg : ICommitDlg
             files = null;
         // Fewer on a small terminal, where the list scrolls, so that the dialog, its buttons too, fits
         // on the screen: 20 rows are the rest of the dialog, and a 24 row terminal leaves 4 for files
-        var maxFileRows = Math.Clamp(Application.Driver.Rows - 20, 1, MaxFileRows);
+        var maxFileRows = Math.Clamp(UI.ScreenSize.Height - 20, 1, MaxFileRows);
         var fileRows = files == null ? 0 : Math.Min(files.Files.Count, maxFileRows);
         var listHeight = files == null ? 0 : fileRows + 2;
         Text HeadingText() =>
@@ -185,13 +186,13 @@ class CommitDlg : ICommitDlg
             {
                 toggle();
                 heading.Text = HeadingText();
-                list.SetNeedsDisplay();
+                list.SetNeedsDraw();
             }
             list.RegisterKeyHandler(Key.Space, () => Toggle(() => files.Toggle(list.CurrentIndex)));
-            list.RegisterKeyHandler(Key.a, () => Toggle(files.ToggleAll));
             list.RegisterKeyHandler(Key.A, () => Toggle(files.ToggleAll));
+            list.RegisterKeyHandler(Key.A.WithShift, () => Toggle(files.ToggleAll));
             list.RegisterMouseHandler(
-                MouseFlags.Button1Clicked,
+                MouseFlags.LeftButtonClicked,
                 (_, y) =>
                 {
                     list.SetCurrentIndex(list.FirstIndex + y);
@@ -283,12 +284,12 @@ class CommitDlg : ICommitDlg
 
     private bool OnKey(Action showDiff, Key key)
     {
-        if (key == (Key.D | Key.CtrlMask) || key == (Key.Space | Key.CtrlMask))
+        if (key == Key.D.WithCtrl || key == Key.Space.WithCtrl)
         {
             showDiff();
             return true;
         }
-        if (key == (Key.A | Key.CtrlMask))
+        if (key == Key.A.WithCtrl)
         {
             AddMergeMessages();
             return true;
@@ -309,7 +310,7 @@ class CommitDlg : ICommitDlg
         }
 
         message.Text = $"{msg}{MergedSubjects(commits)}";
-        message.SetNeedsDisplay();
+        message.SetNeedsDraw();
     }
 
     // The list Ctrl-A adds to the message of a merge: the subjects of the merged commits, oldest
@@ -336,6 +337,5 @@ class CommitDlg : ICommitDlg
         : count == 1 ? "1 change"
         : $"{count} changes";
 
-    static string GetMessage(UITextField subject, TextView message) =>
-        CommitMessage.Join(subject.Text, message.Text.ToString() ?? "");
+    static string GetMessage(UITextField subject, UITextView message) => CommitMessage.Join(subject.Text, message.Text);
 }

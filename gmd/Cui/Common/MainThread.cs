@@ -6,5 +6,5 @@ class MainThread : IMainThread
 {
     public void Post(Action action) => UI.Post(action);
 
-    public void RunPeriodically(TimeSpan interval, Func<bool> callback) => UI.AddTimeout(interval, _ => callback());
+    public void RunPeriodically(TimeSpan interval, Func<bool> callback) => UI.AddTimeout(interval, callback);
 }

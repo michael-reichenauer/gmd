@@ -4,7 +4,9 @@ using gmd.Cui.Commits;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Runnable = Terminal.Gui.Views.Runnable;
 
 namespace gmd.Cui.Blame;
 
@@ -96,23 +98,18 @@ class BlameView : IBlameView
         this.search = RowSearch.None;
         this.status = new StatusLine();
 
-        Toplevel blameView = new Toplevel()
+        Runnable blameView = new Runnable()
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-        };
+        }.WithScheme(() => ColorSchemes.Window);
 
         // A header row of its own rather than a first row of content, so it stays put while the
         // file scrolls. Same label plus border pair as the application bar of the log view.
         header = new UILabel(0, 0);
-        var border = new HorizontalLine()
-        {
-            X = 0,
-            Y = 1,
-            ColorScheme = ColorSchemes.Border,
-        };
+        var border = new HorizontalLine() { X = 0, Y = 1 }.WithScheme(() => ColorSchemes.Border);
 
         // The bar is there with the hints off too, for what a search found, as in the diff
         hintBar = new KeyHintBar(
@@ -144,7 +141,7 @@ class BlameView : IBlameView
         blameView.Add(header, border, contentView, detailsView.View, hintBar);
         hintBar.FollowStatus(status, config.ShowKeyHints, blameView);
         // 'p' and Backspace are offered for the line's commit, and for having stepped back
-        contentView.CurrentIndexChange += () => hintBar.SetNeedsDisplay();
+        contentView.CurrentIndexChange += () => hintBar.SetNeedsDraw();
         RegisterShortcuts(contentView);
         detailsView.View.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
         detailsView.View.RegisterKeyHandler(Key.Enter, ToggleDetails);
@@ -153,24 +150,24 @@ class BlameView : IBlameView
         contentView.CurrentIndexChange += OnCurrentIndexChange;
 
         SetHeader();
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
         using (Menu.SayingWhyNotOn(status))
             UI.RunDialog(blameView);
     }
 
     void RegisterShortcuts(ContentView view)
     {
-        view.RegisterKeyHandler(Key.Esc, () => Application.RequestStop());
+        view.RegisterKeyHandler(Key.Esc, () => UI.Shutdown());
         // Letters in both cases, since the menu writes them in upper case. The view is modal (see
         // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
-        view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
+        view.RegisterLetterHandler(Key.Q, () => UI.Shutdown());
         // The help, as in every view, at the part about this one
         view.RegisterKeyHandler((Key)'?', () => helpPage.ShowAsync(HelpPage.DiffSection).RunInBackground());
         view.RegisterKeyHandler(Key.F1, () => helpPage.ShowAsync(HelpPage.DiffSection).RunInBackground());
 
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
-        view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
+        view.RegisterKeyHandler(Key.C.WithCtrl, OnCopy);
 
         view.RegisterKeyHandler(Key.Enter, ToggleDetails);
         view.RegisterKeyHandler(Key.Tab, ToggleDetailsFocus);
@@ -182,26 +179,26 @@ class BlameView : IBlameView
         view.RegisterKeyHandler(Key.CursorDown, () => ScrollDetails(1));
         view.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-CommitDetailsView.ContentHeight));
         view.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(CommitDetailsView.ContentHeight));
-        view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
-        view.RegisterLetterHandler(Key.g, CycleDetails); // The gutter
-        view.RegisterLetterHandler(Key.d, ShowLineCommitDiff);
-        view.RegisterLetterHandler(Key.l, ShowLineHistory);
-        view.RegisterLetterHandler(Key.p, BlamePrevious);
+        view.RegisterLetterHandler(Key.M, () => ShowMainMenu());
+        view.RegisterLetterHandler(Key.G, CycleDetails); // The gutter
+        view.RegisterLetterHandler(Key.D, ShowLineCommitDiff);
+        view.RegisterLetterHandler(Key.L, ShowLineHistory);
+        view.RegisterLetterHandler(Key.P, BlamePrevious);
         view.RegisterKeyHandler(Key.Backspace, Back);
         // The line's commit id and message, as 'i' and Shift-I copy a commit's in the log view, so
         // one case each rather than both
-        view.RegisterKeyHandler(Key.i, CopyLineId);
-        view.RegisterKeyHandler(Key.I, CopyLineMessage);
+        view.RegisterKeyHandler(Key.I, CopyLineId);
+        view.RegisterKeyHandler(Key.I.WithShift, CopyLineMessage);
 
         // Search the lines with the keys of the diff and the log, n and Shift-N one case each as there
-        view.RegisterLetterHandler(Key.f, Search);
+        view.RegisterLetterHandler(Key.F, Search);
         view.RegisterKeyHandler((Key)'/', Search);
-        view.RegisterKeyHandler(Key.n, () => StepMatch(1));
-        view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
+        view.RegisterKeyHandler(Key.N, () => StepMatch(1));
+        view.RegisterKeyHandler(Key.N.WithShift, () => StepMatch(-1));
 
-        view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(y));
+        view.RegisterMouseHandler(MouseFlags.LeftButtonPressed, (x, y) => OnMouseClick(y));
         // At the screen row above the click, so the first item is beside it: the view is two rows down
-        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y + 1));
+        view.RegisterMouseHandler(MouseFlags.RightButtonPressed, (x, y) => ShowMainMenu(x - 1, y + 1));
     }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
@@ -248,7 +245,7 @@ class BlameView : IBlameView
         if (rowStartX > 0)
         {
             rowStartX--;
-            contentView.SetNeedsDisplay();
+            contentView.SetNeedsDraw();
         }
     }
 
@@ -258,21 +255,21 @@ class BlameView : IBlameView
         if (blameRows.MaxLength - rowStartX > cw.Code)
         {
             rowStartX++;
-            contentView.SetNeedsDisplay();
+            contentView.SetNeedsDraw();
         }
     }
 
     bool OnMouseClick(int y)
     {
         contentView.SetIndexAtViewY(y);
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
         return false;
     }
 
     void CycleDetails()
     {
         details = details == BlameDetails.Rail ? BlameDetails.Full : details + 1;
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
     }
 
     // The commit details of the current line, in a pane at the bottom, as the log view shows them
@@ -295,9 +292,9 @@ class BlameView : IBlameView
             detailsView.View.IsFocus = false;
         }
 
-        contentView.SetNeedsDisplay();
-        detailsView.View.SetNeedsDisplay();
-        hintBar.SetNeedsDisplay(); // Enter shows or hides the details
+        contentView.SetNeedsDraw();
+        detailsView.View.SetNeedsDraw();
+        hintBar.SetNeedsDraw(); // Enter shows or hides the details
     }
 
     // Focus moves to the details so a long commit message can be scrolled, as in the log view.
@@ -311,8 +308,8 @@ class BlameView : IBlameView
         contentView.IsFocus = !contentView.IsFocus;
         detailsView.View.IsFocus = !detailsView.View.IsFocus;
 
-        contentView.SetNeedsDisplay();
-        detailsView.View.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
+        detailsView.View.SetNeedsDraw();
     }
 
     // True when the key was consumed by the details pane, i.e. it is the focused one
@@ -372,7 +369,7 @@ class BlameView : IBlameView
         }
 
         diffView.Show(diffs, source, repo.Path);
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
     }
 
     // The lines a line history is of: the selected ones, or the current one, as indexes
@@ -428,7 +425,7 @@ class BlameView : IBlameView
         }
 
         diffView.Show(diffs, source, repo.Path);
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
     }
 
     bool IsChanged(string path) =>
@@ -489,7 +486,7 @@ class BlameView : IBlameView
         contentView.MoveToTop();
         contentView.ShowCurrentIndex(Math.Min(index, Math.Max(0, blameRows.Rows.Count - 1)));
         SetHeader();
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
         return true;
     }
 
@@ -541,7 +538,7 @@ class BlameView : IBlameView
         rowStartX = RowSearch.ScrollToShow(start, start + search.Text.Length, cw.Code);
 
         contentView.ShowCurrentIndex(index);
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
         status.Info(search.MatchText(index));
     }
 
@@ -625,7 +622,7 @@ class BlameView : IBlameView
                 .Item("Copy Selected Lines", "Ctrl-C", () => OnCopy(), () => IsSelected)
                 .Item("Copy Commit Id of Line", "i", () => CopyLineId(), () => c != null && !c.IsUncommitted)
                 .Item("Copy Commit Message of Line", "⇧i", () => CopyLineMessage(), () => c != null && !c.IsUncommitted)
-                .Item("Close", "Esc", () => Application.RequestStop())
+                .Item("Close", "Esc", () => UI.Shutdown())
         );
     }
 
@@ -655,6 +652,6 @@ class BlameView : IBlameView
     void ResetScroll()
     {
         rowStartX = 0;
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
     }
 }

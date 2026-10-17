@@ -1,4 +1,4 @@
-using Terminal.Gui;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
@@ -22,10 +22,10 @@ static class MessageDlg
     // Without, it has no buttons.
     internal static void ShowWhile(string title, string message, Task task, Func<bool>? askCancel = null)
     {
-        var cancelButton = askCancel == null ? null : new Button("Cancel") { ColorScheme = ColorSchemes.Button };
+        var cancelButton = askCancel == null ? null : new UIButton("Cancel");
         var isAsking = false;
         var isClosed = false;
-        Dialog d = null!;
+        DialogView d = null!;
 
         // Asked while the task goes on, and the box is closed once both are done, since closing it
         // while the question is up would close the question instead
@@ -39,7 +39,7 @@ static class MessageDlg
             isAsking = false;
             if (task.IsCompleted)
             {
-                Application.RequestStop(d);
+                d.RequestStop();
                 return;
             }
 
@@ -58,29 +58,28 @@ static class MessageDlg
         if (cancelButton != null)
             cancelButton.Clicked += AskCancel;
 
-        // Only the modal itself is redrawn while it is running, so the Progress marquee on the
-        // application bar below it would appear frozen. The box gets its own marquee instead, on
-        // the row that the buttons of a normal message box would use, or the one above the button.
+        // The box's own marquee, on the row that the buttons of a normal message box would use, or
+        // the one above the button
         var marquee = new Marquee(Pos.Center(), Pos.AnchorEnd(cancelButton == null ? 1 : 2));
-        d.Add(marquee.View);
+        d.Inner.Add(marquee.View);
 
         // The posted close can only run once the modal below is pumping the main loop, since this
-        // is the main loop thread and it is blocked in Application.Run until then. Should the
-        // dialog be closed some other way first, isClosed keeps the post from stopping whatever
-        // toplevel happens to be current by then, and while the cancel is asked, AskCancel closes it.
+        // is the main loop thread and it is blocked in Run until then. Should the dialog be closed
+        // some other way first, isClosed keeps the post from stopping it again, and while the cancel
+        // is asked, AskCancel closes it.
         task.ContinueWith(_ =>
             UI.Post(() =>
             {
-                if (!isClosed && !isAsking)
-                    Application.RequestStop(d);
+                if (!isClosed && !isAsking && d.IsRunning)
+                    d.RequestStop();
             })
         );
 
         // Pulsed on the main loop, as every view is touched: from a thread pool timer, an exception
-        // ended the process, with no Application.Shutdown to give the terminal back
+        // ended the process, with no shutdown to give the terminal back
         var pulse = UI.AddTimeout(
             TimeSpan.FromMilliseconds(pulseInterval),
-            _ =>
+            () =>
             {
                 marquee.Pulse();
                 return true;
@@ -88,12 +87,12 @@ static class MessageDlg
         );
         try
         {
-            // Run the modal; do not shutdown the main loop driver when done
-            Application.Run(d);
+            UI.App.Run(d);
         }
         finally
         {
             UI.RemoveTimeout(pulse);
+            d.Dispose();
         }
         isClosed = true;
     }
@@ -106,133 +105,98 @@ static class MessageDlg
         params string[] buttons
     )
     {
-        // Create button array for Dialog
-        int count = 0;
-        List<Button> buttonList = [];
-        if (buttons != null && defaultButton > buttons.Length - 1)
-        {
+        if (defaultButton > buttons.Length - 1)
             defaultButton = buttons.Length - 1;
-        }
-        foreach (var s in buttons!)
-        {
-            var b = new Button(s) { ColorScheme = ColorSchemes.Button };
-            if (count == defaultButton)
-            {
-                b.IsDefault = true;
-            }
-            buttonList.Add(b);
-            count++;
-        }
-
-        var d = CreateDialog(useErrorColors, title, message, buttonList);
+        var buttonList = buttons.Select((s, i) => new UIButton(s, i == defaultButton)).ToList();
 
         // The button clicked, -1 for none, i.e. Esc. Local to this box: a box shown over it, e.g. one
         // posted from the background, would otherwise leave its own answer for Esc here to return.
         var clicked = -1;
+        var d = CreateDialog(
+            useErrorColors,
+            title,
+            message,
+            buttonList,
+            focus: buttonList.ElementAtOrDefault(defaultButton)
+        );
         for (int n = 0; n < buttonList.Count; n++)
         {
             int buttonId = n;
-            var b = buttonList[n];
-            b.Clicked += () =>
+            buttonList[n].Clicked += () =>
             {
                 clicked = buttonId;
-                Application.RequestStop();
+                d.RequestStop();
             };
-            if (b.IsDefault)
-            {
-                b.SetFocus();
-            }
         }
 
-        // Run the modal; do not shutdown the main loop driver when done
-        Application.Run(d);
+        UI.App.Run(d);
+        d.Dispose();
         return clicked;
     }
 
     // Creates the dialog sized to fit the message, with the buttons (if any) on its last row. With
-    // onEsc, Esc calls it, where Terminal.Gui's dialog closes on it.
-    static Dialog CreateDialog(
+    // onEsc, Esc calls it, where it otherwise closes the box.
+    static DialogView CreateDialog(
         bool useErrorColors,
         string title,
         string message,
-        IReadOnlyList<Button> buttons,
-        Action? onEsc = null
+        IReadOnlyList<UIButton> buttons,
+        Action? onEsc = null,
+        View? focus = null
     )
     {
+        var (cols, rows) = (UI.ScreenSize.Width, UI.ScreenSize.Height);
         int defaultWidth = 30;
-        if (defaultWidth > Application.Driver.Cols / 2)
+        if (defaultWidth > cols / 2)
         {
-            defaultWidth = (int)(Application.Driver.Cols * 0.60f);
+            defaultWidth = (int)(cols * 0.60f);
         }
-        int maxWidthLine = TextFormatter.MaxWidthLine(message);
-        if (maxWidthLine > Application.Driver.Cols)
-        {
-            maxWidthLine = Application.Driver.Cols;
-        }
+        int maxWidthLine = Math.Min(Lines(message).Max(l => TextWidth.Of(l)), cols);
         maxWidthLine = Math.Max(maxWidthLine, defaultWidth);
 
-        int textWidth = Math.Min(TextFormatter.MaxWidth(message, maxWidthLine), Application.Driver.Cols);
-        int textHeight = TextFormatter.MaxLines(message, textWidth); // message.Count (ustring.Make ('\n')) + 1;
+        var lines = Wrap(message, maxWidthLine);
+        int textWidth = Math.Min(lines.Max(l => TextWidth.Of(l)), cols);
+        int textHeight = lines.Count;
         int buttonsHeight = buttons.Count > 0 ? 1 : 0;
         // textHeight + (top + top padding + buttons + bottom)
-        int msgBoxHeight = Math.Min(Math.Max(1, textHeight) + 3 + buttonsHeight, Application.Driver.Rows);
+        int msgBoxHeight = Math.Min(Math.Max(1, textHeight) + 3 + buttonsHeight, rows);
+        int buttonsWidth = buttons.Sum(b => b.Label.Length) + Math.Max(0, buttons.Count - 1);
 
-        var d = onEsc == null ? new Dialog(title, buttons.ToArray()) : new EscDialog(title, buttons.ToArray(), onEsc);
-        d.Height = msgBoxHeight;
-        d.Border.Effect3D = false;
-        d.Border.BorderStyle = BorderStyle.Rounded;
-        d.ColorScheme = useErrorColors ? ColorSchemes.ErrorDialog : ColorSchemes.InfoDialog;
-
-        d.Add(
-            new Label(message)
-            {
-                LayoutStyle = LayoutStyle.Computed,
-                TextAlignment = TextAlignment.Left,
-                X = Pos.Center(),
-                Y = Pos.Center(),
-                Width = Dim.Fill(),
-                Height = Dim.Fill(1),
-                AutoSize = false,
-                ColorScheme = ColorSchemes.Label,
-            }
-        );
-
-        // Dynamically size Width, textWidth + (left + padding + padding + right)
-        d.Width = Math.Min(
-            Math.Max(maxWidthLine, Math.Max(title.Length, Math.Max(textWidth + 2, GetButtonsWidth(buttons)))),
-            Application.Driver.Cols
-        );
-
+        var d = new DialogView(title, () => useErrorColors ? ColorSchemes.ErrorDialog : ColorSchemes.InfoDialog)
+        {
+            Height = msgBoxHeight,
+            // textWidth + (left + right), as wide as the title and the buttons too
+            Width = Math.Min(
+                Math.Max(maxWidthLine, Math.Max(title.Length, Math.Max(textWidth + 2, buttonsWidth))),
+                cols
+            ),
+            InitialFocus = focus,
+            OnEsc = onEsc,
+        };
+        d.AddContent(lines.Select((line, i) => new UILabel(0, i, Text.White(line))).ToList());
+        d.AddButtons(buttons);
         return d;
     }
 
-    // A dialog whose Esc is the caller's: Dialog closes on it, before the key reaches anything else
-    class EscDialog : Dialog
+    static IReadOnlyList<string> Lines(string message) => message.Replace("\r\n", "\n").Split('\n');
+
+    // The lines of the message, each wrapped at the width, at a space where there is one
+    static List<string> Wrap(string message, int width)
     {
-        readonly Action onEsc;
-
-        public EscDialog(string title, Button[] buttons, Action onEsc)
-            : base(title, buttons)
+        List<string> wrapped = [];
+        foreach (var line in Lines(message))
         {
-            this.onEsc = onEsc;
+            var rest = line;
+            while (TextWidth.Of(rest) > width)
+            {
+                var cut = TextWidth.Slice(rest, 0, 0, width);
+                var space = cut.LastIndexOf(' ');
+                var at = space > 0 ? space : cut.Length;
+                wrapped.Add(rest[..at].TrimEnd());
+                rest = rest[at..].TrimStart();
+            }
+            wrapped.Add(rest);
         }
-
-        public override bool ProcessKey(KeyEvent kb)
-        {
-            if (kb.Key != Key.Esc)
-                return base.ProcessKey(kb);
-
-            onEsc();
-            return true;
-        }
-    }
-
-    internal static int GetButtonsWidth(IReadOnlyList<Button> buttons)
-    {
-        if (buttons.Count == 0)
-        {
-            return 0;
-        }
-        return buttons.Select(b => b.Bounds.Width).Sum();
+        return wrapped;
     }
 }

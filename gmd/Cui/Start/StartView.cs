@@ -4,7 +4,8 @@ using gmd.Cui.Common;
 using gmd.Cui.Login;
 using gmd.Installation;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Start;
 
@@ -137,8 +138,8 @@ class StartView : IStartView
     {
         view.RegisterKeyHandler(Key.CursorUp, () => Move(-1));
         view.RegisterKeyHandler(Key.CursorDown, () => Move(1));
-        view.RegisterKeyHandler(Key.CursorUp | Key.ShiftMask, () => Move(-1));
-        view.RegisterKeyHandler(Key.CursorDown | Key.ShiftMask, () => Move(1));
+        view.RegisterKeyHandler(Key.CursorUp.WithShift, () => Move(-1));
+        view.RegisterKeyHandler(Key.CursorDown.WithShift, () => Move(1));
         view.RegisterKeyHandler(Key.Home, () => Move(-1000));
         view.RegisterKeyHandler(Key.PageUp, () => Move(-1000));
         view.RegisterKeyHandler(Key.End, () => Move(1000));
@@ -153,12 +154,12 @@ class StartView : IStartView
             view.RegisterKeyHandler((Key)('0' + n), () => ActOnNumber(n));
         }
 
-        view.RegisterLetterHandler(Key.o, () => Act(StartAction.OpenFolder));
-        view.RegisterLetterHandler(Key.c, () => Act(StartAction.Clone));
-        view.RegisterLetterHandler(Key.i, () => Act(StartAction.Init));
-        view.RegisterLetterHandler(Key.a, () => Act(StartAction.About));
-        view.RegisterLetterHandler(Key.q, () => Act(StartAction.Quit));
-        view.RegisterLetterHandler(Key.u, OnKeyU);
+        view.RegisterLetterHandler(Key.O, () => Act(StartAction.OpenFolder));
+        view.RegisterLetterHandler(Key.C, () => Act(StartAction.Clone));
+        view.RegisterLetterHandler(Key.I, () => Act(StartAction.Init));
+        view.RegisterLetterHandler(Key.A, () => Act(StartAction.About));
+        view.RegisterLetterHandler(Key.Q, () => Act(StartAction.Quit));
+        view.RegisterLetterHandler(Key.U, OnKeyU);
         view.RegisterKeyHandler((Key)'?', () => Act(StartAction.Help));
         view.RegisterKeyHandler(Key.F1, () => Act(StartAction.Help));
 
@@ -167,13 +168,13 @@ class StartView : IStartView
         view.RegisterKeyHandler(Key.DeleteChar, RemoveSelected);
         view.RegisterKeyHandler(Key.Backspace, RemoveSelected);
 
-        view.RegisterMouseHandler(MouseFlags.Button1Clicked, OnClick);
+        view.RegisterMouseHandler(MouseFlags.LeftButtonClicked, OnClick);
     }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
         var page = Page();
-        keyHintBar?.SetNeedsDisplay(); // Drawn after the page, and says what the selected item allows
+        keyHintBar?.SetNeedsDraw(); // Drawn after the page, and says what the selected item allows
 
         var selectedRow = page.RowOf(page.IndexOf(Selected(page).IsSame));
         var shown = Math.Max(0, Math.Min(count, page.Count - firstIndex));
@@ -206,7 +207,7 @@ class StartView : IStartView
     {
         repos = StartRepos.Of(config.RecentFolders, folder, Files.HomePath);
         page = null;
-        view.SetNeedsDisplay();
+        view.SetNeedsDraw();
     }
 
     void Move(int step)
@@ -223,7 +224,7 @@ class StartView : IStartView
         if (index == 0)
             view.MoveToTop();
         view.Move(page.RowOf(index) - view.CurrentIndex);
-        view.SetNeedsDisplay();
+        view.SetNeedsDraw();
     }
 
     void OnClick(int x, int y)
@@ -417,7 +418,7 @@ class StartView : IStartView
                     if (!view.Visible || !config.Releases.IsUpdateAvailable())
                         return;
                     page = null;
-                    view.SetNeedsDisplay();
+                    view.SetNeedsDraw();
                 })
             );
     }

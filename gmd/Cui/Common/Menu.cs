@@ -1,4 +1,5 @@
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
@@ -111,8 +112,8 @@ class Menu
             xOrg,
             yOrg,
             altX,
-            Application.Driver.Cols,
-            Application.Driver.Rows
+            UI.ScreenSize.Width,
+            UI.ScreenSize.Height
         );
         itemRows = MenuRows.ToRows(this.items, dimensions);
 
@@ -130,14 +131,14 @@ class Menu
 
         itemsView = CreateItemsView();
 
-        itemsView.SetNeedsDisplay();
+        itemsView.SetNeedsDraw();
         if (this.items.Any() && this.items[0].IsDisabled && !isAllDisabled)
             UI.Post(() => OnCursorDown());
 
         isFocus = true;
-        Application.RootMouseEvent += OnRootMouseEvent; // To handle mouse clicks both within and also outside this menu to close it
+        UI.App.Mouse.MouseEvent += OnRootMouseEvent; // To handle mouse clicks both within and also outside this menu to close it
         dlg.Show();
-        Application.RootMouseEvent -= OnRootMouseEvent;
+        UI.App.Mouse.MouseEvent -= OnRootMouseEvent;
         isFocus = false;
         done.TrySetResult(true);
     }
@@ -155,17 +156,15 @@ class Menu
 
     // Called for all mouse events, both within and also outside this menu,
     // Skipping if not focused or not clicked events
-    void OnRootMouseEvent(MouseEvent e)
+    void OnRootMouseEvent(object? _, Mouse e)
     {
-        e.Handled = false;
-
         if (!isFocus)
             return;
 
-        if (e.Flags.HasFlag(MouseFlags.Button1Clicked))
-            OnMouseClicked(e.X, e.Y);
-        if (e.Flags == MouseFlags.ReportMousePosition)
-            OnMouseMove(e.X, e.Y);
+        if (e.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+            OnMouseClicked(e.ScreenPosition.X, e.ScreenPosition.Y);
+        if (e.Flags == MouseFlags.PositionReport)
+            OnMouseMove(e.ScreenPosition.X, e.ScreenPosition.Y);
     }
 
     void OnMouseMove(int screenX, int screenY)

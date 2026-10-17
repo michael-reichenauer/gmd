@@ -1,5 +1,9 @@
+using System.Drawing;
 using System.Text;
-using Terminal.Gui;
+using Terminal.Gui.Drawing;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Color = gmd.Cui.Common.Color;
 
 namespace gmd.Cui.Common;
 
@@ -37,7 +41,7 @@ class ContentView : View
     ContentView()
     {
         scroll = new ContentScroll(() => ContentHeight);
-        WantMousePositionReports = true;
+        MousePositionTracking = true;
         CanFocus = true;
     }
 
@@ -52,7 +56,7 @@ class ContentView : View
     {
         this.contentRows = content;
         scroll.SetTotalCount(content.Count);
-        SetNeedsDisplay();
+        SetNeedsDraw();
     }
 
     public event Action? CurrentIndexChange
@@ -75,8 +79,8 @@ class ContentView : View
     public int CurrentIndex => scroll.CurrentIndex;
 
     public bool IsHighlightCurrentIndex { get; set; } = false;
-    public int ViewHeight => Frame.Height;
-    public int ViewWidth => Frame.Width;
+    public int ViewHeight => Viewport.Height;
+    public int ViewWidth => Viewport.Width;
     public bool IsShowCursor { get; set; } = true;
     public bool IsScrollMode { get; set; } = false;
     public bool IsTopBorder { get; set; } = false;
@@ -88,7 +92,7 @@ class ContentView : View
 
     public bool IsHideCursor { get; set; } = false;
     public int ContentY => HasTopRow ? topBorderHeight : 0;
-    public int ContentWidth => Frame.Width - verticalScrollbarWidth;
+    public int ContentWidth => Viewport.Width - verticalScrollbarWidth;
     public int ContentHeight => HasTopRow ? ViewHeight - topBorderHeight : ViewHeight;
     bool HasTopRow => IsTopBorder || TopRow != null;
     public Point CurrentPoint => new Point(0, CurrentIndex - FirstIndex);
@@ -121,9 +125,9 @@ class ContentView : View
     // different commands there.
     public void RegisterLetterHandler(Key letter, OnKeyCallback callback)
     {
-        Asserter.Requires(letter is >= Key.a and <= Key.z);
+        Asserter.Requires(letter.IsKeyCodeAtoZ && !letter.IsShift);
         RegisterKeyHandler(letter, callback);
-        RegisterKeyHandler((Key)char.ToUpperInvariant((char)letter), callback);
+        RegisterKeyHandler(letter.WithShift, callback);
     }
 
     public void RegisterMouseHandler(MouseFlags mouseFlags, OnMouseCallback callback)
@@ -143,72 +147,76 @@ class ContentView : View
     public void ScrollToShowIndex(int index, int margin = 5)
     {
         if (scroll.ScrollToShowIndex(index, margin))
-            SetNeedsDisplay();
+            SetNeedsDraw();
     }
 
-    public override bool OnEnter(View view)
+    // SPIKE: 2.x calls OnKeyDown on the focused view first, then its superviews', so this is what 1.x's
+    // ProcessHotKey was here. A Key is a class with a KeyCode, compared by it, and Shift a property of
+    // it, so the switch on key values became a chain of comparisons.
+    protected override bool OnKeyDown(Key key)
     {
-        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
+        // Log.Info($"Key: {key}");
 
-        return base.OnEnter(view);
-    }
-
-    public override bool ProcessHotKey(KeyEvent keyEvent)
-    {
-        if (!HasFocus)
-            return base.ProcessHotKey(keyEvent);
-
-        // Log.Info($"HotKey: {keyEvent}, {keyEvent.Key}");
-
-        if (keys.TryGetValue(keyEvent.Key, out var callback))
+        if (keys.TryGetValue(key, out var callback))
         {
             if (callback())
                 return true;
         }
 
-        switch (keyEvent.Key)
+        if (key == Key.CursorUp)
         {
-            case Key.CursorUp:
-                ClearSelection();
-                Move(-1);
-                return true;
-            case Key.CursorUp | Key.ShiftMask:
-                OnSelectUp();
-                return true;
-            case Key.PageUp:
-                ClearSelection();
-                Move(-(ContentHeight - 1));
-                return true;
-            case Key.CursorDown:
-                ClearSelection();
-                Move(1);
-                return true;
-            case Key.CursorDown | Key.ShiftMask:
-                OnSelectDown();
-                return true;
-            case Key.PageDown:
-                ClearSelection();
-                Move(ContentHeight - 1);
-                return true;
-            case Key.Space:
-                ClearSelection();
-                Move(ContentHeight - 1);
-                return true;
-            case Key.Home:
-                ClearSelection();
-                Move(-TotalCount);
-                return true;
-            case Key.End:
-                ClearSelection();
-                Move(TotalCount);
-                return true;
+            ClearSelection();
+            Move(-1);
+            return true;
+        }
+        if (key == Key.CursorUp.WithShift)
+        {
+            OnSelectUp();
+            return true;
+        }
+        if (key == Key.PageUp)
+        {
+            ClearSelection();
+            Move(-(ContentHeight - 1));
+            return true;
+        }
+        if (key == Key.CursorDown)
+        {
+            ClearSelection();
+            Move(1);
+            return true;
+        }
+        if (key == Key.CursorDown.WithShift)
+        {
+            OnSelectDown();
+            return true;
+        }
+        if (key == Key.PageDown || key == Key.Space)
+        {
+            ClearSelection();
+            Move(ContentHeight - 1);
+            return true;
+        }
+        if (key == Key.Home)
+        {
+            ClearSelection();
+            Move(-TotalCount);
+            return true;
+        }
+        if (key == Key.End)
+        {
+            ClearSelection();
+            Move(TotalCount);
+            return true;
         }
 
-        return base.ProcessHotKey(keyEvent);
+        return base.OnKeyDown(key);
     }
 
-    public override bool MouseEvent(MouseEvent ev)
+    // SPIKE: the mouse is the Mouse of 2.x, its Position relative to the viewport, which here is the frame
+    protected override bool OnMouseEvent(Mouse ev)
     {
+        var (evX, evY) = ev.Position is Point p ? (p.X, p.Y) : (0, 0);
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
         // A view that never takes the focus, the resolver's result pane, is scrolled by the wheel
         // over it, the one way the mouse has to it
@@ -226,16 +234,16 @@ class ContentView : View
         // goes to the file clicked on
         if (!HasFocus && !CanFocus && mouses.TryGetValue(ev.Flags, out var unfocusedCallback))
         {
-            unfocusedCallback(ev.X, ev.Y);
+            unfocusedCallback(evX, evY);
             return true;
         }
 
         if (!HasFocus)
-            return base.MouseEvent(ev);
+            return base.OnMouseEvent(ev);
 
         if (mouses.TryGetValue(ev.Flags, out var callback))
         {
-            if (callback(ev.X, ev.Y))
+            if (callback(evX, evY))
                 return true;
         }
 
@@ -250,31 +258,31 @@ class ContentView : View
             return true;
         }
 
-        if (ev.Flags.HasFlag(MouseFlags.Button1Pressed) && ev.Flags.HasFlag(MouseFlags.ReportMousePosition))
+        if (ev.Flags.HasFlag(MouseFlags.LeftButtonPressed) && ev.Flags.HasFlag(MouseFlags.PositionReport))
         {
-            MouseDrag(ev);
+            MouseDrag(evX, evY);
             return true;
         }
-        else if (ev.Flags.HasFlag(MouseFlags.Button1Pressed))
+        else if (ev.Flags.HasFlag(MouseFlags.LeftButtonPressed))
         {
             ClearSelection();
-            selection.Press(ev.X, IndexAtY(ev.Y));
+            selection.Press(evX, IndexAtY(evY));
             return true;
         }
 
-        if (ev.Flags.HasFlag(MouseFlags.ButtonShift) && ev.Flags.HasFlag(MouseFlags.ReportMousePosition))
+        if (ev.Flags.HasFlag(MouseFlags.Shift) && ev.Flags.HasFlag(MouseFlags.PositionReport))
         {
-            MouseDrag(ev);
+            MouseDrag(evX, evY);
             return true;
         }
 
         return false;
     }
 
-    public override void Redraw(Rect bounds)
+    // SPIKE: 2.x clears the viewport with the view's scheme before this, which the rows then cover; the
+    // background left below the last row is the scheme's, so the top view's scheme is gmd's colors
+    protected override bool OnDrawingContent(DrawContext? context)
     {
-        Clear();
-
         IReadOnlyList<Text> currentRows = GetContentRows();
 
         int y = ContentY;
@@ -312,6 +320,7 @@ class ContentView : View
         DrawTopBorder();
         DrawCursor();
         DrawVerticalScrollbar();
+        return true;
     }
 
     public bool IsRowSelected(int index) => selection.IsRowSelected(index);
@@ -319,7 +328,7 @@ class ContentView : View
     public void ClearSelection()
     {
         if (selection.Clear())
-            SetNeedsDisplay();
+            SetNeedsDraw();
     }
 
     public string CopySelectedText()
@@ -358,7 +367,7 @@ class ContentView : View
         );
 
         ClearSelection();
-        SetNeedsDisplay();
+        SetNeedsDraw();
 
         return copyText.ToString();
     }
@@ -391,32 +400,32 @@ class ContentView : View
     {
         if (selection.SelectUp(CurrentIndex))
             Move(-1);
-        SetNeedsDisplay();
+        SetNeedsDraw();
     }
 
     void OnSelectDown()
     {
         if (selection.SelectDown(CurrentIndex, TotalCount))
             Move(1);
-        SetNeedsDisplay();
+        SetNeedsDraw();
     }
 
     // The row index of a view row, below the top border if there is one
     int IndexAtY(int y) => y + FirstIndex - ContentY;
 
-    void MouseDrag(MouseEvent ev)
+    void MouseDrag(int x, int y)
     {
-        var direction = selection.Drag(ev.X, IndexAtY(ev.Y), TotalCount);
-        if (direction < 0 && ev.Y <= 2)
+        var direction = selection.Drag(x, IndexAtY(y), TotalCount);
+        if (direction < 0 && y <= 2)
         { // Dragging up at the top of the view, scroll to show the rows above
             Scroll(-1);
         }
-        else if (direction > 0 && ev.Y >= ContentHeight - 2)
+        else if (direction > 0 && y >= ContentHeight - 2)
         { // Dragging down at the bottom of the view, scroll to show the rows below
             Scroll(1);
         }
 
-        SetNeedsDisplay();
+        SetNeedsDraw();
     }
 
     void DrawTopBorder()
@@ -433,13 +442,13 @@ class ContentView : View
         Move(0, 0);
         if (IsFocused)
         {
-            Driver.SetAttribute(Color.White);
-            Driver.AddStr(new string('━', ViewWidth));
+            SetAttribute(Color.White);
+            AddStr(new string('━', ViewWidth));
         }
         else
         {
-            Driver.SetAttribute(Color.Dark);
-            Driver.AddStr(new string('─', ViewWidth));
+            SetAttribute(Color.Dark);
+            AddStr(new string('─', ViewWidth));
         }
     }
 
@@ -451,8 +460,8 @@ class ContentView : View
         }
 
         Move(0, ContentY + (CurrentIndex - FirstIndex));
-        Driver.SetAttribute(Color.White);
-        Driver.AddStr("┃");
+        SetAttribute(Color.White);
+        AddStr("┃");
     }
 
     void DrawVerticalScrollbar()
@@ -464,15 +473,15 @@ class ContentView : View
         for (int i = sbStart; i <= sbEnd; i++)
         {
             Move(x, i + ContentY);
-            Driver.SetAttribute(color);
-            Driver.AddStr("┃");
+            SetAttribute(color);
+            AddStr("┃");
         }
     }
 
     internal void Scroll(int count)
     {
         if (scroll.Scroll(count))
-            SetNeedsDisplay();
+            SetNeedsDraw();
     }
 
     // Moves the cursor to the first row, which takes the first shown row with it, so that the view
@@ -503,7 +512,7 @@ class ContentView : View
     internal void SetCurrentIndex(int index)
     {
         scroll.SetCurrentIndex(index);
-        SetNeedsDisplay();
+        SetNeedsDraw();
     }
 
     internal void Move(int move)
@@ -515,6 +524,6 @@ class ContentView : View
         }
 
         if (scroll.Move(move))
-            SetNeedsDisplay();
+            SetNeedsDraw();
     }
 }

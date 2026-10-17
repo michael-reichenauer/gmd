@@ -1,11 +1,12 @@
-using Terminal.Gui;
-using Terminal.Gui.Trees;
+using Terminal.Gui.ViewBase;
+using Terminal.Gui.Views;
 
 namespace gmd.Cui.Common;
 
 public class FolderBrowseDlg
 {
     string selectedPath = "";
+    UIDialog? dlg;
 
     // Starting from the folders given, the first of them opened, see Roots
     internal Result<string> Show(IReadOnlyList<string> folders)
@@ -13,7 +14,7 @@ public class FolderBrowseDlg
         const int width = 50;
         const int height = 20;
 
-        var dlg = new UIDialog("Select Folder", width, height);
+        var dlg = this.dlg = new UIDialog("Select Folder", width, height);
         var folderView = new TreeView<FileSystemInfo>()
         {
             X = 0,
@@ -23,10 +24,10 @@ public class FolderBrowseDlg
         };
 
         folderView.Style.ShowBranchLines = true;
-        folderView.Style.ExpandableSymbol = '+';
+        folderView.Style.ExpandableSymbol = new System.Text.Rune('+');
         folderView.Style.CollapseableSymbol = null;
         folderView.MultiSelect = false;
-        folderView.ObjectActivated += ItemSelected;
+        folderView.Accepted += (_, _) => ItemSelected(folderView.SelectedObject);
         SetCustomColors(folderView);
 
         dlg.Add(folderView);
@@ -38,7 +39,6 @@ public class FolderBrowseDlg
             () =>
             {
                 SetupFileTree(folderView, folders);
-                SetupScrollBar(folderView);
                 folderView.GoToFirst();
                 if (folders.Any())
                 {
@@ -53,59 +53,20 @@ public class FolderBrowseDlg
         return selectedPath;
     }
 
-    void ItemSelected(ObjectActivatedEventArgs<FileSystemInfo> obj)
+    // Enter or a double click on a folder picks it, and closes the dialog
+    void ItemSelected(FileSystemInfo? item)
     {
-        var item = obj.ActivatedObject;
         if (item is DirectoryInfo dir)
         {
             selectedPath = dir.FullName ?? "";
         }
 
-        Application.RequestStop();
+        dlg?.Close();
     }
 
     static void SetCustomColors(TreeView<FileSystemInfo> treeView)
     {
-        var yellow = new ColorScheme { Focus = new Color(Color.White, Color.Dark), Normal = Color.White };
-
-        treeView.ColorGetter = m => m is DirectoryInfo ? yellow : null;
-    }
-
-    static void SetupScrollBar(TreeView<FileSystemInfo> treeView)
-    {
-        // When using scroll bar leave the last row of the control free (for over-rendering with scroll bar)
-        treeView.Style.LeaveLastRow = true;
-
-        var scrollBar = new ScrollBarView(treeView, true) { ColorScheme = ColorSchemes.Scrollbar };
-
-        scrollBar.ChangedPosition += () =>
-        {
-            treeView.ScrollOffsetVertical = scrollBar.Position;
-            if (treeView.ScrollOffsetVertical != scrollBar.Position)
-            {
-                scrollBar.Position = treeView.ScrollOffsetVertical;
-            }
-            treeView.SetNeedsDisplay();
-        };
-
-        scrollBar.OtherScrollBarView.ChangedPosition += () =>
-        {
-            treeView.ScrollOffsetHorizontal = scrollBar.OtherScrollBarView.Position;
-            if (treeView.ScrollOffsetHorizontal != scrollBar.OtherScrollBarView.Position)
-            {
-                scrollBar.OtherScrollBarView.Position = treeView.ScrollOffsetHorizontal;
-            }
-            treeView.SetNeedsDisplay();
-        };
-
-        treeView.DrawContent += (e) =>
-        {
-            scrollBar.Size = treeView.ContentHeight;
-            scrollBar.Position = treeView.ScrollOffsetVertical;
-            scrollBar.OtherScrollBarView.Size = treeView.GetContentWidth(true);
-            scrollBar.OtherScrollBarView.Position = treeView.ScrollOffsetHorizontal;
-            scrollBar.Refresh();
-        };
+        treeView.ColorGetter = m => m is DirectoryInfo ? ColorSchemes.Label : null;
     }
 
     void SetupFileTree(TreeView<FileSystemInfo> treeView, IReadOnlyList<string> folders)

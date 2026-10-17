@@ -3,7 +3,9 @@ using gmd.Cui.App;
 using gmd.Cui.Common;
 using gmd.Cui.Conflict;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Runnable = Terminal.Gui.Views.Runnable;
 
 namespace gmd.Cui.Diff;
 
@@ -138,7 +140,7 @@ class DiffView : IDiffView
         this.conflictState = conflicts ?? ConflictState.None;
         this.isOneColumnChosen = null;
         this.hiddenFiles.Clear();
-        this.isOneColumn = IsOneColumnFor(Application.Driver.Cols - 1); // The view's width, but for its scrollbar
+        this.isOneColumn = IsOneColumnFor(UI.ScreenSize.Width - 1); // The view's width, but for its scrollbar
         this.diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
         this.fileList = DiffFileList.Of(diffs, diffRows);
         this.isListWanted = config.ShowDiffFileList;
@@ -146,7 +148,7 @@ class DiffView : IDiffView
         this.isListFocus = false;
         if (listWidth > 0)
         { // Narrowed by the list, and the files or commits listed in it rather than above the diff
-            isOneColumn = IsOneColumnFor(Application.Driver.Cols - listWidth - 1);
+            isOneColumn = IsOneColumnFor(UI.ScreenSize.Width - listWidth - 1);
             diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn, null, true);
             fileList = DiffFileList.Of(diffs, diffRows);
         }
@@ -157,13 +159,13 @@ class DiffView : IDiffView
         leftOut.ForRepo(repoPath);
         RefindLeftOutLines();
 
-        Toplevel diffView = new Toplevel()
+        Runnable diffView = new Runnable()
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-        };
+        }.WithScheme(() => ColorSchemes.Window);
         // The keys worth knowing here on the bottom row, as the log view has them, unless turned off
         var hintsHeight = config.ShowKeyHints ? 1 : 0;
         // Never focused, so the keys stay with the diff, which hands them on while the list has them
@@ -178,7 +180,7 @@ class DiffView : IDiffView
             IsFocus = false,
             CanFocus = false,
         };
-        listView.RegisterMouseHandler(MouseFlags.Button1Pressed, (_, y) => OnListClick(y));
+        listView.RegisterMouseHandler(MouseFlags.LeftButtonPressed, (_, y) => OnListClick(y));
         contentView = new ContentView(OnGetContent)
         {
             X = listWidth,
@@ -210,11 +212,11 @@ class DiffView : IDiffView
         );
         diffView.Add(hintBar);
         hintBar.FollowStatus(status, config.ShowKeyHints, diffView);
-        contentView.CurrentIndexChange += () => hintBar.SetNeedsDisplay(); // x leaves out or puts back
+        contentView.CurrentIndexChange += () => hintBar.SetNeedsDraw(); // x leaves out or puts back
         contentView.CurrentIndexChange += FollowCursorInList;
         RegisterShortcuts(contentView);
 
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
         using (Menu.SayingWhyNotOn(status))
             UI.RunDialog(diffView);
         return isCommitTriggered ? DiffResult.Commit
@@ -233,7 +235,7 @@ class DiffView : IDiffView
                 if (isListFocus)
                     ToggleListFocus();
                 else
-                    Application.RequestStop();
+                    UI.Shutdown();
             }
         );
 
@@ -249,31 +251,31 @@ class DiffView : IDiffView
 
         // Letters in both cases, since the menu writes them in upper case. The view is modal (see
         // UI.RunDialog), so a key not registered here does nothing rather than reaching the log view.
-        view.RegisterLetterHandler(Key.q, () => Application.RequestStop());
+        view.RegisterLetterHandler(Key.Q, () => UI.Shutdown());
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
-        view.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
-        view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
+        view.RegisterKeyHandler(Key.C.WithCtrl, OnCopy);
+        view.RegisterLetterHandler(Key.M, () => ShowMainMenu());
 
-        view.RegisterLetterHandler(Key.r, () => RefreshDiff());
+        view.RegisterLetterHandler(Key.R, () => RefreshDiff());
         // The help, as in every view, at the part about this one
         view.RegisterKeyHandler((Key)'?', () => helpPage.ShowAsync(HelpPage.DiffSection).RunInBackground());
         view.RegisterKeyHandler(Key.F1, () => helpPage.ShowAsync(HelpPage.DiffSection).RunInBackground());
-        view.RegisterLetterHandler(Key.s, () => ShowScrollMenu());
-        view.RegisterLetterHandler(Key.u, () => ShowUndoMenu());
-        view.RegisterLetterHandler(Key.c, () => TriggerCommit());
+        view.RegisterLetterHandler(Key.S, () => ShowScrollMenu());
+        view.RegisterLetterHandler(Key.U, () => ShowUndoMenu());
+        view.RegisterLetterHandler(Key.C, () => TriggerCommit());
 
         // Search the lines with the keys the log searches its commits with. n and Shift-N are one case
         // each, as they are in the log, rather than a letter in both cases.
-        view.RegisterLetterHandler(Key.f, Search);
+        view.RegisterLetterHandler(Key.F, Search);
         view.RegisterKeyHandler((Key)'/', Search);
-        view.RegisterKeyHandler(Key.n, () => StepMatch(1));
-        view.RegisterKeyHandler(Key.N, () => StepMatch(-1));
-        view.RegisterLetterHandler(Key.w, ToggleWhitespace);
-        view.RegisterLetterHandler(Key.v, ToggleLayout);
-        view.RegisterLetterHandler(Key.h, ToggleHidden);
-        view.RegisterLetterHandler(Key.l, ToggleList);
-        view.RegisterLetterHandler(Key.x, ToggleLeftOut);
+        view.RegisterKeyHandler(Key.N, () => StepMatch(1));
+        view.RegisterKeyHandler(Key.N.WithShift, () => StepMatch(-1));
+        view.RegisterLetterHandler(Key.W, ToggleWhitespace);
+        view.RegisterLetterHandler(Key.V, ToggleLayout);
+        view.RegisterLetterHandler(Key.H, ToggleHidden);
+        view.RegisterLetterHandler(Key.L, ToggleList);
+        view.RegisterLetterHandler(Key.X, ToggleLeftOut);
 
         // The next and previous change, as the resolver's ] and [ go to a conflict, and file. Terminal.Gui
         // 1.x has no Key value for these, so use the ascii code, as for '+' and '-' below.
@@ -302,8 +304,8 @@ class DiffView : IDiffView
         view.RegisterKeyHandler((Key)61, () => StepContext(1)); // '=' key
         view.RegisterKeyHandler((Key)45, () => StepContext(-1)); // '-' key
 
-        view.RegisterMouseHandler(MouseFlags.Button1Pressed, (x, y) => OnMouseClick(x, y));
-        view.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => ShowMainMenu(x - 1, y - 1));
+        view.RegisterMouseHandler(MouseFlags.LeftButtonPressed, (x, y) => OnMouseClick(x, y));
+        view.RegisterMouseHandler(MouseFlags.RightButtonPressed, (x, y) => ShowMainMenu(x - 1, y - 1));
     }
 
     private bool OnMouseClick(int x, int y)
@@ -325,7 +327,7 @@ class DiffView : IDiffView
 
         contentView.SetIndexAtViewY(y);
 
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
         return false;
     }
 
@@ -379,7 +381,7 @@ class DiffView : IDiffView
                 .Item(HiddenItemText(), "h", ToggleHidden, () => CurrentAnchor().FilePath != "", () => NoFile)
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected && !isOneColumn)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected && !isOneColumn)
-                .Item("Close", "Esc", () => Application.RequestStop())
+                .Item("Close", "Esc", () => UI.Shutdown())
         );
     }
 
@@ -455,7 +457,7 @@ class DiffView : IDiffView
         }
 
         contentView.ShowCurrentIndex(index);
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
         status.Info(search.MatchText(index));
     }
 
@@ -483,7 +485,7 @@ class DiffView : IDiffView
         if (!source.CanCommit)
             return;
         isCommitTriggered = true;
-        Application.RequestStop();
+        UI.Shutdown();
     }
 
     // The next and previous change and file, and then each commit of a file history, or each file
@@ -505,7 +507,7 @@ class DiffView : IDiffView
                 listWidth > 0 ? "Hide File List" : "Show File List",
                 "l",
                 ToggleList,
-                () => fileList.WidthFor(Application.Driver.Cols) > 0,
+                () => fileList.WidthFor(UI.ScreenSize.Width) > 0,
                 WhyNoList
             )
             .Separator();
@@ -583,15 +585,15 @@ class DiffView : IDiffView
         isListFocus = !isListFocus;
         listView.IsFocus = isListFocus;
         contentView.IsFocus = !isListFocus;
-        listView.SetNeedsDisplay();
-        contentView.SetNeedsDisplay();
+        listView.SetNeedsDraw();
+        contentView.SetNeedsDraw();
     }
 
     // Shows or hides the list of files, l. Remembered for the diffs after, since it is hidden for the
     // width it takes, which is as wanted in the next diff as in this one
     void ToggleList()
     {
-        if (fileList.WidthFor(Application.Driver.Cols) == 0)
+        if (fileList.WidthFor(UI.ScreenSize.Width) == 0)
         {
             status.Notice(WhyNoList());
             return;
@@ -601,17 +603,17 @@ class DiffView : IDiffView
         var isWanted = isListWanted;
         config.Set(c => c.ShowDiffFileList = isWanted);
         SetListWidth(ListWidth());
-        SetLayout(IsOneColumnFor(Application.Driver.Cols - listWidth - 1));
+        SetLayout(IsOneColumnFor(UI.ScreenSize.Width - listWidth - 1));
         FollowCursorInList();
-        hintBar.SetNeedsDisplay();
+        hintBar.SetNeedsDraw();
         status.Info(listWidth > 0 ? "File list shown: Tab moves into it, l hides it" : "File list hidden: l shows it");
     }
 
     // How wide the list of files is: as wide as it can be at the terminal's width, unless hidden
-    int ListWidth() => isListWanted ? fileList.WidthFor(Application.Driver.Cols) : 0;
+    int ListWidth() => isListWanted ? fileList.WidthFor(UI.ScreenSize.Width) : 0;
 
     // Hidden by l, where it would be shown, which the hints then say l shows
-    bool IsListHidden => listWidth == 0 && fileList.WidthFor(Application.Driver.Cols) > 0;
+    bool IsListHidden => listWidth == 0 && fileList.WidthFor(UI.ScreenSize.Width) > 0;
 
     string WhyNoList() =>
         IsListHidden ? "The file list is hidden: l shows it"
@@ -648,7 +650,7 @@ class DiffView : IDiffView
             return;
 
         listView.ScrollToShowIndex(fileList.IndexAt(contentView.CurrentIndex) + 1, 1);
-        listView.SetNeedsDisplay();
+        listView.SetNeedsDraw();
     }
 
     (IEnumerable<Text> rows, int total) OnGetListContent(int firstRow, int rowCount, int _, int contentWidth)
@@ -778,12 +780,12 @@ class DiffView : IDiffView
         if (next == ResolveNext.Commit)
         {
             isCommitTriggered = true;
-            Application.RequestStop();
+            UI.Shutdown();
         }
         else if (next == ResolveNext.Continue)
         {
             isContinueTriggered = true;
-            Application.RequestStop();
+            UI.Shutdown();
         }
         else
         {
@@ -1194,8 +1196,8 @@ class DiffView : IDiffView
         }
 
         contentView.ClearSelection();
-        contentView.SetNeedsDisplay();
-        hintBar.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
+        hintBar.SetNeedsDraw();
     }
 
     // The lines left out found again in the rows, each file's, and a file no longer changed forgotten.
@@ -1328,7 +1330,7 @@ class DiffView : IDiffView
         {
             isLayoutPosted = false;
             SetListWidth(ListWidth());
-            SetLayout(IsOneColumnFor(Application.Driver.Cols - listWidth - 1));
+            SetLayout(IsOneColumnFor(UI.ScreenSize.Width - listWidth - 1));
         });
     }
 
@@ -1343,8 +1345,8 @@ class DiffView : IDiffView
             ToggleListFocus();
         listView.Width = listWidth;
         contentView.X = listWidth;
-        listView.SuperView?.LayoutSubviews();
-        listView.SuperView?.SetNeedsDisplay();
+        listView.SuperView?.Layout();
+        listView.SuperView?.SetNeedsDraw();
     }
 
     // The rows for a layout, made again where it is not theirs: in one column or two, and with the
@@ -1356,7 +1358,7 @@ class DiffView : IDiffView
 
         this.isOneColumn = isOneColumn;
         SetDiffs(diffs, CurrentAnchor());
-        hintBar.SetNeedsDisplay();
+        hintBar.SetNeedsDraw();
     }
 
     // How wide a row across the view is drawn, as OnGetContent lays it out
@@ -1386,14 +1388,14 @@ class DiffView : IDiffView
         listView.SetTotalCount(fileList.Items.Count + 1);
         search = FindInRows(search.Text); // The rows the search found are other rows now
         RefindLeftOutLines(); // As the lines left out may have moved
-        hintBar.SetNeedsDisplay(); // A conflict resolved, or one more, changes what Enter offers
+        hintBar.SetNeedsDraw(); // A conflict resolved, or one more, changes what Enter offers
 
         // The old selection covers rows that no longer hold what they did, and a copy would take
         // whatever now sits there
         contentView.ClearSelection();
 
         RestoreAnchor(anchor);
-        contentView.SetNeedsDisplay();
+        contentView.SetNeedsDraw();
     }
 
     // Where the cursor is, expressed as content: the commit and the file it is in and the source
@@ -1416,7 +1418,7 @@ class DiffView : IDiffView
         if (!isFocusLeft && !isOneColumn)
         { // Text is selected, lets move selection from right to left side
             isFocusLeft = true;
-            contentView.SetNeedsDisplay();
+            contentView.SetNeedsDraw();
             return;
         }
 
@@ -1424,7 +1426,7 @@ class DiffView : IDiffView
         if (rowStartX > 0)
         {
             rowStartX--;
-            contentView.SetNeedsDisplay();
+            contentView.SetNeedsDraw();
         }
     }
 
@@ -1434,7 +1436,7 @@ class DiffView : IDiffView
         if (isFocusLeft && !isOneColumn)
         { // Text is selected, lets move selection from left to right side
             isFocusLeft = false;
-            contentView.SetNeedsDisplay();
+            contentView.SetNeedsDraw();
             return;
         }
 
@@ -1443,7 +1445,7 @@ class DiffView : IDiffView
         if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
         {
             rowStartX++;
-            contentView.SetNeedsDisplay();
+            contentView.SetNeedsDraw();
         }
     }
 
@@ -1549,7 +1551,7 @@ class DiffView : IDiffView
             : side.ToHighlight();
     }
 
-    static readonly Common.Color CursorColor = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.White);
+    static readonly Common.Color CursorColor = new(ColorName.Black, ColorName.White);
 
     // The cursor on a line: its number reversed, black on white, with the bar beside it and the
     // line itself as they are. A highlight of the whole side painted over the colors of the change.

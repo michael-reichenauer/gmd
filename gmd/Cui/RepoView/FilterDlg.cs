@@ -1,6 +1,7 @@
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.RepoView;
 
@@ -82,14 +83,14 @@ class FilterDlg : IFilterDlg
         dlg.RegisterMouseHandler(OnMouseEvent);
 
         dlg.AddLabel(0, 0, Text.BrightMagenta(" Gmd"));
-        var searchLabelX = Application.Driver.Cols - 41;
+        var searchLabelX = UI.ScreenSize.Width - 41;
         dlg.AddLabel(searchLabelX, 0, Text.BrightMagenta("Search:"));
         filterField = dlg.AddInputField(searchLabelX + 8, 0, 29);
 
         closeX = searchLabelX + 8 + 29 + 2;
         var closeButton = dlg.AddLabel(closeX, 0, Text.White("X"));
 
-        filterField.KeyUp += (k) => OnFilterFieldKeyUp(k); // Update results and select commit on keys
+        filterField.TextChanged += (_, _) => OnFilterChanged(); // Update results as the filter is typed
 
         statusLabel = dlg.AddLabel(5, 0);
 
@@ -116,12 +117,8 @@ class FilterDlg : IFilterDlg
         return selectedCommit;
     }
 
-    // User pressed key in filter field, update results
-    void OnFilterFieldKeyUp(View.KeyEventEventArgs e)
-    {
-        UpdateFilteredResults().RunInBackground();
-        e.Handled = true;
-    }
+    // The filter was typed in, update results
+    void OnFilterChanged() => UpdateFilteredResults().RunInBackground();
 
     bool OnDialogKey(Key key)
     {
@@ -146,35 +143,27 @@ class FilterDlg : IFilterDlg
     bool StepUpDownInResultList(Key key)
     {
         // Allow user move up/down in results with keys
-        switch (key)
-        {
-            case Key.CursorUp:
-                resultsView.Move(-1);
-                return true;
-            case Key.CursorDown:
-                resultsView.Move(1);
-                return true;
-            case Key.PageUp:
-                resultsView.Move(-resultsView.ContentHeight);
-                return true;
-            case Key.PageDown:
-                resultsView.Move(resultsView.ContentHeight);
-                return true;
-            case Key.Home:
-                resultsView.Move(-resultsView.TotalCount);
-                return true;
-            case Key.End:
-                resultsView.Move(resultsView.TotalCount);
-                return true;
-        }
-
-        return false;
+        if (key == Key.CursorUp)
+            resultsView.Move(-1);
+        else if (key == Key.CursorDown)
+            resultsView.Move(1);
+        else if (key == Key.PageUp)
+            resultsView.Move(-resultsView.ContentHeight);
+        else if (key == Key.PageDown)
+            resultsView.Move(resultsView.ContentHeight);
+        else if (key == Key.Home)
+            resultsView.Move(-resultsView.TotalCount);
+        else if (key == Key.End)
+            resultsView.Move(resultsView.TotalCount);
+        else
+            return false;
+        return true;
     }
 
     // The close X, the mouse wheel, and a click on a result
     bool OnMouseEvent(MouseEvent ev)
     {
-        if (ev.Flags.HasFlag(MouseFlags.Button1Clicked) && ev.X == closeX + 1 && ev.Y == 1)
+        if (ev.Flags.HasFlag(MouseFlags.LeftButtonClicked) && ev.X == closeX + 1 && ev.Y == 1)
         {
             dlg.Close();
             return true;
@@ -198,7 +187,7 @@ class FilterDlg : IFilterDlg
             resultRow >= 0
             && resultRow < resultsView.ViewHeight
             && resultsView.FirstIndex + resultRow < currentRepo.ViewCommits.Count;
-        if (ev.Flags.HasFlag(MouseFlags.Button1Clicked) && isOnResult)
+        if (ev.Flags.HasFlag(MouseFlags.LeftButtonClicked) && isOnResult)
         {
             resultsView.SetIndexAtViewY(resultRow);
             ShowCommitInfo();

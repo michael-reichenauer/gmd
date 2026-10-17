@@ -1,9 +1,37 @@
-using Terminal.Gui;
+using System.Drawing;
+using Terminal.Gui.App;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
+// The application, i.e. the main loop, the screen and the modal runs, for the UI. Terminal.Gui 2.x's
+// application is an instance (IApplication), made by Program and kept here, where 1.x's was static.
 static class UI
 {
+    static IApplication? app;
+
+    internal static IApplication App => app ?? throw Asserter.Fail("The application has not started");
+
+    internal static void SetApp(IApplication application)
+    {
+        app = application;
+
+        // Keys are dropped while git works (KeyGate): the application's KeyDown is raised before any
+        // view gets the key, and a key marked handled there goes no further
+        application.Keyboard.KeyDown += (_, key) =>
+        {
+            if (keys.IsDropping)
+                key.Handled = true;
+        };
+    }
+
+    // The size of the screen, which a menu or a message box is fitted into
+    internal static Size ScreenSize => App.Screen.Size;
+
+    // The view of the runnable on top, i.e. the dialog or view keys go to now
+    internal static View? Current => App.TopRunnableView;
+
     internal static void AssertOnUIThread() => Threading.AssertIsMainThread();
 
     internal static void RunInBackground(Func<Task> action)
@@ -11,17 +39,15 @@ static class UI
         action().RunInBackground();
     }
 
-    // Modal, whatever is passed. Terminal.Gui hands a key to every toplevel on the stack until one
-    // handles it, and stops only at a modal one. A Dialog is modal of itself, but the diff, blame and
-    // conflict views are plain toplevels, so a key they did not use went on down to the log view:
-    // 'P' in a diff pushed every branch, and 'c' in the resolver reached the diff below it, which
-    // closed the resolver with its decisions unsaved.
-    internal static void RunDialog(Toplevel toplevel)
+    // Runs the view modally, until it is stopped. A runnable Terminal.Gui runs is on top of the
+    // others, and keys go to it alone: a key it does not use goes nowhere, rather than on to the log
+    // view below, as one did with 1.x unless the view was marked modal ('P' in a diff pushed every
+    // branch, and 'c' in the resolver reached the diff below it, which closed the resolver).
+    internal static void RunDialog(IRunnable runnable)
     {
-        toplevel.Modal = true;
         using (EnableInput())
         {
-            Application.Run(toplevel);
+            App.Run(runnable);
         }
     }
 
@@ -37,59 +63,41 @@ static class UI
     // Keys are dropped while git works, but not in a dialog, see KeyGate
     static readonly KeyGate keys = new();
 
-    internal static void StopInput()
-    {
-        keys.GitStarted();
-        ApplyKeyGate();
-    }
+    internal static void StopInput() => keys.GitStarted();
 
-    internal static void StartInput()
-    {
-        keys.GitDone();
-        ApplyKeyGate();
-    }
+    internal static void StartInput() => keys.GitDone();
 
-    static void ApplyKeyGate() => Application.RootKeyEvent = keys.IsDropping ? DropKey : null;
+    internal static void Post(Action action) => App.Invoke(action);
 
-    static bool DropKey(KeyEvent _) => true;
+    // Terminal.Gui 2.x shows the cursor only where a view puts it (View.Cursor), so there is nothing
+    // to hide; kept for the callers, which hid it after 1.x had shown it
+    internal static void HideCursor() { }
 
-    internal static void Post(Action action)
-    {
-        Application.MainLoop.Invoke(action);
-    }
+    // Calls the callback on the main loop after the timeout, and again after each timeout for as
+    // long as it returns true
+    internal static object AddTimeout(TimeSpan timeout, Func<bool> callback) => App.AddTimeout(timeout, callback)!;
 
-    internal static void HideCursor() => Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
-
-    internal static object AddTimeout(TimeSpan timeout, Func<MainLoop, bool> callback)
-    {
-        return Application.MainLoop?.AddTimeout(timeout, callback)!;
-    }
-
-    internal static object AddTimeout(TimeSpan timeout, Action callback)
-    {
-        return Application.MainLoop?.AddTimeout(
+    internal static object AddTimeout(TimeSpan timeout, Action callback) =>
+        App.AddTimeout(
             timeout,
-            (_) =>
+            () =>
             {
                 callback();
                 return false;
             }
         )!;
-    }
 
-    internal static void RemoveTimeout(object token) => Application.MainLoop?.RemoveTimeout(token);
+    internal static void RemoveTimeout(object token) => App.RemoveTimeout(token);
 
-    internal static void Shutdown()
-    {
-        Application.RequestStop();
-    }
+    // Stops the runnable on top, e.g. a dialog
+    internal static void Shutdown() => App.RequestStop();
 
     // Ends the main loop from whichever thread a failure is on (ExceptionHandling); before the loop
     // runs there is none to end, and the exception thrown ends gmd
     internal static void ShutdownFromAnyThread()
     {
-        if (Application.MainLoop is MainLoop loop)
-            loop.Invoke(() => Application.RequestStop());
+        if (app is IApplication a)
+            a.Invoke(() => a.RequestStop());
     }
 
     internal static int InfoMessage(string title, string message, params string[] buttons)
@@ -143,12 +151,10 @@ static class UI
     static Disposable EnableInput()
     {
         keys.DialogOpened();
-        ApplyKeyGate();
         onDeactivated?.Invoke();
         return new Disposable(() =>
         {
             keys.DialogClosed();
-            ApplyKeyGate();
             onActivated?.Invoke();
         });
     }

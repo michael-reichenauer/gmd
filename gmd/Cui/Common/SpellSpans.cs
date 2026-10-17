@@ -1,5 +1,6 @@
 using gmd.Common.Spelling;
-using Terminal.Gui;
+using Terminal.Gui.Drawing;
+using Terminal.Gui.Input;
 
 namespace gmd.Cui.Common;
 
@@ -8,22 +9,32 @@ namespace gmd.Cui.Common;
 // how a word is replaced. No view and no drawing, so it is unit testable; UITextView and
 // UITextField are the callers.
 //
-// All indexes are rune indexes, which is what Terminal.Gui counts columns and caret positions in;
-// LineText is how a line gets one char per rune so that SpellScanner's indexes are those too.
+// All indexes are rune indexes, which is what the text inputs count caret positions in (a cell of
+// Terminal.Gui's TextView holds one, but for a combining mark); LineText is how a line gets one char
+// per rune so that SpellScanner's indexes are those too.
 static class SpellSpans
 {
     // Misspelled words are drawn in this color; the inputs have a black background
     public static readonly Color MisspelledColor = Color.BrightRed;
 
-    public static bool IsSpellKey(Key key) => key == Key.F7 || key == (Key.G | Key.CtrlMask);
+    public static bool IsSpellKey(Key key) => key == Key.F7 || key == Key.G.WithCtrl;
 
     // A line of runes as one char per rune. A rune outside the basic plane becomes a placeholder,
     // which is fine for a scan that skips any word with a symbol in it anyway.
-    public static string LineText(IReadOnlyList<Rune> line)
+    public static string LineText(IReadOnlyList<System.Text.Rune> line)
     {
         var chars = new char[line.Count];
         for (int i = 0; i < line.Count; i++)
-            chars[i] = ToChar(line[i].Value);
+            chars[i] = ToChar((uint)line[i].Value);
+        return new string(chars);
+    }
+
+    // A line of Terminal.Gui's TextView as one char per cell, the first rune of what the cell holds
+    public static string LineText(IReadOnlyList<Cell> line)
+    {
+        var chars = new char[line.Count];
+        for (int i = 0; i < line.Count; i++)
+            chars[i] = line[i].Runes.Count > 0 ? ToChar((uint)line[i].Runes[0].Value) : ' ';
         return new string(chars);
     }
 

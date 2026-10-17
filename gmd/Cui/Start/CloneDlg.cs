@@ -27,7 +27,7 @@ class CloneDlg : ICloneDlg
 
         dlg.AddLabel(1, 0, "Uri:");
         var uri = dlg.AddInputField(6, 0, width - 6, "");
-        uri.KeyUp += _ => UpdatePath(parent, uri.Text);
+        uri.TextChanged += (_, _) => UpdatePath(parent, uri.Text);
 
         dlg.AddLabel(1, 2, "Path:");
         path = dlg.AddInputField(7, 2, width - 16, WithSeparator(parent), InputMarkers.None);
@@ -71,7 +71,7 @@ class CloneDlg : ICloneDlg
     void SetPath(string text)
     {
         this.path!.Text = text;
-        this.path!.SetNeedsDisplay();
+        this.path!.SetNeedsDraw();
     }
 
     static string WithSeparator(string folder) =>

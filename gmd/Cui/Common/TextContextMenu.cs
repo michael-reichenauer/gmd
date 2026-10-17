@@ -1,5 +1,6 @@
 using gmd.Common.Spelling;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
@@ -13,7 +14,7 @@ namespace gmd.Cui.Common;
 // keys the view binds them to, which differ between a TextView and a TextField.
 static class TextContextMenu
 {
-    public static bool IsMenuKey(Key key) => key == (Key.F10 | Key.ShiftMask);
+    public static bool IsMenuKey(Key key) => key == Key.F10.WithShift;
 
     public static string Title(WordSpan? misspelled) => misspelled == null ? "Edit" : "Spelling";
 
@@ -37,9 +38,8 @@ static class TextContextMenu
             .Item(SpellSpans.AddToDictionary(spellChecker, misspelled.Word, redraw));
     }
 
-    // The whole menu: the spelling part, then the edit actions of the view. Those are not public
-    // in Terminal.Gui, so each is run by the key the view binds it to, exactly as if it was pressed,
-    // and that key is what the menu shows for it.
+    // The whole menu: the spelling part, then the edit actions of the view, each run as the command
+    // the view binds a key to, and that key is what the menu shows for it
     public static IEnumerable<MenuItem> Items(IEnumerable<MenuItem> spelling, View view, Func<bool> hasSelection)
     {
         var items = Menu.Items.Items(spelling);
@@ -55,8 +55,7 @@ static class TextContextMenu
 
     // The key a view binds a command to, written the way the other menus write theirs
     public static string ShortcutOf(View view, Command command) =>
-        ShortcutHelper.GetShortcutTag(view.GetKeyFromCommand(command)).ToString()!.Replace('+', '-');
+        view.KeyBindings.GetFirstFromCommands(command)?.ToString().Replace('+', '-') ?? "";
 
-    static void Run(View view, Command command) =>
-        view.ProcessKey(new KeyEvent(view.GetKeyFromCommand(command), new KeyModifiers()));
+    static void Run(View view, Command command) => view.InvokeCommand(command);
 }

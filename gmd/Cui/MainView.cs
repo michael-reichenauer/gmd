@@ -5,13 +5,15 @@ using gmd.Cui.Login;
 using gmd.Cui.RepoView;
 using gmd.Cui.Start;
 using gmd.Git;
-using Terminal.Gui;
+using Terminal.Gui.ViewBase;
+using Runnable = Terminal.Gui.Views.Runnable;
 
 namespace gmd.Cui;
 
 interface IMainView
 {
-    View View { get; }
+    // The view Program runs, which the others are in
+    Runnable View { get; }
 }
 
 class MainView : IMainView
@@ -22,7 +24,7 @@ class MainView : IMainView
     readonly ISpellChecker spellChecker;
     readonly IAskpassServer askpassServer;
     readonly ILoginDlg loginDlg;
-    readonly Lazy<View> toplevel;
+    readonly Lazy<Runnable> toplevel;
 
     // The folder gmd was started in, which the start page names when it is not in a repository
     string startFolder = "";
@@ -44,26 +46,20 @@ class MainView : IMainView
         this.spellChecker = spellChecker;
         this.askpassServer = askpassServer;
         this.loginDlg = loginDlg;
-        toplevel = new Lazy<View>(CreateView);
+        toplevel = new Lazy<Runnable>(CreateView);
     }
 
-    public View View => toplevel.Value;
+    public Runnable View => toplevel.Value;
 
-    View CreateView()
+    Runnable CreateView()
     {
-        // Adjust some global color schemes
-        Colors.Dialog = ColorSchemes.Dialog;
-        Colors.Error = ColorSchemes.ErrorDialog;
-        Colors.Menu = ColorSchemes.Menu;
-
         var mainView = new MainViewWrapper(OnReady)
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-            ColorScheme = ColorSchemes.Window,
-        };
+        }.WithScheme(() => ColorSchemes.Window);
 
         // The start page in the place of the log, shown instead of it until a repo is. The key hints
         // after both, so they are drawn after them in the same pass, which is when either marks them
@@ -164,8 +160,8 @@ class MainView : IMainView
         });
     }
 
-    // A workaround to get notifications once view is ready
-    class MainViewWrapper : Toplevel
+    // The view gmd runs, which says once it has been drawn the first time, i.e. the main loop runs
+    class MainViewWrapper : Runnable
     {
         readonly Action ready;
         bool hasCalledReady;
@@ -173,11 +169,12 @@ class MainView : IMainView
         public MainViewWrapper(Action ready)
         {
             this.ready = ready;
+            CanFocus = true;
         }
 
-        public override void Redraw(Rect bounds)
+        protected override void OnDrawComplete(DrawContext? context)
         {
-            base.Redraw(bounds);
+            base.OnDrawComplete(context);
 
             if (!hasCalledReady)
             {

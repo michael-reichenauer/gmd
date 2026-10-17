@@ -1,7 +1,8 @@
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Commits;
 
@@ -79,6 +80,5 @@ class SquashDlg : ISquashDlg
         return CommitMessage.Join(subject, string.Join('\n', lines));
     }
 
-    static string GetMessage(UITextField subject, TextView message) =>
-        CommitMessage.Join(subject.Text, message.Text.ToString() ?? "");
+    static string GetMessage(UITextField subject, UITextView message) => CommitMessage.Join(subject.Text, message.Text);
 }
