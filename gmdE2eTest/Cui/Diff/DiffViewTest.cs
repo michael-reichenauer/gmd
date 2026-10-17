@@ -244,8 +244,9 @@ public class DiffViewTest
     }
 
     // On a terminal 150 wide or more, the files are listed beside the diff, the one the cursor is in
-    // marked. Tab moves the keys to the list, where down goes to the next file, and Esc moves them back
-    // before it closes the diff.
+    // marked, and the diff's own list of them at its top is left out, the row counting them kept. Tab
+    // moves the keys to the list, where down goes to the next file, and Esc moves them back before it
+    // closes the diff.
     [TestMethod]
     public async Task TestTheFilesAreListedBesideAWideDiff()
     {
@@ -256,6 +257,17 @@ public class DiffViewTest
         var screen = ScreenText.Of(gmd.WaitFor("Files 2"), repo.Path).Split('\n');
         StringAssert.StartsWith(screen[1], " M long.txt  +1 -1");
         StringAssert.StartsWith(screen[2], " M short.txt  +1 -1");
+        Assert.AreEqual(
+            """
+            Files 2               │ c00a3cc9  Change both files
+             M long.txt  +1 -1    │ Test User <test@example.com>  2024-10-15 12:02:00
+             M short.txt  +1 -1   │
+                                    2 files changed  2 modified  +2 -2
+
+                                    ▌ M long.txt  +1 -1
+            """,
+            string.Join("\n", screen.Take(6).Select(l => l.TrimEnd('─', ' ')))
+        );
 
         gmd.Send("Tab");
         gmd.WaitForStable();
@@ -310,6 +322,11 @@ public class DiffViewTest
         gmd.Send("l");
         var screen = gmd.WaitUntilGone("Files 2");
         Assert.AreEqual("File list hidden: l shows it", ScreenText.LastLine(screen).Trim('─', ' '));
+        StringAssert.Contains(
+            ScreenText.Of(screen, repo.Path),
+            "2 files changed  2 modified  +2 -2\n  M long.txt   +1 -1\n  M short.txt  +1 -1",
+            "The files are listed at the diff's top again"
+        );
         StringAssert.StartsWith(
             ScreenText.Of(screen, repo.Path).Split('\n')[1],
             "Test User",

@@ -500,6 +500,54 @@ public class DiffRowServiceTest
         Assert.IsFalse(RowsOf(file).Rows.Any(r => r.CommitId != ""));
     }
 
+    // With its files listed beside it, a diff's top leaves them out, the row counting them kept,
+    // which the list's title does not; without, they are its only list at a glance
+    [TestMethod]
+    public void TestFilesListedBesideAreLeftOutOfTheTop()
+    {
+        var diff = CommitDiffOf(
+            FileDiffOf("a.txt", (DiffMode.DiffAdded, "x")),
+            FileDiffOf("b.txt", (DiffMode.DiffAdded, "y"))
+        );
+        var service = new DiffRowService();
+
+        var beside = DiffText.Of(service.ToDiffRows([diff], new Dictionary<string, int>(), [], isListBeside: true));
+        var above = DiffText.Of(service.ToDiffRows([diff], new Dictionary<string, int>(), []));
+
+        Assert.AreEqual(
+            """
+            Test  2025-01-01 00:00:00
+
+            2 files changed  2 modified  +2
+
+            ▌ M a.txt  +1 ─
+            """,
+            string.Join("\n", beside.Split('\n').Take(5))
+        );
+        StringAssert.Contains(above, "2 files changed  2 modified  +2\n  M a.txt  +1\n  M b.txt  +1\n");
+    }
+
+    // A file history's commits listed beside it are left out of its top, and each commit still says
+    // which file of it it is
+    [TestMethod]
+    public void TestCommitsListedBesideAreLeftOutOfAHistorysTop()
+    {
+        var file = FileOf("a.txt", lines: [(DiffMode.DiffAdded, "one")]);
+        CommitDiff[] history =
+        [
+            new CommitDiff("c2", "Test", new DateTime(2025, 1, 2), "Second", [file]),
+            new CommitDiff("c1", "Test", new DateTime(2025, 1, 1), "First", [file]),
+        ];
+        var service = new DiffRowService();
+
+        var beside = DiffText.Of(service.ToDiffRows(history, new Dictionary<string, int>(), [], isListBeside: true));
+        var above = DiffText.Of(service.ToDiffRows(history, new Dictionary<string, int>(), []));
+
+        StringAssert.StartsWith(above, "  c2  Second");
+        Assert.IsFalse(beside.Contains("  c2  Second"), "The commits are not listed at the top");
+        StringAssert.Contains(beside, "1 file changed  1 modified  +1\n  M a.txt  +1");
+    }
+
     // The title of the top row: the id and the subject, or what there is of them
     [TestMethod]
     public void TestTheTitleIsTheIdAndTheSubject()

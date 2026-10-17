@@ -17,13 +17,16 @@ interface IDiffRowService
     // of the spaces around a line's text, nor of its line end, either. isOneColumn is the layout of a
     // narrow view: a change's removed lines above its added ones, as git writes them, rather than
     // beside them. hiddenFiles are the files whose lines are hidden, drawn as their header alone.
+    // isListBeside is a diff with the list of its files beside it, or of its commits in a file
+    // history, which the list at its top then leaves out, keeping the row that counts them.
     DiffRows ToDiffRows(
         CommitDiff[] commitDiffs,
         IReadOnlyDictionary<string, int> fileContext,
         IReadOnlyList<string> conflictPaths,
         bool isIgnoreWhitespace = false,
         bool isOneColumn = false,
-        IReadOnlySet<string>? hiddenFiles = null
+        IReadOnlySet<string>? hiddenFiles = null,
+        bool isListBeside = false
     );
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
@@ -101,7 +104,8 @@ class DiffRowService : IDiffRowService
         IReadOnlyList<string> conflictPaths,
         bool isIgnoreWhitespace = false,
         bool isOneColumn = false,
-        IReadOnlySet<string>? hiddenFiles = null
+        IReadOnlySet<string>? hiddenFiles = null,
+        bool isListBeside = false
     )
     {
         commitDiffs = commitDiffs.Select(d => AsConflicted(d, conflictPaths)).ToArray();
@@ -109,14 +113,15 @@ class DiffRowService : IDiffRowService
             isIgnoreWhitespace,
             isOneColumn,
             hiddenFiles ?? new HashSet<string>(),
-            conflictPaths.ToHashSet()
+            conflictPaths.ToHashSet(),
+            isListBeside
         );
         DiffRows rows = new DiffRows();
 
         // A file history is one file over many commits, headed with the list of them, which the view's
-        // top row counts
+        // top row counts, unless they are listed beside it
         var isHistory = commitDiffs.Length > 1;
-        if (isHistory)
+        if (isHistory && !layout.IsListBeside)
         {
             commitDiffs.ForEach(diff =>
                 rows.Add(
@@ -222,7 +227,13 @@ class DiffRowService : IDiffRowService
     )
     {
         AddCommitSummery(commitDiff, rows, isHistory);
-        AddDiffFileNamesSummery(commitDiff, rows, layout.IsIgnoreWhitespace);
+        // The files of a commit are listed beside it, but those of a file history's commits are not
+        AddDiffFileNamesSummery(
+            commitDiff,
+            rows,
+            layout.IsIgnoreWhitespace,
+            isFiles: isHistory || !layout.IsListBeside
+        );
 
         commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext, layout));
     }
@@ -266,10 +277,13 @@ class DiffRowService : IDiffRowService
     }
 
     // The files of the commit, below a row counting them, each as the commit details list it: its
-    // letter, its path and the lines added and deleted in it, which line up in a column
-    static void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows, bool isIgnoreWhitespace)
+    // letter, its path and the lines added and deleted in it, which line up in a column; the row
+    // counting them alone where they are listed beside the diff
+    static void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows, bool isIgnoreWhitespace, bool isFiles)
     {
         rows.Add(FilesRow(commitDiff, isIgnoreWhitespace));
+        if (!isFiles)
+            return;
 
         var width = Math.Min(MaxPathWidth, commitDiff.FileDiffs.Select(f => PathOf(f).Length).DefaultIfEmpty(0).Max());
         commitDiff.FileDiffs.ForEach(fd => rows.Add(Text.Dark("  ").Add(FileText(fd, PathOf(fd).PadRight(width)))));
@@ -643,12 +657,14 @@ class DiffRowService : IDiffRowService
     static string MarkerName(string marker) => marker.TrimStart('<', '>', '|', '=').Trim();
 
     // How the rows are made: with whitespace left out, in one column rather than two, with the lines
-    // of some files hidden, and which files are in conflict now, which the resolver resolves
+    // of some files hidden, which files are in conflict now, which the resolver resolves, and whether
+    // the files or the commits are listed beside the diff
     record Layout(
         bool IsIgnoreWhitespace,
         bool IsOneColumn,
         IReadOnlySet<string> HiddenFiles,
-        IReadOnlySet<string> Unmerged
+        IReadOnlySet<string> Unmerged,
+        bool IsListBeside
     );
 
     // The text of a removed or an added line of a block, as the diff has it, null for an unchanged

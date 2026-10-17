@@ -541,7 +541,9 @@ Find more commands in the menus (the `m` key).
 commit's id and subject, who made it when, and a list of its files: each
 with a letter, `M` modified, `A` added, `D` deleted, `R` renamed and `C`
 conflicted, and the lines added and deleted in it, headed by how many there
-are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`. Each file
+are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`; the files
+are left out of it, that row kept, while they are listed beside the diff
+(below). Each file
 starts with a row naming it, underlined in blue. Where unchanged lines are
 left out between the parts that changed, a dark line starting with `⋯` says
 so, with the function or heading git finds the next part in, when it is not
@@ -575,7 +577,8 @@ between the two, for the diff it is pressed in.
 On a terminal 150 columns wide or more, a diff of more than one file has
 its files listed beside it, the one the cursor is in marked, each with its
 lines added and deleted, and e.g. `╎3` for three lines left out of the
-commit. A file history lists its commits instead. `Tab` moves the keys to
+commit. A file history lists its commits instead, which its top then leaves
+out as the diff of a commit leaves out its files. `Tab` moves the keys to
 the list, where `↑` and `↓` go from file to file, and `Tab`, `Enter` or
 `Esc` back to the diff; a click on a file goes to it. `l` hides the list,
 for the width it takes, and shows it again; the diffs after open as it was

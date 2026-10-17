@@ -77,7 +77,9 @@ class DiffView : IDiffView
     bool IsOneColumnFor(int contentWidth) => isOneColumnChosen ?? contentWidth < OneColumnBelow;
 
     // The list of files beside a wide diff, or of the commits of a file history, how wide it is, 0 when
-    // it is not shown, and whether it has the keys, as Tab moves them there and back
+    // it is not shown, and whether it has the keys, as Tab moves them there and back; whether the rows
+    // were made with it beside them, which leaves out their own list of them at the top
+    bool isRowsBesideList;
     ContentView listView = null!;
     DiffFileList fileList = DiffFileList.None;
 
@@ -142,12 +144,13 @@ class DiffView : IDiffView
         this.isListWanted = config.ShowDiffFileList;
         this.listWidth = ListWidth();
         this.isListFocus = false;
-        if (IsOneColumnFor(Application.Driver.Cols - listWidth - 1) != isOneColumn)
-        { // Narrowed by the list
-            isOneColumn = !isOneColumn;
-            diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn);
+        if (listWidth > 0)
+        { // Narrowed by the list, and the files or commits listed in it rather than above the diff
+            isOneColumn = IsOneColumnFor(Application.Driver.Cols - listWidth - 1);
+            diffRows = diffRowService.ToDiffRows(diffs, fileContext, ConflictPaths(), false, isOneColumn, null, true);
             fileList = DiffFileList.Of(diffs, diffRows);
         }
+        this.isRowsBesideList = listWidth > 0;
         this.search = RowSearch.None;
         this.status = new StatusLine();
         this.isIgnoreWhitespace = false;
@@ -1344,9 +1347,11 @@ class DiffView : IDiffView
         listView.SuperView?.SetNeedsDisplay();
     }
 
+    // The rows for a layout, made again where it is not theirs: in one column or two, and with the
+    // list beside them or not, which lists the files or commits the rows would otherwise list at the top
     void SetLayout(bool isOneColumn)
     {
-        if (isOneColumn == this.isOneColumn)
+        if (isOneColumn == this.isOneColumn && (listWidth > 0) == isRowsBesideList)
             return;
 
         this.isOneColumn = isOneColumn;
@@ -1365,13 +1370,15 @@ class DiffView : IDiffView
     void SetDiffs(CommitDiff[] newDiffs, DiffAnchor anchor)
     {
         diffs = newDiffs;
+        isRowsBesideList = listWidth > 0;
         diffRows = diffRowService.ToDiffRows(
             diffs,
             fileContext,
             ConflictPaths(),
             isIgnoreWhitespace,
             isOneColumn,
-            hiddenFiles
+            hiddenFiles,
+            isRowsBesideList
         );
         fileList = DiffFileList.Of(diffs, diffRows);
         // Counted now rather than as the views draw, for the cursor to be put back in the rows that are
