@@ -17,6 +17,9 @@ class UITextField : TextField
 {
     readonly Typing typing;
 
+    // Where the caret was when the field was last drawn, see RedrawIfCaretMoved
+    int drawnCaret;
+
     internal UITextField(int x, int y, int w, string text = "")
     {
         X = x;
@@ -60,8 +63,23 @@ class UITextField : TextField
         set => InsertionPoint = value;
     }
 
+    // The caret where it was, at the end of the text to begin with, and nothing selected: Terminal.Gui
+    // 2.x selects the whole text of a field the keys move into, so that the first key typed replaced
+    // it, e.g. the name of a branch to rename, which a user adds to
+    protected override void OnHasFocusChanged(bool newHasFocus, View? previousFocusedView, View? view)
+    {
+        var caret = CursorPosition;
+        base.OnHasFocusChanged(newHasFocus, previousFocusedView, view);
+        if (newHasFocus && SelectedLength > 0)
+        {
+            ClearAllSelection();
+            CursorPosition = caret;
+        }
+    }
+
     protected override bool OnKeyDown(Key key)
     {
+        AfterInput();
         if (IsSpellCheck && SpellSpans.IsSpellKey(key))
         {
             ShowSpellingSuggestions();
@@ -90,7 +108,23 @@ class UITextField : TextField
         }
         if (ev.Flags.HasFlag(MouseFlags.RightButtonPressed) || ev.Flags.HasFlag(MouseFlags.RightButtonReleased))
             return true;
+        AfterInput();
         return base.OnMouseEvent(ev);
+    }
+
+    // A word is colored as misspelled depending on where the caret is (one being typed is not), and
+    // Terminal.Gui 2.x moves the caret without drawing the text anew, so once a key or a click is
+    // done, the text is drawn anew if the caret moved
+    void AfterInput()
+    {
+        if (IsSpellCheck && UI.HasApp)
+            UI.Post(RedrawIfCaretMoved);
+    }
+
+    void RedrawIfCaretMoved()
+    {
+        if (CursorPosition != drawnCaret)
+            SetNeedsDraw();
     }
 
     // TextField has no hook for coloring a rune as it is drawn, so the misspelled words are drawn
@@ -98,6 +132,7 @@ class UITextField : TextField
     // left alone entirely.
     protected override bool OnDrawingContent(DrawContext? context)
     {
+        drawnCaret = CursorPosition;
         var isDrawn = base.OnDrawingContent(context);
         DrawMisspelled();
         Redrawn?.Invoke();

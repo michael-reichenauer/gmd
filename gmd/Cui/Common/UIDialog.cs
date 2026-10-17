@@ -156,11 +156,16 @@ class UIDialog
         return textView;
     }
 
+    // Called as an input is drawn, so the hint is set once the draw is done: Terminal.Gui marks every
+    // view drawn once a draw is done, and the hint, drawn before the input, would not be drawn anew
     void UpdateSpellHint()
     {
         if (spellHint == null)
             return;
-        spellHint.Text = SpellHint.Edge(misspelledCounts.Sum(count => count()), spellHintWidth, Color.Dark);
+        var hint = SpellHint.Edge(misspelledCounts.Sum(count => count()), spellHintWidth, Color.Dark);
+        if (hint.ToString() == spellHint.Text.ToString())
+            return;
+        UI.Post(() => spellHint.Text = hint);
     }
 
     internal UIComboTextField AddComboTextField(

@@ -11,11 +11,18 @@ static class UI
 {
     static IApplication? app;
 
+    // What is posted to the main loop, by Post and by the awaits on it, see MainLoopQueue
+    static readonly MainLoopQueue queue = new();
+
     internal static IApplication App => app ?? throw Asserter.Fail("The application has not started");
+
+    // Whether there is an application, i.e. a main loop, which a unit test of a view has not
+    internal static bool HasApp => app != null;
 
     internal static void SetApp(IApplication application)
     {
         app = application;
+        application.Iteration += (_, _) => queue.RunPosted();
 
         // Keys are dropped while git works (KeyGate): the application's KeyDown is raised before any
         // view gets the key, and a key marked handled there goes no further
@@ -67,19 +74,12 @@ static class UI
 
     internal static void StartInput() => keys.GitDone();
 
-    // Runs the action on the main loop, after what runs now, from any thread. Not Terminal.Gui's
-    // Invoke, which runs it at once when called on the main loop: gmd posts to have it run after the
-    // key or the draw it is in is done, e.g. the menu's first move off a greyed out item, which run at
-    // once, before the menu was laid out, moved nowhere and called itself again, without end.
-    internal static void Post(Action action) =>
-        App.AddTimeout(
-            TimeSpan.Zero,
-            () =>
-            {
-                action();
-                return false;
-            }
-        );
+    // Runs the action on the main loop, after what runs now, from any thread (MainLoopQueue). Not
+    // Terminal.Gui's Invoke, which runs it at once when called on the main loop: gmd posts to have it
+    // run after the key or the draw it is in is done, e.g. the menu's first move off a greyed out item,
+    // which run at once, before the menu was laid out, moved nowhere and called itself again, without
+    // end.
+    internal static void Post(Action action) => queue.Post(action);
 
     // Terminal.Gui 2.x shows the cursor only where a view puts it (View.Cursor), so there is nothing
     // to hide; kept for the callers, which hid it after 1.x had shown it

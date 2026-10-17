@@ -22,6 +22,9 @@ class UITextView : TextView
 
     readonly Typing typing;
 
+    // Where the caret was when the view was last drawn, see RedrawIfCaretMoved
+    Point drawnCaret;
+
     internal UITextView()
     {
         TabKeyAddsTab = false;
@@ -64,6 +67,7 @@ class UITextView : TextView
 
     protected override bool OnKeyDown(Key key)
     {
+        AfterInput();
         if (key == Key.Esc && Escaped != null)
         {
             Escaped();
@@ -97,7 +101,23 @@ class UITextView : TextView
         }
         if (ev.Flags.HasFlag(MouseFlags.RightButtonPressed) || ev.Flags.HasFlag(MouseFlags.RightButtonReleased))
             return true;
+        AfterInput();
         return base.OnMouseEvent(ev);
+    }
+
+    // A word is colored as misspelled depending on where the caret is (one being typed is not), and
+    // Terminal.Gui 2.x moves the caret without drawing the text anew, so once a key or a click is
+    // done, the text is drawn anew if the caret moved
+    void AfterInput()
+    {
+        if (IsSpellCheck && UI.HasApp)
+            UI.Post(RedrawIfCaretMoved);
+    }
+
+    void RedrawIfCaretMoved()
+    {
+        if (CursorPosition != drawnCaret)
+            SetNeedsDraw();
     }
 
     public new string Text
@@ -112,6 +132,7 @@ class UITextView : TextView
 
     protected override bool OnDrawingContent(DrawContext? context)
     {
+        drawnCaret = CursorPosition;
         var isDrawn = base.OnDrawingContent(context);
         Redrawn?.Invoke();
         return isDrawn;

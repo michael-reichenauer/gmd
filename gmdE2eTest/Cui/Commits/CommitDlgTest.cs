@@ -34,7 +34,7 @@ public class CommitDlgTest
         gmd.SendText("Fix resonable issu");
         gmd.WaitFor("2 misspelled words");
         Assert.AreEqual(
-            "                       -DWWW rrrrrrrrr rrrr                                D                    m",
+            "                       mDWWW rrrrrrrrr rrrr                                D                    m",
             ScreenText.ColorRows(gmd.CaptureColors(), 12, 1),
             "The pause finished 'issu', with no space typed after it"
         );
@@ -46,7 +46,7 @@ public class CommitDlgTest
         gmd.Send("Left"); // The caret into 'brnach' rather than at its end, so it is not being typed
         gmd.WaitForStable();
         Assert.AreEqual(
-            "                       -Drrrrrrrr WWW rrrrrr                                                   Dm",
+            "                       mDrrrrrrrr WWW rrrrrr                                                   Dm",
             ScreenText.ColorRows(gmd.CaptureColors(), 14, 1)
         );
 
@@ -68,7 +68,7 @@ public class CommitDlgTest
         gmd.Send("Enter");
         gmd.WaitFor("Sumerize the branch");
         Assert.AreEqual(
-            "                       -Drrrrrrrr WWW WWWWWW                                                   Dm",
+            "                       mDrrrrrrrr WWW WWWWWW                                                   Dm",
             ScreenText.ColorRows(gmd.CaptureColors(), 14, 1)
         );
         // The caret is back once the menu has closed, right after the replaced word. The menu had
@@ -117,7 +117,7 @@ public class CommitDlgTest
                                    │┌───────────────────╭ Edit ─────────────────────────╮──────────────────┐│
                                    ││                   │Spelling Suggestions ...     F7│                  ││
                                    ││                   │───────────────────────────────│                  ││
-                                   ││                   │Select All               Ctrl-T│                  ││
+                                   ││                   │Select All               Ctrl-A│                  ││
                                    ││                   │Copy                     Ctrl-C│                  ││
                                    ││                   │Cut                      Ctrl-X│                  ││
                                    ││                   │Paste                    Ctrl-V│                  ││
@@ -174,7 +174,7 @@ public class CommitDlgTest
                                    ││                   ╭ Edit ─────────────────────────╮                  ││
                                    ││                   │Spelling Suggestions ...     F7│                  ││
                                    ││                   │───────────────────────────────│                  ││
-                                   ││                   │Select All               Ctrl-T│                  ││
+                                   ││                   │Select All               Ctrl-A│                  ││
                                    ││                   │Copy                      Alt-C│                  ││
                                    ││                   │Cut                       Alt-W│                  ││
                                    ││                   │Paste                    Ctrl-Y│                  ││
@@ -227,7 +227,7 @@ public class CommitDlgTest
             ScreenText.Rows(gmd.WaitFor("2 misspelled words"), repo.Path, 24, 1)
         );
         Assert.AreEqual(
-            "                       -DD r rrrrrrrrrr rrrrrD DD DD DDDDDDDDDDD DDD DDDDDDDDDDD DDDDDDDDDDDDDDDm",
+            "                       mDD r rrrrrrrrrr rrrrrD DD DD DDDDDDDDDDD DDD DDDDDDDDDDD DDDDDDDDDDDDDDDm",
             ScreenText.ColorRows(gmd.CaptureColors(), 24, 1),
             "The count is red, the rest of the edge dark"
         );
@@ -266,7 +266,7 @@ public class CommitDlgTest
         gmd.SendText("Add gmd to the list");
         gmd.WaitFor("Add gmd to the list");
         Assert.AreEqual(
-            "                       -DWWW rrr WW WWW WWWW                               D                    m",
+            "                       mDWWW rrr WW WWW WWWW                               D                    m",
             ScreenText.ColorRows(gmd.CaptureColors(), 12, 1)
         );
 
@@ -279,7 +279,7 @@ public class CommitDlgTest
         gmd.Send("Enter");
         gmd.WaitUntilGone("Spelling");
         Assert.AreEqual(
-            "                       -DWWW WWW WW WWW WWWW                               D                    m",
+            "                       mDWWW WWW WW WWW WWWW                               D                    m",
             ScreenText.ColorRows(gmd.CaptureColors(), 12, 1)
         );
 

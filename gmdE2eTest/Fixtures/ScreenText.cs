@@ -128,15 +128,16 @@ static class ScreenText
 
     // Walks an escaped capture, tracking the color the terminal is currently set to, and emits
     // one letter per visible character. Everything drawn goes through here, so an unexpected
-    // color shows up as '?' rather than being quietly dropped.
+    // color shows up as '?' rather than being quietly dropped. The color carries on from one row to
+    // the next, as tmux writes it: a row that starts in the color the row above ended in has no code.
     static IEnumerable<string> ColorLines(string escapedCapture, bool isForeground, bool isBlankShown = false)
     {
         var lines = new List<string>();
+        var color = -1;
 
         foreach (var line in escapedCapture.Split('\n'))
         {
             var letters = new StringBuilder();
-            var color = -1;
             var i = 0;
 
             while (i < line.Length)

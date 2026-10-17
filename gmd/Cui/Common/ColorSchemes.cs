@@ -36,10 +36,13 @@ static class ColorSchemes
 
     internal static Scheme Border => Of(normal: Color.BrightMagenta, focus: Color.Dark);
 
-    // Has the view read its scheme from gmd's colors, as they are when it is drawn
+    // Has the view read its scheme from gmd's colors, as they are when it is drawn. The scheme is set
+    // too, since a view with none of its own asks its superview for its colors, never raising the
+    // event that gives it this one.
     internal static T WithScheme<T>(this T view, Func<Scheme> scheme)
         where T : View
     {
+        view.SetScheme(scheme());
         view.GettingScheme += (_, e) =>
         {
             e.Result = scheme();

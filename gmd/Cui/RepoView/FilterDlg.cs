@@ -66,18 +66,17 @@ class FilterDlg : IFilterDlg
 
         dlg = new UIDialog(
             "Filter Commits",
-            Dim.Fill() + 1,
+            Dim.Fill(),
             DialogHeight,
             OnDialogKey,
-            // X = -1 pushes the dialog's left border off screen, so its content lines up with the
-            // log view below it. Y = -1 pins it to the top: Terminal.Gui clamps a Toplevel's Y to
-            // the screen, so it lands on row 0 rather than the bottom it would otherwise be
-            // centered at — but that also means the top border cannot be hidden the way the left
-            // one is, which is what Show() has to work around.
+            // X = -2 pushes the dialog's left border off screen, and the space before its title and
+            // the ' Gmd' label, so its content lines up with the log view below it and the title
+            // starts the top row, over the application bar, the dialog's right border at the right
+            // edge. Y = 0, the top, which the top border, with the title, is not hidden from.
             options =>
             {
-                options.X = -1;
-                options.Y = -1;
+                options.X = -2;
+                options.Y = 0;
             }
         );
         dlg.RegisterMouseHandler(OnMouseEvent);
