@@ -5,6 +5,7 @@ namespace gmd.Git.Private;
 interface IBranchService
 {
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd);
     Task<Result> CheckoutAsync(string name, string wd);
     Task<Result> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
@@ -92,6 +93,17 @@ class BranchService : IBranchService
     {
         oldName = RemoteService.TrimRemotePrefix(oldName);
         return await cmd.RunAsync("git", $"branch -m {oldName} {newName}", wd);
+    }
+
+    // The local branches merged into a commit, i.e. whose tips it has: 'git branch --merged', with the
+    // format pinned to the bare name, which config could otherwise color or mark with the '*' of the
+    // current branch or the '+' of one checked out in another worktree
+    public async Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd)
+    {
+        var result = await cmd.RunAsync("git", $"branch --merged {id} --format=%(refname:short)", wd);
+        if (result is not string output)
+            return result.Error;
+        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
     }
 
     public async Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>

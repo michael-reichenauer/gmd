@@ -359,6 +359,7 @@ public class MenuItemsTest
             Previous Match  [⇧n]  (disabled)
             Refresh  [r]
             Worktrees ...  [w]
+            Delete Merged Branches ...
             Open Repository in Browser
             Open, Clone or Init Repo >  [o]
             Config ...

@@ -87,6 +87,11 @@ record Repo
     public IReadOnlyDictionary<string, LocalRewrite> LocalRewrites { get; init; } =
         new Dictionary<string, LocalRewrite>();
 
+    // The local branches deleted on origin that were squash merged or rebase merged there, e.g. by a
+    // pull request, which git does not count as merged, by name, with the branch each went into, e.g.
+    // 'main'. Read after the repo is shown, see IMergedBranchService. Usually none.
+    public IReadOnlyDictionary<string, string> MergedOnOrigin { get; init; } = new Dictionary<string, string>();
+
     // The name commits are made with in the repository, its user.name, or "" when none is set
     public string CurrentAuthor { get; init; } = "";
 
@@ -212,6 +217,10 @@ public record Branch(
     // them; both 0 for a branch with no remote branch, and for a remote branch
     public int AheadCount { get; init; }
     public int BehindCount { get; init; }
+
+    // A local branch's remote branch that origin deleted, e.g. once its pull request was merged there,
+    // and a fetch then pruned: it was pushed, though it has no remote branch now. "" for any other.
+    public string GoneRemoteName { get; init; } = "";
 
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }

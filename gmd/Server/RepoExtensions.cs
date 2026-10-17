@@ -47,6 +47,12 @@ static class RepoExtensions
     // Whether deleting the branch would lose commits: its tip is on it and nothing else, i.e. no
     // other branch has merged it or continues from it. A tip that is not in the log at all (an
     // old branch in a truncated log) is taken as unmerged, since nothing says otherwise.
+    // Whether the branch has commits that a merge would bring, as the user means it: not merged as git
+    // sees it, nor squash merged or rebase merged on origin (Repo.MergedOnOrigin), whose commits went
+    // in as copies. Git still refuses to delete such a branch without force (HasUnmergedCommits).
+    public static bool IsUnmerged(this Repo repo, Branch branch) =>
+        repo.HasUnmergedCommits(branch) && !repo.MergedOnOrigin.ContainsKey(branch.Name);
+
     public static bool HasUnmergedCommits(this Repo repo, Branch branch)
     {
         if (!repo.CommitById.TryGetValue(branch.TipId, out var tip))

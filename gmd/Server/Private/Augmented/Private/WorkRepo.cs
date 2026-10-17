@@ -131,7 +131,6 @@ internal class WorkBranch
     public string Name { get; }
     public bool IsRemote { get; }
     public bool IsDetached { get; }
-    public bool IsRemoteMissing { get; }
     public bool IsCurrent { get; }
     public bool IsCheckedOutElsewhere { get; } // The '+' of 'git branch': held by another worktree
     public int AheadCount { get; } // A local branch's commits its remote branch has not, as git counts them
@@ -144,6 +143,10 @@ internal class WorkBranch
     public string NiceName { get; set; } = ""; // Nice name (might not be unique)
     public string NiceNameUnique { get; set; } = ""; // Unique nice name (with branch number if needed)
     public string RemoteName { get; set; } = ""; // A local branch's remote name
+
+    // A local branch's remote branch that a fetch pruned, since origin deleted it, e.g. once its pull
+    // request was merged; RemoteName is then "", as for a branch never pushed
+    public string GoneRemoteName { get; set; } = "";
     public string LocalName { get; set; } = ""; // A remote branch's local name
     public string TipID { get; } // First commit id
     public string BottomID { get; internal set; } = ""; // Last commit id

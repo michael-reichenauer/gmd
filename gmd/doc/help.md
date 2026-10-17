@@ -291,6 +291,7 @@ selects them too, in any terminal.
 | ß      | Stash based on commit                                        |
 | ▲      | Commit not yet pushed (green subject)                        |
 | ▼      | Commit not yet pulled (blue subject)                         |
+| ✓      | Branch squash or rebase merged on origin, deleted there      |
 | ^      | Abbreviation for 'origin' in branch names                    |
 | ~      | Deleted branch (inactive, drawn in gray)                     |
 | o      | Branch shown in the graph (in branch menus)                  |
@@ -323,6 +324,22 @@ uncommitted changes where they are; a pull needs them committed or stashed
 first. Switching to a branch where git would overwrite them offers to stash
 them, switch, and put them back. `Shift-P` and `Shift-U` push or update all
 shown branches.
+
+A branch deleted on origin, e.g. by GitHub once its pull request was
+merged, and then by a fetch here, is said to be in the details pane,
+`(deleted on origin)`, and `p` says so rather than pushing it: **Push** in
+its branch menu makes it again on origin, after asking.
+
+Merged by a squash or a rebase first, as GitHub's squash merge and rebase
+merge do, the branch is not merged as git counts it, since what went into
+main are copies of its commits. Gmd tells it by content, once the repo is
+shown: merging the branch into main, or into the branch it was made from,
+as origin has them, would change nothing. Its tip is then marked `✓`, e.g.
+`(✓ feature)`, the details pane says `(merged into main on origin)`, and
+the worktree list counts it merged, and the status line says so once,
+pointing at **Delete Merged Branches ...** (see [More
+Commands](#more-commands)). A branch whose lines main changed again since
+is not told.
 
 A branch with both unpulled and unpushed commits can only be pushed by
 force, which `p` asks about first, and is not updated by `Shift-U`, which
@@ -542,6 +559,16 @@ throw changes away ask first, and what they throw away gmd keeps, for
   back and keeps it, e.g. for the same changes on another branch as well,
   and **Stash Diff** and **Stash Drop** show it and throw it away, which
   Restore Discarded Changes, under Undo, takes back.
+- **Delete Merged Branches ...** (repo menu, `Shift-M`):
+  Lists the local branches with no branch on origin, deleted there or never
+  pushed, whose work is in main or an integration branch already: merged
+  as git counts it, or squash or rebase merged on origin (marked `✓`, see
+  [Remote and Local Branches](#remote-and-local-branches)). `Enter` or `d`
+  deletes the one selected, and `a` all of them, after asking, as git's
+  `branch -D` would, which a squash merge needs. A branch checked out, here
+  or in another worktree, is listed but left. Each one deleted is kept for
+  **Restore Deleted Branch**. A branch made with no commits of its own yet
+  is not listed, though git counts it merged.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on

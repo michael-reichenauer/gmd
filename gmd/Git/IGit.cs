@@ -28,6 +28,9 @@ interface IGit
     Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
     Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
+
+    // The local branches whose tips the commit has, i.e. merged into it as git counts it
+    Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd);
     Task<Result<Status>> GetStatusAsync(string wd);
 
     // The status of a worktree someone else is working in, read without taking its index lock
@@ -166,6 +169,10 @@ interface IGit
 
     // Moves the commits of the current branch after 'upstream' onto 'onto', keeping their merges
     Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
+
+    // Whether merging commit 'theirs' into commit 'ours' would change nothing, i.e. what 'theirs'
+    // changed is in 'ours' already, e.g. squash merged or rebase merged: false too on a conflict
+    Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd);
 
     // The branches, remote branches and tags on the commit or after it, as full ref names
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);

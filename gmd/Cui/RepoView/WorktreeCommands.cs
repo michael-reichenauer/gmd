@@ -216,8 +216,10 @@ class WorktreeCommands : IWorktreeCommands
     {
         var branch = worktree.Branch != "" && current.BranchByName.TryGetValue(worktree.Branch, out var b) ? b : null;
         var isUnmerged = branch != null && current.HasUnmergedCommits(branch);
+        // Squash merged or rebase merged on origin is merged to the user, though git needs force
+        var isUnmergedToUser = branch != null && current.IsUnmerged(branch);
 
-        if (removeWorktreeDlg.Show(worktree, isUnmerged) is not RemoveWorktreeResult rsp)
+        if (removeWorktreeDlg.Show(worktree, isUnmergedToUser) is not RemoveWorktreeResult rsp)
             return Result.Ok;
 
         if (await server.RemoveWorktreeAsync(worktree.Path, rsp.IsForce, current.Path) is Error e)

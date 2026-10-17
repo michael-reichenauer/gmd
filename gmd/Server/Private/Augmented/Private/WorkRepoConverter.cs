@@ -113,6 +113,7 @@ class WorkRepoConverter : IWorkRepoConverter
         {
             AheadCount = b.AheadCount,
             BehindCount = b.BehindCount,
+            GoneRemoteName = b.GoneRemoteName,
         };
     }
 }

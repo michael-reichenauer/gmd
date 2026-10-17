@@ -505,6 +505,58 @@ public class PushPullTest
         );
     }
 
+    // A branch deleted on origin, e.g. once its pull request was merged there, is no branch to publish
+    // as one never pushed is: 'p' says so rather than pointing at Push, and so does the details pane
+    [TestMethod]
+    public async Task TestABranchDeletedOnOriginIsNotPublishedAgainByP()
+    {
+        using var repo = await E2eRepo.CreateWithBranchDeletedOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add feature");
+
+        gmd.Send("p");
+        Assert.AreEqual(
+            "'feature' was deleted on origin, e.g. its pull request was merged: Push in its branch menu puts it back",
+            ScreenText.LastLine(gmd.WaitFor("was deleted on origin"))
+        );
+
+        gmd.Send("Enter");
+        gmd.WaitFor("feature  (deleted on origin)");
+    }
+
+    // A branch squash merged on origin and deleted there, as a pull request merged by GitHub's squash
+    // merge leaves it, which git counts unmerged: told by content once the repo is shown, marked '✓'
+    // at its tip, and 'p' and the details pane say where it went
+    [TestMethod]
+    public async Task TestABranchSquashMergedOnOriginIsMarkedMerged()
+    {
+        using var repo = await E2eRepo.CreateWithBranchSquashMergedOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            """
+             Gmd {repo}, ●feature, ▼1                                        commit on main [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣      ▼Feature (#1)                                                  (^/main) 7172afa3 Test User      2024-10-15 12:10
+            ┃   ┣ ● Fix feature                                              (● ✓ feature) adc13004 Test User      2024-10-15 12:09
+            ┃  ╭┺   Add feature                                                            2fa8d315 Test User      2024-10-15 12:08
+            ┣─┺╯    Add zeta                                                        (main) 4dd1e9f8 Test User      2024-10-15 12:07
+            """,
+            ScreenText.Rows(gmd.WaitFor("✓ feature"), repo.Path, 0, 6)
+        );
+
+        gmd.Send("p");
+        Assert.AreEqual(
+            "'feature' was merged into 'main' on origin, and deleted there: nothing to push",
+            ScreenText.LastLine(gmd.WaitFor("was merged into"))
+        );
+
+        gmd.Send("Down"); // From main's squash, at the top, to the tip of 'feature'
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("feature  (merged into main on origin)");
+    }
+
     // A force push that only dropped a commit leaves 'main' just ahead, and a plain push of it would
     // put the commit back on origin: said once it is found, and the push asks first, with Cancel as
     // the default. Pull, with nothing new on origin, moves the commit of its own onto the new version.

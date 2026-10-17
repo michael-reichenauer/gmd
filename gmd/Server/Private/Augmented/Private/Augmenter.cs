@@ -68,6 +68,7 @@ class Augmenter : IAugmenter
                 }
                 else
                 { // No corresponding remote branch for local branch (deleted), unset property
+                    b.GoneRemoteName = b.RemoteName;
                     b.RemoteName = "";
                     b.PrimaryName = b.Name;
                     b.IsPrimary = true;

@@ -124,7 +124,9 @@ Key types and flow:
   run, to the write services of the augmented layer (`BranchWriteService`, `CommitRewriteService`,
   `UndoService`, `DeletedBranchService`). Every write the user asks for runs in `Server.Paused`,
   which pauses the file monitor; the background fetch does not. `GitConverter` turns git's records
-  into the server's.
+  into the server's. Which branches deleted on origin were squash or rebase merged there, which git
+  does not count merged, is `MergedBranchService`: a `git merge-tree` per branch, so read after the
+  repo is shown, as the other worktrees' changes are, and kept for the session (`Repo.MergedOnOrigin`).
 - `Augmented/Private/BranchStructureService.cs` — the heart of the product, and the most subtle
   code in the repo. `DetermineCommitBranches` is only the pipeline: set branch tips → link
   parents/children → assign branches to commits → build hierarchy → find root branch → compute
@@ -224,7 +226,7 @@ Key types and flow:
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
   `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally. `ListDlg` is
   the dialog of a list to pick a row from, with a button and a key per action (Worktrees, Recover
-  Lost Commits, Restore Deleted Branch, Tags); the rows are drawn by a `*Rows` class beside the dialog.
+  Lost Commits, Restore Deleted Branch, Delete Merged Branches, Tags); the rows are drawn by a `*Rows` class beside the dialog.
 - Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
   WeCantSpell.Hunspell over the SCOWL en_US dictionary embedded from `gmd/doc/spelling/` (or the
   user's own, `Config.SpellDictionary`; added words go to `Config.SpellWords`), and `SpellScanner`
@@ -762,7 +764,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `MergedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a

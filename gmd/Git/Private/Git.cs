@@ -96,6 +96,9 @@ internal class Git : IGit
 
     public Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => branchService.GetBranchesAsync(wd);
 
+    public Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd) =>
+        branchService.GetMergedBranchNamesAsync(id, wd);
+
     public Task<Result<Status>> GetStatusAsync(string wd) => statusService.GetStatusAsync(wd);
 
     public Task<Result<Status>> GetStatusWithoutLocksAsync(string wd) => statusService.GetStatusWithoutLocksAsync(wd);
@@ -288,6 +291,9 @@ internal class Git : IGit
 
     public Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
         commitService.RebaseOntoKeepingMergesAsync(onto, upstream, wd);
+
+    public Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd) =>
+        commitService.IsMergedByContentAsync(ours, theirs, wd);
 
     public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
         commitService.GetRefsContainingAsync(id, wd);

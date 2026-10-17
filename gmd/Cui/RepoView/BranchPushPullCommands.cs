@@ -53,9 +53,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
             if (!branch.HasLocalOnly)
             {
                 return new Notice(
-                    branch.RemoteName == ""
+                    DeletedOnOrigin.IsGone(branch) ? DeletedOnOrigin.WhyNoPush(repo.Repo, branch)
+                    : branch.RemoteName == ""
                         ? $"'{branch.NiceNameUnique}' is not on origin yet: Push in its branch menu publishes it"
-                        : $"Nothing to push on '{branch.NiceNameUnique}'"
+                    : $"Nothing to push on '{branch.NiceNameUnique}'"
                 );
             }
 
@@ -119,6 +120,12 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 if (RewrittenHere.Of(repo.Repo, branch) is LocalRewrite rewriteHere)
                     return await ForcePushRewrittenAsync(rewriteHere);
                 if (!IsPushConfirmed(branch))
+                    return Result.Ok;
+                // Deleted on origin, which a push undoes, for everyone
+                var question = DeletedOnOrigin.IsGone(branch)
+                    ? DeletedOnOrigin.PushAgainQuestion(repo.Repo, branch)
+                    : "";
+                if (question != "" && UI.InfoMessage("Push Again", question, 1, ["Push", "Cancel"]) != 0)
                     return Result.Ok;
             }
 
