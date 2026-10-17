@@ -313,6 +313,9 @@ which way they have to go:
 
 - `▲` and a green subject: a commit to push.
 - `▼` and a blue subject: a commit to pull.
+- A dark subject with neither, in origin's column: the old version of a
+  branch you rewrote (see [When You Rewrote a Pushed
+  Branch](#when-you-rewrote-a-pushed-branch)), which a force push replaces.
 
 `p` and `u` push and pull the highlighted branch, or the current one when
 none is, as **Push** and **Pull** in its branch menu do. A push leaves the
@@ -351,6 +354,27 @@ a force push too, for everyone, so it asks first, and it is refused if
 anything was pushed since the last fetch (`--force-with-lease`) or on top
 of the rewrite. It also takes gmd's own **Rebase**, which force pushes,
 back on origin after **Undo Rebase** took it back here.
+
+### When You Rewrote a Pushed Branch
+
+The mirror of the above: you squashed, amended or rebased commits that are
+on origin already, in gmd or not, e.g. a coding agent did. Then your branch
+has the new version and origin the old one. That looks like new commits on
+both sides, but origin has nothing new: a pull would merge the old version
+back in, putting every change in twice. Gmd tells this apart by the
+branch's own reflog, which says it was where origin is now, and says so on
+the status line when it first sees it, e.g. right after a squash. The old
+version is drawn dark, with no `▼`, and there is nothing to pull.
+
+`p` then pushes the branch with force, after a question that names the
+commits it replaces on origin, for everyone who has the branch. It is
+leased on origin as shown, so it is refused if anyone pushed since the last
+fetch, and `Shift-P` leaves the branch out, to be asked about on its own.
+Recover Lost Commits finds the old version afterwards.
+
+Someone else's commits pushed on top of the old version make origin a
+commit your branch never was at: the branch is then shown as diverged, as
+new commits on both sides.
 
 
 ## Undo and Recovery
@@ -502,7 +526,10 @@ throw changes away ask first, and what they throw away gmd keeps, for
   Select a range of commits on the current branch with `Shift-↑↓`, and
   squash them into one commit with a new message. The commits after them
   are put back on top as they were, merges and authors too, and **Undo**
-  takes the squash back. Nothing changes until the squash is made.
+  takes the squash back. Nothing changes until the squash is made. Commits
+  on origin already can be squashed too, and `p` then pushes the squash with
+  force: see [When You Rewrote a Pushed
+  Branch](#when-you-rewrote-a-pushed-branch).
 - **Tags** (in the commit menu's **Tag** menu):
   **Add Tag ...** (`t`) puts a tag on the commit, and pushes it to origin
   unless its box is unticked. **Tags ...** lists every tag, newest commit

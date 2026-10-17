@@ -158,9 +158,10 @@ class BranchMenu : IBranchMenu
                 () => commands.PushPullCmds.PullCurrentBranch(),
                 () => BranchPushPullCommands.CanPullCurrentBranch(repo.Repo),
                 () =>
-                    !repo.Repo.Status.IsOk
-                        ? Why.Changes
-                        : $"Nothing to pull on '{repo.Repo.CurrentBranch().NiceNameUnique}'"
+                    RewrittenHere.Of(repo.Repo, repo.Repo.CurrentBranch()) is LocalRewrite rewrite
+                        ? RewrittenHere.WhyNoPull(rewrite)
+                    : !repo.Repo.Status.IsOk ? Why.Changes
+                    : $"Nothing to pull on '{repo.Repo.CurrentBranch().NiceNameUnique}'"
             )
             .Item(
                 "Pull All Branches",

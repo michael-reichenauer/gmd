@@ -82,6 +82,11 @@ record Repo
     public IReadOnlyDictionary<string, RemoteRewrite> RemoteRewrites { get; init; } =
         new Dictionary<string, RemoteRewrite>();
 
+    // The local branches rewritten here since they were pushed, while origin still has the old
+    // version, by the local branch's name. Usually none.
+    public IReadOnlyDictionary<string, LocalRewrite> LocalRewrites { get; init; } =
+        new Dictionary<string, LocalRewrite>();
+
     // The name commits are made with in the repository, its user.name, or "" when none is set
     public string CurrentAuthor { get; init; } = "";
 
@@ -143,6 +148,10 @@ public record Commit(
     // ParentIds is the one the graph draws on the same line (see CommitGraphService), and git's order
     // is the other way round
     public bool IsParentsSwapped { get; init; }
+
+    // A commit origin has that its local branch no longer has, since the branch was rewritten here
+    // (Repo.LocalRewrites): the old version, which a force push replaces, rather than one to pull
+    public bool IsReplaced { get; init; }
 
     // The parents in the order git has them, e.g. to be shown to the user
     public IReadOnlyList<string> GitParentIds => IsParentsSwapped ? [ParentIds[1], ParentIds[0]] : ParentIds;

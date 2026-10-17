@@ -65,6 +65,7 @@ class ViewRepoConverter : IViewRepoConverter
             Worktrees = repo.Worktrees,
             UndoSteps = repo.UndoSteps,
             RemoteRewrites = repo.RemoteRewrites,
+            LocalRewrites = repo.LocalRewrites,
             CurrentAuthor = repo.CurrentAuthor,
         };
     }

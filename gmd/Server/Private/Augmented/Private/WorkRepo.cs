@@ -44,6 +44,10 @@ class WorkRepo
     public IReadOnlyDictionary<string, RemoteRewrite> RemoteRewrites { get; set; } =
         new Dictionary<string, RemoteRewrite>();
 
+    // The local branches rewritten here since they were pushed, by name, see LocalRewrites
+    public IReadOnlyDictionary<string, LocalRewrite> LocalRewrites { get; set; } =
+        new Dictionary<string, LocalRewrite>();
+
     public override string ToString() => $"B:{Branches.Count}, C:{Commits.Count}, S:{Status}";
 }
 

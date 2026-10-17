@@ -135,6 +135,8 @@ static class CommitDetailsRows
             text.Green("  ▲ pushable");
         if (commit.IsBehind)
             text.Blue("  ▼ pullable");
+        if (commit.IsReplaced)
+            text.Dark("  replaced here, still on origin");
 
         var otherTips = repo
             .ViewBranches.Where(b => b.TipId == commit.Id && b.NiceNameUnique != branch.NiceNameUnique)

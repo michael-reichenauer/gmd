@@ -44,6 +44,12 @@ class BranchPushPullCommands : IBranchPushPullCommands
                 return new Notice(Why.InProgress);
             if (branch == null)
                 return new Notice("No branch is checked out to push");
+
+            // Rewritten here after it was pushed: origin has the old version, which is nothing to
+            // pull, and which only a force push replaces
+            if (RewrittenHere.Of(repo.Repo, branch) is LocalRewrite rewriteHere)
+                return await ForcePushRewrittenAsync(rewriteHere);
+
             if (!branch.HasLocalOnly)
             {
                 return new Notice(
@@ -107,8 +113,14 @@ class BranchPushPullCommands : IBranchPushPullCommands
     public void PushBranch(string name) =>
         Do(async repo =>
         {
-            if (repo.Repo.BranchByName.TryGetValue(name, out var branch) && !IsPushConfirmed(branch))
-                return Result.Ok;
+            if (repo.Repo.BranchByName.TryGetValue(name, out var branch))
+            {
+                // Rewritten here after it was pushed, which only a force push replaces on origin
+                if (RewrittenHere.Of(repo.Repo, branch) is LocalRewrite rewriteHere)
+                    return await ForcePushRewrittenAsync(rewriteHere);
+                if (!IsPushConfirmed(branch))
+                    return Result.Ok;
+            }
 
             using (status.Progress($"Pushing '{NiceName(name)}'"))
             {
@@ -124,10 +136,12 @@ class BranchPushPullCommands : IBranchPushPullCommands
     public void PushAllBranches() =>
         Do(async repo =>
         {
+            // A branch rewritten here is a force push, which is left to be pushed on its own, asked first
+            var rewrittenHere = RewrittenToPush(repo.Repo).ToList();
             if (repo.Repo.Status.IsMerging)
                 return new Notice(Why.InProgress);
             if (!CanPush(repo.Repo))
-                return new Notice("Nothing to push");
+                return new Notice(rewrittenHere.Any() ? RewrittenHere.LeftOut(rewrittenHere) : "Nothing to push");
 
             // A branch whose push would put back what a force push dropped is left to be pushed on its
             // own, which asks first
@@ -135,8 +149,9 @@ class BranchPushPullCommands : IBranchPushPullCommands
             var pushedBack = branches.Where(IsPushedBack).ToList();
             branches = branches.Except(pushedBack).ToList();
             var leftNames = pushedBack.Select(b => ForcePushes.RewriteOf(repo.Repo, b)?.RemoteName ?? b.Name).ToList();
+            var leftHere = rewrittenHere.Any() ? $"; {RewrittenHere.LeftOut(rewrittenHere)}" : "";
             if (branches.Count == 0)
-                return new Notice(Rewritten(leftNames, "push"));
+                return new Notice(Rewritten(leftNames, "push") + leftHere);
 
             foreach (var b in branches)
             {
@@ -152,7 +167,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
             Refresh();
             var left = leftNames.Any() ? $"; {Rewritten(leftNames, "push")}" : "";
-            status.Info(Pushed(Names(branches.Select(b => b.NiceNameUnique))) + left);
+            status.Info(Pushed(Names(branches.Select(b => b.NiceNameUnique))) + left + leftHere);
             return Result.Ok;
         });
 
@@ -171,6 +186,8 @@ class BranchPushPullCommands : IBranchPushPullCommands
             // only dropped commits from is pulled with nothing new on it
             if (ForcePushes.RewriteOf(repo.Repo, branch) is RemoteRewrite rewrite)
                 return await PullRewrittenAsync(rewrite);
+            if (RewrittenHere.Of(repo.Repo, branch) is LocalRewrite rewriteHere)
+                return new Notice(RewrittenHere.WhyNoPull(rewriteHere));
 
             var remoteBranch = repo.Repo.BranchByName[branch.RemoteName];
             if (remoteBranch == null || !remoteBranch.HasRemoteOnly)
@@ -232,6 +249,29 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
         Refresh();
         status.Info(ForcePushes.Pulled(rewrite));
+        return Result.Ok;
+    }
+
+    // A branch rewritten here after it was pushed, after naming what the force push replaces on origin
+    // and asking, with Cancel as the default. Leased on origin's tip as shown, so that commits a fetch
+    // brought in since are not dropped along with the old version.
+    async Task<Result> ForcePushRewrittenAsync(LocalRewrite rewrite)
+    {
+        var repo = context.ViewRepo;
+        if (repo.Repo.Status.IsMerging)
+            return new Notice(Why.InProgress);
+        var question = RewrittenHere.PushQuestion(repo.Repo, rewrite);
+        if (UI.InfoMessage("Force Push", question, 1, ["Force Push", "Cancel"]) != 0)
+            return Result.Ok;
+
+        using (status.Progress($"Force pushing '{rewrite.BranchName}'"))
+        {
+            if (await server.ForcePushBranchAsync(repo.Repo, rewrite.BranchName) is Error e)
+                return new Error($"Failed to push branch:\n{rewrite.BranchName}", e);
+        }
+
+        Refresh();
+        status.Info(RewrittenHere.Pushed(rewrite));
         return Result.Ok;
     }
 
@@ -477,7 +517,8 @@ class BranchPushPullCommands : IBranchPushPullCommands
         && repo.WorktreePathOf(b) == "";
 
     internal static string WhyNoPullBranch(Repo repo, Branch b) =>
-        !b.HasRemoteOnly && ForcePushes.RewriteOf(repo, b) == null ? $"Nothing to pull on '{b.NiceNameUnique}'"
+        RewrittenHere.Of(repo, b) is LocalRewrite rewriteHere ? RewrittenHere.WhyNoPull(rewriteHere)
+        : !b.HasRemoteOnly && ForcePushes.RewriteOf(repo, b) == null ? $"Nothing to pull on '{b.NiceNameUnique}'"
         : !repo.Status.IsOk ? Why.Changes
         : repo.WorktreePathOf(b) != "" ? Why.InWorktree(b)
         : ForcePushes.RewriteOf(repo, b) is RemoteRewrite rewrite ? ForcePushes.WhyNoPull(rewrite)
@@ -485,8 +526,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     static bool IsCurrent(Branch b) => b.IsCurrent || b.IsLocalCurrent;
 
-    internal static bool CanPush(Repo repo) =>
-        !repo.Status.IsMerging && repo.ViewBranches.Any(b => b.HasLocalOnly && !b.HasRemoteOnly);
+    internal static bool CanPush(Repo repo) => !repo.Status.IsMerging && BranchesToPush(repo).Any();
 
     internal static bool CanPushCurrentBranch(Repo repo)
     {
@@ -541,9 +581,16 @@ class BranchPushPullCommands : IBranchPushPullCommands
         && remote.HasRemoteOnly;
 
     // The branches 'push all branches' pushes, i.e. one row per branch (a branch and its remote
-    // share their primary name)
+    // share their primary name). Not one rewritten here, which has nothing to pull, but whose push is
+    // a force push, asked of one branch at a time.
     internal static IEnumerable<Branch> BranchesToPush(Repo repo) =>
-        repo.ViewBranches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly).DistinctBy(b => b.PrimaryName);
+        repo
+            .ViewBranches.Where(b => b.HasLocalOnly && !b.HasRemoteOnly && RewrittenHere.Of(repo, b) == null)
+            .DistinctBy(b => b.PrimaryName);
+
+    // The branches rewritten here that 'push all branches' leaves to be pushed on their own
+    internal static IEnumerable<LocalRewrite> RewrittenToPush(Repo repo) =>
+        repo.ViewBranches.Select(b => RewrittenHere.Of(repo, b)).OfType<LocalRewrite>().DistinctBy(r => r.BranchName);
 
     // The branches 'pull all branches' pulls, i.e. the remote branches that are behind only and
     // are not the current branch, which has already been pulled by then. A diverged branch is left

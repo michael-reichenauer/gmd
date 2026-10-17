@@ -34,6 +34,7 @@ class Augmenter : IAugmenter
         repo.UndoSteps = ReflogSteps.StepsByBranch(gitRepo); // From the branches' own reflogs
         repo.CurrentAuthor = gitRepo.CurrentAuthor;
         repo.RemoteRewrites = RemoteRewrites.Find(gitRepo); // From the remote branches' reflogs
+        repo.LocalRewrites = LocalRewrites.Find(gitRepo, repo.RemoteRewrites); // From the branches' reflogs
         AddAugCommits(repo, gitRepo);
         AddAugTags(repo, gitRepo);
         SetCommitHasStash(repo);

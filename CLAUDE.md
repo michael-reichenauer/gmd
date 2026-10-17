@@ -153,12 +153,13 @@ Key types and flow:
   has `RefreshTimingTest` (`GMD_PERF_REPO=<repo> GMD_PERF_OUT=<file>`, `--filter RefreshTiming`),
   which times each stage of a refresh and writes what the view repos hold to `<file>.view`, for the
   same before/after `diff`.
-- The reflog is read for three more things, none of which touch the inference: Undo, the last
+- The reflog is read for four more things, none of which touch the inference: Undo, the last
   change of each local branch from its own reflog (`ReflogSteps`, `Repo.UndoSteps`, with gmd's own
   record of a squash and of an undo in `RepoConfig.UndoSteps`); Recover Lost Commits, the commits
   no ref reaches (`LostWorkFinder`, read only when asked); and a force push on origin, from the
   reflogs of the remote branches whose local branches have commits not pushed (`RemoteRewrites`,
-  `Repo.RemoteRewrites`). A deleted branch is the one thing the reflog cannot bring back, since git
+  `Repo.RemoteRewrites`); and its mirror, a branch rewritten here after it was pushed, e.g. squashed,
+  from the branch's own (`LocalRewrites`, `Repo.LocalRewrites`), which needs a force push, not a pull. A deleted branch is the one thing the reflog cannot bring back, since git
   deletes the branch's reflog with it, so gmd records each branch it deletes itself
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
   Nor can it bring back what a discard throws away, uncommitted changes, which git never had, or a
@@ -759,7 +760,7 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
-  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
+  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output

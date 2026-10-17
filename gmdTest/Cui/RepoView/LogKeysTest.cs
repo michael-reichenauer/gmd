@@ -1,6 +1,7 @@
 using gmd.Cui.Common;
 using gmd.Cui.RepoView;
 using gmdTest.Fixtures;
+using gmdTest.Server.Private.Augmented.Private;
 
 namespace gmdTest.Cui.RepoView;
 
@@ -107,6 +108,17 @@ public class LogKeysTest
                 .BranchWithRemote("main", "l1", isCurrent: true, remoteTipCommit: "c1", ahead: 1)
         );
         Assert.AreEqual(new KeyAction("push"), LogKeys.Push(ahead, new Hoover()));
+    }
+
+    // A branch rewritten here after it was pushed has nothing to pull, and its push is a force push,
+    // which the hint says, since 'p' is what it needs next
+    [TestMethod]
+    public async Task TestABranchRewrittenHereIsHintedAForcePushAndNoPull()
+    {
+        var view = await ViewOf(LocalRewritesTest.Squashed(new RepoBuilder()));
+
+        Assert.AreEqual(new KeyAction("force push"), LogKeys.Push(view, new Hoover()));
+        Assert.AreEqual(new KeyAction(""), LogKeys.Pull(view, new Hoover()));
     }
 
     // A branch that is not current is pulled by a fetch, as the branch menu's Pull does, and says

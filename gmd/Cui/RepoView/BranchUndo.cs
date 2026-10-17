@@ -77,20 +77,24 @@ static class BranchUndo
             _ => "Last Change",
         };
 
-    static string Phrase(UndoStep step) =>
-        step.Kind switch
+    static string Phrase(UndoStep step) => Phrase(step.Kind, step.Name);
+
+    // A change as a phrase, e.g. "the rebase" or "the amend of 'Fix'", which a branch rewritten here
+    // is said to have been rewritten by too (RewrittenHere)
+    internal static string Phrase(StepKind kind, string name) =>
+        kind switch
         {
-            StepKind.Commit => Of("the commit", step.Name, ""),
-            StepKind.Amend => Of("the amend", step.Name, "of "),
-            StepKind.Merge => Of("the merge", step.Name, "of "),
-            StepKind.CherryPick => Of("the cherry pick", step.Name, "of "),
-            StepKind.Revert => Of("the revert", step.Name, "of "),
+            StepKind.Commit => Of("the commit", name, ""),
+            StepKind.Amend => Of("the amend", name, "of "),
+            StepKind.Merge => Of("the merge", name, "of "),
+            StepKind.CherryPick => Of("the cherry pick", name, "of "),
+            StepKind.Revert => Of("the revert", name, "of "),
             StepKind.Pull => "the pull",
             StepKind.Rebase => "the rebase",
             StepKind.Uncommit => "the uncommit",
             StepKind.Reset => "the reset",
             StepKind.Squash => "the squash",
-            StepKind.Drop => Of("the drop", step.Name, "of "),
+            StepKind.Drop => Of("the drop", name, "of "),
             _ => "the last change",
         };
 

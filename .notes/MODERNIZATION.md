@@ -554,6 +554,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - A branch that merged the rewritten version into the old one (a `git pull` that merges) is not
     told, though its push puts the old version back; and the commits of the old version the local
     branch never had, fetched but not pulled, are not in the log, so they are not counted dropped.
+  - A branch rewritten here after it was pushed (`LocalRewrites`, 2026-10-17) is told only while
+    origin's tip is a commit the branch was at: commits pushed on the old version since (someone
+    else's) make it diverged again, where a force push would drop them and a pull merges the old
+    version back. Telling those apart (the old version's commits by the branch's reflog, the new ones
+    not) and moving them onto the rewrite is left. Nor is a branch only behind told, a reset back of
+    pushed commits, which a pull brings back as before, nor one whose reflog expired.
   - Restoring discarded changes and dropped stashes is not done: the reflog records neither, but
     git prints a dropped stash's id, and `git stash create` before a discard would keep one.
   - Restore Deleted Branch tells whether a branch of a record's name is back from the augmented
