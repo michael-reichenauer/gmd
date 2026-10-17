@@ -13,7 +13,7 @@ class ConflictResolution
     readonly Dictionary<int, HunkChoice> choices = [];
     readonly Dictionary<int, string> manualTexts = [];
 
-    public ConflictResolution(ConflictFile file)
+    public ConflictResolution(ConflictFile file) //////
     {
         this.file = file;
     }
