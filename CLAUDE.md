@@ -25,7 +25,7 @@ scripts/build -l       # linux only (x64 and arm64; much faster — use this for
 scripts/log            # tail the runtime log with lnav (~/gmd.log)
 scripts/updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
 scripts/installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
-scripts/demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
+scripts/demo           # re-record the README's animation and log pictures in gmd/doc/ (~30 s; tmux + agg)
 scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
 ```
 
@@ -735,7 +735,10 @@ caption a scene numbered of how many (`9/18`), and `scripts/demo` renders that w
 between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
 byte for byte the same and the GIF only changes when what gmd draws does. When gmd's UI changes in
 a way the demo passes through, re-record it; when a step of the script goes wrong, `CAST=<path>
-scripts/demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step.
+scripts/demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step. The
+same run makes the two pictures the README compares, `GitLog.gif`, git's own `log --graph` of the
+demo's repository, and `GmdLog.gif`, gmd's log of it (`RecordReadmePictures`), so re-record when the
+log view changes too.
 
 Other things to know:
 

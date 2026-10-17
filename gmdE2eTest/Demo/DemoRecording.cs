@@ -42,6 +42,7 @@ sealed class DemoRecording
     readonly int width;
     readonly int height;
     readonly Func<string, string> rewrite;
+    readonly bool isCaptioned;
     readonly List<string> events = [];
     double time = 0;
     int frameCount = 0;
@@ -49,13 +50,30 @@ sealed class DemoRecording
     int scene = 0;
 
     // The rewrite is applied to every captured screen, for what would otherwise differ between
-    // runs, such as the time of the uncommitted row, which is DateTime.Now
-    public DemoRecording(TmuxSession gmd, int width, int height, Func<string, string> rewrite)
+    // runs, such as the time of the uncommitted row, which is DateTime.Now. With no caption, the
+    // cast is gmd's screen alone, e.g. a picture of it rather than an animation.
+    public DemoRecording(TmuxSession gmd, int width, int height, Func<string, string> rewrite, bool isCaptioned = true)
     {
         this.gmd = gmd;
         this.width = width;
         this.height = height;
         this.rewrite = rewrite;
+        this.isCaptioned = isCaptioned;
+    }
+
+    // Rows of text as terminal output, colors included, e.g. git's, as a cast of one frame
+    public static void SaveText(string path, IReadOnlyList<string> rows, int width)
+    {
+        var header = JsonSerializer.Serialize(
+            new
+            {
+                version = 2,
+                width,
+                height = rows.Count,
+            }
+        );
+        var output = "\u001b[0m\u001b[2J\u001b[H" + string.Join("\u001b[0m\r\n", rows) + "\u001b[0m\u001b[?25l";
+        File.WriteAllLines(path, [header, JsonSerializer.Serialize<object[]>([0, "o", output])]);
     }
 
     // What the frames from now on show, until the next caption, which starts a scene; "" for none,
@@ -101,7 +119,7 @@ sealed class DemoRecording
             {
                 version = 2,
                 width,
-                height = height + CaptionRows,
+                height = height + (isCaptioned ? CaptionRows : 0),
             }
         );
         var scenes = scene.ToString().PadRight(2); // As wide as the row was laid out for
@@ -159,10 +177,14 @@ sealed class DemoRecording
         var output = new StringBuilder()
             .Append("\u001b[0m\u001b[2J\u001b[H")
             .AppendJoin("\r\n", rows)
-            .Append("\u001b[0m")
-            .Append($"\u001b[{height + 2};1H{BlankPanelRow()}")
-            .Append($"\u001b[{height + 3};1H{CaptionLine()}")
-            .Append($"\u001b[{height + 4};1H{BlankPanelRow()}\u001b[0m");
+            .Append("\u001b[0m");
+        if (isCaptioned)
+        {
+            output
+                .Append($"\u001b[{height + 2};1H{BlankPanelRow()}")
+                .Append($"\u001b[{height + 3};1H{CaptionLine()}")
+                .Append($"\u001b[{height + 4};1H{BlankPanelRow()}\u001b[0m");
+        }
 
         if (gmd.IsCursorVisible)
         {
