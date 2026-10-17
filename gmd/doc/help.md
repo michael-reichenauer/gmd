@@ -574,9 +574,9 @@ each change's removed lines above its added ones, as git writes them, and
 a conflict's two sides one after the other, each named. `v` switches
 between the two, for the diff it is pressed in.
 
-On a terminal 150 columns wide or more, a diff of more than one file has
-its files listed beside it, the one the cursor is in marked, each with its
-lines added and deleted, and e.g. `╎3` for three lines left out of the
+On a terminal 150 columns wide or more, a diff has its files listed beside
+it, one file too, the one the cursor is in marked, each with its lines
+added and deleted, and e.g. `╎3` for three lines left out of the
 commit. A file history lists its commits instead, which its top then leaves
 out as the diff of a commit leaves out its files. `Tab` moves the keys to
 the list, where `↑` and `↓` go from file to file, and `Tab`, `Enter` or

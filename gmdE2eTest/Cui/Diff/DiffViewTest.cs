@@ -352,6 +352,30 @@ public class DiffViewTest
         Assert.AreEqual("File list shown: Tab moves into it, l hides it", ScreenText.LastLine(screen).Trim('─', ' '));
     }
 
+    // A wide diff of one file has it beside it too, as a merge stopped on one file leaves it: it was
+    // listed at the top of the diff, and then shown, and the list was not there to show
+    [TestMethod]
+    public async Task TestADiffOfOneFileHasItsListToo()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+
+        var screen = ScreenText.Of(gmd.WaitFor("C long.txt"), repo.Path).Split('\n');
+        StringAssert.StartsWith(screen[0], "Files 1               │ Uncommitted changes ───");
+        StringAssert.StartsWith(screen[1], " C long.txt  +1       │ "); // and the time of the changes
+        Assert.AreEqual(
+            """
+                                    1 file changed  1 conflicted  +1
+
+                                    ▌ C long.txt  +1
+                                          1 conflict: Enter resolves it
+            """,
+            string.Join("\n", screen.Skip(3).Take(4).Select(l => l.TrimEnd('─', ' ')))
+        );
+    }
+
     // Where unchanged lines are left out between two parts of a file, a dark line with '⋯' where the
     // line numbers are, on both sides side by side, and once in one column
     [TestMethod]

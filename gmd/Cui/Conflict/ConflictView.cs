@@ -528,10 +528,9 @@ class ConflictView : IConflictView
     bool IsListHidden => listWidth == 0 && files.WidthFor(Application.Driver.Cols) > 0;
 
     string WhyNoList() =>
-        IsListHidden
-            ? "The file list is hidden: l shows it"
-            : "The file list is beside the resolver when more than one file has conflicts, "
-                + $"{ConflictFileList.MinTerminalWidth} columns wide";
+        IsListHidden ? "The file list is hidden: l shows it"
+        : files.Files.Count == 0 ? "There are no files with conflicts to list"
+        : $"The file list is beside the resolver on a terminal {ConflictFileList.MinTerminalWidth} columns wide or more";
 
     // The size the terminal calls for, once the view is drawn at a size other than it was laid out
     // for, e.g. the terminal resized: the result pane was as tall as when the view opened, and the

@@ -614,9 +614,9 @@ class DiffView : IDiffView
     bool IsListHidden => listWidth == 0 && fileList.WidthFor(Application.Driver.Cols) > 0;
 
     string WhyNoList() =>
-        IsListHidden
-            ? "The file list is hidden: l shows it"
-            : $"The file list is beside a diff of more than one file, {DiffFileList.MinTerminalWidth} columns wide";
+        IsListHidden ? "The file list is hidden: l shows it"
+        : fileList.Items.Count == 0 ? "The diff has no files to list"
+        : $"The file list is beside a diff on a terminal {DiffFileList.MinTerminalWidth} columns wide or more";
 
     // Goes to the file a step above or below in the list, while it has the keys, true then; with the
     // diff having them the key is left to it
