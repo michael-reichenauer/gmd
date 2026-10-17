@@ -1,4 +1,4 @@
-using Terminal.Gui;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
@@ -8,52 +8,65 @@ namespace gmd.Cui.Common;
 class Marquee
 {
     const int barWidth = 6;
+    const int blockWidth = 2;
 
     // The bar and the two [] marks around it
     internal const int TotalWidth = barWidth + 2;
 
-    readonly ProgressBar bar;
+    readonly MarqueeView view;
 
-    // A plain View wrapped by this class rather than a 'Marquee : View', since Terminal.Gui paints
-    // the columns not covered by the subviews for a View, but not for a subclass of it, and
-    // Progress uses that to blank the column between the marquee and the repo path.
-    internal View View { get; }
+    internal View View => view;
 
     internal Marquee(Pos x, Pos y, int width = TotalWidth, bool isVisible = true)
     {
-        bar = new ProgressBar()
-        {
-            X = 1,
-            Y = 0,
-            Width = barWidth,
-            ProgressBarStyle = ProgressBarStyle.MarqueeBlocks,
-            SegmentCharacter = '●',
-            BidirectionalMarquee = true,
-            ColorScheme = ColorSchemes.Progress,
-        };
-
-        // The left and right [] marks
-        var leftMark = new Label(0, 0, "[") { ColorScheme = ColorSchemes.Progress };
-        var rightMark = new Label(barWidth + 1, 0, "]") { ColorScheme = ColorSchemes.Progress };
-
-        View = new View()
+        view = new MarqueeView()
         {
             X = x,
             Y = y,
             Width = width,
             Height = 1,
-            ColorScheme = ColorSchemes.Progress,
             Visible = isVisible,
         };
-
-        View.Add(leftMark, bar, rightMark);
     }
 
     internal bool IsVisible
     {
-        get => View.Visible;
-        set => View.Visible = value;
+        get => view.Visible;
+        set => view.Visible = value;
     }
 
-    internal void Pulse() => bar.Pulse();
+    internal void Pulse() => view.Pulse();
+
+    // The marks and the block, which goes from one end of the bar to the other and back; the columns
+    // past the marks, of a view wider than them, are drawn blank
+    class MarqueeView : View
+    {
+        int position;
+        int step = 1;
+
+        internal MarqueeView()
+        {
+            CanFocus = false;
+            this.WithScheme(() => ColorSchemes.Progress);
+        }
+
+        internal void Pulse()
+        {
+            if (position + step < 0 || position + step > barWidth - blockWidth)
+                step = -step;
+            position += step;
+            SetNeedsDraw();
+        }
+
+        protected override bool OnDrawingContent(DrawContext? context)
+        {
+            var bar = new string(' ', position) + new string('●', blockWidth);
+            Common
+                .Text.Magenta("[" + bar.PadRight(barWidth) + "]")
+                .ToText()
+                .Subtext(0, Viewport.Width, isFillRest: true)
+                .Draw(this, 0, 0);
+            return true;
+        }
+    }
 }

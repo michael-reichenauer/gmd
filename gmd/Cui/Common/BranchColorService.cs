@@ -20,7 +20,10 @@ interface IBranchColorService
 
 class BranchColorService : IBranchColorService
 {
-    static readonly Color[] BranchColors = [Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow];
+    // The palette's, twelve of RGB, or five of the 16 colors, those that mean nothing else (main,
+    // deleted, ahead and behind have the others); read as gmd draws, as the palette can change once
+    // the terminal has said what its background is
+    static IReadOnlyList<Color> BranchColors => Palette.Current.BranchColors;
 
     readonly IRepoConfigService repoConfig;
 
@@ -71,14 +74,14 @@ class BranchColorService : IBranchColorService
     {
         var color = GetColor(repo, branch);
         var colorId = GetColorId(color);
-        var newColorId = (colorId + 1) % BranchColors.Length;
+        var newColorId = (colorId + 1) % BranchColors.Count;
 
         repoConfig.Set(repo.Path, s => s.BranchColors[branch.PrimaryName] = newColorId);
     }
 
     static Color GetColorByName(string name, int addIndex = 0)
     {
-        var branchColorId = (Hash(name) + addIndex) % BranchColors.Length;
+        var branchColorId = (Hash(name) + addIndex) % BranchColors.Count;
         return GetColorByColorId(branchColorId);
     }
 
@@ -92,9 +95,9 @@ class BranchColorService : IBranchColorService
 
     static Color GetColorByColorId(int colorId)
     {
-        var index = Math.Min(colorId, BranchColors.Length - 1);
+        var index = Math.Min(colorId, BranchColors.Count - 1);
         return BranchColors[index];
     }
 
-    static int GetColorId(Color color) => Array.FindIndex(BranchColors, c => c == color);
+    static int GetColorId(Color color) => BranchColors.ToList().FindIndex(c => c == color);
 }

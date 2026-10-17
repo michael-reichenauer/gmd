@@ -16,13 +16,14 @@ public class TextWidthTest
         Assert.AreEqual(1, TextWidth.Of("é"), "A combining mark is none");
     }
 
-    // Drawn as '�', since Terminal.Gui 1.x's curses driver cannot draw it, so one column
+    // Drawn as itself, two columns as an emoji is, where Terminal.Gui 1.x's curses driver could not
+    // draw it and gmd drew '�', one column
     [TestMethod]
-    public void TestACharacterOutsideTheBasicPlaneIsDrawnAsOneColumn()
+    public void TestACharacterOutsideTheBasicPlaneIsDrawnAsItself()
     {
         Assert.AreEqual(2, "🎉".Length);
-        Assert.AreEqual(1, TextWidth.Of("🎉"));
-        Assert.AreEqual("Party � time", TextWidth.Drawn("Party 🎉 time"));
+        Assert.AreEqual(2, TextWidth.Of("🎉"));
+        Assert.AreEqual("Party 🎉 time", TextWidth.Drawn("Party 🎉 time"));
     }
 
     // A control character, e.g. a '\r' kept from a file, is drawn as its picture, one column, rather
@@ -41,7 +42,8 @@ public class TextWidthTest
     {
         Assert.AreEqual("本", TextWidth.Slice("日本語", 0, 2, 4));
         Assert.AreEqual(" 本 ", TextWidth.Slice("日本語", 0, 1, 5));
-        Assert.AreEqual("a🎉", TextWidth.Slice("a🎉b", 0, 0, 2), "Not half of its surrogate pair");
+        Assert.AreEqual("a🎉", TextWidth.Slice("a🎉b", 0, 0, 3), "Not half of its surrogate pair");
+        Assert.AreEqual("a ", TextWidth.Slice("a🎉b", 0, 0, 2), "Nor half of its columns");
         Assert.AreEqual("本語", TextWidth.Slice("本語", 10, 10, 20), "From where the text starts");
     }
 

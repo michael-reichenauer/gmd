@@ -195,14 +195,14 @@ class Text
     }
 
     // Draws the text on the view, starting at x,y, from column startIndex, length columns long
-    public void Draw(Terminal.Gui.View view, int x, int y, int startIndex = 0, int length = int.MaxValue)
+    public void Draw(Terminal.Gui.ViewBase.View view, int x, int y, int startIndex = 0, int length = int.MaxValue)
     {
         view.Move(x, y);
         var shown = startIndex == 0 && length >= Length ? this : Subtext(startIndex, length);
         foreach (var fragment in shown.fragments)
         {
-            Terminal.Gui.View.Driver.SetAttribute(fragment.Color);
-            Terminal.Gui.View.Driver.AddStr(TextWidth.Drawn(fragment.Text));
+            view.SetAttribute(fragment.Color);
+            view.AddStr(TextWidth.Drawn(fragment.Text));
         }
     }
 }

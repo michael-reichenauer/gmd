@@ -1,4 +1,4 @@
-using Terminal.Gui;
+using Terminal.Gui.Input;
 
 namespace gmd.Cui.Common;
 
@@ -54,7 +54,7 @@ class ListDlg<TItem, TChoice>
     {
         Asserter.Requires(items.Count > 0 && actions.Count > 0);
 
-        var width = Math.Max(minWidth + 6, Math.Min(maxWidth, Application.Driver.Cols - 2));
+        var width = Math.Max(minWidth + 6, Math.Min(maxWidth, UI.ScreenSize.Width - 2));
         var listWidth = width - 6;
         var listHeight = Math.Clamp(items.Count, 1, maxListHeight);
         var height = listHeight + 7;
@@ -84,7 +84,7 @@ class ListDlg<TItem, TChoice>
         // in '[ ' and ' ]'.
         var y = listHeight + 4;
         var x = 1;
-        List<Button> buttons = [];
+        List<UIButton> buttons = [];
         foreach (var action in actions)
         {
             buttons.Add(dlg.AddButton(x, y, action.Label, () => Choose(action)));

@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmdTest.Cui.Common;
 
@@ -197,7 +198,10 @@ public class ContentViewTest
     [TestMethod]
     public void TestTheCursorIsShownInRowsCountedAnew()
     {
-        var view = new ContentView((first, count, _, _) => ([], 100)) { Frame = new Rect(0, 0, 20, 10) };
+        var view = new ContentView((first, count, _, _) => ([], 100))
+        {
+            Frame = new System.Drawing.Rectangle(0, 0, 20, 10),
+        };
         view.SetTotalCount(100);
         view.ShowCurrentIndex(95);
         Assert.AreEqual(90, view.FirstIndex);
@@ -212,6 +216,6 @@ public class ContentViewTest
     static ContentView NewView(int rowCount, int width = 20, int height = 10)
     {
         var rows = Enumerable.Range(0, rowCount).Select(i => Text.White($"row {i}").ToText()).ToList();
-        return new ContentView(rows) { Frame = new Rect(0, 0, width, height) };
+        return new ContentView(rows) { Frame = new System.Drawing.Rectangle(0, 0, width, height) };
     }
 }

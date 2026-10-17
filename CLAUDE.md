@@ -5,7 +5,7 @@ Guidance for Claude Code when working in this repository.
 ## What this is
 
 **Gmd** is a cross-platform console-UI (TUI) Git client written in C# / .NET 10, built on
-[Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) 1.x. Its distinguishing feature is
+[Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) 2.x. Its distinguishing feature is
 *interactive branch visibility*: the user chooses which branches are shown in the commit
 graph, so a clean log is achieved without rebasing or squashing.
 
@@ -39,7 +39,7 @@ and `scripts/test`.
 
 ### Running the TUI from a non-interactive shell
 
-gmd is a full-screen curses app, so it needs a pty: started from a shell with no terminal it will
+gmd is a full-screen terminal app, so it needs a pty: started from a shell with no terminal it will
 not run at all. tmux is the way in — it parses the escape sequences and keeps a screen model, so
 `capture-pane` hands back the rendered screen as plain text, which is what makes it assertable.
 Installed by `scripts/installtools`.
@@ -225,7 +225,10 @@ Key types and flow:
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
   no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
-  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally. `ListDlg` is
+  `UITextField`, `UITextView`, `UIComboTextField`, `UIButton`, `UICheckBox`, `BorderView`) and runs it
+  modally in a `DialogView`, gmd's own frame, title and buttons rather than Terminal.Gui's `Dialog`,
+  whose look and default button logic are its own; message boxes (`MessageDlg`) are built on it too.
+  Enter presses the default button, Alt and a button's hot letter that button. `ListDlg` is
   the dialog of a list to pick a row from, with a button and a key per action (Worktrees, Recover
   Lost Commits, Restore Deleted Branch, Delete Merged Branches, Tags); the rows are drawn by a `*Rows` class beside the dialog.
 - Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
@@ -287,8 +290,8 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   asks to commit or continue once none is left, which the caller does; how a file's view ended
   (`ConflictOutcome`) says where it goes next, and `ConflictFileList` is the list of files beside it.
   `IConflictView.Show`
-  is deliberately **synchronous** — a Terminal.Gui `SynchronizationContext` posts an await's
-  continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is
+  is deliberately **synchronous** — the main loop's `SynchronizationContext` (`MainLoopQueue`) posts an
+  await's continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is
   why the caller (`ConflictWorkspace`) loads the file.
 
 Below the UI, `Git/ConflictFile.cs` is the model (a `FileLine` keeps its own terminator, so a file
@@ -497,6 +500,19 @@ not change the string's value.
 
 Terminal.Gui has a single main loop thread. Marshal back with `UI.Post(...)`
 (`Cui/Common/UI.cs`), assert with `UI.AssertOnUIThread()` / `Threading.AssertIsMainThread()`.
+`UI.Post` and every await on the main loop go through `MainLoopQueue`, gmd's own synchronization
+context, run as each iteration of the main loop starts, a dialog's too: Terminal.Gui 2.5's own runs
+posted work as a timer, holding the lock of the timers meanwhile, so a dialog opened after an await
+made every thread that posted wait until it closed. Post always queues; 2.x's `Invoke` runs the
+action at once on the main loop. And 2.x marks every view drawn once a draw is done, so a view that
+changes another while it is drawn (a label it fills in, the key-hint line it is followed by) posts
+that change, or it is never drawn.
+
+The colors are names (`ColorName`, `Cui/Common/Color.cs`), drawn in the RGB of the `Palette` in use:
+dark (Campbell) or light, picked by the terminal's own background, which 2.x asks the terminal for,
+or the 16 colors of the terminal's theme on black, as gmd looked with 1.x, for a terminal of 16
+colors and the setting `Colors` ("auto", "dark", "light", "16"). The views Terminal.Gui draws, e.g.
+the text inputs, read gmd's colors through `WithScheme`, as they are when drawn.
 Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMessage`.
 A broken invariant is `throw Asserter.Fail(...)` (or `Asserter.Requires(...)`), reported to
 `ExceptionHandling` before it is thrown, which logs it and stops the main loop, so a catch that takes
@@ -630,7 +646,7 @@ environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committ
 pty. tmux keeps a screen model, so `capture-pane` gives back the rendered screen, and that is what
 is asserted — the drawing, the layout, the key dispatch and the dialogs, none of which anything
 else in the suite reaches. It names no Terminal.Gui type, deliberately, so it is as valid against a
-2.x build as a 1.x one. `ScreenText` normalizes a capture, `TempHome` isolates the home directory
+2.x build as a 1.x one, and it was the acceptance suite of the port to 2.x. `ScreenText` normalizes a capture, `TempHome` isolates the home directory
 and `E2eRepo` builds the fixture repo:
 
 ```csharp
@@ -648,7 +664,9 @@ every machine.
 Colors are assertable too: `gmd.CaptureColors()` keeps them as ANSI, and `ScreenText.ColorsOf` /
 `ColorRows` / `BackgroundRows` turn that into one letter per cell lined up under the text, exactly
 as `GraphText.ColorsOf` does for the graph column — uppercase for a normal color, lowercase for its
-bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black). `BackgroundRows`
+bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black), which are the 16
+colors `TempHome` has gmd draw in (`"Colors": "16"`): the RGB of gmd's own palettes has no letters.
+The color carries on from row to row, as tmux writes it. `BackgroundRows`
 is how the current row's highlight is reached, that being a background rather than a foreground.
 So is the cursor: `gmd.IsCursorVisible` and `gmd.CursorPosition` come from tmux's pane state, which
 is how "the caret is back in the text field after the menu closed" is asserted.
@@ -768,9 +786,9 @@ Other things to know:
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `MergedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
-- Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
-  terminal — not adopted by the suite yet; see the headless-drawing note in `.notes/MODERNIZATION.md`
-  first.
+- Terminal.Gui 2.x can be driven headlessly, with input injection and a test driver, so drawing *is*
+  testable without a terminal — not adopted by the suite yet; see the headless-drawing note in
+  `.notes/MODERNIZATION.md` first.
 - `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.
   `LogServiceTest` and `TimeDateExtensionsTest` change `CultureInfo.DefaultThreadCurrentCulture`, and
   `GitIntegrationTest` sets `GIT_EDITOR`. MSTest sets parallelism per assembly (`[Parallelize]` has no

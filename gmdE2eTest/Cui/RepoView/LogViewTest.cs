@@ -40,7 +40,8 @@ public class LogViewTest
     // write anchored on SpecialFolder.UserProfile is ever added, this is where it shows up.
     // A subject in Japanese, an emoji in one and an author named in kanji leave the sid, author and
     // time columns where they are: measured in chars rather than in columns, each wide character
-    // moved the columns after it one more, off the screen, and the emoji was drawn as '~I'
+    // moved the columns after it one more, off the screen. The emoji is drawn as itself, two
+    // columns, where Terminal.Gui 1.x's curses drew '~I' and gmd drew '�' in its place
     [TestMethod]
     public async Task TestWideCharactersKeepTheColumnsInPlace()
     {
@@ -57,7 +58,7 @@ public class LogViewTest
         Assert.AreEqual(
             """
             ┣ ● Author in kanji                                                   (● main) 5db3922e 山田太郎       2024-10-15 12:03
-            ┣   Party � time                                                               e24544aa Test User      2024-10-15 12:02
+            ┣   Party 🎉 time                                                              e24544aa Test User      2024-10-15 12:02
             ┣   日本語のコミットメッセージ                                                 43de22f6 Test User      2024-10-15 12:01
             ┗   Plain subject                                                              e42df25a Test User      2024-10-15 12:00
             """,
@@ -361,13 +362,13 @@ public class LogViewTest
         // The first row is the one the cursor is on, and the run of dark gray 'D' is the
         // highlight. It is on the graph too, the rune and the current marker, so the node of the
         // commit is found at a glance, which it was not when the highlight stopped at the graph.
-        // The rows below it are plain.
+        // The rows below it are plain, black in the 16 colors, the graph too.
         Assert.AreEqual(
             """
             D  D DDD DDDDD                                                  DD DDDDDDDDDDD DDDDDDDD DDDD DDDD      DDDDDDDDDD DDDDD
-            --   ..... ...... ..... .... ....                                              ........ .... ....      .......... .....
-            -    ... .....                                                                 ........ .... ....      .......... .....
-            --   ... ....                                                                  ........ .... ....      .......... .....
+            ..   ..... ...... ..... .... ....                                              ........ .... ....      .......... .....
+            .    ... .....                                                                 ........ .... ....      .......... .....
+            ..   ... ....                                                                  ........ .... ....      .......... .....
             """,
             ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4)
         );

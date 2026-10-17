@@ -48,7 +48,7 @@ static class TextColors
             )
             .TrimEnd();
 
-    static bool HasBackground(Color color) => color.Background != Terminal.Gui.Color.Black;
+    static bool HasBackground(Color color) => color.Background != ColorName.Background;
 
     // The exact pair first, so the background colors keep their own letters, then the
     // foreground alone. The fallback is what makes a highlighted or selected row readable: those

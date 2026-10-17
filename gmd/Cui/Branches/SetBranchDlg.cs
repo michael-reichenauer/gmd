@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 using Color = gmd.Cui.Common.Color;
 
 namespace gmd.Cui.Branches;

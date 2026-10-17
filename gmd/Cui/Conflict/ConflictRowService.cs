@@ -113,8 +113,8 @@ class ConflictRowService : IConflictRowService
                 .Color(color, row.Subtext(1, gutterWidth - 1, isFillRest: true).ToString())
                 .Add(row.Subtext(gutterWidth, Math.Max(0, row.Length - gutterWidth)));
 
-    internal static readonly Color CursorColor = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.White);
-    internal static readonly Color ResultCursorColor = new(Terminal.Gui.Color.White, Terminal.Gui.Color.DarkGray);
+    internal static readonly Color CursorColor = new(ColorName.Black, ColorName.White);
+    internal static readonly Color ResultCursorColor = new(ColorName.White, ColorName.Dark);
 
     static void AddHunk(
         ConflictRows rows,
@@ -168,8 +168,8 @@ class ConflictRowService : IConflictRowService
     }
 
     // The words a side changed, on the side's own color
-    static readonly Color OursWords = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.Brown);
-    static readonly Color TheirsWords = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.Cyan);
+    static readonly Color OursWords = new(ColorName.Black, ColorName.Yellow);
+    static readonly Color TheirsWords = new(ColorName.Black, ColorName.Cyan);
 
     // The lines of a side, each with its gutter: as its change against the ancestor, '+' a line it
     // added, '~' a line it changed, its words marked, '-' a line of the ancestor's it removed, dark,

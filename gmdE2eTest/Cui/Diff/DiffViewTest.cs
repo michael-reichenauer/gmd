@@ -437,7 +437,7 @@ public class DiffViewTest
         // The cursor's row: its number reversed on the left side, 'W', where the match is, and 'line 2'
         // marked, 'y', on both sides, beside the word added, 'g'
         Assert.AreEqual(
-            "-  WW yyyy y.                                              ..  .. yyyy y. ggggggg",
+            ".  WW yyyy y.                                              ..  .. yyyy y. ggggggg",
             ScreenText.BackgroundRows(gmd.CaptureColors(), row, 1)
         );
 

@@ -995,6 +995,44 @@ Add new open issues and findings here as work lands; keep them short and drop th
   describes the development branch, not the released package; check the shipped assembly (its XML
   docs, or the source at the release tag) before believing any specific API. The source has
   `ai-v2-primer.md`, the 1.x habits to drop.
+
+  **The port, branch `mr/tgui2` (from 2026-10-17)**, kept off dev until it works well (the user's
+  call: dev goes on to main meanwhile). The whole suite passes on 2.5.0: 2106 unit and integration
+  tests and the 272 end-to-end tests, which run gmd in the 16 colors. The look is kept: dialogs are
+  gmd's own `DialogView` (frame, title, `UIButton`, `UICheckBox`), not 2.x's `Dialog`; `MessageDlg`
+  and `BorderView` were kept, on it, rather than deleted as planned. Colors are names drawn in a
+  `Palette` (dark, light, or the 16 of the terminal's theme), twelve branch colors in RGB. The traps
+  2.5 had, each with what was done about it:
+  - *`Invoke` on the main loop runs the action at once*; 1.x queued it. `UI.Post` queues (the
+    menu's first move off a greyed out item recursed until the stack overflowed).
+  - *Posted work runs as a timer, holding the timers' lock while it runs* (`TimedEvents.RunTimers`).
+    A dialog opened after an await runs its main loop inside that lock, and every thread that posts
+    meanwhile (an await's continuation, through 2.x's `MainLoopSyncContext` and `Invoke`) waits for
+    the lock until the dialog closes: Ctrl-D in the commit dialog never showed its diff. gmd's own
+    `MainLoopQueue` is the synchronization context, set and drained as each iteration starts
+    (`IApplication.Iteration`). A bug worth reporting, with the two below.
+  - *A view with no scheme of its own asks its superview for its colors* (`GetAttributeForRole`),
+    never raising `GettingScheme`; `WithScheme` sets the scheme too.
+  - *Every view is marked drawn once a draw is done*, a peer marked from another's draw too, and the
+    last added is drawn first: a view changed from another's draw (the key-hint line from the log's,
+    the spell hint from the input's) is changed in a post.
+  - *A `TextField` selects its whole text as the keys move into it*, so the first key replaced it;
+    `UITextField` takes the selection back. A `TextView` moves the caret without drawing, and a
+    word's spell color depends on the caret, so the inputs draw anew when it moved.
+  - *`KeyUp` is raised only for a release* (the kitty keyboard protocol), not as a key is done:
+    `TextChanged` where it meant the text changed.
+  - *A runnable's position is not clamped to the screen* (1.x put Y -1 on row 0): the search
+    dialog is at X -2, Y 0. *Ctrl-A, -C, -X, -V, -Z and -Y* are the edit keys of both text inputs,
+    where 1.x's TextView had Emacs keys. *An emoji is drawn as itself*, two columns.
+  - *Idle CPU about 3% of a core* (the input thread polls every 20 ms): not fixable from gmd.
+
+  Left to do before it goes to dev: try it in real terminals (iTerm2, Terminal.app, Windows
+  Terminal, Ghostty) and on Windows and macOS, where 2.x's startup queries and its Windows driver are
+  untried; the setting `Colors` in the Config dialog; help.md and the README where they describe
+  colors; re-record the demo and the README's pictures (the user does, `scripts/demo`). Syntax colors
+  in the diff (the spike's `SyntaxColors`) come after, and need the highlighter's native library
+  bundled into the single file (`IncludeNativeLibrariesForSelfExtract`), which is left out of the
+  release now, unused.
 - **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7), the first two of
   which the spike above shows working:
   - *Light terminals.* Every color is on a forced black background (`Color.Make` pairs each with

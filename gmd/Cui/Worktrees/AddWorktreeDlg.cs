@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Worktrees;
 
@@ -49,7 +50,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
 
         // Read by the button actions below, which are wired before these are added
         var browsedParent = "";
-        CheckBox ignore = null!;
+        UICheckBox ignore = null!;
 
         dlg.AddLabel(1, 0, "Branch:");
         var branch = dlg.AddComboTextField(9, 0, width - 10, 8, () => localBranches, branchName);
@@ -82,7 +83,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
                 browsedParent != ""
                     ? Files.UniqueFolderPath(browsedParent, WorktreeLocations.FolderName(name))
                     : UniquePath(WorktreeLocations.PathFor(location, mainRoot, name));
-            path.SetNeedsDisplay();
+            path.SetNeedsDraw();
         }
 
         void UpdateHint()
@@ -121,7 +122,7 @@ class AddWorktreeDlg : IAddWorktreeDlg
             UpdateIgnore();
         }
 
-        branch.KeyUp += _ =>
+        branch.TextChanged += (_, _) =>
         {
             UpdatePath();
             UpdateHint();

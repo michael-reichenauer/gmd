@@ -1,4 +1,4 @@
-using Terminal.Gui;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
@@ -19,7 +19,7 @@ class Progress : IProgress
 
     object? pulse; // The main loop timeout that shows and pulses the marquee
     int count = 0;
-    Toplevel? currentParentView;
+    View? currentParentView;
     Marquee? marquee;
 
     public Disposable Show(bool isShowImmediately = false)
@@ -41,8 +41,8 @@ class Progress : IProgress
         marquee = new Marquee(5, 0, Marquee.TotalWidth + 1, isVisible: false);
         StartPulse(initialDelay);
 
-        currentParentView = Application.Current;
-        currentParentView.Add(marquee.View);
+        currentParentView = UI.Current;
+        currentParentView?.Add(marquee.View);
 
         UI.SetActions(() => Deactivated(), () => Activated());
         UI.StopInput();
@@ -53,18 +53,15 @@ class Progress : IProgress
         // Only the dialog whose closing brings back the view the marquee is on counts. After a
         // dialog over a dialog closes (the spelling menu over the commit dialog), the outer one is
         // still up and nothing is running yet, so a marquee would pulse beside it for nothing.
-        if (Application.Current != currentParentView)
+        if (UI.Current != currentParentView)
             return;
 
         if (marquee != null)
         {
-            // Back in front of the main view. Running a dialog brings the subview that has the focus,
-            // i.e. the main view, to the front of the toplevel (Terminal.Gui's EnsuresTopOnFront in
-            // Application.Begin), which puts it over the marquee that was added after it. Without
-            // this the marquee kept pulsing behind the application bar once the commit dialog had
-            // closed, so a long commit looked like a hung gmd while a push, which opens no dialog,
-            // showed it.
-            currentParentView?.BringSubviewToFront(marquee.View);
+            // In front of the main view, as it was added after it: with Terminal.Gui 1.x running a
+            // dialog brought the view with the focus, the main view, to the front, over the marquee,
+            // which then pulsed behind the application bar once the commit dialog had closed
+            currentParentView?.MoveSubViewToEnd(marquee.View);
             marquee.IsVisible = true;
             StartPulse(200);
         }
@@ -85,7 +82,7 @@ class Progress : IProgress
         StopPulse();
         pulse = UI.AddTimeout(
             TimeSpan.FromMilliseconds(delay),
-            _ =>
+            () =>
             {
                 if (marquee == null)
                     return false;
@@ -93,7 +90,7 @@ class Progress : IProgress
                 marquee.Pulse();
                 pulse = UI.AddTimeout(
                     TimeSpan.FromMilliseconds(pulseInterval),
-                    _ =>
+                    () =>
                     {
                         marquee?.Pulse();
                         return marquee != null;
@@ -120,7 +117,8 @@ class Progress : IProgress
         }
 
         StopPulse();
-        currentParentView!.Remove(marquee!.View);
+        currentParentView?.Remove(marquee!.View);
+        marquee!.View.Dispose();
         currentParentView = null;
         marquee = null;
         UI.SetActions(null, null);

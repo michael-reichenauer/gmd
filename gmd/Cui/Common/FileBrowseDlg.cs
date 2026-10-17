@@ -1,18 +1,19 @@
-using Terminal.Gui;
-using Terminal.Gui.Trees;
+using Terminal.Gui.ViewBase;
+using Terminal.Gui.Views;
 
 namespace gmd.Cui.Common;
 
 public class FileBrowseDlg
 {
     string selectedPath = "";
+    UIDialog? dlg;
 
     internal Result<string> Show(IReadOnlyList<string> files, string title = "Select File")
     {
         const int width = 50;
         const int height = 20;
 
-        var dlg = new UIDialog(title, width, height);
+        var dlg = this.dlg = new UIDialog(title, width, height);
 
         var fileTreeView = new TreeView()
         {
@@ -22,10 +23,10 @@ public class FileBrowseDlg
             Height = Dim.Fill() - 2,
         };
         fileTreeView.Style.ShowBranchLines = true;
-        fileTreeView.Style.ExpandableSymbol = '>';
+        fileTreeView.Style.ExpandableSymbol = new System.Text.Rune('>');
         fileTreeView.Style.CollapseableSymbol = null;
         fileTreeView.MultiSelect = false;
-        fileTreeView.ObjectActivated += ItemSelected;
+        fileTreeView.Accepted += (_, _) => ItemSelected(fileTreeView.SelectedObject);
         SetCustomColors(fileTreeView);
 
         dlg.Add(fileTreeView);
@@ -38,7 +39,6 @@ public class FileBrowseDlg
             () =>
             {
                 SetupFileTree(fileTreeView, files);
-                SetupScrollBar(fileTreeView);
                 fileTreeView.GoToFirst();
             }
         );
@@ -49,15 +49,16 @@ public class FileBrowseDlg
         return selectedPath;
     }
 
-    private void ItemSelected(ObjectActivatedEventArgs<ITreeNode> obj)
+    // Enter or a double click on a file picks it, and closes the dialog
+    private void ItemSelected(ITreeNode? node)
     {
-        if (obj.ActivatedObject.Children.Any())
+        if (node == null || node.Children.Any())
         { // Ignore selecting folders
             return;
         }
 
-        selectedPath = ((string)obj.ActivatedObject.Tag).TrimPrefix("/");
-        Application.RequestStop();
+        selectedPath = ((string)node.Tag!).TrimPrefix("/");
+        dlg?.Close();
     }
 
     void SetupFileTree(TreeView treeView, IReadOnlyList<string> files)
@@ -74,8 +75,9 @@ public class FileBrowseDlg
         return paths
             .Where(p => p.Any())
             .GroupBy(p => p.First())
-            .Select(g => new TreeNode(g.Key)
+            .Select(g => new TreeNode
             {
+                Text = g.Key,
                 Tag = $"{key}/{g.Key}",
                 Children = Get(g.Select(y => y.Skip(1)), $"{key}/{g.Key}"),
             })
@@ -86,45 +88,6 @@ public class FileBrowseDlg
 
     static void SetCustomColors(TreeView<ITreeNode> treeView)
     {
-        var scheme = new ColorScheme { Focus = new Color(Color.White, Color.Dark), Normal = Color.White };
-
-        treeView.ColorGetter = m => scheme;
-    }
-
-    private static void SetupScrollBar(TreeView<ITreeNode> treeView)
-    {
-        // When using scroll bar leave the last row of the control free (for over-rendering with scroll bar)
-        treeView.Style.LeaveLastRow = true;
-
-        var scrollBar = new ScrollBarView(treeView, true) { ColorScheme = ColorSchemes.Scrollbar };
-
-        scrollBar.ChangedPosition += () =>
-        {
-            treeView.ScrollOffsetVertical = scrollBar.Position;
-            if (treeView.ScrollOffsetVertical != scrollBar.Position)
-            {
-                scrollBar.Position = treeView.ScrollOffsetVertical;
-            }
-            treeView.SetNeedsDisplay();
-        };
-
-        scrollBar.OtherScrollBarView.ChangedPosition += () =>
-        {
-            treeView.ScrollOffsetHorizontal = scrollBar.OtherScrollBarView.Position;
-            if (treeView.ScrollOffsetHorizontal != scrollBar.OtherScrollBarView.Position)
-            {
-                scrollBar.OtherScrollBarView.Position = treeView.ScrollOffsetHorizontal;
-            }
-            treeView.SetNeedsDisplay();
-        };
-
-        treeView.DrawContent += (e) =>
-        {
-            scrollBar.Size = treeView.ContentHeight;
-            scrollBar.Position = treeView.ScrollOffsetVertical;
-            scrollBar.OtherScrollBarView.Size = treeView.GetContentWidth(true);
-            scrollBar.OtherScrollBarView.Position = treeView.ScrollOffsetHorizontal;
-            scrollBar.Refresh();
-        };
+        treeView.ColorGetter = m => ColorSchemes.Label;
     }
 }
