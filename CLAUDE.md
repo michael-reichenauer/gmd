@@ -161,7 +161,8 @@ Key types and flow:
   no ref reaches (`LostWorkFinder`, read only when asked); and a force push on origin, from the
   reflogs of the remote branches whose local branches have commits not pushed (`RemoteRewrites`,
   `Repo.RemoteRewrites`); and its mirror, a branch rewritten here after it was pushed, e.g. squashed,
-  from the branch's own (`LocalRewrites`, `Repo.LocalRewrites`), which needs a force push, not a pull. A deleted branch is the one thing the reflog cannot bring back, since git
+  from the branch's own (`LocalRewrites`, `Repo.LocalRewrites`), which needs a force push, not a
+  pull. A deleted branch is the one thing the reflog cannot bring back, since git
   deletes the branch's reflog with it, so gmd records each branch it deletes itself
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
   Nor can it bring back what a discard throws away, uncommitted changes, which git never had, or a

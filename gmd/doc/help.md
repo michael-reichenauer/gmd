@@ -196,6 +196,9 @@ repository.
   any one listed, which includes those in the folder gmd was started in, and
   `Delete` takes one off the recent list, leaving its folder as it is.
   `gmd -m` shows the start page inside a repository too.
+- **Clean up after pull requests:** **Delete Merged Branches ...** in the repo
+  menu (`Shift-M`) lists the local branches merged into main, by a squash or
+  a rebase on GitHub too, marked `✓` in the log, and deletes them.
 - **Committed on the wrong branch,** e.g. on main: `m` on the oldest commit
   of them, then **Move to New Branch ...**, which moves it and the newer
   ones while they are not pushed yet.
