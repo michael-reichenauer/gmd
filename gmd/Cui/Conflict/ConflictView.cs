@@ -50,9 +50,12 @@ interface IConflictView
 class ConflictView : IConflictView
 {
     // How many rows the result pane takes, its title below the file included: about two fifths of the
-    // view, and 8 at least, worked out as the view opens
+    // view, and 8 at least, worked out as the view opens and again as the terminal is resized
     int resultHeight = MinResultHeight;
     const int MinResultHeight = 8;
+
+    // A layout posted for the size the view was drawn at, which is not laid out while it is drawn
+    bool isLayoutPosted;
 
     // The file as it will be saved, which the result pane shows, made again with every decision
     ConflictResult result = ConflictResult.None;
@@ -193,11 +196,11 @@ class ConflictView : IConflictView
         };
 
         // The keys worth knowing here on the bottom row, below the result pane, unless turned off
-        var hintsHeight = config.ShowKeyHints ? 1 : 0;
-        resultHeight = Math.Max(MinResultHeight, (Application.Driver.Rows - 2 - hintsHeight) * 2 / 5);
+        var hintsHeight = HintsHeight;
+        resultHeight = ResultHeightFor(Application.Driver.Rows);
 
         // Never focused, so the keys stay with the file, which hands them on while the list has them
-        listWidth = files.WidthFor(Application.Driver.Cols);
+        listWidth = ListWidth();
         listView = new ContentView(OnGetListContent)
         {
             X = 0,
@@ -239,7 +242,7 @@ class ConflictView : IConflictView
         view.Add(header, border, listView, contentView, resultView);
         // The bar is there with the hints off too, for what a key did, as in the diff
         var hintBar = new KeyHintBar(
-            () => typingView != null ? ConflictHints.Typing : ConflictHints.For(files.Files.Count > 1),
+            () => typingView != null ? ConflictHints.Typing : ConflictHints.For(files.Files.Count > 1, IsListHidden),
             () => status.Current
         );
         view.Add(hintBar);
@@ -319,6 +322,7 @@ class ConflictView : IConflictView
         view.RegisterLetterHandler(Key.e, EditCurrentHunk);
         view.RegisterLetterHandler(Key.c, Combine);
         view.RegisterLetterHandler(Key.b, ToggleBase);
+        view.RegisterLetterHandler(Key.l, ToggleList);
         view.RegisterLetterHandler(Key.s, () => Save());
         view.RegisterLetterHandler(Key.a, ShowWholeFileMenu);
         view.RegisterLetterHandler(Key.m, () => ShowMainMenu());
@@ -395,6 +399,7 @@ class ConflictView : IConflictView
     (IEnumerable<Text> rows, int total) OnGetContent(int firstRow, int rowCount, int currentIndex, int contentWidth)
     {
         MoveToFirstHunkOnce();
+        FollowSize();
 
         // The cursor on the line number, as the diff draws it, while the keys are with the file
         var columns = ConflictColumns.Calculate(contentWidth, isShowBase);
@@ -495,11 +500,85 @@ class ConflictView : IConflictView
         End(new(ConflictEnd.GoTo, path));
     }
 
+    // Shows or hides the list of files, l. Remembered for the files and the resolvers after, as the
+    // diff's list is, since it is hidden for the width it takes
+    void ToggleList()
+    {
+        if (files.WidthFor(Application.Driver.Cols) == 0)
+        {
+            status.Notice(WhyNoList());
+            return;
+        }
+
+        config.Set(c => c.ShowConflictFileList = !c.ShowConflictFileList);
+        SetLayout();
+        status.Info(listWidth > 0 ? "File list shown: Tab moves into it, l hides it" : "File list hidden: l shows it");
+    }
+
+    // The keys' row at the bottom, there unless turned off
+    int HintsHeight => config.ShowKeyHints ? 1 : 0;
+
+    // How tall the result pane is at a terminal's height, about two fifths of what is below the header
+    int ResultHeightFor(int terminalRows) => Math.Max(MinResultHeight, (terminalRows - 2 - HintsHeight) * 2 / 5);
+
+    // How wide the list of files is: as wide as it can be at the terminal's width, unless hidden by l
+    int ListWidth() => config.ShowConflictFileList ? files.WidthFor(Application.Driver.Cols) : 0;
+
+    // Hidden by l, where it would be shown, which the hints then say l shows
+    bool IsListHidden => listWidth == 0 && files.WidthFor(Application.Driver.Cols) > 0;
+
+    string WhyNoList() =>
+        IsListHidden
+            ? "The file list is hidden: l shows it"
+            : "The file list is beside the resolver when more than one file has conflicts, "
+                + $"{ConflictFileList.MinTerminalWidth} columns wide";
+
+    // The size the terminal calls for, once the view is drawn at a size other than it was laid out
+    // for, e.g. the terminal resized: the result pane was as tall as when the view opened, and the
+    // list as wide. Posted, since the views cannot be laid out again while they are drawn.
+    void FollowSize()
+    {
+        if (isLayoutPosted || (ResultHeightFor(Application.Driver.Rows) == resultHeight && ListWidth() == listWidth))
+            return;
+
+        isLayoutPosted = true;
+        UI.Post(() =>
+        {
+            isLayoutPosted = false;
+            SetLayout();
+        });
+    }
+
+    // Lays the panes out for the terminal's size and the list shown or not: the list at the left,
+    // the file beside it, and the result pane below, the text being typed in it with it
+    void SetLayout()
+    {
+        resultHeight = ResultHeightFor(Application.Driver.Rows);
+        listWidth = ListWidth();
+        if (listWidth == 0 && isListFocus)
+            ToggleListFocus();
+
+        listView.Width = listWidth;
+        contentView.X = listWidth;
+        contentView.Height = Dim.Fill(resultHeight + HintsHeight);
+        resultView.X = listWidth;
+        resultView.Y = Pos.AnchorEnd(resultHeight + HintsHeight);
+        resultView.Height = resultHeight;
+        top.LayoutSubviews();
+
+        LayOutTyping();
+        FollowCursorInResult();
+        top.SetNeedsDisplay();
+    }
+
     // Moves the keys to the list of files and back
     void ToggleListFocus()
     {
-        if (listWidth == 0)
+        if (listWidth == 0 && !isListFocus)
+        {
+            status.Notice(WhyNoList());
             return;
+        }
 
         isListFocus = !isListFocus;
         listSelected = Math.Max(0, files.IndexOfOpen);
@@ -661,8 +740,8 @@ class ConflictView : IConflictView
         );
 
         // The pane's rows are below its title
-        var hintsHeight = config.ShowKeyHints ? 1 : 0;
-        typingView.Y = Pos.AnchorEnd(resultHeight + hintsHeight - 1 - typing.Above);
+        typingView.X = listWidth + ConflictRowService.GutterWidth;
+        typingView.Y = Pos.AnchorEnd(resultHeight + HintsHeight - 1 - typing.Above);
         typingView.Height = typing.TextHeight;
         top.LayoutSubviews();
         resultView.SetNeedsDisplay();
@@ -1190,6 +1269,13 @@ class ConflictView : IConflictView
                     () => rows.NextHunkRow(contentView.CurrentIndex, -1) != -1
                 )
                 .Item(isShowBase ? "Hide Common Ancestor" : "Show Common Ancestor", "b", ToggleBase)
+                .Item(
+                    listWidth > 0 ? "Hide File List" : "Show File List",
+                    "l",
+                    ToggleList,
+                    () => files.WidthFor(Application.Driver.Cols) > 0,
+                    WhyNoList
+                )
                 .Separator()
                 .Item("Save and Mark Resolved", "s", () => Save())
                 .SubMenu("Whole File", "a", WholeFileItems())

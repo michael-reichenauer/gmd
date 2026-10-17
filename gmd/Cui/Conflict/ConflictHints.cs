@@ -6,8 +6,9 @@ namespace gmd.Cui.Conflict;
 static class ConflictHints
 {
     // 1, 2, 3, 4 and 0 are said by the resolver's own result pane, for the conflict under the cursor
-    // hasFiles is a workspace of more than one file, which } and { go between
-    public static IReadOnlyList<KeyHint> For(bool hasFiles = false)
+    // hasFiles is a workspace of more than one file, which } and { go between, and isListHidden
+    // whether its list would be beside the resolver but for l having hidden it
+    public static IReadOnlyList<KeyHint> For(bool hasFiles = false, bool isListHidden = false)
     {
         List<KeyHint> hints =
         [
@@ -19,6 +20,8 @@ static class ConflictHints
         ];
         if (hasFiles)
             hints.Add(new("} {", "file"));
+        if (isListHidden)
+            hints.Add(new("l", "file list"));
         hints.AddRange([new("e", "edit"), new("b", "ancestor"), new("a", "whole file"), new("u", "clear")]);
         return hints;
     }

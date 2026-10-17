@@ -766,6 +766,68 @@ public class ConflictViewTest
         StringAssert.Contains(await repo.GitAsync("show HEAD:file.txt"), "line 10 on dev");
     }
 
+    // The resolver follows the terminal's size: the result pane is about two fifths of the view, and
+    // the list of files is there from 150 columns; both were as the view opened, whatever came after
+    [TestMethod]
+    public async Task TestTheResolverFollowsTheTerminalsSize()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        OpenTheResolverFromTheBar(gmd);
+        var screen = gmd.WaitFor("─── Conflict 1");
+        Assert.AreEqual((25, true), (ResultTitleRow(screen), screen.Contains("Conflicts 2 left")), "160 x 40");
+
+        gmd.Resize(130, 30);
+        screen = gmd.WaitUntilGone("Conflicts 2 left");
+        Assert.AreEqual(19, ResultTitleRow(screen), "130 x 30: (30 - 2) * 2 / 5 rows from the bottom");
+
+        gmd.Resize(170, 50);
+        screen = gmd.WaitFor("Conflicts 2 left");
+        Assert.AreEqual(31, ResultTitleRow(screen), "170 x 50: (50 - 2) * 2 / 5 rows from the bottom");
+    }
+
+    // l hides the list of files, for the width it takes, and shows it again, as in the diff; the
+    // files after open as it was left, and while it is hidden the hints say l shows it, and Tab why it
+    // does nothing
+    [TestMethod]
+    public async Task TestTheResolversFileListIsHiddenAndShownWithL()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160, isKeyHints: true);
+        OpenTheResolverFromTheBar(gmd);
+        gmd.WaitFor("Conflicts 2 left");
+
+        gmd.Send("l");
+        var screen = gmd.WaitUntilGone("Conflicts 2 left");
+        Assert.AreEqual("File list hidden: l shows it", ScreenText.LastLine(screen).Trim('─', ' '));
+        gmd.Send("Tab");
+        StringAssert.Contains(ScreenText.LastLine(gmd.WaitFor("is hidden: l shows it")), "The file list is hidden");
+
+        // Remembered: the next file opens with no list, and the hints say how to have it back
+        gmd.Send("}");
+        screen = gmd.WaitFor("file 2 of 2");
+        Assert.IsFalse(screen.Contains("Conflicts 2 left"), "Still hidden");
+        gmd.WaitUntilGone("is hidden"); // The status message, which covers the hints for a while
+        StringAssert.Contains(ScreenText.LastLine(gmd.WaitFor("l file list")), "} { file  l file list");
+
+        gmd.Send("l");
+        screen = gmd.WaitFor("Conflicts 2 left");
+        Assert.AreEqual("File list shown: Tab moves into it, l hides it", ScreenText.LastLine(screen).Trim('─', ' '));
+    }
+
+    // From the application bar's Resolve Conflicts, as a merge stopped outside gmd leaves it
+    static void OpenTheResolverFromTheBar(TmuxSession gmd)
+    {
+        var bar = gmd.WaitFor("Merging: 2 conflicts");
+        var (x, y) = TmuxSession.PositionOf(bar, "Merging: 2 conflicts");
+        gmd.Click(x + 2, y);
+        gmd.WaitFor("Resolve Conflicts");
+        gmd.Send("Enter");
+    }
+
+    // The row of the result pane's title
+    static int ResultTitleRow(string screen) => screen.Split('\n').FindIndexBy(l => l.Contains("─── Result:"));
+
     // The list of files at the left of the resolver, the rows below the header
     // The rows of the list of files, up to its separator
     static string ListOf(string screen) =>

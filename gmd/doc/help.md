@@ -662,7 +662,8 @@ and `}` and `{` go to the next or previous one without saving, asking first
 if there are decisions to keep. The header says which file it is, e.g.
 `file 1 of 3`, and a terminal at least 150 columns wide lists the files at
 the left, the resolved ones ticked; `Tab` moves into the list, where `↑`
-`↓` and `Enter` open another. A file with no text to merge, such as one a
+`↓` and `Enter` open another, and `l` hides it and shows it again, as in the
+diff, which the files after keep. A file with no text to merge, such as one a
 side deleted, or a binary file, asks its question as its turn comes (see
 below), and Cancel passes it over until the resolver is opened again. Once
 no conflict is left, a box asks whether to finish: **Commit** opens the
@@ -718,6 +719,7 @@ next and previous one from wherever the cursor is.
 | s          | Save and mark the file resolved, then on to the next file  |
 | }  {       | Next or previous file still conflicted                     |
 | Tab        | Into the list of files, and back                           |
+| l          | Hide or show the list of files                             |
 | m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
 | Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
