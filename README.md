@@ -10,7 +10,7 @@ branch graph where **you choose which branches are shown**, so the log stays cle
 rebasing or squashing. The everyday Git commands are in menus and on single keys, so you don't
 need to remember their syntax.
 
-![Gmd in a terminal: the branch graph, two hidden branches shown, a diff, a search, a commit and a push](gmd/doc/Animation.gif)
+![Gmd in a terminal: the branch graph, two hidden branches shown, a diff, a search, a commit and a push, and a merge whose conflict is resolved by combining both changes](gmd/doc/Animation.gif)
 *Showing two hidden branches, one of them deleted long ago, a commit's diff, a search, then a
 commit, a push and an update of every shown branch.*
 
