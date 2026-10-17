@@ -98,7 +98,10 @@ Gmd works best when:
 
 It has less to show when every pull request is **squash merged or rebase merged**: `main` is then a
 straight line, the branches leave nothing behind once deleted, and there is little to hide. Gmd is
-still a complete terminal client there, just not a different one.
+still a complete terminal client there, and it knows that workflow: a branch squash merged or rebase
+merged on origin is marked `✓` rather than looking unmerged, **Delete Merged Branches** cleans them
+up, and a branch you rebased or squashed after pushing it is pushed with force when you ask, rather
+than pulled back to its old version.
 
 Known limits:
 
@@ -117,11 +120,17 @@ once. Gmd keeps that readable rather than letting it flood the log:
 - ✦ in the top bar counts the hidden branches with something new, an agent's new branch included,
   and a click lists them, without showing them all.
 - `w` lists the worktrees, which ones have uncommitted changes, which are in use by a running
-  Claude Code session, and whose branches are merged. Open, add or remove them there.
+  Claude Code session, and whose branches are merged, by a squash on GitHub too. Open, add or remove
+  them there.
 - A branch checked out in another worktree is marked `⌂`, and `s` on it opens that worktree.
+- **Delete Merged Branches** lists the branches whose pull requests were merged, squash merged
+  ones included, and deletes them here, each one restorable.
+- An agent's rebase or amend of a branch it had pushed is told apart from new commits on origin,
+  and `p` replaces origin's old version with force, after asking.
 - When something goes wrong, **Undo** takes back the last change of a branch (a commit, a merge,
   a rebase, a reset), **Recover Lost Commits** finds the work a reset or a rebase left behind,
-  and **Restore Deleted Branch** brings back a branch deleted by mistake.
+  and **Restore Deleted Branch** brings back a branch deleted by mistake. Commits made on the wrong
+  branch are moved to a new one with **Move to New Branch**.
 
 ## Features
 
@@ -146,10 +155,12 @@ once. Gmd keeps that readable rather than letting it flood the log:
 - **Everyday Git**: commit all the changes, the files you tick, or some lines of a file (with spell
   check), push and pull
   (every shown branch at once if you like), merge in either direction, create, rename and delete
-  branches, tags (a list of them, to push or remove), stash, cherry pick, and file history.
+  branches, tags (a list of them, to push or remove), stash, cherry pick of one commit or the ones
+  you select, a reset of the branch to any commit, and file history.
 - **Tidy up a branch**, before you push or after: amend any commit of it, with a new message or the
-  changes you tick, drop one, or squash several, and Undo takes each back. Once on origin, `p` then
-  pushes the branch with force, asking first, and a branch others build on is asked about before.
+  changes you tick, drop one, squash several, or move one above or below the next, and Undo takes
+  each back. Once on origin, the rewrite is pushed with force, when you tick its box or with `p`
+  later, and a branch others build on, such as main, is asked about first.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to
   each other, as what each did to the common ancestor, combines both where they changed other
   words, and takes you through the files one after the other, with the file as it will be saved
