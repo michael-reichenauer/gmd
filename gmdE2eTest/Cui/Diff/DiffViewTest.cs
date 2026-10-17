@@ -352,6 +352,43 @@ public class DiffViewTest
         Assert.AreEqual("File list shown: Tab moves into it, l hides it", ScreenText.LastLine(screen).Trim('─', ' '));
     }
 
+    // Where unchanged lines are left out between two parts of a file, a dark line with '⋯' where the
+    // line numbers are, on both sides side by side, and once in one column
+    [TestMethod]
+    public async Task TestLinesLeftOutAreMarkedOnBothSides()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 40).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", TempRepo.BaseTime);
+        lines[4] = "line 5 changed";
+        lines[34] = "line 35 changed";
+        var text = string.Join("\n", lines) + "\n";
+        await repo.CommitFileAtAsync("long.txt", text, "Two changes", TempRepo.BaseTime.AddMinutes(1));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Two changes");
+        gmd.Send("d");
+
+        // Git names the nearest line above that is not indented, which in this file is the line above
+        var screen = gmd.WaitFor("line 35 changed");
+        Assert.AreEqual(
+            """
+               11 line 11                                              │   11 line 11
+               ⋯ line 28 ───────────────────────────────────────────────── ⋯ ──────────────────────────────────────────────────────
+               29 line 29                                              │   29 line 29
+            """,
+            ScreenText.Rows(screen, repo.Path, 17, 3)
+        );
+        Assert.AreEqual(
+            "   D CCCC CC DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD D DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+            ScreenText.ColorRows(gmd.CaptureColors(), 18, 1)
+        );
+
+        gmd.Resize(100, 40);
+        screen = gmd.WaitForMoving(s => !s.Contains("│"), "the one column layout");
+        StringAssert.Contains(ScreenText.Of(screen, repo.Path), "\n   ⋯ line 28 ─────");
+        Assert.IsFalse(ScreenText.Of(screen, repo.Path).Contains("─ ⋯ ─"), "One mark in one column");
+    }
+
     // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the
     // cursor down, with the text marked black on yellow on the cursor's row too; n and Shift-N go on
     // from there and say where they stop, as the log's do. What it found is said over the bottom row,

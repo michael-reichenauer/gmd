@@ -1488,9 +1488,9 @@ class DiffView : IDiffView
             // A line across the view, of a file added or removed whole or in one column, scrolls
             // sideways as a side does, its gutter staying put
             var text =
-                row.LineNbr != 0
-                    ? SideText(spanText, row.LineNbr, false, viewWidth)
-                    : WithFill(spanText.Subtext(0, viewWidth), row.Fill, viewWidth);
+                row.LineNbr != 0 ? SideText(spanText, row.LineNbr, false, viewWidth)
+                : row.IsSeparator && !isOneColumn ? SeparatorText(spanText, row.Fill!, columnWidth, viewWidth)
+                : WithFill(spanText.Subtext(0, viewWidth), row.Fill, viewWidth);
             return isSelectedRow ? text.ToSelect()
                 : !isCurrentRow ? text
                 // A line of a file drawn in one column has the cursor on its number, as a side has
@@ -1558,6 +1558,25 @@ class DiffView : IDiffView
             .ToTextBuilder()
             .Color(CursorColor, text.Subtext(1, gutterWidth - 1, isFillRest: true).ToString())
             .Add(text.Subtext(gutterWidth, Math.Max(0, text.Length - gutterWidth)));
+
+    // Where unchanged lines are left out between two hunks, side by side: '⋯' where each side's line
+    // numbers are, the function git found the hunk in after the left one, cut short of the right one,
+    // and the line through both on to the end of the row
+    static Text SeparatorText(Text text, Text fill, int columnWidth, int viewWidth)
+    {
+        var right = columnWidth + 1 + DiffRowService.LeftOutIndent.Length; // The right side's '⋯'
+        if (right + 2 >= viewWidth)
+            return WithFill(text.Subtext(0, viewWidth), fill, viewWidth);
+
+        // Room for a space, a rune of line and a space before the right '⋯'
+        var left = text.Length <= right - 3 ? text : text.Subtext(0, right - 4).ToTextBuilder().Dark("…").ToText();
+        return WithFill(left, fill, right - 1)
+            .ToTextBuilder()
+            .Black(" ")
+            .Dark(DiffRowService.LeftOutMark)
+            .Black(" ")
+            .Add(fill.ToLine(viewWidth - right - 2));
+    }
 
     // A header row followed to the end of the row by its rule, e.g. a file's
     static Text WithFill(Text text, Text? fill, int width) =>

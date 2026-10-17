@@ -545,8 +545,8 @@ are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`; the files
 are left out of it, that row kept, while they are listed beside the diff
 (below). Each file
 starts with a row naming it, underlined in blue. Where unchanged lines are
-left out between the parts that changed, a dark line starting with `⋯` says
-so, with the function or heading git finds the next part in, when it is not
+left out between the parts that changed, a dark line with `⋯` where the line
+numbers are says so, with the function or heading git finds the next part in, when it is not
 the one before it. Git finds it by a pattern for the file's language, set
 in `.gitattributes`, e.g. `*.cs diff=csharp`; with none, it takes the
 nearest line above that is not indented, which in C# is the class for every

@@ -55,7 +55,7 @@ class DiffRows
     internal void AddHunkSeparator(Text separator)
     {
         Add(separator);
-        rows[^1] = rows[^1] with { Fill = Text.Dark("─") };
+        rows[^1] = rows[^1] with { Fill = Text.Dark("─"), IsSeparator = true };
     }
 
     // The marker a conflict starts with, on both sides or across them, which a conflict is gone to by
@@ -232,6 +232,10 @@ record DiffRow(
 
     // The rune a header row is followed by to the end of the row, e.g. a file's '─', or null
     public Text? Fill { get; init; }
+
+    // Whether the row is where unchanged lines are left out between two hunks, which side by side
+    // has its '⋯' on both sides
+    public bool IsSeparator { get; init; }
 
     // Whether the row is the marker a conflict starts with
     public bool IsConflictStart { get; init; }

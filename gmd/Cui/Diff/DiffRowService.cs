@@ -574,8 +574,13 @@ class DiffRowService : IDiffRowService
     // every hunk
     static Text HunkSeparator(SectionDiff sd, SectionDiff previous) =>
         sd.Function != "" && sd.Function != previous.Function
-            ? Text.Dark("   ⋯ ").Cyan(sd.Function)
-            : Text.Dark("   ⋯");
+            ? Text.Dark($"{LeftOutIndent}{LeftOutMark} ").Cyan(sd.Function)
+            : Text.Dark($"{LeftOutIndent}{LeftOutMark}");
+
+    // The mark of lines left out, where a side's line numbers are, which the view draws on the right
+    // side too
+    internal const string LeftOutMark = "⋯";
+    internal const string LeftOutIndent = "   ";
 
     // The lines of a change side by side: the removed lines on the left, each beside the added line
     // at the same place on the right, as FilePatch pairs them when some of a change's lines are
