@@ -1,7 +1,19 @@
 # Change Log for Gmd
 --------------------
 
-150 releases:
+151 releases:
+
+## [v1.12.1448.496] - 2026-10-17
+- Draw the diff calmer: a bar beside each changed line, the words that differ marked rather than scattered letters, a row for each file, and a line with ⋯ on both sides where unchanged lines are left out between its parts, naming the function git finds a part in
+- Go to the next or previous change with ] and [, and file with } and {, the top row naming the commit and the file the view is scrolled into
+- Show the diff in one column on a terminal narrower than 110 columns, and switch between the two with v
+- List the files beside a diff on a terminal 150 columns wide, with their lines added, deleted and left out of the commit, rather than at the diff's top; Tab moves into the list, and l hides it
+- Hide the lines of a file in the diff with h, e.g. a generated one
+- Resolve the files of a merge, rebase, cherry pick or revert one after the other, listed beside the resolver, from the conflict box, the top bar or the repo menu, and commit or continue once none is left
+- Show each side of a conflict as what it changed in the common ancestor, its changed words marked, and name it by its branch and its commit's subject
+- Combine both sides' changes to a conflict with c, where they changed other words or lines that only touch
+- Show the whole file below the sides as it will be saved, going along with the cursor, each conflict's lines marked by the side they came from
+- Type a conflict by hand in the result pane with e, with both sides still in sight
 
 ## [v1.11.1447.386] - 2026-10-16
 - Commit part of a file: x in the diff of the uncommitted changes leaves the change the cursor is on, or the selected lines, out of the commit, which takes the rest and leaves them uncommitted
