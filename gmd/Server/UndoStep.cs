@@ -16,6 +16,7 @@ public enum StepKind
     Reset,
     Squash,
     Drop, // A commit taken out of the branch, recorded by gmd, since the reflog says rebase
+    Move, // A commit moved past another of the branch, recorded by gmd, since the reflog says rebase
     Created, // The branch was made here, so there is nothing before it to go back to
     Renamed, // The branch was renamed or copied, which moved nothing
 }

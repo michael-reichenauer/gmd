@@ -75,6 +75,7 @@ static class RewrittenHere
                 or StepKind.Reset
                 or StepKind.Uncommit
                 or StepKind.Drop
+                or StepKind.Move
             ? $" by {BranchUndo.Phrase(r.Kind, isNamed ? r.Name : "")}"
             : "";
 

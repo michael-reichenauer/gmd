@@ -104,6 +104,10 @@ interface IServer
     Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
 
+    // The commits of the current branch from this one up, not pushed yet, moved to a new branch, which
+    // is checked out, the current one going back to the commit before them
+    Task<Result> MoveCommitsToNewBranchAsync(Repo repo, string newBranchName, string commitId);
+
     // The current branch rebased onto another, and pushed with force when asked, leased on origin's
     // tip as the repo has it
     Task<Result> RebaseBranchAsync(Repo repo, string branchName, bool isPush);
@@ -196,6 +200,9 @@ interface IServer
     // new message alone, or taken out of the branch
     Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths);
     Task<Result> DropCommitAsync(Repo repo, string id);
+
+    // A commit of the current branch moved past the one after it on the branch, or the one before it
+    Task<Result> MoveCommitAsync(Repo repo, string id, bool isUp);
 }
 
 // A change the file monitor saw, with when it was told of the last of the changes it reports,

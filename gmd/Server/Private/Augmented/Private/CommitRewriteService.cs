@@ -158,6 +158,60 @@ class CommitRewriteService : ICommitRewriteService
         return Result.Ok;
     }
 
+    // Swaps a commit of the current branch with the one after it on the branch, or before it: an
+    // interactive rebase from the older of the two, with the two the other way round in its list and
+    // the newer ones as they were. The older is the one git checks, the rewrite starting there. One
+    // that conflicts with the other, which then comes first, stops the rebase there.
+    public async Task<Result> MoveCommitAsync(Repo repo, string id, bool isUp)
+    {
+        var commit = repo.CommitById[id];
+        var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote && !b.IsDetached);
+        if (local == null)
+            return new Error("Not on a branch");
+
+        // The commits from the tip down to the older of the two, newest first, down git's first parents
+        List<Commit> commits = [];
+        var c = repo.CurrentCommit();
+        var olderId = isUp ? id : commit.GitParentIds.FirstOrDefault() ?? "";
+        while (true)
+        {
+            commits.Add(c);
+            if (c.Id == olderId)
+                break;
+            if (c.GitParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.GitParentIds[0], out var parent))
+                return new Error(
+                    $"{commit.Sid} has no commit {(isUp ? "after" : "before")} it on '{local.NiceNameUnique}'"
+                );
+            c = parent;
+        }
+        var older = commits[^1];
+        if (commits.Count < 2 || older.GitParentIds.Count == 0)
+            return new Error($"{commit.Sid} has no commit {(isUp ? "after" : "before")} it to move past");
+
+        var checkResult = await CheckRewritableAsync(repo, older);
+        if (checkResult is not Branch)
+            return new Error($"Cannot move {commit.Sid}", checkResult.Error);
+
+        var order = commits.Select(x => x.Id).Reverse().ToList();
+        (order[0], order[1]) = (order[1], order[0]);
+        if (await git.ReorderCommitsAsync(older.GitParentIds[0], order, repo.Path) is Error moveError)
+            return new Error($"Failed to move {commit.Sid}", moveError);
+
+        UndoService.Record(
+            repoConfig,
+            repo,
+            local.Name,
+            new RecordedStep
+            {
+                Kind = nameof(StepKind.Move),
+                Name = commit.Subject.Trim(),
+                BeforeId = repo.CurrentCommit().Id,
+                Moves = 1,
+            }
+        );
+        return Result.Ok;
+    }
+
     // The current local branch, when only it and its copy on origin have the commit: no other remote
     // branch, e.g. origin's main once it is merged there, nor another branch or a tag, which would be
     // left on the old commits. Asked of git rather than taken from the repo read, since the commits are

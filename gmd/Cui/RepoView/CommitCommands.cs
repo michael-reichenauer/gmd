@@ -43,6 +43,7 @@ interface ICommitCommands
     void SquashCommits(string id1, string id2);
     void AmendOlderCommit(string id);
     void DropCommit(string id);
+    void MoveCommit(string id, bool isUp);
     void CherryPick();
 
     void AddTag();
@@ -592,15 +593,7 @@ class CommitCommands : ICommitCommands
             if (!IsPushedRewriteConfirmed(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, c2)))
                 return Result.Ok;
 
-            var commits = new List<Commit>();
-            var c = c1;
-            while (c.Id != c2.ParentIds[0])
-            {
-                commits.Add(c);
-                if (!c.ParentIds.Any())
-                    break;
-                c = repo.Repo.CommitById[c.ParentIds[0]];
-            }
+            var commits = CommitRewrite.Squashed(repo.Repo, c1, c2);
 
             var forcePush = CommitRewrite.ForcePushOf(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, c2));
             if (!squashDlg.Show(repo.Repo, commits, forcePush, out var message, out var isForcePush))
@@ -711,6 +704,30 @@ class CommitCommands : ICommitCommands
     // user said so (CommitRewrite.PushedWarning), with No the default
     static bool IsPushedRewriteConfirmed(Repo repo, IReadOnlyList<Commit> commits) =>
         CommitRewrite.PushedWarning(repo, commits) is var warning && (warning == "" || Confirm.RewritePushed(warning));
+
+    // A commit moved past the next one up the branch, or down it, i.e. the two swapped, which a
+    // conflict between them stops as any rebase, and Undo takes back. Commits on origin then need the
+    // force push 'p' offers, asked first on a branch others build on, as any rewrite of them.
+    public void MoveCommit(string id, bool isUp) =>
+        Do(async repo =>
+        {
+            var commit = repo.Repo.CommitById[id];
+            if (CommitRewrite.WhyNotMove(repo.Repo, commit, isUp) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+            var other = CommitRewrite.Neighbour(repo.Repo, commit, isUp)!;
+            if (!IsPushedRewriteConfirmed(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, isUp ? commit : other)))
+                return Result.Ok;
+
+            using (status.Progress($"Moving {commit.Sid}"))
+            {
+                if (await server.MoveCommitAsync(repo.Repo, id, isUp) is Error e)
+                    return new Error($"Failed to move {commit.Sid}", e);
+            }
+
+            Refresh();
+            status.Info($"Moved '{commit.Subject}' {(isUp ? "above" : "below")} '{other.Subject}': Undo takes it back");
+            return Result.Ok;
+        });
 
     public bool CanUncommitLastCommit()
     {

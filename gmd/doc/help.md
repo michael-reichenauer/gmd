@@ -196,6 +196,9 @@ repository.
   any one listed, which includes those in the folder gmd was started in, and
   `Delete` takes one off the recent list, leaving its folder as it is.
   `gmd -m` shows the start page inside a repository too.
+- **Committed on the wrong branch,** e.g. on main: `m` on the oldest commit
+  of them, then **Move to New Branch ...**, which moves it and the newer
+  ones while they are not pushed yet.
 - **Fix a commit:** `m` on it, then **Amend <id> ...** for a new message,
   or the changes you tick, or both, or **Drop <id>** under **Undo** to take
   it out of the branch. `a` amends the last commit. Once the commit is on
@@ -558,7 +561,9 @@ throw changes away ask first, and what they throw away gmd keeps, for
   takes it back.
 - **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
-  squash them into one commit with a new message. The commits after them
+  squash them into one commit with a new message, which starts as the
+  oldest commit's, with the subjects of the others listed below it, as
+  GitHub lists them in a squash merge. The commits after them
   are put back on top as they were, merges and authors too, and **Undo**
   takes the squash back. Nothing changes until the squash is made. Commits
   on origin already can be squashed too, and `p` then pushes the squash with
@@ -576,6 +581,20 @@ throw changes away ask first, and what they throw away gmd keeps, for
   back and keeps it, e.g. for the same changes on another branch as well,
   and **Stash Diff** and **Stash Drop** show it and throw it away, which
   Restore Discarded Changes, under Undo, takes back.
+- **Reorder** (commit menu): **Move Above '...'** and **Move Below '...'**
+  move the commit past the next one of the current branch, or the one
+  before it, each item naming the commit it is moved past. The two are
+  swapped by git's own interactive rebase, on the rules Amend has, and Undo
+  takes it back. Two commits that change the same lines conflict once
+  swapped, which stops the rebase, to be resolved and continued, or
+  aborted.
+- **Move to New Branch ...** (commit menu):
+  Moves the commits of the current branch from this one up, not pushed
+  yet, to a new branch, e.g. ones made on main by mistake. The new branch
+  is made where they are and checked out, so the files and any changes
+  stay as they are, and published when its box is ticked; the branch they
+  were on goes back to the commit before them, which **Undo** in its
+  branch menu takes back.
 - **Delete Merged Branches ...** (repo menu, `Shift-M`):
   Lists the local branches with no branch on origin, deleted there or never
   pushed, whose work is in main or an integration branch already: merged

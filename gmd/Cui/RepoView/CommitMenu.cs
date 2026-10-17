@@ -94,6 +94,16 @@ class CommitMenu : ICommitMenu
                 () => !c.IsUncommitted,
                 () => BranchCreateCommands.NoCommitToStartAt
             )
+            // This commit and the newer ones, e.g. made on main by mistake, which are not pushed yet
+            .Item(
+                "Move to New Branch ...",
+                "",
+                () => commands.CreateCmds.MoveCommitsToNewBranch(c.Id),
+                () => CommitRewrite.WhyNotMoveToNewBranch(repo.Repo, c) == "",
+                () => CommitRewrite.WhyNotMoveToNewBranch(repo.Repo, c)
+            )
+            // Greyed out with nothing it can do, e.g. on a commit of another branch, saying why
+            .SubMenu("Reorder", "", GetReorderItems(c), whyNot: () => CommitRewrite.WhyNotMove(repo.Repo, c, true))
             .Item(
                 $"Merge Commit into {cb?.ShortNiceUniqueName()}",
                 "",
@@ -237,6 +247,31 @@ class CommitMenu : ICommitMenu
         );
     }
 
+    // The commit moved past the next one up the branch, or down it, each named by the commit it is
+    // moved past, so that which way is which needs no thinking about. None when neither can be.
+    IEnumerable<MenuItem> GetReorderItems(Commit c)
+    {
+        if (CommitRewrite.WhyNotMove(repo.Repo, c, true) != "" && CommitRewrite.WhyNotMove(repo.Repo, c, false) != "")
+            return [];
+
+        MenuItem Move(bool isUp)
+        {
+            var other = c.IsUncommitted ? null : CommitRewrite.Neighbour(repo.Repo, c, isUp);
+            var name =
+                other == null
+                    ? (isUp ? "Move Up" : "Move Down")
+                    : $"Move {(isUp ? "Above" : "Below")} '{Shortened(other.Subject)}'";
+            var whyNot = CommitRewrite.WhyNotMove(repo.Repo, c, isUp);
+            return new MenuItem(name, "", () => cmds.MoveCommit(c.Id, isUp), () => whyNot == "")
+            {
+                WhyNot = () => whyNot,
+            };
+        }
+        return [Move(true), Move(false)];
+    }
+
+    static string Shortened(string subject) => subject.Length <= 30 ? subject : subject[..29] + "…";
+
     const string NoCommit = "The uncommitted changes are no commit: move to one first";
 
     // The diff of this commit with the one marked for a diff, once one is
@@ -314,9 +349,9 @@ class CommitMenu : ICommitMenu
             c1 = repo.Repo.ViewCommits[i1];
             c2 = repo.Repo.ViewCommits[i2];
             whyNot = CommitRewrite.WhyNotSquash(repo.Repo, c1, c2);
-            if (!c1.IsUncommitted && !c2.IsUncommitted)
+            if (whyNot == "")
             {
-                selected = $"{Sid(c1.Id)}...{Sid(c2.Id)}";
+                selected = $"{CommitRewrite.Squashed(repo.Repo, c1, c2).Count} Commits";
             }
         }
 

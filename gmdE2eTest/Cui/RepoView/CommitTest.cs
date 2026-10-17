@@ -549,6 +549,33 @@ public class CommitTest
         );
     }
 
+    // A commit moved past the next one up the branch, from the Reorder sub menu, whose items name the
+    // commit it is moved past, and Undo's last change. Reorder is nine moves from 'Amend ...', where
+    // the menu opens, past this commit's own Amend, 'Commit Diff', 'Mark for Diff', 'Undo', 'Stash',
+    // 'Tag', 'Create Branch from Commit ...' and 'Move to New Branch ...'.
+    [TestMethod]
+    public async Task TestMoveACommitAboveTheNextOne()
+    {
+        using var repo = await ThreeFilesAsync();
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..8];
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(3));
+        gmd.WaitFor("Add one");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor($"Amend {sid} ...");
+        OpenSubMenu(gmd, 9, "Move Above 'Add three'");
+        StringAssert.Contains(gmd.WaitForStable(), "Move Below 'Add one'");
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Moved 'Add two' above 'Add three': Undo takes it back",
+            ScreenText.LastLine(gmd.WaitFor("Moved 'Add two'"))
+        );
+        Assert.AreEqual("Add two\nAdd three\nAdd one", (await repo.GitAsync("log --format=%s")).Trim());
+    }
+
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
     // working tree. Reached through the commit menu's Undo sub menu.
     //
@@ -750,7 +777,7 @@ public class CommitTest
         // though pushed, as is the row's, Amend 8332dd93; Squash below them names the range it would
         // squash, which is how it says a selection was picked up
         gmd.Send("m");
-        gmd.WaitFor("Squash c02addfd...8332dd93");
+        gmd.WaitFor("Squash 2 Commits ...");
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Down");
@@ -766,7 +793,7 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("Enter");
 
-        gmd.WaitFor("Squash c02addfd...8332dd93 on 'main'");
+        gmd.WaitFor("Squash 2 commits on 'main', 8332dd93 to c02addfd:");
         gmd.Send("Enter");
 
         // The two are now one, and the originals are still the remote's: the old version, not
@@ -776,7 +803,7 @@ public class CommitTest
             """
              Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-             ╭┺ ●▲Commit number 02                                                (● main) 96a90999 Test User      2024-10-15 12:04
+             ╭┺ ●▲Commit number 02                                                (● main) f5e5fdfb Test User      2024-10-15 12:04
             ┣│    Commit number 03                                                (^/main) c02addfd Test User      2024-10-15 12:03
             ┣│    Commit number 02                                                         8332dd93 Test User      2024-10-15 12:02
             ┣╯    Commit number 01                                                         5692a80d Test User      2024-10-15 12:01
@@ -797,6 +824,7 @@ public class CommitTest
             await repo.GitAsync("log --format=%s"),
             "The top two commits are one, keeping the older of the two messages"
         );
+        Assert.AreEqual("Commit number 02\n\n* Commit number 03", (await repo.GitAsync("log --format=%B -1")).Trim());
 
         gmd.Send("p");
         StringAssert.Contains(gmd.WaitFor("Force Push"), "and origin still has the 2 commits it replaced:");
@@ -842,7 +870,7 @@ public class CommitTest
         }
         gmd.Send("Enter");
 
-        gmd.WaitFor("Squash c02addfd...8332dd93 on 'main'");
+        gmd.WaitFor("Squash 2 commits on 'main', 8332dd93 to c02addfd:");
         gmd.Send("Enter");
 
         // With no remote there is nothing left behind, so the two rows simply become one

@@ -71,6 +71,32 @@ class BranchWriteService : IBranchWriteService
         return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(commit.Id, branch.NiceName));
     }
 
+    // Moves the commits of the current branch from this one up, ones not pushed yet, to a new branch,
+    // e.g. made on main by mistake: the new branch is made where the current one is, and checked out,
+    // which leaves the files and the changes as they are, and the branch they were on goes back to the
+    // commit before them, as git's own 'branch -f' would, which Undo takes back on it. The new branch
+    // is recorded as made from it there, which is where it parts from it now.
+    public async Task<Result> MoveCommitsToNewBranchAsync(Repo repo, string newBranchName, string commitId)
+    {
+        var wd = repo.Path;
+        var current = repo.CurrentBranch();
+        var tipId = repo.CurrentCommit().Id;
+        var toId = repo.CommitById[commitId].GitParentIds[0];
+        Log.Info($"Move {commitId.Sid()}..{tipId.Sid()} of {current.Name} to new branch {newBranchName} ...");
+
+        if (await git.CreateBranchAsync(newBranchName, true, wd) is Error createError)
+            return createError;
+
+        var message = $"branch: Reset to {toId}";
+        if (await git.MoveBranchAsync(current.Name, toId, tipId, message, wd) is Error moveError)
+            return new Error(
+                $"Made and switched to '{newBranchName}', but '{current.NiceName}' was not moved back",
+                moveError
+            );
+
+        return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(toId, current.NiceName));
+    }
+
     // Renames the local branch. The meta data remembers which branch a commit belongs to by name,
     // so those names are renamed as well, otherwise the old name would reappear as a branch of its
     // own. The remote branch is not renamed here, git has no such command, the caller pushes the

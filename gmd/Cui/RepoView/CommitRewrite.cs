@@ -80,6 +80,58 @@ static class CommitRewrite
         return "";
     }
 
+    // Why a commit cannot be moved past the next one up the current branch (isUp), or down it, or ""
+    // when it can: the two are swapped, by a rebase from the older of them, on the rules Amend and
+    // Drop have for that one, and both have to be the branch's
+    public static string WhyNotMove(Repo repo, Commit commit, bool isUp)
+    {
+        if (commit.IsUncommitted)
+            return "A commit is moved: move to one first";
+        if (CommitsDownTo(repo, commit) is null)
+            return "Only a commit on the current branch can be moved";
+        if (Neighbour(repo, commit, isUp) is not { } other)
+            return isUp
+                ? "It is the last commit of the branch, with none after it to move it past"
+                : "It is the first commit of the branch, with none before it to move it past";
+        var older = isUp ? commit : other;
+        if (older.GitParentIds.Count == 0)
+            return "The first commit cannot be moved, nor be moved past";
+        return WhyNot(repo, older, "moved");
+    }
+
+    // The commit after this one up the current branch (isUp), or before it down it, which a move
+    // takes it past, or null when the branch has none there: the last commit has none after it, and
+    // the first one of a branch made from another none before it, its parent being the other's
+    public static Commit? Neighbour(Repo repo, Commit commit, bool isUp)
+    {
+        if (CommitsDownTo(repo, commit) is not { } commits)
+            return null;
+        if (isUp)
+            return commits.Count >= 2 ? commits[^2] : null;
+        if (commit.GitParentIds.Count == 0 || !repo.CommitById.TryGetValue(commit.GitParentIds[0], out var parent))
+            return null;
+        return CommitsDownTo(repo, parent) is null ? null : parent;
+    }
+
+    // Why the commits from this one up to the last of the current branch cannot be moved to a new
+    // branch, e.g. made on main by mistake, or "" when they can: the ones Uncommit takes, not pushed
+    // yet and with one before them for the branch to go back to, but with any changes left as they
+    // are, since the new branch is checked out where the commits are, which moves no file
+    public static string WhyNotMoveToNewBranch(Repo repo, Commit commit)
+    {
+        if (commit.IsUncommitted)
+            return "Commits are moved: move to one first";
+        if (repo.Status.IsMerging)
+            return Why.InProgress;
+        if (!IsNotPushed(repo, commit))
+            return "Only commits not yet pushed can be moved to a new branch";
+        if (CommitsDownTo(repo, commit) is null)
+            return "Only commits on the current branch can be moved to a new branch";
+        if (commit.GitParentIds.Count == 0)
+            return "The first commit cannot be moved: the branch would have nothing left to be on";
+        return "";
+    }
+
     // Why the selected commits, the newest and the oldest of them, cannot be squashed into one, or ""
     // when they can. The menu offered it for any rows, and the command refused rows of two branches
     // or of another branch than the current in an error box.
@@ -103,6 +155,22 @@ static class CommitRewrite
         if (!IsNotPushed(repo, oldest) && repo.AllBranches.FirstOrDefault(b => b.IsCurrent) is { } current)
             return WhyNotForcePushed(repo, current);
         return "";
+    }
+
+    // The commits a squash makes one, from the newest selected down its first parents to the oldest,
+    // newest first. Once WhyNotSquash allows them, so the two are one branch's.
+    public static IReadOnlyList<Commit> Squashed(Repo repo, Commit newest, Commit oldest)
+    {
+        List<Commit> commits = [];
+        var c = newest;
+        while (c.Id != oldest.ParentIds[0])
+        {
+            commits.Add(c);
+            if (c.Id == oldest.Id || !c.ParentIds.Any() || !repo.CommitById.TryGetValue(c.ParentIds[0], out var parent))
+                break;
+            c = parent;
+        }
+        return commits;
     }
 
     // What to ask before commits on origin are rewritten, or "" when there is nothing to ask: when the
