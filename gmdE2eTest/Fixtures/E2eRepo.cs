@@ -169,6 +169,23 @@ static class E2eRepo
         return repo;
     }
 
+    // 'feature', pushed and then deleted on origin, as GitHub deletes a branch once its pull request is
+    // merged, and pruned here by a fetch, so git reports its remote branch as gone. 'feature' is
+    // current. Deleted inside the bare origin, so no second clone is needed.
+    public static async Task<TempRepo> CreateWithBranchDeletedOnOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("feature.txt", "feature\n", "Add feature", TempRepo.BaseTime.AddMinutes(8));
+        await repo.GitAsync("push -q --set-upstream origin feature");
+        await repo.GitAsync($"-C \"{repo.Path}-origin\" update-ref -d refs/heads/feature");
+        await repo.GitAsync("fetch -q --prune origin");
+
+        return repo;
+    }
+
     // The mirror of the above: everything is pushed and then the local branch is moved back a
     // commit, so origin has one the local branch has not got. That is what draws the behind marker
     // and gives 'Pull' something to do.

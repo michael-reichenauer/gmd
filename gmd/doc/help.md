@@ -324,6 +324,11 @@ first. Switching to a branch where git would overwrite them offers to stash
 them, switch, and put them back. `Shift-P` and `Shift-U` push or update all
 shown branches.
 
+A branch deleted on origin, e.g. by GitHub once its pull request was
+merged, and then by a fetch here, is said to be in the details pane,
+`(deleted on origin)`, and `p` says so rather than pushing it: **Push** in
+its branch menu makes it again on origin, after asking.
+
 A branch with both unpulled and unpushed commits can only be pushed by
 force, which `p` asks about first, and is not updated by `Shift-U`, which
 only fast-forwards the branches it is not on. Switch to the branch and pull

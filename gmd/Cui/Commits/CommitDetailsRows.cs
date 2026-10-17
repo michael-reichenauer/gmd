@@ -127,6 +127,8 @@ static class CommitDetailsRows
             text.Color(colors.GetColor(repo, branch), NameOf(branch));
             if (!branch.IsGitBranch)
                 text.Dark("  (deleted)");
+            else if (branch.GoneRemoteName != "")
+                text.Dark("  (deleted on origin)");
         }
 
         if (commit.IsBranchSetByUser)

@@ -505,6 +505,25 @@ public class PushPullTest
         );
     }
 
+    // A branch deleted on origin, e.g. once its pull request was merged there, is no branch to publish
+    // as one never pushed is: 'p' says so rather than pointing at Push, and so does the details pane
+    [TestMethod]
+    public async Task TestABranchDeletedOnOriginIsNotPublishedAgainByP()
+    {
+        using var repo = await E2eRepo.CreateWithBranchDeletedOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add feature");
+
+        gmd.Send("p");
+        Assert.AreEqual(
+            "'feature' was deleted on origin, e.g. its pull request was merged: Push in its branch menu puts it back",
+            ScreenText.LastLine(gmd.WaitFor("was deleted on origin"))
+        );
+
+        gmd.Send("Enter");
+        gmd.WaitFor("feature  (deleted on origin)");
+    }
+
     // A force push that only dropped a commit leaves 'main' just ahead, and a plain push of it would
     // put the commit back on origin: said once it is found, and the push asks first, with Cancel as
     // the default. Pull, with nothing new on origin, moves the commit of its own onto the new version.

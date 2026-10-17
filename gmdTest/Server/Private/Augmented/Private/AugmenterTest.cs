@@ -123,6 +123,29 @@ public class AugmenterTest
         Assert.IsTrue(repo.Branches["main"].IsPrimary);
     }
 
+    // A branch whose remote branch origin deleted, and a fetch pruned, which git reports as 'gone': it
+    // is its own primary, as one never pushed is, but it keeps the name of the remote branch it had,
+    // which says it was pushed
+    [TestMethod]
+    public async Task TestABranchDeletedOnOriginKeepsTheNameOfItsRemoteBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f1", "Feature", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .LocalBranch("feature", "f1", isCurrent: true, remoteName: "origin/feature")
+            .LocalBranch("local", "c1")
+            .ViewRepoAsync("local");
+
+        var feature = repo.BranchByName["feature"];
+        Assert.AreEqual(
+            ("", "origin/feature", "feature"),
+            (feature.RemoteName, feature.GoneRemoteName, feature.PrimaryName)
+        );
+        Assert.AreEqual("", repo.BranchByName["local"].GoneRemoteName, "Never pushed");
+        Assert.AreEqual("", repo.BranchByName["main"].GoneRemoteName);
+    }
+
     // Commits are returned newest first, the same order as the git log they came from
     [TestMethod]
     public async Task TestCommitsAreOrderedNewestFirst()
