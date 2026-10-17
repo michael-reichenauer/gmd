@@ -614,6 +614,7 @@ public class LogViewTest
                     │Tag                                  >│
                     │Create Branch from Commit ...      b  │
                     │Move to New Branch ...                │
+                    │Reorder                              >│
                     │Merge Commit into main                │
                     │Cherry Pick into main                 │
                     │Switch to Commit                      │
@@ -688,7 +689,7 @@ public class LogViewTest
                                                              │Undo Show 'dev'   Backspace  │
                                                              ╰─────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 23, 12)
+            ScreenText.Rows(branches, repo.Path, 24, 12)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
@@ -701,21 +702,21 @@ public class LogViewTest
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                     │Switch to Commit                      │                               ╭ dev ──────────────────────────────╮
-                     │Commit Details                 Enter  │                               │Switch to Branch                s  │
-                     │Copy                          Ctrl-C >│                               │Merge dev into main             e  │
-                     │Open Commit in Browser                │                               │Merge main into dev            ⇧e  │
-                     │Full File History ...                 │                               │Rebase onto                       >│
-                     │Blame File ...                        │                               │Hide Branch                     h  │
-                     │──────────────────────────────────────│╭ Branches ───────────────────╮│Pull                            u  │
-                     │Branches                             >││●   main                    >││Push                            p  │
-                     │Repo Menu                         ⇧m >││    dev                     >││Create Branch ...               b  │
-                     ╰──────────────────────────────────────╯│─────────────────────────────││Create Worktree ...                │
-                                                             │Show Branch              ⇧→ >││Rename Branch ...                  │
-                                                             │Hide All Branches            ││Delete Branch ...                  │
-                                                             │Undo Show 'dev'   Backspace  ││Undo Commit 'More dev work'        │
-                                                             ╰─────────────────────────────╯│Diff Branch to                  d >│
-                                                                                            │Change Branch Color             g  │
+                     │Cherry Pick into main                 │                               ╭ dev ──────────────────────────────╮
+                     │Switch to Commit                      │                               │Switch to Branch                s  │
+                     │Commit Details                 Enter  │                               │Merge dev into main             e  │
+                     │Copy                          Ctrl-C >│                               │Merge main into dev            ⇧e  │
+                     │Open Commit in Browser                │                               │Rebase onto                       >│
+                     │Full File History ...                 │                               │Hide Branch                     h  │
+                     │Blame File ...                        │                               │Pull                            u  │
+                     │──────────────────────────────────────│╭ Branches ───────────────────╮│Push                            p  │
+                     │Branches                             >││●   main                    >││Create Branch ...               b  │
+                     │Repo Menu                         ⇧m >││    dev                     >││Create Worktree ...                │
+                     ╰──────────────────────────────────────╯│─────────────────────────────││Rename Branch ...                  │
+                                                             │Show Branch              ⇧→ >││Delete Branch ...                  │
+                                                             │Hide All Branches            ││Undo Commit 'More dev work'        │
+                                                             │Undo Show 'dev'   Backspace  ││Diff Branch to                  d >│
+                                                             ╰─────────────────────────────╯│Change Branch Color             g  │
                                                                                             │Open in Browser                    │
                                                                                             │Create Pull Request in Browser     │
                                                                                             │───────────────────────────────────│

@@ -219,4 +219,34 @@ public class CommitRewriteIntegrationTest
         StringAssert.Contains(await repo.GitAsync("cat-file -p HEAD~1"), "BEGIN SSH SIGNATURE", "The squash");
         StringAssert.Contains(await repo.GitAsync("cat-file -p HEAD"), "BEGIN SSH SIGNATURE", "The commit on top");
     }
+
+    // A commit moved down, past the one before it, is the two swapped, and Undo takes it back whole;
+    // moved up is the same swap, seen from the other commit
+    [TestMethod]
+    public async Task TestMoveACommitAndUndoIt()
+    {
+        AssertOk(await rewrite.MoveCommitAsync(AssertOk(await ReadAsync()), c3, isUp: false));
+
+        Assert.AreEqual("Second\nThird\nInitial", await LogAsync());
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        var undone = await UndoAsync();
+        Assert.AreEqual((StepKind.Move, "Third"), (undone.Kind, undone.Name));
+        Assert.AreEqual(c3, await repo.HeadIdAsync());
+
+        var second = (await repo.GitAsync("rev-parse HEAD~1")).Trim();
+        AssertOk(await rewrite.MoveCommitAsync(AssertOk(await ReadAsync()), second, isUp: true));
+        Assert.AreEqual("Second\nThird\nInitial", await LogAsync());
+    }
+
+    // Two commits that change the same lines conflict once swapped, which stops the rebase there
+    [TestMethod]
+    public async Task TestAMoveThatConflictsStops()
+    {
+        var fourth = await repo.CommitFileAsync("c.txt", "c, changed\n", "Fourth");
+
+        var error = AssertError(await rewrite.MoveCommitAsync(AssertOk(await ReadAsync()), fourth, isUp: false));
+
+        Assert.IsTrue(ConflictError.IsIn(error), error.AllMessages());
+        StringAssert.Contains(await repo.GitAsync("status"), "rebase in progress");
+    }
 }

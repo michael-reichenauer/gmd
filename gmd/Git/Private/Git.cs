@@ -292,6 +292,9 @@ internal class Git : IGit
     public Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
         commitService.RebaseOntoKeepingMergesAsync(onto, upstream, wd);
 
+    public Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd) =>
+        commitService.ReorderCommitsAsync(baseId, idsOldestFirst, wd);
+
     public Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd) =>
         commitService.IsMergedByContentAsync(ours, theirs, wd);
 

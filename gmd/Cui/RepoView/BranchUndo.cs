@@ -74,6 +74,7 @@ static class BranchUndo
             StepKind.Reset => "Reset",
             StepKind.Squash => "Squash",
             StepKind.Drop => Named("Drop", step.Name),
+            StepKind.Move => Named("Move", step.Name),
             _ => "Last Change",
         };
 
@@ -95,6 +96,7 @@ static class BranchUndo
             StepKind.Reset => "the reset",
             StepKind.Squash => "the squash",
             StepKind.Drop => Of("the drop", name, "of "),
+            StepKind.Move => Of("the move", name, "of "),
             _ => "the last change",
         };
 

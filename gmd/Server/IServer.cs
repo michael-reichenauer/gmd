@@ -200,6 +200,9 @@ interface IServer
     // new message alone, or taken out of the branch
     Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths);
     Task<Result> DropCommitAsync(Repo repo, string id);
+
+    // A commit of the current branch moved past the one after it on the branch, or the one before it
+    Task<Result> MoveCommitAsync(Repo repo, string id, bool isUp);
 }
 
 // A change the file monitor saw, with when it was told of the last of the changes it reports,

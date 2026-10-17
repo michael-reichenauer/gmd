@@ -170,6 +170,10 @@ interface IGit
     // Moves the commits of the current branch after 'upstream' onto 'onto', keeping their merges
     Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
 
+    // Replays the commits of the current branch after 'baseId' in the order given, oldest first, which
+    // reorders them, by git's interactive rebase; stops on a conflict as any rebase
+    Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd);
+
     // Whether merging commit 'theirs' into commit 'ours' would change nothing, i.e. what 'theirs'
     // changed is in 'ours' already, e.g. squash merged or rebase merged: false too on a conflict
     Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd);

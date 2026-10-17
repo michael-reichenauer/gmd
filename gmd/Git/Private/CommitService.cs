@@ -13,6 +13,7 @@ interface ICommitService
     Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd);
     Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
     Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd);
+    Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd);
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
@@ -226,6 +227,34 @@ class CommitService : ICommitService
             await cmd.RunAsync("git", $"rebase --rebase-merges --onto {onto} {upstream}", wd),
             "The rebase stopped on conflicts"
         );
+
+    // An interactive rebase with gmd's own todo list, one 'pick' per commit in the order given. The
+    // list is written to a file of its own, and the sequence editor, which git starts through its
+    // shell (bundled on Windows) with the path of the list it made, copies gmd's over it, which also
+    // leaves out whatever config would have changed in git's (rebase.autoSquash). It has to be the
+    // environment, set for this command on top of the 'true' that Cmd.NeverOpenAnEditor sets for every
+    // other. Changes in the working tree are put aside and back (--autostash). Git has read the list
+    // before it can stop on a conflict, so the file is deleted either way.
+    public async Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd)
+    {
+        var todo = Path.Join(Path.GetTempPath(), $"gmd-todo-{Guid.NewGuid():N}");
+        var lines = string.Concat(idsOldestFirst.Select(id => $"pick {id}\n"));
+        if (Result.Catch(() => File.WriteAllText(todo, lines)) is Error writeError)
+            return writeError;
+        try
+        {
+            var quoted = todo.Replace('\\', '/').Replace("'", "'\\''");
+            var environment = new Dictionary<string, string> { ["GIT_SEQUENCE_EDITOR"] = $"cp '{quoted}'" };
+            return ConflictError.ToConflict(
+                await cmd.RunAsync("git", $"rebase -i --autostash {baseId}", wd, environment: environment),
+                "The move stopped on conflicts"
+            );
+        }
+        finally
+        {
+            Result.Catch(() => File.Delete(todo));
+        }
+    }
 
     // Whether merging 'theirs' into 'ours' would change nothing: what 'theirs' changed since the two
     // parted is in 'ours' already, as it is once squash merged or rebase merged, which git does not

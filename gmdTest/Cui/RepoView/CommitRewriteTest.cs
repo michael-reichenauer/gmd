@@ -421,4 +421,36 @@ public class CommitRewriteTest
             CommitRewrite.WhyNotMoveToNewBranch(local, C(local, "c1"))
         );
     }
+
+    // A commit is moved past the next one up the branch, or down it: not past either end of the
+    // branch, and on the rules of Amend and Drop for the older of the two
+    [TestMethod]
+    public async Task TestWhichWayACommitIsMoved()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f3", "Third", "f2")
+            .Commit("f2", "Second", "f1")
+            .Commit("f1", "First", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .LocalBranch("feature", "f3", isCurrent: true)
+            .ViewRepoAsync();
+
+        Assert.AreEqual("f2", CommitRewrite.Neighbour(repo, C(repo, "f1"), true)!.Sid[..2]);
+        Assert.AreEqual("f1", CommitRewrite.Neighbour(repo, C(repo, "f2"), false)!.Sid[..2]);
+        Assert.AreEqual("", CommitRewrite.WhyNotMove(repo, C(repo, "f1"), true));
+        Assert.AreEqual("", CommitRewrite.WhyNotMove(repo, C(repo, "f3"), false));
+        Assert.AreEqual(
+            "It is the last commit of the branch, with none after it to move it past",
+            CommitRewrite.WhyNotMove(repo, C(repo, "f3"), true)
+        );
+        Assert.AreEqual(
+            "It is the first commit of the branch, with none before it to move it past",
+            CommitRewrite.WhyNotMove(repo, C(repo, "f1"), false)
+        );
+        Assert.AreEqual(
+            "Only a commit on the current branch can be moved",
+            CommitRewrite.WhyNotMove(repo, C(repo, "c1"), true)
+        );
+    }
 }

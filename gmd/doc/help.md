@@ -581,6 +581,13 @@ throw changes away ask first, and what they throw away gmd keeps, for
   back and keeps it, e.g. for the same changes on another branch as well,
   and **Stash Diff** and **Stash Drop** show it and throw it away, which
   Restore Discarded Changes, under Undo, takes back.
+- **Reorder** (commit menu): **Move Above '...'** and **Move Below '...'**
+  move the commit past the next one of the current branch, or the one
+  before it, each item naming the commit it is moved past. The two are
+  swapped by git's own interactive rebase, on the rules Amend has, and Undo
+  takes it back. Two commits that change the same lines conflict once
+  swapped, which stops the rebase, to be resolved and continued, or
+  aborted.
 - **Move to New Branch ...** (commit menu):
   Moves the commits of the current branch from this one up, not pushed
   yet, to a new branch, e.g. ones made on main by mistake. The new branch

@@ -56,7 +56,10 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
 3. **The squash dialog.** The message joins the old ones with `-----` lines, which go into the commit
    as they are; the range is written `4050decb...80daa352`, git's three dots being the symmetric
    difference; the commit gets the user as author and the time now, where git's own squash keeps
-   the first commit's; and nothing says the commits are on origin.
+   the first commit's; and nothing says the commits are on origin. *Fixed (2026-10-17)*, but for
+   the author and time: the message is the oldest's with the newer subjects listed as '*' items, as
+   GitHub writes a squash merge, the item and the heading count the commits, and B's box says the
+   force push. The author's email is not read with the log, so the squash cannot keep the author.
 4. **A branch squash or rebase merged on origin looks never pushed.** Once a fetch prunes the remote
    branch the pull request deleted, `git branch -vv` says `[origin/feature: gone]`, but the
    augmentation clears the remote name (`Augmenter.AddAugBranches`), so `p` says "'feature' is not
@@ -99,6 +102,22 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   writes them, then the offer to delete the branch, which would look unmerged); and, open in the
   product review already, a cherry pick of the selected commits and a reset of a branch to any
   commit. Later, an absorb of the uncommitted changes into the commits that last touched the lines.
+  *Done (2026-10-17):* Move to New Branch ..., and Reorder (Move Above and Move Below, each naming
+  the commit passed), see below. Open: squash merge, a cherry pick of the selected commits, a reset of
+  a branch to any commit, absorb.
+
+### E, as done so far (2026-10-17)
+
+- *Move to New Branch ...* in the commit menu: the commit and the newer ones of the current branch,
+  not pushed, moved to a new branch made where they are and checked out (files and changes as they
+  are), published when ticked; the old branch goes back to the commit before them with git's own
+  'branch: Reset to' in its reflog, which Undo in its branch menu reads as a reset. The inference
+  draws the commits on the new branch, though the reflog says they were made on the old one.
+- *Reorder* in the commit menu, greyed out when neither way can be: the commit swapped with the
+  next one of the branch, or the one before it, by `rebase -i --autostash` with gmd's todo list, put
+  in place by a sequence editor that copies it (`cp`, through git's shell, also on Windows, where it
+  is not tried yet), set for that command over Cmd's `true`. On Amend's rules for the older of the
+  two; a conflict stops it as any rebase; recorded as StepKind.Move for Undo.
 
 ### A, as done (2026-10-17)
 

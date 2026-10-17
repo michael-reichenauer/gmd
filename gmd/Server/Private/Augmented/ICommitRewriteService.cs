@@ -11,4 +11,8 @@ interface ICommitRewriteService
     // new message alone, or taken out of the branch
     Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths);
     Task<Result> DropCommitAsync(Repo repo, string id);
+
+    // A commit of the current branch moved past the next one up the branch, or down it, i.e. the two
+    // swapped, and the newer ones replayed after them
+    Task<Result> MoveCommitAsync(Repo repo, string id, bool isUp);
 }

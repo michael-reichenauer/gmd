@@ -80,6 +80,39 @@ static class CommitRewrite
         return "";
     }
 
+    // Why a commit cannot be moved past the next one up the current branch (isUp), or down it, or ""
+    // when it can: the two are swapped, by a rebase from the older of them, on the rules Amend and
+    // Drop have for that one, and both have to be the branch's
+    public static string WhyNotMove(Repo repo, Commit commit, bool isUp)
+    {
+        if (commit.IsUncommitted)
+            return "A commit is moved: move to one first";
+        if (CommitsDownTo(repo, commit) is null)
+            return "Only a commit on the current branch can be moved";
+        if (Neighbour(repo, commit, isUp) is not { } other)
+            return isUp
+                ? "It is the last commit of the branch, with none after it to move it past"
+                : "It is the first commit of the branch, with none before it to move it past";
+        var older = isUp ? commit : other;
+        if (older.GitParentIds.Count == 0)
+            return "The first commit cannot be moved, nor be moved past";
+        return WhyNot(repo, older, "moved");
+    }
+
+    // The commit after this one up the current branch (isUp), or before it down it, which a move
+    // takes it past, or null when the branch has none there: the last commit has none after it, and
+    // the first one of a branch made from another none before it, its parent being the other's
+    public static Commit? Neighbour(Repo repo, Commit commit, bool isUp)
+    {
+        if (CommitsDownTo(repo, commit) is not { } commits)
+            return null;
+        if (isUp)
+            return commits.Count >= 2 ? commits[^2] : null;
+        if (commit.GitParentIds.Count == 0 || !repo.CommitById.TryGetValue(commit.GitParentIds[0], out var parent))
+            return null;
+        return CommitsDownTo(repo, parent) is null ? null : parent;
+    }
+
     // Why the commits from this one up to the last of the current branch cannot be moved to a new
     // branch, e.g. made on main by mistake, or "" when they can: the ones Uncommit takes, not pushed
     // yet and with one before them for the branch to go back to, but with any changes left as they

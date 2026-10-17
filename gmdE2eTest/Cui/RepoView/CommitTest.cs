@@ -549,6 +549,33 @@ public class CommitTest
         );
     }
 
+    // A commit moved past the next one up the branch, from the Reorder sub menu, whose items name the
+    // commit it is moved past, and Undo's last change. Reorder is nine moves from 'Amend ...', where
+    // the menu opens, past this commit's own Amend, 'Commit Diff', 'Mark for Diff', 'Undo', 'Stash',
+    // 'Tag', 'Create Branch from Commit ...' and 'Move to New Branch ...'.
+    [TestMethod]
+    public async Task TestMoveACommitAboveTheNextOne()
+    {
+        using var repo = await ThreeFilesAsync();
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..8];
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(3));
+        gmd.WaitFor("Add one");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor($"Amend {sid} ...");
+        OpenSubMenu(gmd, 9, "Move Above 'Add three'");
+        StringAssert.Contains(gmd.WaitForStable(), "Move Below 'Add one'");
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Moved 'Add two' above 'Add three': Undo takes it back",
+            ScreenText.LastLine(gmd.WaitFor("Moved 'Add two'"))
+        );
+        Assert.AreEqual("Add two\nAdd three\nAdd one", (await repo.GitAsync("log --format=%s")).Trim());
+    }
+
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
     // working tree. Reached through the commit menu's Undo sub menu.
     //
