@@ -3,14 +3,16 @@ namespace gmdE2eTest.Demo;
 // The repository the demo animation shows: a small web shop that four people work on, with the
 // shapes that make gmd worth watching. Merged and still open feature branches, one deleted after
 // its merge, tags, a merge of main into a feature branch, and an origin that the current branch
-// is ahead of and main is behind.
+// is ahead of and main is behind. The commit main is behind by and the one the current branch is
+// ahead by both change the start of src/app.js, other words of the same lines, so that merging
+// main stops on a conflict that the resolver combines.
 //
 // The current branch, 'feature/login', is where the demo commits: it has uncommitted changes, and
 // it was branched off main so that the other branches start out hidden, leaving only the ┣╮
 // markers of the ones merged into main. The dates are pinned, as for every E2eRepo fixture, so the
 // ids, the time column and the order of the rows are the same on every run.
 //
-//   main              Update dependencies            (origin only, i.e. main is behind)
+//   main              Load the catalog before rendering it   (origin only, i.e. main is behind)
 //   feature/login     Show login errors              (not pushed, i.e. ahead)
 //   feature/login     Remember me option
 //   feature/dark-mode Add theme toggle
@@ -105,10 +107,24 @@ static class DemoRepo
         await repo.GitAsync("push -q -u origin --all");
         await repo.GitAsync("push -q origin --tags");
 
-        Commit(repo, "Anna Berg", T.AddDays(7).AddHours(2.75), "Show login errors", ("src/login-form.js", LoginForm));
+        Commit(
+            repo,
+            "Anna Berg",
+            T.AddDays(7).AddHours(2.75),
+            "Show login errors",
+            ("src/login-form.js", LoginForm),
+            ("src/app.js", AppWithSession)
+        );
 
         await repo.GitAsync("checkout -q main");
-        Commit(repo, "Oskar Lind", T.AddDays(7).AddHours(4.5), "Update dependencies", ("package.json", Package));
+        Commit(
+            repo,
+            "Oskar Lind",
+            T.AddDays(7).AddHours(4.5),
+            "Load the catalog before rendering it",
+            ("package.json", Package),
+            ("src/app.js", AppLoading)
+        );
         await repo.GitAsync("push -q origin main");
         await repo.GitAsync("reset -q --hard HEAD~1");
 
@@ -190,6 +206,27 @@ static class DemoRepo
         import { catalog } from './catalog.js';
 
         export function start() {
+          catalog.render();
+        }
+
+        """;
+
+    // The start of the app as each side changed it: the login branch passes the session on, and main
+    // made it async to load the catalog first, a line above the one the branch changed
+    const string AppWithSession = """
+        import { catalog } from './catalog.js';
+
+        export function start(session) {
+          catalog.render(session);
+        }
+
+        """;
+
+    const string AppLoading = """
+        import { catalog } from './catalog.js';
+
+        export async function start() {
+          await catalog.load();
           catalog.render();
         }
 
