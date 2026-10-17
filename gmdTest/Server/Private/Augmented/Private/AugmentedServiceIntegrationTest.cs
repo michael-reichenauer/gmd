@@ -1,3 +1,4 @@
+using gmd.Git;
 using gmd.Server;
 using gmd.Server.Private;
 using gmd.Server.Private.Augmented;
@@ -300,7 +301,8 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual("Main work", (await repo.GitAsync("log -1 --format=%s dev~1")).Trim(), "Rebased");
     }
 
-    IBranchWriteService BranchWrites() => new BranchWriteService(repo.Git, new FakeMetaDataService(new MetaData()));
+    IBranchWriteService BranchWrites() =>
+        new BranchWriteService(repo.Git, new FakeMetaDataService(new MetaData()), new FakeRepoConfig());
 
     // Initial on main and one commit on a 'dev' branched out from it, with 'dev' current, i.e.
     // the smallest repo that has something to merge back to main
@@ -384,5 +386,73 @@ public class AugmentedServiceIntegrationTest
             string.Join(", ", new[] { second, first, initial }.Select(id => moved.CommitById[id].BranchName))
         );
         Assert.AreEqual(StepKind.Reset, moved.UndoSteps["main"].Kind);
+    }
+
+    // dev has two commits of Anna's, made from main, which has moved on since
+    async Task<(string One, string Two)> DevOfAnnasAsync(string twoFile = "two.txt")
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        await repo.GitAsync("checkout -q -b dev");
+        File.WriteAllText(Path.Join(repo.Path, "one.txt"), "one\n");
+        await repo.GitAsync("add .");
+        await repo.GitAsync("-c user.name=\"Anna Lind\" -c user.email=anna@x commit -qm \"Dev one\"");
+        File.WriteAllText(Path.Join(repo.Path, twoFile), "two\n");
+        await repo.GitAsync("add .");
+        await repo.GitAsync("-c user.name=\"Anna Lind\" -c user.email=anna@x commit -qm \"Dev two\"");
+        var two = (await repo.GitAsync("rev-parse HEAD")).Trim();
+        var one = (await repo.GitAsync("rev-parse HEAD~1")).Trim();
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+        return (one, two);
+    }
+
+    // Several commits are picked by git's own cherry pick, each committed as it was made, its author
+    // kept, and Undo takes them all back as one change
+    [TestMethod]
+    public async Task TestCherryPickSeveralCommitsAndUndoThem()
+    {
+        var config = new FakeRepoConfig();
+        var service = RepoBuilder.NewAugmentedService(
+            repo.Git,
+            new FakeMetaDataService(new MetaData()),
+            new FakeFileMonitor(),
+            config
+        );
+        var (one, two) = await DevOfAnnasAsync();
+        var before = await repo.HeadIdAsync();
+        var read = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        var writes = new BranchWriteService(repo.Git, new FakeMetaDataService(new MetaData()), config);
+        AssertOk(await writes.CherryPickCommitsAsync(read, [read.CommitById[one], read.CommitById[two]]));
+
+        Assert.AreEqual(
+            "Dev two Anna Lind\nDev one Anna Lind\nMain work Test User",
+            (await repo.GitAsync("log --format=\"%s %an\" -3")).Trim()
+        );
+        var picked = AssertOk(await service.GetRepoAsync(repo.Path));
+        var step = picked.UndoSteps["main"];
+        Assert.AreEqual((StepKind.CherryPick, "Dev one, and 1 more"), (step.Kind, step.Name));
+        AssertOk(await new UndoService(repo.Git, config).UndoStepAsync(picked, step));
+        Assert.AreEqual(before, await repo.HeadIdAsync());
+    }
+
+    // One that conflicts stops the pick there, git's own sequence keeping the ones left, which Continue
+    // picks once the conflict is resolved
+    [TestMethod]
+    public async Task TestACherryPickThatConflictsIsContinued()
+    {
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        var (one, two) = await DevOfAnnasAsync(twoFile: "main.txt");
+        var read = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        var error = AssertError(
+            await BranchWrites().CherryPickCommitsAsync(read, [read.CommitById[two], read.CommitById[one]])
+        );
+
+        Assert.IsTrue(ConflictError.IsIn(error), error.AllMessages());
+        File.WriteAllText(Path.Join(repo.Path, "main.txt"), "both\n");
+        await repo.GitAsync("add main.txt");
+        AssertOk(await repo.Git.ContinueOperationAsync(repo.Path));
+        Assert.AreEqual("Dev one\nDev two\nMain work", (await repo.GitAsync("log --format=%s -3")).Trim());
     }
 }

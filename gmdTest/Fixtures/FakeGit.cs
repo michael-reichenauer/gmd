@@ -390,6 +390,9 @@ class FakeGit : IGit
     public Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd) =>
         throw new NotSupportedException();
 
+    public Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd) =>
+        throw new NotSupportedException();
+
     // What GetMergedBranchNamesAsync answers, by the commit asked about; none for any other
     public Dictionary<string, List<string>> MergedBranchNames { get; } = [];
 

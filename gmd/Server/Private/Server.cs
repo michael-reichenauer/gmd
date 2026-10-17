@@ -470,6 +470,9 @@ class Server : IServer
         return converter.ToViewCommits(commits).ToList();
     }
 
+    public Task<Result> CherryPickCommitsAsync(Repo repo, IReadOnlyList<Commit> commitsOldestFirst) =>
+        Paused(() => branchWriteService.CherryPickCommitsAsync(repo, commitsOldestFirst));
+
     public Task<Result> MoveCommitAsync(Repo repo, string id, bool isUp) =>
         Paused(() => commitRewriteService.MoveCommitAsync(repo, id, isUp));
 

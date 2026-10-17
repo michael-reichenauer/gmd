@@ -581,6 +581,13 @@ throw changes away ask first, and what they throw away gmd keeps, for
   back and keeps it, e.g. for the same changes on another branch as well,
   and **Stash Diff** and **Stash Drop** show it and throw it away, which
   Restore Discarded Changes, under Undo, takes back.
+- **Cherry Pick into <branch>** (commit menu): the commit's changes are
+  staged on the current branch, for the commit dialog, with its message.
+  With the commits of another branch selected with `Shift-↑↓`, one line of
+  them, the item counts them, **Cherry Pick 3 Commits into main**, and
+  picks each as it was made, its author and message kept, with git's own
+  `cherry-pick`; **Undo** takes them all back at once. One that conflicts
+  stops the pick for the resolver, and **Continue** picks the rest.
 - **Reorder** (commit menu): **Move Above '...'** and **Move Below '...'**
   move the commit past the next one of the current branch, or the one
   before it, each item naming the commit it is moved past. The two are
@@ -881,10 +888,10 @@ operation away and puts the working folder back as it was.
 *Continue* is offered for whatever a commit does not finish, and only a
 rebase or an `am` has commits to skip, so those items appear only where
 they apply. A merge has no *Continue*, since committing is what finishes
-one, and neither has gmd's own **Cherry Pick** or **Revert Commit**, which
-stage one change for the commit dialog with nothing queued behind it.
-Pressing `c` during a rebase, an `am`, a cherry pick started outside gmd,
-or a revert of several commits offers **Continue** instead: committing
+one, and neither has gmd's own **Cherry Pick** of one commit or **Revert
+Commit**, which stage one change for the commit dialog with nothing queued
+behind it. Pressing `c` during a rebase, an `am`, a cherry pick of several
+commits, or a revert of several commits offers **Continue** instead: committing
 there would make the one commit git stopped on and leave the rest
 unapplied.
 

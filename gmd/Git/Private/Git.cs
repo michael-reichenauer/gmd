@@ -211,6 +211,9 @@ internal class Git : IGit
     public Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd) =>
         branchService.RebaseOntoRemoteAsync(remoteName, forkPointId, wd);
 
+    public Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd) =>
+        branchService.CherryPickCommitsAsync(idsOldestFirst, wd);
+
     public Task<Result> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);
 
     public Task<Result> AbortOperationAsync(string wd) => conflictService.AbortOperationAsync(wd);
