@@ -470,6 +470,9 @@ class Server : IServer
         return converter.ToViewCommits(commits).ToList();
     }
 
+    public Task<Result> MoveCommitsToNewBranchAsync(Repo repo, string newBranchName, string commitId) =>
+        Paused(() => branchWriteService.MoveCommitsToNewBranchAsync(repo, newBranchName, commitId));
+
     public Task<Result> RebaseBranchAsync(Repo repo, string branchName, bool isPush) =>
         Paused(() => branchWriteService.RebaseBranchAsync(repo, branchName, isPush));
 

@@ -16,6 +16,7 @@ interface IBranchCreateCommands
     void RenameBranch(string name);
     void DeleteBranch(string name);
     void DeleteMergedBranches();
+    void MoveCommitsToNewBranch(string commitId);
 }
 
 class BranchCreateCommands : IBranchCreateCommands
@@ -30,6 +31,7 @@ class BranchCreateCommands : IBranchCreateCommands
     readonly IRenameBranchDlg renameBranchDlg;
     readonly IDeleteBranchDlg deleteBranchDlg;
     readonly IMergedBranchesDlg mergedBranchesDlg;
+    readonly IMoveCommitsDlg moveCommitsDlg;
 
     public BranchCreateCommands(
         CommandContext context,
@@ -37,7 +39,8 @@ class BranchCreateCommands : IBranchCreateCommands
         ICreateBranchDlg createBranchDlg,
         IRenameBranchDlg renameBranchDlg,
         IDeleteBranchDlg deleteBranchDlg,
-        IMergedBranchesDlg mergedBranchesDlg
+        IMergedBranchesDlg mergedBranchesDlg,
+        IMoveCommitsDlg moveCommitsDlg
     )
     {
         this.context = context;
@@ -50,6 +53,7 @@ class BranchCreateCommands : IBranchCreateCommands
         this.renameBranchDlg = renameBranchDlg;
         this.deleteBranchDlg = deleteBranchDlg;
         this.mergedBranchesDlg = mergedBranchesDlg;
+        this.moveCommitsDlg = moveCommitsDlg;
     }
 
     public void CreateBranchFromBranch(string name) =>
@@ -353,6 +357,46 @@ class BranchCreateCommands : IBranchCreateCommands
     }
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
+
+    // The commits of the current branch from this one up, not pushed yet, moved to a new branch, e.g.
+    // ones made on main by mistake: the new branch is checked out where the commits are, so the files
+    // and any changes stay as they are, and the branch goes back to the commit before them, which Undo
+    // in its branch menu takes back. Published as Create Branch publishes, when the box is ticked.
+    public void MoveCommitsToNewBranch(string commitId) =>
+        Do(async repo =>
+        {
+            var commit = repo.Repo.CommitById[commitId];
+            if (CommitRewrite.WhyNotMoveToNewBranch(repo.Repo, commit) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+            var current = repo.Repo.CurrentBranch();
+            var count = CommitRewrite.RewrittenBy(repo.Repo, commit).Count;
+            var backTo = commit.GitParentIds[0].Sid();
+            var isPublish = current.RemoteName != "";
+            if (moveCommitsDlg.Show(current.NiceNameUnique, count, backTo, isPublish) is not MoveCommitsResult rsp)
+                return Result.Ok;
+
+            using (status.Progress($"Moving {count} commits to '{rsp.Name}'"))
+            {
+                if (await server.MoveCommitsToNewBranchAsync(repo.Repo, rsp.Name, commitId) is Error e)
+                {
+                    Refresh(rsp.Name);
+                    return new Error($"Failed to move the commits to '{rsp.Name}'", e);
+                }
+                if (rsp.IsPush && await PushNewBranchAsync(rsp.Name) is Error pushError)
+                {
+                    Refresh(rsp.Name);
+                    return pushError;
+                }
+            }
+
+            Refresh(rsp.Name);
+            var commits = count == 1 ? "1 commit" : $"{count} commits";
+            status.Info(
+                $"Moved {commits} of '{current.NiceNameUnique}' to '{rsp.Name}': "
+                    + $"Undo in the branch menu of '{current.NiceNameUnique}' moves it forward again"
+            );
+            return Result.Ok;
+        });
 
     // Pushes a branch just created. A repo with no 'origin' is a local only repo with nowhere to
     // push to, which is no failure to create the branch, so that push error is ignored.

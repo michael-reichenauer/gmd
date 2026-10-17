@@ -104,6 +104,10 @@ interface IServer
     Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
 
+    // The commits of the current branch from this one up, not pushed yet, moved to a new branch, which
+    // is checked out, the current one going back to the commit before them
+    Task<Result> MoveCommitsToNewBranchAsync(Repo repo, string newBranchName, string commitId);
+
     // The current branch rebased onto another, and pushed with force when asked, leased on origin's
     // tip as the repo has it
     Task<Result> RebaseBranchAsync(Repo repo, string branchName, bool isPush);

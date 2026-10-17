@@ -355,4 +355,34 @@ public class AugmentedServiceIntegrationTest
 
     static Repo ViewRepo(Repo augRepo, ShowBranches show = ShowBranches.Specified) =>
         new ViewRepoCreater(new ViewRepoConverter(), new FakeRepoConfig()).GetViewRepoAsync(augRepo, [], show, 10);
+
+    // Commits made on main by mistake, moved to a new branch: it is checked out where main was, and
+    // main goes back to the commit before them, its last change a reset, which Undo takes back. The
+    // reflog says the commits were made on main, but they are drawn on the new branch, since main
+    // no longer has them.
+    [TestMethod]
+    public async Task TestCommitsMovedToANewBranch()
+    {
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        var initial = await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        var first = await repo.CommitFileAsync("b.txt", "b\n", "Meant for a branch");
+        var second = await repo.CommitFileAsync("c.txt", "c\n", "This too");
+        repo.WriteFile("d.txt", "d\n");
+
+        AssertOk(
+            await BranchWrites()
+                .MoveCommitsToNewBranchAsync(AssertOk(await service.GetRepoAsync(repo.Path)), "fix", first)
+        );
+
+        Assert.AreEqual("fix", (await repo.GitAsync("branch --show-current")).Trim());
+        Assert.AreEqual(initial, (await repo.GitAsync("rev-parse main")).Trim());
+        Assert.AreEqual(second, (await repo.GitAsync("rev-parse fix")).Trim());
+        Assert.AreEqual("?? d.txt", (await repo.GitAsync("status --porcelain")).Trim(), "The change is left as it was");
+        var moved = AssertOk(await service.GetRepoAsync(repo.Path));
+        Assert.AreEqual(
+            "fix, fix, main",
+            string.Join(", ", new[] { second, first, initial }.Select(id => moved.CommitById[id].BranchName))
+        );
+        Assert.AreEqual(StepKind.Reset, moved.UndoSteps["main"].Kind);
+    }
 }

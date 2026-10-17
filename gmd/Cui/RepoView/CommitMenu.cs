@@ -94,6 +94,14 @@ class CommitMenu : ICommitMenu
                 () => !c.IsUncommitted,
                 () => BranchCreateCommands.NoCommitToStartAt
             )
+            // This commit and the newer ones, e.g. made on main by mistake, which are not pushed yet
+            .Item(
+                "Move to New Branch ...",
+                "",
+                () => commands.CreateCmds.MoveCommitsToNewBranch(c.Id),
+                () => CommitRewrite.WhyNotMoveToNewBranch(repo.Repo, c) == "",
+                () => CommitRewrite.WhyNotMoveToNewBranch(repo.Repo, c)
+            )
             .Item(
                 $"Merge Commit into {cb?.ShortNiceUniqueName()}",
                 "",

@@ -395,4 +395,30 @@ public class CommitRewriteTest
 
         Assert.AreEqual(Why.InProgress, CommitRewrite.WhyNotAmend(repo, C(repo, "c3")));
     }
+
+    // Commits made on a branch by mistake, e.g. main, are moved to a new branch: the ones not pushed
+    // yet, with one before them to leave the branch at; changes are no reason, the new branch being
+    // checked out where they are
+    [TestMethod]
+    public async Task TestWhichCommitsAreMovedToANewBranch()
+    {
+        var repo = await Ahead().WithStatus(modified: 1).ViewRepoAsync();
+
+        Assert.AreEqual("", CommitRewrite.WhyNotMoveToNewBranch(repo, C(repo, "c3")));
+        Assert.AreEqual(
+            "Only commits not yet pushed can be moved to a new branch",
+            CommitRewrite.WhyNotMoveToNewBranch(repo, C(repo, "c2"))
+        );
+
+        var local = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .LocalBranch("main", "c2", isCurrent: true)
+            .ViewRepoAsync();
+        Assert.AreEqual("", CommitRewrite.WhyNotMoveToNewBranch(local, C(local, "c2")));
+        Assert.AreEqual(
+            "The first commit cannot be moved: the branch would have nothing left to be on",
+            CommitRewrite.WhyNotMoveToNewBranch(local, C(local, "c1"))
+        );
+    }
 }

@@ -820,4 +820,40 @@ public class BranchTest
         );
         Assert.AreEqual("", (await repo.GitAsync("branch --list feature")).Trim());
     }
+
+    // A commit made on main by mistake, 'Add zeta', not pushed yet, moved to a new branch, which is
+    // checked out and published, main going back to origin's. In the commit menu of the top row the
+    // item is seven moves from 'Amend ...', where it opens, past 'Commit Diff', 'Mark for Diff',
+    // 'Undo', 'Stash', 'Tag' and 'Create Branch from Commit ...'.
+    [TestMethod]
+    public async Task TestMoveACommitMadeOnMainToANewBranch()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        var zeta = (await repo.GitAsync("rev-parse main")).Trim();
+        var onOrigin = (await repo.GitAsync("rev-parse origin/main")).Trim();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+
+        gmd.Send("m");
+        gmd.WaitFor("Move to New Branch ...");
+        for (var i = 0; i < 7; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor("Move 1 commit of 'main' to a new branch:"), "'main' goes back to 17d85ba8");
+        gmd.SendText("fix");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Moved 1 commit of 'main' to 'fix': Undo in the branch menu of 'main' moves it forward again",
+            ScreenText.LastLine(gmd.WaitFor("Moved 1 commit"))
+        );
+        Assert.AreEqual("fix", (await repo.GitAsync("branch --show-current")).Trim());
+        Assert.AreEqual(onOrigin, (await repo.GitAsync("rev-parse main")).Trim(), "main back where origin has it");
+        Assert.AreEqual(zeta, (await repo.GitAsync("rev-parse fix origin/fix")).Split('\n')[0].Trim());
+        Assert.AreEqual(zeta, (await repo.GitAsync("rev-parse origin/fix")).Trim(), "Published");
+    }
 }
