@@ -48,7 +48,7 @@ public class BranchPushPullCommandsTest
         );
         Assert.AreEqual(
             "'feature' was rewritten here by the rebase: push it with force first (p), then rebase it",
-            BranchCommands.WhyNotRebaseAndPush(repo, feature)
+            BranchCommands.WhyNotRebase(repo, feature)
         );
     }
 

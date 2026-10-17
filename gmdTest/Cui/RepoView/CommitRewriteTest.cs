@@ -1,3 +1,4 @@
+using gmd.Cui.Common;
 using gmd.Cui.RepoView;
 using gmd.Server;
 using gmdTest.Fixtures;
@@ -5,8 +6,10 @@ using GitOp = gmd.Git.GitOperation;
 
 namespace gmdTest.Cui.RepoView;
 
-// Which commits Amend and Drop can rewrite: only ones not pushed yet, on the current branch, with no
-// merge after them for the rebase to flatten and nothing else on them to be left on the old ones
+// Which commits Amend, Drop and Squash can rewrite: the current branch's, pushed or not, with no merge
+// after them for the rebase to flatten and nothing else on them to be left on the old ones; and when
+// some are on origin, not while origin has commits the branch has not, and asked first when the
+// branch is shared or some of them are someone else's
 [TestClass]
 public class CommitRewriteTest
 {
@@ -21,8 +24,10 @@ public class CommitRewriteTest
             .Commit("c1", "Initial")
             .BranchWithRemote("main", "c4", isCurrent: true, remoteTipCommit: "c2", ahead: 2);
 
+    // A commit on origin is rewritten too, origin's copy of the branch being no other branch on it, and
+    // a force push then replaces it there; Uncommit is for commits not pushed only
     [TestMethod]
-    public async Task TestOnlyACommitNotPushedYetIsRewritten()
+    public async Task TestAPushedCommitIsRewrittenToo()
     {
         var repo = await Ahead().ViewRepoAsync();
 
@@ -30,8 +35,132 @@ public class CommitRewriteTest
         Assert.IsFalse(CommitRewrite.IsNotPushed(repo, C(repo, "c2")));
         Assert.AreEqual("", CommitRewrite.WhyNotAmend(repo, C(repo, "c3")));
         Assert.AreEqual("", CommitRewrite.WhyNotDrop(repo, C(repo, "c3")));
-        Assert.AreEqual("Only a commit not yet pushed can be amended", CommitRewrite.WhyNotAmend(repo, C(repo, "c2")));
-        Assert.AreEqual("Only a commit not yet pushed can be dropped", CommitRewrite.WhyNotDrop(repo, C(repo, "c2")));
+        Assert.AreEqual("", CommitRewrite.WhyNotAmend(repo, C(repo, "c2")));
+        Assert.AreEqual("", CommitRewrite.WhyNotDrop(repo, C(repo, "c2")));
+        Assert.AreEqual("", CommitRewrite.WhyNotSquash(repo, C(repo, "c3"), C(repo, "c2")));
+        Assert.AreEqual(
+            "Only a commit not yet pushed can be uncommitted",
+            CommitRewrite.WhyNotUncommit(repo, C(repo, "c2"))
+        );
+        CollectionAssert.AreEqual(
+            new[] { "c4", "c3", "c2" },
+            CommitRewrite.RewrittenBy(repo, C(repo, "c2")).Select(c => c.Sid[..2]).ToArray()
+        );
+    }
+
+    // The force push after the rewrite would drop what origin has and the branch has not, so that is
+    // pulled first; unless the branch was rewritten here already, when that is its old version
+    [TestMethod]
+    public async Task TestNotWhileOriginHasCommitsTheBranchHasNot()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c4", "Mine", "c2")
+            .Commit("c3", "Theirs", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("feature", "c4", isCurrent: true, remoteTipCommit: "c3", ahead: 1, behind: 1)
+            .ViewRepoAsync();
+        var pullFirst =
+            "'origin/feature' has commits 'feature' has not, which the force push would drop: pull them first";
+
+        Assert.AreEqual("", CommitRewrite.WhyNotAmend(repo, C(repo, "c4")), "Not on origin");
+        Assert.AreEqual("", CommitRewrite.WhyNotAmendLast(repo));
+        Assert.AreEqual(pullFirst, CommitRewrite.WhyNotAmend(repo, C(repo, "c2")));
+        Assert.AreEqual(pullFirst, CommitRewrite.WhyNotDrop(repo, C(repo, "c2")));
+        Assert.AreEqual(pullFirst, CommitRewrite.WhyNotSquash(repo, C(repo, "c4"), C(repo, "c2")));
+
+        var rewritten = repo with
+        {
+            LocalRewrites = new Dictionary<string, LocalRewrite>
+            {
+                ["feature"] = new("feature", "origin/feature", "", "", StepKind.Amend, "", 1, [RepoBuilder.Sha("c3")]),
+            },
+        };
+        Assert.AreEqual("", CommitRewrite.WhyNotAmend(rewritten, C(rewritten, "c2")));
+    }
+
+    // The last commit is amended alone, by 'git commit --amend', pushed or not
+    [TestMethod]
+    public async Task TestTheLastCommitIsAmendedPushedOrNot()
+    {
+        Assert.AreEqual("", CommitRewrite.WhyNotAmendLast(await Ahead().ViewRepoAsync()));
+        Assert.AreEqual("", CommitRewrite.WhyNotAmendLast(await Ahead().BranchWithRemote("dev", "c4").ViewRepoAsync()));
+        var behind = await new RepoBuilder()
+            .Commit("c3", "Theirs", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c3", behind: 1)
+            .ViewRepoAsync();
+        Assert.AreEqual(
+            "'origin/main' has commits 'main' has not, which the force push would drop: pull them first",
+            CommitRewrite.WhyNotAmendLast(behind)
+        );
+    }
+
+    // Asked first when the branch is one others build on, or some of the commits on origin are someone
+    // else's: not for commits of one's own on a branch of one's own, nor for commits not pushed
+    [TestMethod]
+    public async Task TestWhatIsAskedBeforeCommitsOnOriginAreRewritten()
+    {
+        static RepoBuilder Feature(string branch = "feature") =>
+            new RepoBuilder()
+                .Commit("f3", "Third", "f2")
+                .Commit("f2", "Second", "f1")
+                .Commit("f1", "First", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c1")
+                .BranchWithRemote(branch, "f3", isCurrent: true, remoteTipCommit: "f2", ahead: 1)
+                .CurrentAuthor("Test Author");
+
+        var own = await Feature().ViewRepoAsync();
+        Assert.AreEqual("", CommitRewrite.PushedWarning(own, CommitRewrite.RewrittenBy(own, C(own, "f1"))));
+        Assert.AreEqual("", CommitRewrite.PushedWarning(own, [C(own, "f3")]), "Not on origin");
+
+        var others = await Feature().AuthoredBy("f2", "Anna Lind").AuthoredBy("f1", "Oskar Lind").ViewRepoAsync();
+        Assert.AreEqual(
+            """
+            2 of the commits it rewrites are on origin.
+            Both are by Anna Lind and Oskar Lind.
+
+            A force push of the rewrite replaces them on origin, for everyone,
+            and whoever has them has to take the new version.
+
+            Rewrite all the same?
+            """,
+            CommitRewrite.PushedWarning(others, CommitRewrite.RewrittenBy(others, C(others, "f1")))
+        );
+        StringAssert.StartsWith(
+            CommitRewrite.PushedWarning(others, CommitRewrite.RewrittenBy(others, C(others, "f2"))),
+            "1 of the commits it rewrites is on origin.\nIt is by Anna Lind.\n"
+        );
+
+        var develop = await Feature("develop").ViewRepoAsync();
+        Assert.AreEqual(
+            """
+            2 of the commits it rewrites are on origin.
+            'develop' is a shared branch, which others build on.
+
+            A force push of the rewrite replaces them on origin, for everyone,
+            and whoever has them has to take the new version.
+
+            Rewrite all the same?
+            """,
+            CommitRewrite.PushedWarning(develop, CommitRewrite.RewrittenBy(develop, C(develop, "f1")))
+        );
+
+        Assert.AreEqual(ForcePush.Ticked, CommitRewrite.ForcePushOf(own, CommitRewrite.RewrittenBy(own, C(own, "f1"))));
+        Assert.AreEqual(ForcePush.NotOffered, CommitRewrite.ForcePushOf(own, [C(own, "f3")]), "Not on origin");
+        Assert.AreEqual(
+            ForcePush.Offered,
+            CommitRewrite.ForcePushOf(others, CommitRewrite.RewrittenBy(others, C(others, "f1"))),
+            "Not ticked once asked about"
+        );
+
+        var main = await Ahead().ViewRepoAsync();
+        StringAssert.StartsWith(
+            CommitRewrite.PushedWarning(main, [C(main, "c2")]),
+            "The commit it rewrites is on origin.\n'main' is the main branch, which others build on.\n"
+        );
     }
 
     // A branch never pushed has no commit ahead of a remote branch, and all of its commits are not
@@ -51,7 +180,11 @@ public class CommitRewriteTest
         Assert.IsFalse(C(repo, "f2").IsAhead);
         Assert.IsTrue(CommitRewrite.IsNotPushed(repo, C(repo, "f2")));
         Assert.AreEqual("", CommitRewrite.WhyNotAmend(repo, C(repo, "f1")));
-        Assert.AreEqual("Only a commit not yet pushed can be amended", CommitRewrite.WhyNotAmend(repo, C(repo, "c1")));
+        Assert.AreEqual(
+            "Only a commit on the current branch can be amended",
+            CommitRewrite.WhyNotAmend(repo, C(repo, "c1")),
+            "main's"
+        );
     }
 
     [TestMethod]

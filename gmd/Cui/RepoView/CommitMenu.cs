@@ -66,14 +66,14 @@ class CommitMenu : ICommitMenu
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
             .Item("Commit ...", "c", () => cmds.Commit(false), () => !isStatusOK, () => "Nothing to commit")
-            // Enabled as the 'a' key is: a commit not yet pushed can be amended with no changes too,
-            // to reword its message
+            // Enabled as the 'a' key is: the last commit can be amended with no changes too, to reword
+            // its message, also once pushed, which 'p' then pushes with force
             .Item(
                 "Amend ...",
                 "a",
                 () => cmds.Commit(true),
-                () => CommitRewrite.IsNotPushed(repo.Repo, cc),
-                () => "Only a commit not yet pushed can be amended"
+                () => CommitRewrite.WhyNotAmendLast(repo.Repo) == "",
+                () => CommitRewrite.WhyNotAmendLast(repo.Repo)
             )
             .Items(GetAmendOlderItems(c, cc))
             // Straight in the menu rather than in a 'Rebase' sub menu of its own, which held nothing

@@ -351,29 +351,46 @@ class BranchCommands : IBranchCommands
             return result == CommitResult.NothingToCommit ? NothingToMerge(targetName, source) : Result.Ok;
         });
 
+    // The current branch rebased onto another, its commits rewritten, as Amend, Drop and Squash
+    // rewrite them (CommitRewrite): asked first on a branch others build on, or of someone else's
+    // commits on origin, and once on origin pushed with force too, when asked, or left to 'p'
     public void RebaseBranchOnto(string onto) =>
         Do(async repo =>
         {
             var cb = repo.Repo.CurrentBranch();
-            if (WhyNotRebaseAndPush(repo.Repo, cb) is var whyNot && whyNot != "")
+            if (WhyNotRebase(repo.Repo, cb) is var whyNot && whyNot != "")
                 return new Notice(whyNot);
             var ontoName = repo.Repo.BranchByName.TryGetValue(onto, out var b) ? b.NiceNameUnique : onto;
-            if (cb.RemoteName != "" && !Confirm.RebaseAndPush(cb.NiceNameUnique, ontoName, cb.RemoteName))
+
+            var commits = repo.Repo.AllCommits.Where(c => c.BranchPrimaryName == cb.PrimaryName).ToList();
+            var warning = CommitRewrite.PushedWarning(repo.Repo, commits);
+            if (warning != "" && !Confirm.RewritePushed(warning))
+                return Result.Ok;
+            var forcePush = CommitRewrite.ForcePushOf(repo.Repo, commits);
+            var choice = Confirm.Rebase(cb.NiceNameUnique, ontoName, cb.RemoteName, forcePush);
+            if (choice == RewriteChoice.Cancel)
                 return Result.Ok;
 
-            if (await server.RebaseBranchAsync(repo.Repo, onto) is Error e)
+            var isPush = choice == RewriteChoice.RewriteAndPush;
+            if (await server.RebaseBranchAsync(repo.Repo, onto, isPush) is Error e)
                 return new Error($"Failed to rebase branch {onto}", e);
 
             Refresh();
+            status.Info(
+                isPush
+                    ? $"Rebased '{cb.NiceNameUnique}' onto '{ontoName}', and pushed it with force"
+                    : $"Rebased '{cb.NiceNameUnique}' onto '{ontoName}': Undo takes it back"
+            );
             return Result.Ok;
         });
 
-    // A rebased branch that is on origin is pushed with force, leased on origin's tip as shown, so a
-    // commit origin has and the branch has not would be dropped from origin: the fetch that brought
-    // it in moved the lease along with it. Such commits are pulled first. "" when it can be rebased.
+    // A rebased branch that is on origin is pushed with force, by Rebase or 'p', leased on origin's tip
+    // as shown, so a commit origin has and the branch has not would be dropped from origin: the fetch
+    // that brought it in moved the lease along with it. Such commits are pulled first. "" when it can
+    // be rebased.
     // One rewritten here has only the old version to drop there, which is no reason to pull, and which
     // its own force push replaces first.
-    internal static string WhyNotRebaseAndPush(Repo repo, Branch current) =>
+    internal static string WhyNotRebase(Repo repo, Branch current) =>
         RewrittenHere.Of(repo, current) is LocalRewrite rewrite ? RewrittenHere.WhyNoRebase(rewrite)
         : current.RemoteName != "" && current.BehindCount > 0
             ? $"'{current.RemoteName}' has commits '{current.NiceNameUnique}' has not, which the push would drop: pull them first"

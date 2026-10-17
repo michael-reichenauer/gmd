@@ -7,7 +7,14 @@ namespace gmd.Cui.Commits;
 
 interface ISquashDlg
 {
-    bool Show(IReadOnlyList<Server.Commit> commits, out string message);
+    // The message of the squash, and whether the force push box, when offered, was ticked
+    bool Show(
+        Repo repo,
+        IReadOnlyList<Server.Commit> commits,
+        ForcePush forcePush,
+        out string message,
+        out bool isForcePush
+    );
 }
 
 class SquashDlg : ISquashDlg
@@ -19,14 +26,21 @@ class SquashDlg : ISquashDlg
         this.spellChecker = spellChecker;
     }
 
-    public bool Show(IReadOnlyList<Commit> commits, out string commitMessage)
+    public bool Show(
+        Repo repo,
+        IReadOnlyList<Commit> commits,
+        ForcePush forcePush,
+        out string commitMessage,
+        out bool isForcePush
+    )
     {
         var range = GetRange(commits);
         var combinedMessage = GetCombinedMessages(commits);
 
         (string subjectPart, string messagePart) = CommitMessage.Split(combinedMessage);
 
-        var dlg = new UIDialog("Squash", 74, 18);
+        var pushRows = forcePush == ForcePush.NotOffered ? 0 : 1;
+        var dlg = new UIDialog("Squash", 74, 18 + pushRows);
 
         dlg.AddLabel(1, 0, $"Squash {range} on '{commits[0].BranchNiceUniqueName}':");
         var subject = dlg.AddInputField(1, 2, 50, subjectPart, InputMarkers.Both, spellChecker);
@@ -34,9 +48,15 @@ class SquashDlg : ISquashDlg
         var message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart, spellChecker);
         dlg.Validate(() => GetMessage(subject, message) != "", "Empty commit message");
 
+        var push =
+            forcePush == ForcePush.NotOffered
+                ? null
+                : dlg.AddCheckBox(1, 15, CommitDlg.ForcePushLabel(repo), forcePush == ForcePush.Ticked);
+
         dlg.ShowOkCancel(subject);
 
         commitMessage = GetMessage(subject, message);
+        isForcePush = dlg.IsOK && push?.Checked == true;
         return dlg.IsOK;
     }
 

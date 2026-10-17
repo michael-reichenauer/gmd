@@ -8,24 +8,29 @@ namespace gmd.Cui.Commits;
 interface ICommitDlg
 {
     // The message, and the paths to commit, or null for all the changes, see CommitFiles. Ctrl+D
-    // shows the uncommitted diff, with showDiff.
+    // shows the uncommitted diff, with showDiff. An amend of a commit on origin offers to push the
+    // branch with force when done (forcePush), which isForcePush says was ticked.
     bool Show(
         Repo repo,
         Action showDiff,
         bool isAmend,
         IReadOnlyList<Server.Commit>? commits,
+        ForcePush forcePush,
         out string message,
-        out IReadOnlyList<string>? paths
+        out IReadOnlyList<string>? paths,
+        out bool isForcePush
     );
 
-    // The new message of an older commit not pushed yet, and the paths of the files to add to it,
-    // none at first, and none for a new message alone
+    // The new message of an older commit, and the paths of the files to add to it, none at first, and
+    // none for a new message alone
     bool ShowAmend(
         Repo repo,
         Action showDiff,
         Server.Commit commit,
+        ForcePush forcePush,
         out string message,
-        out IReadOnlyList<string> paths
+        out IReadOnlyList<string> paths,
+        out bool isForcePush
     );
 }
 
@@ -50,12 +55,15 @@ class CommitDlg : ICommitDlg
         Action showDiff,
         bool isAmend,
         IReadOnlyList<Server.Commit>? commits,
+        ForcePush forcePush,
         out string commitMessage,
-        out IReadOnlyList<string>? paths
+        out IReadOnlyList<string>? paths,
+        out bool isForcePush
     )
     {
         this.commits = commits;
         paths = null;
+        isForcePush = false;
         if (!isAmend && repo.Status.IsOk)
         {
             commitMessage = "";
@@ -67,7 +75,17 @@ class CommitDlg : ICommitDlg
         // amend with no changes, which rewords the last commit.
         var files = repo.Status.IsMerging ? null : new CommitFiles(repo.Status, leftOut: leftOut);
         var message = isAmend ? repo.CurrentCommit().Message : repo.Status.MergeMessage;
-        var isOk = ShowDialog(repo, showDiff, isAmend, null, message, files, out commitMessage);
+        var isOk = ShowDialog(
+            repo,
+            showDiff,
+            isAmend,
+            null,
+            message,
+            files,
+            forcePush,
+            out commitMessage,
+            out isForcePush
+        );
         paths = files?.PathsToCommit;
         return isOk;
     }
@@ -76,13 +94,25 @@ class CommitDlg : ICommitDlg
         Repo repo,
         Action showDiff,
         Server.Commit commit,
+        ForcePush forcePush,
         out string commitMessage,
-        out IReadOnlyList<string> paths
+        out IReadOnlyList<string> paths,
+        out bool isForcePush
     )
     {
         commits = null;
         var files = new CommitFiles(repo.Status, isTicked: false, leftOut);
-        var isOk = ShowDialog(repo, showDiff, true, commit, commit.Message, files, out commitMessage);
+        var isOk = ShowDialog(
+            repo,
+            showDiff,
+            true,
+            commit,
+            commit.Message,
+            files,
+            forcePush,
+            out commitMessage,
+            out isForcePush
+        );
         paths = files.TickedPaths;
         return isOk;
     }
@@ -95,7 +125,9 @@ class CommitDlg : ICommitDlg
         Server.Commit? older,
         string original,
         CommitFiles? files,
-        out string commitMessage
+        ForcePush forcePush,
+        out string commitMessage,
+        out bool isForcePush
     )
     {
         (string subjectPart, string messagePart) = CommitMessage.Split(original);
@@ -117,7 +149,9 @@ class CommitDlg : ICommitDlg
                 ? Heading(title, filesCount, isAmend, files, branchName)
                 : OlderHeading(older, files, branchName);
 
-        var dlg = new UIDialog(title, 74, 18 + listHeight, (key) => OnKey(showDiff, key));
+        // The force push box, when offered, is the row above the buttons
+        var pushRows = forcePush == ForcePush.NotOffered ? 0 : 1;
+        var dlg = new UIDialog(title, 74, 18 + listHeight + pushRows, (key) => OnKey(showDiff, key));
 
         var heading = dlg.AddLabel(1, 0, HeadingText());
         heading.Width = Dim.Fill(); // It grows as files are ticked again, see UILabel.Text
@@ -187,11 +221,21 @@ class CommitDlg : ICommitDlg
                 "Nothing to amend: edit the message or tick a file"
             );
 
+        var push =
+            forcePush == ForcePush.NotOffered
+                ? null
+                : dlg.AddCheckBox(1, 15 + listHeight, ForcePushLabel(repo), forcePush == ForcePush.Ticked);
+
         dlg.ShowOkCancel(subject);
 
         commitMessage = GetMessage(subject, message);
+        isForcePush = dlg.IsOK && push?.Checked == true;
         return dlg.IsOK;
     }
+
+    // The force push box of a dialog that rewrites commits on origin, naming where it pushes to
+    internal static string ForcePushLabel(Repo repo) =>
+        $"Push to '{repo.CurrentBranch()?.RemoteName}' with force when done";
 
     // "Amend 6d2212 on 'main':", and once files are ticked "Amend 6d2212 with 1 of 3 changes on 'main':"
     static Text OlderHeading(Server.Commit older, CommitFiles? files, string branchName)

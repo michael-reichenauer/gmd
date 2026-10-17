@@ -8,7 +8,7 @@ namespace gmdTest.Cui.RepoView;
 [TestClass]
 public class BranchCommandsTest
 {
-    // Rebase and Push onto pushes with force, leased on origin's tip as shown. A commit someone pushed
+    // Rebase onto pushes with force, when asked, leased on origin's tip as shown. A commit someone pushed
     // and the fetch brought in moved that tip, so the lease let the push through and dropped the
     // commit from origin. Such a branch is pulled first.
     [TestMethod]
@@ -18,7 +18,7 @@ public class BranchCommandsTest
 
         Assert.AreEqual(
             "'origin/feature' has commits 'feature' has not, which the push would drop: pull them first",
-            BranchCommands.WhyNotRebaseAndPush(repo, repo.CurrentBranch())
+            BranchCommands.WhyNotRebase(repo, repo.CurrentBranch())
         );
     }
 
@@ -27,7 +27,7 @@ public class BranchCommandsTest
     {
         var repo = await Feature(behind: 0).ViewRepoAsync("feature");
 
-        Assert.AreEqual("", BranchCommands.WhyNotRebaseAndPush(repo, repo.CurrentBranch()));
+        Assert.AreEqual("", BranchCommands.WhyNotRebase(repo, repo.CurrentBranch()));
     }
 
     // Nothing is pushed for a branch that is not on origin, so nothing can be dropped there
@@ -42,7 +42,7 @@ public class BranchCommandsTest
             .LocalBranch("feature", "f1", isCurrent: true)
             .ViewRepoAsync("feature");
 
-        Assert.AreEqual("", BranchCommands.WhyNotRebaseAndPush(repo, repo.CurrentBranch()));
+        Assert.AreEqual("", BranchCommands.WhyNotRebase(repo, repo.CurrentBranch()));
     }
 
     // feature started from main's c1 and is on origin; with 'behind', origin's has one commit more

@@ -1,12 +1,17 @@
+using gmd.Cui.Common;
 using gmd.Server;
 
 namespace gmd.Cui.RepoView;
 
-// Whether a commit can be rewritten, by Amend or Drop, and why not when it cannot. Only a commit not
-// pushed yet can, since one that others may have would come back with their next push, and only one
-// on the current branch with nothing in the way of the rebase that rewrites it: a merge after it,
-// which the rebase would flatten into plain commits, or another branch or a tag on it or after it,
-// which would be left on the old commits.
+// Whether commits can be rewritten, by Amend, Drop or Squash, and why not when they cannot. One rule
+// for all of them, pushed or not: the commits are the current branch's, with nothing in the way of
+// the rebase that rewrites them, i.e. no merge after them, which the rebase would flatten into plain
+// commits, and no other branch or tag on them or after them, which would be left on the old ones.
+// Commits on origin are rewritten too, and replaced there by a force push, which 'p' then offers
+// (RewrittenHere): not while origin has commits the branch has not, which that push would drop. It
+// is asked first (PushedWarning) when the branch is one others build on, or some of the commits on
+// origin are someone else's. Uncommit, a reset that would leave the branch behind origin, is for
+// commits not pushed only.
 //
 // Plain functions of the repo, so they are testable without a view. The augmented service checks the
 // same against git before it rewrites anything (CommitRewriteService.CheckRewritableAsync).
@@ -21,6 +26,19 @@ static class CommitRewrite
             commit.IsAhead
             || (repo.BranchByName.TryGetValue(commit.BranchName, out var b) && !b.IsRemote && b.RemoteName == "")
         );
+
+    // Why the last commit cannot be amended, the 'a' key, or "" when it can: 'git commit --amend'
+    // rewrites it alone, so only the rule for commits on origin applies
+    public static string WhyNotAmendLast(Repo repo)
+    {
+        var current = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
+        if (current == null || current.IsDetached || current.IsRemote)
+            return "Not on a branch: switch to one first, whose last commit is amended";
+        var last = repo.CurrentCommit();
+        if (last.Id == Repo.EmptyRepoCommitId)
+            return "There is no commit to amend yet";
+        return IsNotPushed(repo, last) ? "" : WhyNotForcePushed(repo, current);
+    }
 
     // Why a commit older than the last one cannot be amended, or "" when it can. Changes in the
     // working tree are no reason: the ones not added to it are put aside while it runs.
@@ -44,8 +62,9 @@ static class CommitRewrite
 
     // Why the commits from this one up to the last of the current branch cannot be uncommitted, i.e.
     // the branch reset to the commit before it with their changes kept, or "" when they can. Only
-    // ones not pushed yet, as for Amend and Drop, and the first commit has nothing before it to reset
-    // to: the item was offered on it, and on pushed commits, and threw on the first one.
+    // ones not pushed yet, since the reset would leave the branch behind origin, which a pull takes
+    // back, and the first commit has nothing before it to reset to: the item was offered on it, and
+    // on pushed commits, and threw on the first one.
     public static string WhyNotUncommit(Repo repo, Commit commit)
     {
         if (commit.IsUncommitted)
@@ -70,7 +89,8 @@ static class CommitRewrite
             return "The uncommitted changes are no commit to squash: select commits only";
         if (!repo.Status.IsOk)
             return Why.Changes;
-        if (newest.BranchName != oldest.BranchName)
+        // A branch and its copy on origin are one, whose commits not pushed yet and pushed both are
+        if (newest.BranchPrimaryName != oldest.BranchPrimaryName)
             return "The selected commits are on different branches: select commits of one branch";
         if (
             !repo.BranchByName.TryGetValue(newest.BranchName, out var branch)
@@ -79,15 +99,81 @@ static class CommitRewrite
             return "Only commits on the current branch can be squashed";
         if (oldest.ParentIds.Count == 0)
             return "The first commit cannot be squashed";
+        // The oldest is pushed whenever any is, a branch being pushed from its first commit on
+        if (!IsNotPushed(repo, oldest) && repo.AllBranches.FirstOrDefault(b => b.IsCurrent) is { } current)
+            return WhyNotForcePushed(repo, current);
         return "";
     }
+
+    // What to ask before commits on origin are rewritten, or "" when there is nothing to ask: when the
+    // branch is one others build on (Branch.IsShared), or some of them are someone else's, by author,
+    // since the force push replaces them for everyone, and whoever has them has to take the new ones.
+    // The commits are all the rewrite replaces: an older commit's amend or drop replays the newer ones.
+    public static string PushedWarning(Repo repo, IReadOnlyList<Commit> commits)
+    {
+        var current = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
+        var pushed = commits.Where(c => !c.IsUncommitted && !IsNotPushed(repo, c)).ToList();
+        if (current == null || pushed.Count == 0)
+            return "";
+        var others =
+            repo.CurrentAuthor == ""
+                ? []
+                : pushed.Select(c => c.Author).Where(a => a != repo.CurrentAuthor).Distinct().ToList();
+        if (!current.IsShared && others.Count == 0)
+            return "";
+
+        var onOrigin =
+            pushed.Count == commits.Count && pushed.Count == 1 ? "The commit it rewrites is on origin."
+            : pushed.Count == commits.Count ? $"The {pushed.Count} commits it rewrites are on origin."
+            : $"{pushed.Count} of the commits it rewrites {(pushed.Count == 1 ? "is" : "are")} on origin.";
+        var shared = current.IsShared
+            ? $"\n'{current.NiceNameUnique}' is {(current.IsMainBranch ? "the main branch" : "a shared branch")}, which others build on."
+            : "";
+        var byOthers =
+            others.Count == 0
+                ? ""
+                : $"\n{OthersCount(pushed, others)} by {string.Join(" and ", others.Take(3))}{(others.Count > 3 ? " and others" : "")}.";
+        var them = pushed.Count == 1 ? "it" : "them";
+        return onOrigin
+            + shared
+            + byOthers
+            + $"\n\nA force push of the rewrite replaces {them} on origin, for everyone,\n"
+            + $"and whoever has {them} has to take the new version.\n\n"
+            + "Rewrite all the same?";
+    }
+
+    static string OthersCount(IReadOnlyList<Commit> pushed, IReadOnlyList<string> others)
+    {
+        var count = pushed.Count(c => others.Contains(c.Author));
+        return pushed.Count == 1 ? "It is"
+            : count == pushed.Count ? (count == 2 ? "Both are" : "All are")
+            : $"{count} of them {(count == 1 ? "is" : "are")}";
+    }
+
+    // Whether the dialog of a rewrite offers to push the branch with force when done: when some of the
+    // commits it replaces are on origin, ticked unless the rewrite was asked about first
+    public static ForcePush ForcePushOf(Repo repo, IReadOnlyList<Commit> commits) =>
+        !commits.Any(c => !c.IsUncommitted && !IsNotPushed(repo, c)) ? ForcePush.NotOffered
+        : PushedWarning(repo, commits) == "" ? ForcePush.Ticked
+        : ForcePush.Offered;
+
+    // The commits a rewrite of this commit replaces: it and the newer ones of the current branch,
+    // which the rebase replays, newest first, or none when it is not on the current branch
+    public static IReadOnlyList<Commit> RewrittenBy(Repo repo, Commit commit) => CommitsDownTo(repo, commit) ?? [];
+
+    // Commits on origin are replaced there by a force push after the rewrite, leased on origin's tip as
+    // shown, which would drop any commit origin has and the branch has not: those are pulled first.
+    // Unless the branch was rewritten here already, when they are its old version, which it replaces.
+    static string WhyNotForcePushed(Repo repo, Branch current) =>
+        current.BehindCount > 0 && RewrittenHere.Of(repo, current) == null
+            ? $"'{current.RemoteName}' has commits '{current.NiceNameUnique}' has not, which the force push "
+                + "would drop: pull them first"
+            : "";
 
     static string WhyNot(Repo repo, Commit commit, string done)
     {
         if (repo.Status.IsMerging)
             return Why.InProgress;
-        if (!IsNotPushed(repo, commit))
-            return $"Only a commit not yet pushed can be {done}";
         if (CommitsDownTo(repo, commit) is not { } commits)
             return $"Only a commit on the current branch can be {done}";
 
@@ -96,14 +182,30 @@ static class CommitRewrite
         if (commits.Any(c => c.ParentIds.Count > 1))
             return "There is a merge after this commit, which the rebase would flatten";
 
-        var ids = commits.Select(c => c.Id).ToHashSet();
+        // Before the branches on them, of which origin's new commits would be one
         var current = repo.AllBranches.First(b => b.IsCurrent);
-        if (repo.AllBranches.FirstOrDefault(b => b.Name != current.Name && ids.Contains(b.TipId)) is { } other)
+        if (
+            commits.Any(c => !IsNotPushed(repo, c))
+            && WhyNotForcePushed(repo, current) is var pullFirst
+            && pullFirst != ""
+        )
+            return pullFirst;
+
+        // Origin's copy of the branch is no other branch: the force push after the rewrite replaces it
+        var ids = commits.Select(c => c.Id).ToHashSet();
+        if (
+            repo.AllBranches.FirstOrDefault(b =>
+                b.Name != current.Name && b.Name != current.RemoteName && ids.Contains(b.TipId)
+            ) is
+            { } other
+        )
             return OnIt($"'{other.NiceNameUnique}'");
+        // Nor is the old version of a branch rewritten here, which the force push replaces too
+        var oldVersion = RewrittenHere.Of(repo, current)?.OldIds.ToHashSet() ?? [];
         if (
             commits
                 .SelectMany(c => c.AllChildIds)
-                .FirstOrDefault(id => id != Repo.UncommittedId && !ids.Contains(id)) is
+                .FirstOrDefault(id => id != Repo.UncommittedId && !ids.Contains(id) && !oldVersion.Contains(id)) is
             { } childId
         )
             return OnIt(
@@ -117,8 +219,10 @@ static class CommitRewrite
     static string OnIt(string what) => $"{what} is on this commit or one after it, and would keep the old ones";
 
     // The commits of the current branch from its last one down to the commit, newest first, or null
-    // when the commit is not among the ones not pushed yet. Down git's first parents, which is the
-    // line the rebase replays, whereas gmd swaps the parents of a pull merge to draw it.
+    // when the commit is not one of them: the branch's own, here or on origin, which share the primary
+    // name of the pair, or not pushed yet, as a commit another branch is built on can be taken to be
+    // that branch's, which the check of the branches on them then names. Down git's first parents,
+    // which is the line the rebase replays, whereas gmd swaps the parents of a pull merge to draw it.
     static IReadOnlyList<Commit>? CommitsDownTo(Repo repo, Commit commit)
     {
         var current = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
@@ -127,7 +231,7 @@ static class CommitRewrite
 
         List<Commit> commits = [];
         var c = repo.CurrentCommit();
-        while (IsNotPushed(repo, c))
+        while (!c.IsUncommitted && (c.BranchPrimaryName == current.PrimaryName || IsNotPushed(repo, c)))
         {
             commits.Add(c);
             if (c.Id == commit.Id)

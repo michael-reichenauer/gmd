@@ -152,7 +152,7 @@ class BranchWriteService : IBranchWriteService
         return ToMergeCommits(repo, commits).ToList();
     }
 
-    public async Task<Result> RebaseBranchAsync(Repo repo, string name)
+    public async Task<Result> RebaseBranchAsync(Repo repo, string name, bool isPush)
     {
         var cb = repo.CurrentBranch();
         var primaryCurrent = repo.BranchByName[cb.PrimaryName];
@@ -163,7 +163,7 @@ class BranchWriteService : IBranchWriteService
         if (await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path) is Error e)
             return e;
 
-        if (cb.RemoteName != "")
+        if (isPush && cb.RemoteName != "")
         { // Current Branch is local branch with a remote branch, push it with force, over the
             // remote branch as it was before the rebase, i.e. as the user saw it
             var remoteTipId = repo.BranchByName.TryGetValue(cb.RemoteName, out var remote) ? remote.TipId : "";

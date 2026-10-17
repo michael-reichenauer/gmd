@@ -103,7 +103,10 @@ interface IServer
     Task<Result> SwitchToAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
-    Task<Result> RebaseBranchAsync(Repo repo, string branchName);
+
+    // The current branch rebased onto another, and pushed with force when asked, leased on origin's
+    // tip as the repo has it
+    Task<Result> RebaseBranchAsync(Repo repo, string branchName, bool isPush);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
     Task<Result> AbortOperationAsync(string wd);

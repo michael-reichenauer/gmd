@@ -704,7 +704,7 @@ public class LogViewTest
                      │Copy                          Ctrl-C >│                               │Switch to Branch                s  │
                      │Open Commit in Browser                │                               │Merge dev into main             e  │
                      │Full File History ...                 │                               │Merge main into dev            ⇧e  │
-                     │Blame File ...                        │                               │Rebase and Push onto              >│
+                     │Blame File ...                        │                               │Rebase onto                       >│
                      │──────────────────────────────────────│╭ Branches ───────────────────╮│Hide Branch                     h  │
                      │Branches                             >││●   main                    >││Pull                            u  │
                      │Repo Menu                         ⇧m >││    dev                     >││Push                            p  │

@@ -447,10 +447,10 @@ public class CommitTest
         StringAssert.Contains(gmd.WaitFor("Amend the last commit"), "Amend the last commit on 'dev':");
     }
 
-    // The guard that makes amend safe: once the commit is on the remote it is not offered at all,
-    // and the key silently does nothing rather than rewriting published history.
+    // A pushed commit is amended too, and then replaced on origin by the force push 'p' offers. On a
+    // branch others build on, here main, that is asked first, with No the default, and No leaves it.
     [TestMethod]
-    public async Task TestAmendIsRefusedForAPushedCommit()
+    public async Task TestAmendOfAPushedCommitOnMainIsAskedFirst()
     {
         using var repo = await E2eRepo.CreateWithOriginAsync();
         await repo.GitAsync("push -q origin main"); // Nothing is ahead any more
@@ -459,26 +459,94 @@ public class CommitTest
 
         gmd.Send("a");
 
-        // No dialog opens, and the status line says why. The '▲' ahead markers are gone now that
-        // everything is pushed, and the remote is drawn as its own '(^)' tip beside the local one on
-        // the same commit.
-        var screen = gmd.WaitFor("Only a commit not yet pushed can be amended");
-        Assert.AreEqual(
-            """
-             Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
-            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-            ┣─┺ ● Add zeta                                                     (^)(● main) 4dd1e9f8 Test User      2024-10-15 12:07
-            ┣     Add delta                                                         [v1.0] 17d85ba8 Test User      2024-10-15 12:06
-            ┣╮    Merge branch 'dev' into main                                             4e73d230 Test User      2024-10-15 12:05
-            ┣     Add gamma                                                                4a15fb13 Test User      2024-10-15 12:04
-            ┣╯    Add beta                                                                 dd78912d Test User      2024-10-15 12:01
-            ┗     Initial                                                                  9dc406e3 Test User      2024-10-15 12:00
-            """,
-            ScreenText.Rows(screen, repo.Path, 0, 8)
+        StringAssert.Contains(
+            gmd.WaitFor("Rewrite Pushed Commits"),
+            "'main' is the main branch, which others build on."
         );
-        Assert.AreEqual("Only a commit not yet pushed can be amended", ScreenText.LastLine(screen));
-
+        gmd.Send("Enter"); // No, the default
+        gmd.WaitUntilGone("Rewrite Pushed Commits");
         Assert.AreEqual("Add zeta", await repo.GitAsync("log --format=%s -1"), "Nothing should be rewritten");
+    }
+
+    // On a branch of one's own nothing is asked: the dialog opens with its box to push with force when
+    // done ticked, and the amend is pushed at once, replacing the old commit on origin
+    [TestMethod]
+    public async Task TestAmendAPushedCommitOfABranchOfOnesOwnAndForcePushIt()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("feature.txt", "feature\n", "Add feature", TempRepo.BaseTime.AddMinutes(8));
+        await repo.GitAsync("push -q --set-upstream origin feature");
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(9));
+        gmd.WaitFor("Add feature");
+
+        gmd.Send("a");
+        StringAssert.Contains(
+            gmd.WaitFor("Amend the last commit on 'feature'"),
+            "Push to 'origin/feature' with force when done"
+        );
+        gmd.SendText(", reworded");
+        gmd.WaitFor("Add feature, reworded");
+        gmd.Send("M-o");
+
+        Assert.AreEqual(
+            "Amended the last commit, and pushed 'feature' with force",
+            ScreenText.LastLine(gmd.WaitFor("Amended the last commit"))
+        );
+        Assert.AreEqual(
+            "Add feature, reworded",
+            (await repo.GitAsync($"-C \"{repo.Path}-origin\" log --format=%s -1 feature")).Trim()
+        );
+    }
+
+    // A pushed commit of a branch of one's own is dropped as one not pushed is, and its question has
+    // Drop and Push too, which replaces the branch on origin, Cancel still the default. The menu opens
+    // on 'Amend ...', the last commit's, and Undo is four moves down, past this commit's own Amend,
+    // 'Commit Diff' and 'Mark for Diff'; in it Drop is four past 'Recover Lost Commits ...', where it
+    // opens, the last change, a commit on origin, being no change to undo.
+    [TestMethod]
+    public async Task TestDropAPushedCommitAndPushIt()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("one.txt", "one\n", "Add one", TempRepo.BaseTime.AddMinutes(8));
+        await repo.CommitFileAtAsync("two.txt", "two\n", "Add two", TempRepo.BaseTime.AddMinutes(9));
+        await repo.GitAsync("push -q --set-upstream origin feature");
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..8];
+        using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(10));
+        gmd.WaitFor("Add one");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor($"Amend {sid} ...");
+        OpenSubMenu(gmd, 4, "Recover Lost Commits");
+        for (int i = 0; i < 4; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+        StringAssert.Contains(
+            gmd.WaitFor("Drop the commit from 'feature'?"),
+            "It is on origin: Drop and Push replaces it there too"
+        );
+        gmd.Send("Left"); // From Cancel, the default, past Drop to Drop and Push
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Dropped 'Add one', and pushed 'feature' with force",
+            ScreenText.LastLine(gmd.WaitFor("Dropped 'Add one'"))
+        );
+        Assert.AreEqual(
+            "Add two\nAdd zeta",
+            (await repo.GitAsync($"-C \"{repo.Path}-origin\" log --format=%s -2 feature")).Trim()
+        );
     }
 
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
@@ -678,10 +746,24 @@ public class CommitTest
         gmd.Send("S-Down");
         gmd.WaitForStable();
 
-        // The menu opens on Squash, the first item it enables, and the item names the range it would
+        // The menu opens on Amend, the first item it enables, the last commit being one to amend
+        // though pushed, as is the row's, Amend 8332dd93; Squash below them names the range it would
         // squash, which is how it says a selection was picked up
         gmd.Send("m");
         gmd.WaitFor("Squash c02addfd...8332dd93");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        // On main, which others build on, rewriting its commits on origin is asked first
+        StringAssert.Contains(
+            gmd.WaitFor("Rewrite Pushed Commits"),
+            "'main' is the main branch, which others build on."
+        );
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
         gmd.Send("Enter");
 
         gmd.WaitFor("Squash c02addfd...8332dd93 on 'main'");

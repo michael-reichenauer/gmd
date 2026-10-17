@@ -53,7 +53,7 @@ static class RewrittenHere
         $"Nothing to pull on '{r.BranchName}', rewritten here{By(r, isNamed: false)}: p pushes it with force";
 
     // Why it is not rebased: the rebase's push is leased on origin's tip, which then has commits the
-    // branch has not, and Rebase and Push onto asks for those to be pulled first, which is wrong here
+    // branch has not, and Rebase onto asks for those to be pulled first, which is wrong here
     public static string WhyNoRebase(LocalRewrite r) =>
         $"'{r.BranchName}' was rewritten here{By(r, isNamed: false)}: push it with force first (p), then rebase it";
 

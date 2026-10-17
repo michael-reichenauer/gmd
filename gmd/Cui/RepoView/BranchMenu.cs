@@ -212,14 +212,13 @@ class BranchMenu : IBranchMenu
             .SubMenu(isCurrent, MergeIntoCurrentTitle(), "e", GetMergeFromItems(), whyNot: WhyNoMerge)
             .SubMenu(isCurrent, MergeCurrentIntoTitle(), "⇧e", GetMergeToItems(), whyNot: WhyNoMerge)
             .SubMenu(
-                "Rebase and Push onto",
+                "Rebase onto",
                 "",
                 GetRebaseFromItems(b),
                 whyNot: () =>
                     !isCurrent ? "Only the current branch is rebased: switch to it first"
                     : !isStatusOK ? Why.Changes
-                    : BranchCommands.WhyNotRebaseAndPush(repo.Repo, repo.Repo.CurrentBranch()) is var why && why != ""
-                        ? why
+                    : BranchCommands.WhyNotRebase(repo.Repo, repo.Repo.CurrentBranch()) is var why && why != "" ? why
                     : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
             )
             .Item(
@@ -433,7 +432,7 @@ class BranchMenu : IBranchMenu
         var isCurrent = sb.IsCurrent || sb.IsLocalCurrent;
         if (!repo.Repo.Status.IsOk || !isCurrent)
             return Menu.Items;
-        if (BranchCommands.WhyNotRebaseAndPush(repo.Repo, repo.Repo.CurrentBranch()) != "")
+        if (BranchCommands.WhyNotRebase(repo.Repo, repo.Repo.CurrentBranch()) != "")
             return Menu.Items;
 
         var primaryBranch = repo.Repo.ViewBranches.First(b => b.Name == sb.PrimaryName);

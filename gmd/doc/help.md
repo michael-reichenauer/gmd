@@ -196,9 +196,11 @@ repository.
   any one listed, which includes those in the folder gmd was started in, and
   `Delete` takes one off the recent list, leaving its folder as it is.
   `gmd -m` shows the start page inside a repository too.
-- **Fix a commit not pushed yet:** `m` on it, then **Amend <id> ...** for a
-  new message, or the changes you tick, or both, or **Drop <id>** under
-  **Undo** to take it out of the branch. `a` amends the last commit.
+- **Fix a commit:** `m` on it, then **Amend <id> ...** for a new message,
+  or the changes you tick, or both, or **Drop <id>** under **Undo** to take
+  it out of the branch. `a` amends the last commit. Once the commit is on
+  origin, `p` then replaces it there (see [When You Rewrote a Pushed
+  Branch](#when-you-rewrote-a-pushed-branch)).
 
 
 ## Keys
@@ -217,7 +219,7 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
 | Tab        | Move between the log and the commit details                |
 | c          | Commit the uncommitted changes                             |
-| a          | Amend the last commit, while it is not pushed              |
+| a          | Amend the last commit                                      |
 | d          | Diff of the commit (on a branch: diff the branch to ...)   |
 | Ctrl-D     | Diff of the commit or the selected rows, even on a branch  |
 | s          | Switch to the highlighted branch                           |
@@ -374,8 +376,8 @@ back on origin after **Undo Rebase** took it back here.
 
 ### When You Rewrote a Pushed Branch
 
-The mirror of the above: you squashed, amended or rebased commits that are
-on origin already, in gmd or not, e.g. a coding agent did. Then your branch
+The mirror of the above: you squashed, amended, dropped or rebased commits
+that are on origin already, in gmd or not, e.g. a coding agent did. Then your branch
 has the new version and origin the old one. That looks like new commits on
 both sides, but origin has nothing new: a pull would merge the old version
 back in, putting every change in twice. Gmd tells this apart by the
@@ -392,6 +394,21 @@ Recover Lost Commits finds the old version afterwards.
 Someone else's commits pushed on top of the old version make origin a
 commit your branch never was at: the branch is then shown as diverged, as
 new commits on both sides.
+
+Amend, Drop and Squash rewrite commits on origin as they do the others, on
+one rule: not while origin has commits the branch has not, which the force
+push would drop, so those are pulled first, and not a commit origin has on
+another branch, e.g. one merged into main. On a branch others build on
+(main, an integration branch such as develop, or a release branch), or when
+some of the commits on origin are someone else's, they ask first, with No
+the default. Uncommit is for commits not pushed only.
+
+The push can be made with the rewrite: Amend and Squash have a box, *Push
+to 'origin/...' with force when done*, ticked on a branch of your own and
+unticked once they asked first, and Drop's and **Rebase onto**'s questions
+have **Drop and Push** and **Rebase and Push** beside Drop and Rebase. A
+rewrite that stops on a conflict pushes nothing; once it is continued, `p`
+pushes it.
 
 
 ## Undo and Recovery
@@ -453,7 +470,7 @@ throw changes away ask first, and what they throw away gmd keeps, for
   changes): `git checkout --force HEAD -- <file>`, staged changes too, or
   a new file is unstaged and deleted
 - **Revert Commit**: `git revert --no-commit <commit-sha>`
-- **Drop <commit-sha>**: takes a commit not pushed yet out of the branch,
+- **Drop <commit-sha>**: takes a commit out of the current branch,
   `git rebase --onto <commit-sha>~ <commit-sha>`, asked first. The commits
   after it are rewritten without it, and Undo brings it back. Not for a
   merge, or past one, nor with another branch or a tag on it or after it,
@@ -493,9 +510,9 @@ throw changes away ask first, and what they throw away gmd keeps, for
   the merged commits, one per line, and for a merged merge the list in its
   message.
 - **Amend ...** (`a`) and **Amend <commit-sha> ...**:
-  `a` amends the last commit while it is not pushed: its message, and the
-  files ticked in the dialog. The commit menu of an older commit not pushed
-  yet has an Amend of its own, with that commit's message and the changed
+  `a` amends the last commit: its message, and the files ticked in the
+  dialog. The commit menu of an older commit of the current branch has an
+  Amend of its own, with that commit's message and the changed
   files, none ticked at first: a new message, the ticked changes, or both.
   It is git's own way: an "amend!" commit of them, folded in by
   `git rebase -i --autosquash`, with the files left unticked put aside and
