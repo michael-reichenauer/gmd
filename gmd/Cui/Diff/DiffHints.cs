@@ -10,14 +10,19 @@ static class DiffHints
     // the log opened, and more and less context for all but a line history. hasSearch is a search
     // with matches for n to go on with, as the log offers it for its own, and isWhitespaceHidden
     // whether w shows whitespace changes again or hides them. leaveOut is what x does where the
-    // cursor is, "leave out" or "put back", "" where it does nothing.
+    // cursor is, "leave out" or "put back", "" where it does nothing. isOneColumn is the layout v
+    // switches from, where ← and → only scroll, hasList whether the list of files Tab moves to is
+    // beside the diff, and isListHidden whether it would be but for l having hidden it.
     public static IReadOnlyList<KeyHint> For(
         bool canCommit,
         bool hasContext,
         bool hasConflicts,
         bool hasSearch,
         bool isWhitespaceHidden,
-        string leaveOut = ""
+        string leaveOut = "",
+        bool isOneColumn = false,
+        bool hasList = false,
+        bool isListHidden = false
     )
     {
         List<KeyHint> hints = [KeyHintLine.Menu, new("Esc", "close")];
@@ -27,16 +32,22 @@ static class DiffHints
             hints.Add(new("c", "commit"));
         if (leaveOut != "")
             hints.Add(new("x", leaveOut));
+        hints.Add(new("] [", "change"));
         if (hasContext)
             hints.Add(new("+ -", "context"));
-        hints.Add(new("s", "to file"));
+        hints.Add(new("} {", "file"));
+        if (hasList)
+            hints.Add(new("Tab", "file list"));
+        else if (isListHidden)
+            hints.Add(new("l", "file list"));
         if (hasSearch)
             hints.Add(new("n", "next match"));
         hints.Add(new("f", "search"));
         if (canCommit)
             hints.Add(new("u", "discard"));
         hints.Add(new("w", isWhitespaceHidden ? "show whitespace" : "hide whitespace"));
-        hints.Add(new("←→", "columns"));
+        hints.Add(new("v", isOneColumn ? "side by side" : "one column"));
+        hints.Add(new("←→", isOneColumn ? "scroll" : "columns"));
         return hints;
     }
 }

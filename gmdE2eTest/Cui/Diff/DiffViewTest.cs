@@ -18,40 +18,39 @@ public class DiffViewTest
 
         gmd.Send("d");
 
-        // The diff view is a Toplevel filling the screen, so the application bar is gone
+        // The diff view is a Toplevel filling the screen, so the application bar is gone, and its own
+        // top row is the commit, with the file once the view scrolls down into one
         ScreenText.AssertEqual(
             """
-            ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-            Commit:  17d85ba889a1084f912c412d0ce435c9d7a36f53
-            Author:  Test User <test@example.com>
-            Date:    2024-10-15 12:06:00
-            Message: Add delta
+            17d85ba8  Add delta ───────────────────────────────────────────────────────────────────────────────────────────────────
+            Test User <test@example.com>  2024-10-15 12:06:00
 
-            1 File:  1 added   +1 -0 lines
-              Added:       delta.txt
+            1 file changed  1 added  +1
+              A delta.txt  +1
 
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Added: delta.txt
-
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-               1┃delta
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ▌ A delta.txt  +1 ─────────────────────────────────────────────────────────────────────────────────────────────────────
+            ▌   1 delta
             """,
-            gmd.WaitFor("Added: delta.txt"),
+            gmd.WaitFor("A delta.txt"),
             repo.Path
+        );
+        // Its line is in the color of the log's under the application bar, and of the key hints' line
+        Assert.AreEqual(
+            "CCCCCCCC  WWW WWWWW mmmmm",
+            ScreenText.ColorRows(gmd.CaptureColors(), 0, 1)[..25],
+            "The id and subject, and the line in bright magenta"
         );
 
         // Escape leaves the diff and the log view is back
         gmd.Send("Escape");
-        StringAssert.Contains(gmd.WaitUntilGone("Added: delta.txt"), "Merge branch 'dev' into main");
+        StringAssert.Contains(gmd.WaitUntilGone("A delta.txt"), "Merge branch 'dev' into main");
     }
 
     // '+' shows more of the file around its changes and '-' shows less, stepping 6 → 15 → the whole
     // file. It is per file: the file the cursor is on is the one that changes. The window asserted
     // is the file header and the first lines under it, which is where both halves show — the header
-    // names the context it is at, and the first line says how far up the file it now starts.
+    // names the context it is at, and the first line says how far up the file it now starts. The
+    // hunk header between them is the line git found above the hunk, as it names a function.
     //
     // The cursor has to be inside a file for the keys to mean anything, hence the Down presses;
     // each one is its own Send, since a key sent into a screen that has not settled is dropped.
@@ -65,37 +64,37 @@ public class DiffViewTest
         gmd.WaitFor("Change both files");
 
         gmd.Send("d");
-        var atDefault = ScreenText.Of(gmd.WaitFor("Modified: long.txt"), repo.Path);
+        var atDefault = ScreenText.Of(gmd.WaitFor("M long.txt"), repo.Path);
         MoveIntoTheLongFile();
 
         // Six lines either side of the change, so the file is drawn from line 14
         StringAssert.Contains(atDefault, "  14 line 14");
-        StringAssert.Contains(atDefault, "Modified: long.txt");
-        Assert.IsFalse(atDefault.Contains("long.txt  ("), "No context is named while it is the default");
+        StringAssert.Contains(atDefault, "M long.txt");
+        Assert.IsFalse(atDefault.Contains("(context"), "No context is named while it is the default");
 
         gmd.Send("+");
         ScreenText.AssertEqual(
             """
-            Modified: long.txt  (context 15)                                                                                       ┃
-                                                                                                                                   ┃
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┃
-               5 line 5                                                │   5 line 5                                                ┃
-               6 line 6                                                │   6 line 6                                                ┃
+            ▌ M long.txt  +1 -1  (context 15) ─────────────────────────────────────────────────────────────────────────────────────┃
+                5 line 5                                               │    5 line 5                                               ┃
+                6 line 6                                               │    6 line 6                                               ┃
+                7 line 7                                               │    7 line 7                                               ┃
+                8 line 8                                               │    8 line 8                                               ┃
             """,
-            ScreenText.Rows(gmd.WaitFor("(context 15)"), repo.Path, 11, 5),
+            ScreenText.Rows(gmd.WaitFor("(context 15)"), repo.Path, 7, 5),
             repo.Path
         );
 
         gmd.Send("+");
         ScreenText.AssertEqual(
             """
-            Modified: long.txt  (whole file)                                                                                       ┃
-                                                                                                                                   ┃
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┃
-               1 line 1                                                │   1 line 1                                                ┃
-               2 line 2                                                │   2 line 2                                                ┃
+            ▌ M long.txt  +1 -1  (whole file) ─────────────────────────────────────────────────────────────────────────────────────┃
+                1 line 1                                               │    1 line 1                                               ┃
+                2 line 2                                               │    2 line 2                                               ┃
+                3 line 3                                               │    3 line 3                                               ┃
+                4 line 4                                               │    4 line 4                                               ┃
             """,
-            ScreenText.Rows(gmd.WaitFor("(whole file)"), repo.Path, 11, 5),
+            ScreenText.Rows(gmd.WaitFor("(whole file)"), repo.Path, 7, 5),
             repo.Path
         );
 
@@ -103,14 +102,13 @@ public class DiffViewTest
         // whole thing: only the file the cursor was on was re-fetched and redrawn
         gmd.Send("End");
         var bottom = ScreenText.Of(gmd.WaitForStable(), repo.Path);
-        StringAssert.Contains(bottom, "Modified: short.txt");
-        StringAssert.Contains(bottom, "   2┃two", "Its two lines, exactly as it was drawn to begin with");
-        Assert.IsFalse(bottom.Contains("short.txt  ("), "The other file was left at the default");
+        StringAssert.Contains(bottom, "▌ M short.txt  +1 -1 ─", "The other file was left at the default");
+        StringAssert.Contains(bottom, "▌   2 two", "Its two lines, exactly as it was drawn to begin with");
 
         // '-' acts on the file the cursor is on too, and short.txt is already at the narrowest
         gmd.Send("-");
         var unchanged = ScreenText.Of(gmd.WaitForStable(), repo.Path);
-        Assert.IsFalse(unchanged.Contains("short.txt  ("), "Nothing to narrow");
+        Assert.IsFalse(unchanged.Contains("short.txt  +1 -1  ("), "Nothing to narrow");
         StringAssert.Contains(unchanged, "  40 line 40", "And the long file is still drawn to its end");
 
         // Back onto the long file and all the way down again, which is where it started
@@ -132,6 +130,289 @@ public class DiffViewTest
         }
     }
 
+    // ] and [ go to the next and the previous change, } and { to the next and the previous file, each
+    // saying which of how many it went to, or that there is none that way. The top row is the commit,
+    // and once a file's header has scrolled out of sight, the file the top of the view is in, as a
+    // breadcrumb.
+    [TestMethod]
+    public async Task TestGoToTheNextChangeAndFile()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        gmd.WaitFor("M long.txt");
+        StringAssert.StartsWith(ScreenText.Of(gmd.Capture(), repo.Path), "c00a3cc9  Change both files ───");
+
+        gmd.Send("}");
+        Assert.AreEqual("File 1 of 2: long.txt", ScreenText.LastLine(gmd.WaitFor("File 1 of 2")));
+
+        // The whole of long.txt, so that its header can scroll out of sight
+        gmd.Send("+");
+        gmd.WaitFor("(context 15)");
+        gmd.Send("+");
+        gmd.WaitFor("(whole file)");
+        gmd.Send("]");
+        Assert.AreEqual("Change 1 of 2", ScreenText.LastLine(gmd.WaitFor("Change 1 of 2")));
+        gmd.Send("PageDown");
+        StringAssert.StartsWith(
+            ScreenText.Of(gmd.WaitFor("› M long.txt"), repo.Path),
+            "c00a3cc9  Change both files › M long.txt  +1 -1  (whole file) ───"
+        );
+
+        // The page down took the cursor to the last row, below the last file's header and change
+        gmd.Send("}");
+        Assert.AreEqual("No more files below: { goes up", ScreenText.LastLine(gmd.WaitFor("No more files")));
+        gmd.Send("{");
+        Assert.AreEqual("File 2 of 2: short.txt", ScreenText.LastLine(gmd.WaitFor("File 2 of 2")));
+        gmd.Send("]");
+        Assert.AreEqual("Change 2 of 2", ScreenText.LastLine(gmd.WaitFor("Change 2 of 2")));
+        gmd.Send("]");
+        Assert.AreEqual("No more changes below: [ goes up", ScreenText.LastLine(gmd.WaitFor("No more changes")));
+        gmd.Send("[");
+        Assert.AreEqual("Change 1 of 2", ScreenText.LastLine(gmd.WaitFor("Change 1 of 2")));
+        gmd.Send("{");
+        Assert.AreEqual("File 1 of 2: long.txt", ScreenText.LastLine(gmd.WaitFor("File 1 of 2")));
+    }
+
+    // A view narrower than 110 columns shows the diff in one column, a change's removed lines above its
+    // added ones, and a wider one side by side, following the terminal as it is resized, until v
+    // chooses one for the diff
+    [TestMethod]
+    public async Task TestANarrowDiffIsInOneColumn()
+    {
+        using var repo = await E2eRepo.CreateWithChangesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 100, height: 30);
+        gmd.WaitFor("uncommitted");
+        gmd.Send("d");
+        StringAssert.Contains(ScreenText.Of(gmd.WaitFor("A epsilon.txt"), repo.Path), "    1 alpha\n▌   2 changed");
+
+        gmd.Resize(140, 30); // Side by side, and narrower than the list of files is drawn at
+        gmd.WaitFor("│▌   2 changed");
+
+        gmd.Send("v");
+        Assert.AreEqual(
+            "In one column: v shows the sides beside each other",
+            ScreenText.LastLine(gmd.WaitFor("In one column"))
+        );
+        StringAssert.Contains(
+            ScreenText.Of(gmd.Capture(), repo.Path),
+            "    1 alpha\n▌   2 changed",
+            "Wide, as v chose"
+        );
+        gmd.Send("v");
+        gmd.WaitFor("│▌   2 changed");
+    }
+
+    // v keeps the cursor on its line and in sight, where one column has more rows than side by side
+    // above it, here every other line changed. The view learnt how many rows there were as it drew,
+    // so the cursor was put on a row past the count before, scrolled to only as far as that count
+    // went, and left out of sight.
+    [TestMethod]
+    public async Task TestOneColumnKeepsTheCursorInSight()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 200).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("file.txt", string.Join("\n", lines) + "\n", "Add the file", TempRepo.BaseTime);
+        var changed = lines.Select((l, i) => i % 2 == 0 ? $"{l} changed" : l);
+        await repo.CommitFileAtAsync(
+            "file.txt",
+            string.Join("\n", changed) + "\n",
+            "Change every other line",
+            TempRepo.BaseTime.AddMinutes(1)
+        );
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change every other line");
+        gmd.Send("d");
+        gmd.WaitFor("M file.txt");
+        gmd.Send("End");
+        gmd.WaitFor(" 200 line 200");
+        gmd.Send("Up"); // Above the bottom row, which the status line is drawn over
+        gmd.WaitForStable();
+        gmd.Send("Up");
+        gmd.WaitForStable();
+
+        gmd.Send("v");
+        var screen = ScreenText.Of(gmd.WaitFor("In one column"), repo.Path).Split('\n');
+        var row = screen.FindIndexBy(l => l.Contains(" 198 line 198"));
+        Assert.AreNotEqual(-1, row, "The cursor's line in sight:\n" + string.Join("\n", screen));
+        StringAssert.StartsWith(
+            ScreenText.BackgroundRows(gmd.CaptureColors(), row, 1),
+            "  WWW",
+            "The cursor on its number"
+        );
+    }
+
+    // On a terminal 150 wide or more, the files are listed beside the diff, the one the cursor is in
+    // marked, and the diff's own list of them at its top is left out, the row counting them kept. Tab
+    // moves the keys to the list, where down goes to the next file, and Esc moves them back before it
+    // closes the diff.
+    [TestMethod]
+    public async Task TestTheFilesAreListedBesideAWideDiff()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160, height: 30);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        var screen = ScreenText.Of(gmd.WaitFor("Files 2"), repo.Path).Split('\n');
+        StringAssert.StartsWith(screen[1], " M long.txt  +1 -1");
+        StringAssert.StartsWith(screen[2], " M short.txt  +1 -1");
+        Assert.AreEqual(
+            """
+            Files 2               │ c00a3cc9  Change both files
+             M long.txt  +1 -1    │ Test User <test@example.com>  2024-10-15 12:02:00
+             M short.txt  +1 -1   │
+                                    2 files changed  2 modified  +2 -2
+
+                                    ▌ M long.txt  +1 -1
+            """,
+            string.Join("\n", screen.Take(6).Select(l => l.TrimEnd('─', ' ')))
+        );
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        gmd.WaitFor("▌M short.txt");
+
+        // The diff's cursor went with it: there is no file below short.txt's header
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("}");
+        Assert.AreEqual("No more files below: { goes up", ScreenText.LastLine(gmd.WaitFor("No more files")));
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Escape");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        StringAssert.Contains(gmd.WaitForStable(), "Files 2", "Esc left the list, and the diff is still open");
+
+        // A click on a line of the diff while the list has the keys gives them back to the diff: down
+        // then goes a line down, not to the next file
+        gmd.Send("{");
+        gmd.WaitForStable();
+        gmd.Send("Tab");
+        var (lineX, lineY) = TmuxSession.PositionOf(gmd.WaitForStable(), "line 18");
+        gmd.Click(lineX, lineY);
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        StringAssert.StartsWith(
+            ScreenText.Of(gmd.WaitForStable(), repo.Path).Split('\n')[1],
+            "▌M long.txt",
+            "Still in long.txt"
+        );
+
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Files 2");
+    }
+
+    // l hides the list of files, for the width it takes, and shows it again, and the next diff opens as
+    // it was left; while it is hidden, the hints say l shows it, and Tab says why it does nothing
+    [TestMethod]
+    public async Task TestTheFileListIsHiddenAndShownWithL()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160, height: 30, isKeyHints: true);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        gmd.WaitFor("Files 2");
+
+        gmd.Send("l");
+        var screen = gmd.WaitUntilGone("Files 2");
+        Assert.AreEqual("File list hidden: l shows it", ScreenText.LastLine(screen).Trim('─', ' '));
+        StringAssert.Contains(
+            ScreenText.Of(screen, repo.Path),
+            "2 files changed  2 modified  +2 -2\n  M long.txt   +1 -1\n  M short.txt  +1 -1",
+            "The files are listed at the diff's top again"
+        );
+        StringAssert.StartsWith(
+            ScreenText.Of(screen, repo.Path).Split('\n')[1],
+            "Test User",
+            "The diff is at the left"
+        );
+        gmd.Send("Tab");
+        Assert.AreEqual(
+            "The file list is hidden: l shows it",
+            ScreenText.LastLine(gmd.WaitFor("is hidden: l shows it")).Trim('─', ' ')
+        );
+
+        // Remembered: the next diff opens with no list, and the hints say how to have it back
+        gmd.Send("q");
+        gmd.WaitUntilGone("M long.txt");
+        gmd.Send("d");
+        screen = gmd.WaitFor("M long.txt");
+        Assert.IsFalse(screen.Contains("Files 2"), "Still hidden");
+        gmd.WaitUntilGone("is hidden"); // The status message, which covers the hints for a while
+        StringAssert.Contains(ScreenText.LastLine(gmd.WaitFor("l file list")), "} { file  l file list  f search");
+
+        gmd.Send("l");
+        screen = gmd.WaitFor("Files 2");
+        Assert.AreEqual("File list shown: Tab moves into it, l hides it", ScreenText.LastLine(screen).Trim('─', ' '));
+    }
+
+    // A wide diff of one file has it beside it too, as a merge stopped on one file leaves it: it was
+    // listed at the top of the diff, and then shown, and the list was not there to show
+    [TestMethod]
+    public async Task TestADiffOfOneFileHasItsListToo()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+
+        var screen = ScreenText.Of(gmd.WaitFor("C long.txt"), repo.Path).Split('\n');
+        StringAssert.StartsWith(screen[0], "Files 1               │ Uncommitted changes ───");
+        StringAssert.StartsWith(screen[1], " C long.txt  +1       │ "); // and the time of the changes
+        Assert.AreEqual(
+            """
+                                    1 file changed  1 conflicted  +1
+
+                                    ▌ C long.txt  +1
+                                          1 conflict: Enter resolves it
+            """,
+            string.Join("\n", screen.Skip(3).Take(4).Select(l => l.TrimEnd('─', ' ')))
+        );
+    }
+
+    // Where unchanged lines are left out between two parts of a file, a dark line with '⋯' where the
+    // line numbers are, on both sides side by side, and once in one column
+    [TestMethod]
+    public async Task TestLinesLeftOutAreMarkedOnBothSides()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 40).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", TempRepo.BaseTime);
+        lines[4] = "line 5 changed";
+        lines[34] = "line 35 changed";
+        var text = string.Join("\n", lines) + "\n";
+        await repo.CommitFileAtAsync("long.txt", text, "Two changes", TempRepo.BaseTime.AddMinutes(1));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Two changes");
+        gmd.Send("d");
+
+        // Git names the nearest line above that is not indented, which in this file is the line above
+        var screen = gmd.WaitFor("line 35 changed");
+        Assert.AreEqual(
+            """
+               11 line 11                                              │   11 line 11
+               ⋯ line 28 ───────────────────────────────────────────────── ⋯ ──────────────────────────────────────────────────────
+               29 line 29                                              │   29 line 29
+            """,
+            ScreenText.Rows(screen, repo.Path, 17, 3)
+        );
+        Assert.AreEqual(
+            "   D CCCC CC DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD D DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+            ScreenText.ColorRows(gmd.CaptureColors(), 18, 1)
+        );
+
+        gmd.Resize(100, 40);
+        screen = gmd.WaitForMoving(s => !s.Contains("│"), "the one column layout");
+        StringAssert.Contains(ScreenText.Of(screen, repo.Path), "\n   ⋯ line 28 ─────");
+        Assert.IsFalse(ScreenText.Of(screen, repo.Path).Contains("─ ⋯ ─"), "One mark in one column");
+    }
+
     // f, or /, asks for a text and puts the cursor on the first line with it, in any case, from the
     // cursor down, with the text marked black on yellow on the cursor's row too; n and Shift-N go on
     // from there and say where they stop, as the log's do. What it found is said over the bottom row,
@@ -143,7 +424,7 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Change both files");
         gmd.Send("d");
-        gmd.WaitFor("Modified: long.txt");
+        gmd.WaitFor("M long.txt");
 
         gmd.Send("/");
         gmd.WaitFor("Text to find in the diff");
@@ -153,10 +434,10 @@ public class DiffViewTest
         var found = gmd.WaitFor("Match 1 of");
         Assert.AreEqual("Match 1 of 7 for 'LINE 2'", ScreenText.LastLine(found));
         var row = ScreenText.Of(found, repo.Path).Split('\n').FindIndexBy(l => l.Contains("line 20 changed"));
-        // The cursor's row: highlighted on the left side, 'D', where the match is, and 'line 2' marked,
-        // 'y', on both sides, beside the change, 'g'
+        // The cursor's row: its number reversed on the left side, 'W', where the match is, and 'line 2'
+        // marked, 'y', on both sides, beside the word added, 'g'
         Assert.AreEqual(
-            "  DDDyyyy yD                                               .  ...yyyy y. ggggggg",
+            "-  WW yyyy y.                                              ..  .. yyyy y. ggggggg",
             ScreenText.BackgroundRows(gmd.CaptureColors(), row, 1)
         );
 
@@ -188,7 +469,7 @@ public class DiffViewTest
         gmd.WaitFor("Change both files");
 
         gmd.Send("d");
-        gmd.WaitFor("Modified: long.txt");
+        gmd.WaitFor("M long.txt");
         for (int i = 0; i < 18; i++)
         {
             gmd.Send("Down");
@@ -198,25 +479,25 @@ public class DiffViewTest
         gmd.Send("m");
         ScreenText.AssertEqual(
             """
-            ══════════════════════════════════════╭ Diff Menu ────────────────────────────────╮════════════════════════════════════
-            Commit:  c00a3cc9fb5f429e9136ddb81fe75│Scroll to                               s >│
-            Author:  Test User <test@example.com> │Search ...                              f  │
-            Date:    2024-10-15 12:02:00          │Next Match                              n  │
-            Message: Change both files            │Previous Match                         ⇧n  │
-                                                  │Diff File                                 >│
-            2 Files:  2 modified   +2 -2 lines    │Resolve Conflicts                   Enter >│
-              Modified:    long.txt               │Run External Merge Tool                   >│
-              Modified:    short.txt              │Discard Changes                         u >│
-                                                  │Refresh                                 r  │
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│Commit                                  c  │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Modified: long.txt                    │Leave Out of Commit                     x  │
-                                                  │More Context of long.txt (15 lines)     +  │
-            ──────────────────────────────────────│Less Context                            -  │────────────────────────────────────
-              14 line 14                          │Hide Whitespace Changes                 w  │
-              15 line 15                          │Focus Left Column                       ←  │
-              16 line 16                          │Focus Right Column                      →  │
-              17 line 17                          │Close                                 Esc  │
-              18 line 18                          ╰───────────────────────────────────────────╯
+            c00a3cc9  Change both files ──────────╭ Diff Menu ────────────────────────────────╮────────────────────────────────────
+            Test User <test@example.com>  2024-10-│Go to                                   s >│
+                                                  │Search ...                              f  │
+            2 files changed  2 modified  +2 -2    │Next Match                              n  │
+              M long.txt   +1 -1                  │Previous Match                         ⇧n  │
+              M short.txt  +1 -1                  │Diff File                                 >│
+                                                  │Resolve Conflicts                   Enter >│
+            ▌ M long.txt  +1 -1 ──────────────────│Run External Merge Tool                   >│────────────────────────────────────
+               14 line 14                         │Discard Changes                         u >│
+               15 line 15                         │Refresh                                 r  │
+               16 line 16                         │Commit                                  c  │
+               17 line 17                         │Leave Out of Commit                     x  │
+               18 line 18                         │More Context of long.txt (15 lines)     +  │
+               19 line 19                         │Less Context                            -  │
+            ▌  20 line 20                         │Hide Whitespace Changes                 w  │
+               21 line 21                         │Show in One Column                      v  │
+               22 line 22                         │Hide the Lines of long.txt              h  │
+               23 line 23                         │Focus Left Column                       ←  │
+               24 line 24                         │Focus Right Column                      →  │
             """,
             ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path
@@ -228,7 +509,7 @@ public class DiffViewTest
         StringAssert.Contains(colors[0], "mWWWW WWWWWWW", "'More Context' and its shortcut are enabled");
         StringAssert.Contains(colors[1], "mDDDD DDDDDDD", "'Less Context' is dark, i.e. disabled");
 
-        // Three moves down from 'Scroll to', past 'Search ...' and 'Refresh', since the disabled
+        // Three moves down from 'Go to', past 'Search ...' and 'Refresh', since the disabled
         // items in between are skipped, 'Leave Out of Commit' too, which only the uncommitted diff has
         for (int i = 0; i < 3; i++)
         {
@@ -239,7 +520,7 @@ public class DiffViewTest
 
         StringAssert.Contains(
             ScreenText.Of(gmd.WaitFor("(context 15)"), repo.Path),
-            "Modified: long.txt  (context 15)",
+            "▌ M long.txt  +1 -1  (context 15)",
             "The menu item does what the '+' key does"
         );
     }
@@ -255,11 +536,11 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
         gmd.Send("d");
-        gmd.WaitFor("Added: delta.txt");
+        gmd.WaitFor("A delta.txt");
 
         gmd.Send(key);
 
-        StringAssert.Contains(gmd.WaitUntilGone("Added: delta.txt"), "Merge branch 'dev' into main");
+        StringAssert.Contains(gmd.WaitUntilGone("A delta.txt"), "Merge branch 'dev' into main");
         Assert.IsTrue(gmd.IsRunning, $"'{key}' should close the diff view, not quit gmd");
     }
 
@@ -274,7 +555,7 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("▲1");
         gmd.Send("d");
-        gmd.WaitFor("Added: zeta.txt");
+        gmd.WaitFor("A zeta.txt");
 
         foreach (var key in new[] { "P", "p", "U", "u" })
         {
@@ -283,7 +564,7 @@ public class DiffViewTest
         }
 
         gmd.Send("Escape");
-        StringAssert.Contains(gmd.WaitUntilGone("Added: zeta.txt"), "▲1", "Nothing was pushed");
+        StringAssert.Contains(gmd.WaitUntilGone("A zeta.txt"), "▲1", "Nothing was pushed");
         Assert.AreEqual(remoteMain, await repo.GitAsync("ls-remote origin main"), "origin is untouched");
     }
 
@@ -299,33 +580,25 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("©2 uncommitted changes");
         gmd.Send("d");
-        gmd.WaitFor("Modified: beta.txt");
+        gmd.WaitFor("M beta.txt");
 
         gmd.Send("w");
         var hidden = gmd.WaitFor("whitespace hidden");
-        // From the message down, the date of the uncommitted changes being the time now
+        // From the files row down, the row above it being the date of the uncommitted changes, now
         Assert.AreEqual(
             """
-            Message: Uncommitted changes
+            2 files changed  2 modified  +1  whitespace hidden
+              M alpha.txt  +1
+              M beta.txt   whitespace only
 
-            2 Files:  2 modified   +1 -0 lines   whitespace hidden
-              Modified:    alpha.txt
-              Modified:    beta.txt (Whitespace only)
+            ▌ M alpha.txt  +1 ─────────────────────────────────────────────────────────────────────────────────────────────────────
+                1   alpha                                              │    1   alpha
+                                                                       │▌   2 more
 
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Modified: alpha.txt
-
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-               1   alpha                                               │   1   alpha
-            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│   2┃more
-            ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Modified: beta.txt  (Whitespace only)
-
-            Only whitespace changed, which is hidden
+            ▌ M beta.txt  whitespace only ─────────────────────────────────────────────────────────────────────────────────────────
+                  Only whitespace changed, which is hidden
             """,
-            ScreenText.Rows(hidden, repo.Path, 2, 18)
+            ScreenText.Rows(hidden, repo.Path, 3, 10)
         );
         Assert.AreEqual("Whitespace changes hidden: w shows them", ScreenText.LastLine(hidden));
 
@@ -335,11 +608,46 @@ public class DiffViewTest
         gmd.WaitUntilGone("All Changes");
 
         gmd.Send("w");
-        StringAssert.Contains(gmd.WaitUntilGone("whitespace hidden"), "Modified: beta.txt");
+        StringAssert.Contains(gmd.WaitUntilGone("whitespace hidden"), "M beta.txt");
     }
 
     // A file with two changes, two made TWO, and eleven made ELEVEN with a line added after it, not
     // committed, and the diff of it open with the cursor on the second change, which search put it on
+    // h hides the lines of the file the cursor is in, which is then its header alone, and h on it shows
+    // them again. Lines left out of the commit in a file hidden are not reported as not found for not
+    // being drawn.
+    [TestMethod]
+    public async Task TestHideTheLinesOfAFile()
+    {
+        var (repo, gmd) = await OnTheSecondChangeAsync("ELEVEN");
+        using var _ = repo;
+        using var __ = gmd;
+        gmd.Send("x");
+        gmd.WaitFor("out of the commit");
+
+        gmd.Send("h");
+        Assert.AreEqual(
+            "The lines of lines.txt are hidden: h shows them",
+            ScreenText.LastLine(gmd.WaitFor("are hidden"))
+        );
+        var hidden = ScreenText.Of(gmd.Capture(), repo.Path);
+        StringAssert.Contains(hidden, "▌ M lines.txt  +3 -2  lines hidden  (3 lines left out) ─");
+        Assert.IsFalse(hidden.Contains("ELEVEN"), "Its lines are not drawn");
+
+        // + shows no more of a file whose lines are hidden: it re-read the diff, and the header said the
+        // context it had now, of lines not shown
+        gmd.Send("+");
+        StringAssert.Contains(
+            ScreenText.Of(gmd.WaitForStable(), repo.Path),
+            "▌ M lines.txt  +3 -2  lines hidden  (3 lines left out) ─",
+            "As it was"
+        );
+
+        gmd.Send("h");
+        Assert.AreEqual("The lines of lines.txt are shown", ScreenText.LastLine(gmd.WaitFor("are shown")));
+        StringAssert.Contains(ScreenText.Of(gmd.Capture(), repo.Path), "ELEVEN");
+    }
+
     static async Task<(TempRepo Repo, TmuxSession Gmd)> OnTheSecondChangeAsync(string search)
     {
         var repo = await E2eRepo.CreateAsync();
@@ -353,7 +661,7 @@ public class DiffViewTest
         var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("uncommitted");
         gmd.Send("d");
-        gmd.WaitFor("Modified: lines.txt");
+        gmd.WaitFor("M lines.txt");
         gmd.Send("/");
         gmd.WaitFor("Text to find in the diff");
         gmd.SendText(search);
@@ -437,8 +745,8 @@ public class DiffViewTest
             ScreenText.LastLine(gmd.WaitFor("out of the commit"))
         );
         var diff = ScreenText.Of(gmd.Capture(), repo.Path);
-        StringAssert.Contains(diff, "Modified: lines.txt  (3 lines left out)");
-        StringAssert.Contains(diff, "  11╎line 11");
+        StringAssert.Contains(diff, "▌ M lines.txt  +3 -2  (3 lines left out)");
+        StringAssert.Contains(diff, "╎  11 line 11");
 
         gmd.Send("c");
         StringAssert.Contains(gmd.WaitFor("Commit 1 change on 'main'"), "M lines.txt  3 lines left out");
@@ -467,7 +775,7 @@ public class DiffViewTest
         gmd.Send("x");
         gmd.WaitFor("out of the commit");
         gmd.Send("Escape");
-        gmd.WaitUntilGone("Modified: lines.txt");
+        gmd.WaitUntilGone("M lines.txt");
         repo.WriteFile("lines.txt", File.ReadAllText(Path.Join(repo.Path, "lines.txt")).Replace("ELEVEN", "ELEVEN!"));
 
         gmd.Send("c");
@@ -490,7 +798,7 @@ public class DiffViewTest
         gmd.WaitFor("©2 uncommitted changes");
         var before = await repo.GitAsync("status --porcelain");
         gmd.Send("d");
-        gmd.WaitFor("Added: epsilon.txt");
+        gmd.WaitFor("A epsilon.txt");
         gmd.Send("u");
         gmd.WaitFor("All Changes");
         gmd.Send("End");
@@ -506,7 +814,7 @@ public class DiffViewTest
         );
         Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
         gmd.Send("Escape");
-        gmd.WaitUntilGone("Added: epsilon.txt");
+        gmd.WaitUntilGone("A epsilon.txt");
 
         // The commit menu starts on 'Amend ...', and 'Undo' is three moves down, past 'Commit Diff'
         // and 'Mark for Diff'; in it, on 'Undo Commit', main's last change, as DeletedBranchesDlgTest
@@ -616,7 +924,7 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Add delta");
         gmd.Send("d");
-        gmd.WaitFor("Added: delta.txt");
+        gmd.WaitFor("A delta.txt");
         gmd.Send("m");
         gmd.WaitFor("Diff Menu");
 
@@ -640,7 +948,7 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("©2 uncommitted changes");
         gmd.Send("d");
-        gmd.WaitFor("Added: epsilon.txt");
+        gmd.WaitFor("A epsilon.txt");
         gmd.Send("u");
         gmd.WaitFor("All Changes");
         gmd.Send(move);
@@ -650,7 +958,7 @@ public class DiffViewTest
 
         gmd.Send("Enter");
 
-        StringAssert.Contains(gmd.WaitUntilGone(question), "Added: epsilon.txt", "Still in the diff");
+        StringAssert.Contains(gmd.WaitUntilGone(question), "A epsilon.txt", "Still in the diff");
         Assert.AreEqual(" M alpha.txt\n?? epsilon.txt", await repo.GitAsync("status -s"), "Nothing undone");
     }
 
@@ -665,7 +973,7 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
         gmd.Send("d");
-        gmd.WaitFor("Added: delta.txt");
+        gmd.WaitFor("A delta.txt");
 
         gmd.Send(key);
 
@@ -684,14 +992,14 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
         gmd.Send("d");
-        gmd.WaitFor("Added: delta.txt");
+        gmd.WaitFor("A delta.txt");
 
         gmd.Send(key);
         gmd.WaitFor("copied to the clipboard");
         StringAssert.EndsWith(gmd.Clipboard(), "/gmd/doc/help.md#diff-and-blame");
         gmd.Send("Enter");
 
-        StringAssert.Contains(gmd.WaitUntilGone("copied to the clipboard"), "Added: delta.txt", "Back in the diff");
+        StringAssert.Contains(gmd.WaitUntilGone("copied to the clipboard"), "A delta.txt", "Back in the diff");
     }
 
     // Any two commits, wherever they are: Mark for Diff on one, and Diff with it in the menu of the
@@ -721,8 +1029,8 @@ public class DiffViewTest
         PickCommitMenuItem(gmd, 3, $"Diff with {beta}");
 
         var diff = gmd.WaitFor($"Diff {beta} to 17d85ba8");
-        StringAssert.Contains(diff, "Added: delta.txt");
-        StringAssert.Contains(diff, "Added: gamma.txt", "And what the merge brought in between");
+        StringAssert.Contains(diff, "A delta.txt");
+        StringAssert.Contains(diff, "A gamma.txt", "And what the merge brought in between");
     }
 
     static void PickCommitMenuItem(TmuxSession gmd, int moves, string item)

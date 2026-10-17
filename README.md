@@ -10,7 +10,7 @@ branch graph where **you choose which branches are shown**, so the log stays cle
 rebasing or squashing. The everyday Git commands are in menus and on single keys, so you don't
 need to remember their syntax.
 
-![Gmd in a terminal: the branch graph, two hidden branches shown, a diff, a search, a commit and a push](gmd/doc/Animation.gif)
+![Gmd in a terminal: the branch graph, two hidden branches shown, a diff, a search, a commit and a push, and a merge whose conflict is resolved by combining both changes](gmd/doc/Animation.gif)
 *Showing two hidden branches, one of them deleted long ago, a commit's diff, a search, then a
 commit, a push and an update of every shown branch.*
 
@@ -195,8 +195,9 @@ once. Gmd keeps that readable rather than letting it flood the log:
 - **Tidy up before you push**: amend any commit not pushed yet, with a new message or the changes
   you tick, drop one, or squash several, and Undo takes each back.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to
-  each other, with the common ancestor at hand, and when you are done you can continue, skip or
-  abort the operation.
+  each other, as what each did to the common ancestor, combines both where they changed other
+  words, and takes you through the files one after the other, with the file as it will be saved
+  below. When you are done you can commit or continue, skip or abort the operation.
 - **Worktrees**: see every worktree of a repository and which ones have uncommitted changes, and
   open, add or remove them.
 - **Open in the browser**: a branch, a commit or the repository on GitHub, GitLab, Bitbucket, Azure

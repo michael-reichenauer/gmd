@@ -1,0 +1,118 @@
+using System.Runtime.CompilerServices;
+using DiffPlex;
+using gmd.Cui.Common;
+using gmd.Server;
+
+namespace gmd.Cui.Conflict;
+
+enum SideLineKind
+{
+    Same, // As the common ancestor has it
+    Added, // A line the ancestor did not have
+    Changed, // A line of the ancestor's with some of its words changed
+    Removed, // A line of the ancestor's the side no longer has
+}
+
+// A line of a side of a conflict, as its change against the common ancestor: its text, the side's
+// for all but a removed line, which is the ancestor's; the words of a changed line, which ones
+// changed; and where it is in the side, -1 for a removed line
+record SideLine(SideLineKind Kind, string Text, IReadOnlyList<WordRun> Words, int SideIndex);
+
+// What a side of a conflict did to the common ancestor, which is what tells why the two sides
+// conflict: e.g. one rewrote three lines and the other only added two above them. A line diff of the
+// ancestor and the side, a removed line paired with the most alike added one, in order, and then
+// compared word by word. The diff view pairs them by position, as a commit of part of a change
+// does, but nothing is committed from these. No view, so it is unit testable.
+static class SideChanges
+{
+    static readonly Differ differ = new();
+    static readonly LineChunker chunker = new();
+
+    // How many added lines past where the alignment puts it a removed line is looked for among, which
+    // a block of lines added above a changed one has to be within for the two to be paired. Every
+    // added line left was looked at, which made a side that rewrote a thousand lines half a million
+    // comparisons, and the resolver, which makes its rows anew with every decision, seconds a key.
+    const int Lookahead = 50;
+
+    // A side's changes, made once for the lines of a file as read, which the resolver's rows are made
+    // from with every decision, and Combine from too: by the side's lines, as long as they are alive,
+    // and while the ancestor is the same
+    static readonly ConditionalWeakTable<IReadOnlyList<FileLine>, Made> made = new();
+
+    record Made(IReadOnlyList<FileLine> Ancestor, IReadOnlyList<SideLine> Lines);
+
+    public static IReadOnlyList<SideLine> Of(IReadOnlyList<FileLine> ancestor, IReadOnlyList<FileLine> side)
+    {
+        if (made.TryGetValue(side, out var known) && ReferenceEquals(known.Ancestor, ancestor))
+            return known.Lines;
+
+        var lines = Make(ancestor, side);
+        made.AddOrUpdate(side, new Made(ancestor, lines));
+        return lines;
+    }
+
+    static IReadOnlyList<SideLine> Make(IReadOnlyList<FileLine> ancestor, IReadOnlyList<FileLine> side)
+    {
+        var (old, now) = (ancestor.Select(l => l.Text).ToList(), side.Select(l => l.Text).ToList());
+        var result = differ.CreateDiffs(string.Join('\n', old), string.Join('\n', now), false, false, chunker);
+        if (old.Count == 0) // An empty text is one empty line to the differ
+            return now.Select((t, i) => new SideLine(SideLineKind.Added, t, [], i)).ToList();
+        if (now.Count == 0)
+            return old.Select(t => new SideLine(SideLineKind.Removed, t, [], -1)).ToList();
+
+        List<SideLine> lines = [];
+        var (o, n) = (0, 0); // Where the ancestor and the side are up to
+        foreach (var block in result.DiffBlocks)
+        {
+            for (; n < block.InsertStartB; o++, n++)
+                lines.Add(new SideLine(SideLineKind.Same, now[n], [], n));
+
+            // Each removed line paired with the most alike added line after the last one paired,
+            // the added lines before it added, so that a line written above a changed one does not
+            // take its place. Looked for from where the removed lines passed over since the last one
+            // paired would put it, up to Lookahead lines on, and as many before.
+            var next = block.InsertStartB;
+            var end = block.InsertStartB + block.InsertCountB;
+            var passed = 0;
+            for (int r = block.DeleteStartA; r < block.DeleteStartA + block.DeleteCountA; r++)
+            {
+                var last = Math.Min(end, next + passed + Lookahead);
+                var first = Math.Max(next, last - 2 * Lookahead);
+                var match = Enumerable
+                    .Range(first, last - first)
+                    .Select(a => (Index: a, Words: LineWords.Of(old[r], now[a])))
+                    .Where(m => m.Words.IsAlike)
+                    .OrderByDescending(m => m.Words.Likeness)
+                    .FirstOrDefault();
+                if (match.Words == null)
+                {
+                    lines.Add(new SideLine(SideLineKind.Removed, old[r], [], -1));
+                    passed++;
+                    continue;
+                }
+
+                for (; next < match.Index; next++)
+                    lines.Add(new SideLine(SideLineKind.Added, now[next], [], next));
+                lines.Add(new SideLine(SideLineKind.Changed, now[match.Index], match.Words.Right, match.Index));
+                next = match.Index + 1;
+                passed = 0;
+            }
+            for (; next < end; next++)
+                lines.Add(new SideLine(SideLineKind.Added, now[next], [], next));
+
+            (o, n) = (block.DeleteStartA + block.DeleteCountA, end);
+        }
+        for (; n < now.Count; n++)
+            lines.Add(new SideLine(SideLineKind.Same, now[n], [], n));
+
+        return lines;
+    }
+
+    // The lines joined above, split where they were joined. DiffPlex's own line diff also ends a line
+    // at a '\r', which a line of a file keeps when it is not followed by a '\n', so its pieces were no
+    // longer the lines, and indexing the lines by them threw.
+    class LineChunker : IChunker
+    {
+        public IReadOnlyList<string> Chunk(string text) => text.Split('\n');
+    }
+}

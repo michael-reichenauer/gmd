@@ -17,15 +17,18 @@ record ConflictColumns(int PaneCount, int Pane, int Separators)
 
     public int TotalWidth => PaneCount * Pane + Separators;
 
+    // The width the columns were worked out for, which they may stop a column or two short of
+    public int Width { get; init; }
+
     public static ConflictColumns Calculate(int width, bool isShowBase)
     {
         if (isShowBase)
         {
             var pane = (width - 2) / 3;
             if (pane >= MinPaneWidth)
-                return new ConflictColumns(3, pane, 2);
+                return new ConflictColumns(3, pane, 2) { Width = width };
         }
 
-        return new ConflictColumns(2, Math.Max(0, (width - 1) / 2), 1);
+        return new ConflictColumns(2, Math.Max(0, (width - 1) / 2), 1) { Width = width };
     }
 }

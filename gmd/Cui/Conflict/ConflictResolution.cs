@@ -12,6 +12,7 @@ class ConflictResolution
     readonly ConflictFile file;
     readonly Dictionary<int, HunkChoice> choices = [];
     readonly Dictionary<int, string> manualTexts = [];
+    readonly Dictionary<int, IReadOnlyList<CombinedLine>> combined = [];
 
     public ConflictResolution(ConflictFile file)
     {
@@ -29,6 +30,7 @@ class ConflictResolution
 
     public void Set(int hunkIndex, HunkChoice choice, string manualText = "")
     {
+        combined.Remove(hunkIndex);
         if (choice == HunkChoice.None)
         {
             choices.Remove(hunkIndex);
@@ -42,6 +44,29 @@ class ConflictResolution
         else
             manualTexts.Remove(hunkIndex);
     }
+
+    // Both sides' changes in one (ConflictCombine), taken as text the user wrote, as an edit by hand
+    // is, and kept as lines with where each came from, which is how the result draws them
+    public void SetCombined(int hunkIndex, IReadOnlyList<CombinedLine> lines)
+    {
+        Set(hunkIndex, HunkChoice.Manual, ToText(lines.Select(l => l.Text)));
+        combined[hunkIndex] = lines;
+    }
+
+    // A copy with one conflict as text being typed by hand, which the result pane shows while it is
+    // typed (ConflictView): the decision is made once the typing is done
+    public ConflictResolution WithTyped(int hunkIndex, string text)
+    {
+        var copy = new ConflictResolution(file);
+        choices.ToList().ForEach(c => copy.choices[c.Key] = c.Value);
+        manualTexts.ToList().ForEach(t => copy.manualTexts[t.Key] = t.Value);
+        combined.ToList().ForEach(c => copy.combined[c.Key] = c.Value);
+        copy.Set(hunkIndex, HunkChoice.Manual, text);
+        return copy;
+    }
+
+    // The combination a conflict was decided with, null where it was not
+    public IReadOnlyList<CombinedLine>? CombinedOf(int hunkIndex) => combined.GetValueOrDefault(hunkIndex);
 
     // Every conflict, in order, whether decided or not — the count is what the Git layer checks the
     // file against, so a file that changed underneath is caught rather than resolved by position
@@ -84,5 +109,16 @@ class ConflictResolution
             lines.RemoveAt(lines.Count - 1);
 
         return lines;
+    }
+
+    // Lines as text, which ToLines reads back as the same lines, e.g. both sides to start typing
+    // from, or a combination taken as text. Joined by '\n', and with one more after an empty last
+    // line: by the rule above a '\n' at the end only ends the line before it, so joining alone lost
+    // a blank last line, and a combination of one blank line wrote nothing.
+    public static string ToText(IEnumerable<string> lines)
+    {
+        var list = lines.ToList();
+        var text = string.Join('\n', list);
+        return list.Count > 0 && list[^1] == "" ? text + "\n" : text;
     }
 }

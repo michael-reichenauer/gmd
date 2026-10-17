@@ -705,7 +705,8 @@ public class MenuItemsTest
             new Config(),
             null!,
             null!,
-            _ => null!
+            _ => null!,
+            null!
         );
         return commands;
     }

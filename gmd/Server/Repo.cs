@@ -269,11 +269,19 @@ public enum ConflictKind
 
 // What is conflicted right now and what git is in the middle of, which is one status read rather
 // than two — the operation is what names the resolver and says which side is which.
-public record ConflictState(GitOperation Operation, IReadOnlyList<ConflictedFile> Files)
+// IsFinishedByCommit is whether a commit finishes the operation once its conflicts are resolved, a
+// merge's, rather than a continue, a rebase's, see Status.IsFinishedByCommit
+public record ConflictState(GitOperation Operation, IReadOnlyList<ConflictedFile> Files, bool IsFinishedByCommit = true)
 {
     public static readonly ConflictState None = new ConflictState(GitOperation.None, []);
 
     public override string ToString() => $"{Operation}: {Files.Count} conflicts";
+}
+
+// The two sides of an operation stopped on conflicts, see Git.ConflictSides
+public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject)
+{
+    public static readonly ConflictSides None = new("", "", "");
 }
 
 public record ConflictedFile(string Path, ConflictKind Kind)
@@ -421,7 +429,11 @@ record SectionDiff(
     int RightLine,
     int RightCount,
     IReadOnlyList<LineDiff> LineDiffs
-);
+)
+{
+    // The function or heading the hunk is in, as git's hunk header names it, "" for none
+    public string Function { get; init; } = "";
+}
 
 record LineDiff(DiffMode DiffMode, string Line);
 

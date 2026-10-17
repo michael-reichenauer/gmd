@@ -64,6 +64,23 @@ public class ConflictResolutionTest
     }
 
     // Choosing a side after editing by hand must not leave the edit behind to be written
+    // The result pane shows a conflict as it is typed from a copy, the decisions so far with the text
+    // typed for it, and the decision is made only when the typing is done
+    [TestMethod]
+    public void TestTypingIsShownFromACopy()
+    {
+        var resolution = new ConflictResolution(FileWith(2));
+        resolution.Set(0, HunkChoice.Theirs);
+
+        var typed = resolution.WithTyped(1, "a\nb");
+
+        Assert.AreEqual(HunkChoice.Theirs, typed.ChoiceOf(0));
+        Assert.AreEqual(HunkChoice.Manual, typed.ChoiceOf(1));
+        Assert.AreEqual("a\nb", typed.ManualTextOf(1));
+        Assert.AreEqual(HunkChoice.None, resolution.ChoiceOf(1), "Not decided until done");
+        Assert.AreEqual(1, resolution.UnresolvedCount);
+    }
+
     [TestMethod]
     public void TestChoosingASideForgetsTheHandEdit()
     {
@@ -172,5 +189,70 @@ public class ConflictResolutionTest
         var written = gmd.Git.Private.ConflictParser.ToLines(text.Replace("\r\n", "\n")).Select(l => l.Text);
 
         Assert.AreEqual(string.Join("|", written), string.Join("|", previewed), $"For {text.Replace("\n", "\\n")}");
+    }
+
+    // A combination is taken as text the user wrote, as an edit by hand is, which is what goes down
+    // to be written, and is kept as its lines with where each came from until decided otherwise
+    [TestMethod]
+    public void TestACombinationIsTextKeptWithItsLines()
+    {
+        var file = FileWith(1);
+        var resolution = new ConflictResolution(file);
+        var lines = new[] { new CombinedLine("t", LineOrigin.Theirs), new CombinedLine("both", LineOrigin.Both) };
+
+        resolution.SetCombined(0, lines);
+
+        Assert.AreEqual(HunkChoice.Manual, resolution.ChoiceOf(0));
+        Assert.AreEqual("t\nboth", resolution.ToResolutions()[0].ManualText);
+        CollectionAssert.AreEqual(
+            new[] { "t", "both" },
+            resolution.ResultOf(file.Hunks[0]).Select(l => l.Text).ToArray()
+        );
+        Assert.AreSame(lines, resolution.CombinedOf(0));
+
+        resolution.Set(0, HunkChoice.Ours);
+        Assert.IsNull(resolution.CombinedOf(0), "Decided otherwise");
+    }
+
+    // Lines made text, both sides to start typing from or a combination taken as text, are read back
+    // as the same lines, by the result pane and by the Git layer that writes them: joined alone, a
+    // blank last line was drawn in the result and never written, and one blank line wrote nothing
+    [TestMethod]
+    [DataRow(new string[0])]
+    [DataRow(new[] { "" })]
+    [DataRow(new[] { "a" })]
+    [DataRow(new[] { "a", "b" })]
+    [DataRow(new[] { "a", "" })]
+    [DataRow(new[] { "", "a" })]
+    [DataRow(new[] { "a", "", "" })]
+    [DataRow(new[] { "", "" })]
+    public void TestLinesMadeTextAreReadBackAsTheSameLines(string[] lines)
+    {
+        var text = ConflictResolution.ToText(lines);
+
+        var previewed = ConflictResolution.ToLines(text).Select(l => l.Text);
+        var written = gmd.Git.Private.ConflictParser.ToLines(text).Select(l => l.Text);
+        Assert.AreEqual(string.Join("|", lines), string.Join("|", previewed), "Previewed");
+        Assert.AreEqual(string.Join("|", lines), string.Join("|", written), "Written");
+    }
+
+    // A combination that ends in a blank line keeps it, in the result and in the text written
+    [TestMethod]
+    public void TestACombinationEndingInABlankLineKeepsIt()
+    {
+        var file = FileWith(1);
+        var resolution = new ConflictResolution(file);
+
+        resolution.SetCombined(
+            0,
+            [new CombinedLine("y = a + c;", LineOrigin.Both), new CombinedLine("", LineOrigin.Ours)]
+        );
+
+        CollectionAssert.AreEqual(
+            new[] { "y = a + c;", "" },
+            resolution.ResultOf(file.Hunks[0]).Select(l => l.Text).ToArray()
+        );
+        var written = gmd.Git.Private.ConflictParser.ToLines(resolution.ToResolutions()[0].ManualText);
+        CollectionAssert.AreEqual(new[] { "y = a + c;", "" }, written.Select(l => l.Text).ToArray());
     }
 }

@@ -75,9 +75,11 @@ static class ScreenText
         Join(ColorLines(escapedCapture, isForeground: true).Skip(first).Take(count));
 
     // The same for the background, which is how the log view draws the row the cursor is on: a
-    // run of 'D', i.e. a dark gray background, over the part of the row that is highlighted.
-    public static string BackgroundRows(string escapedCapture, int first, int count) =>
-        Join(ColorLines(escapedCapture, isForeground: false).Skip(first).Take(count));
+    // run of 'D', i.e. a dark gray background, over the part of the row that is highlighted. A blank
+    // cell is blank, unless isBlankShown, when it is its background too, e.g. a cursor on a row of no
+    // line number, '.' where it is black.
+    public static string BackgroundRows(string escapedCapture, int first, int count, bool isBlankShown = false) =>
+        Join(ColorLines(escapedCapture, isForeground: false, isBlankShown).Skip(first).Take(count));
 
     // Asserts the screen matches. On a mismatch the actual screen is printed as a block that can
     // be read, checked and pasted straight back into the test, which is how these snapshots are
@@ -127,7 +129,7 @@ static class ScreenText
     // Walks an escaped capture, tracking the color the terminal is currently set to, and emits
     // one letter per visible character. Everything drawn goes through here, so an unexpected
     // color shows up as '?' rather than being quietly dropped.
-    static IEnumerable<string> ColorLines(string escapedCapture, bool isForeground)
+    static IEnumerable<string> ColorLines(string escapedCapture, bool isForeground, bool isBlankShown = false)
     {
         var lines = new List<string>();
 
@@ -159,7 +161,7 @@ static class ScreenText
                     continue;
                 }
 
-                letters.Append(line[i] == ' ' ? ' ' : Letter(color));
+                letters.Append(line[i] == ' ' && !isBlankShown ? ' ' : Letter(color));
                 i++;
             }
 

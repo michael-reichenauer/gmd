@@ -1,4 +1,3 @@
-using DiffPlex;
 using gmd.Cui.Common;
 using gmd.Server;
 
@@ -13,28 +12,39 @@ interface IDiffRowService
     // headers can say so; the diff itself carries no record of how much context it was made with.
     // conflictPaths are the files git reports as unmerged. Needed because the diff can only see a
     // conflict git wrote markers for: a modify/delete or a binary conflict has none, and would
-    // otherwise be headed 'Added:' or 'Modified:' as if there were nothing to resolve.
+    // otherwise be headed as added or modified as if there were nothing to resolve.
     // isIgnoreWhitespace is a diff read with whitespace left out, whose rows say so, and mark no change
-    // of the spaces around a line's text, nor of its line end, either.
+    // of the spaces around a line's text, nor of its line end, either. isOneColumn is the layout of a
+    // narrow view: a change's removed lines above its added ones, as git writes them, rather than
+    // beside them. hiddenFiles are the files whose lines are hidden, drawn as their header alone.
+    // isListBeside is a diff with the list of its files beside it, or of its commits in a file
+    // history, which the list at its top then leaves out, keeping the row that counts them.
     DiffRows ToDiffRows(
         CommitDiff[] commitDiffs,
         IReadOnlyDictionary<string, int> fileContext,
         IReadOnlyList<string> conflictPaths,
-        bool isIgnoreWhitespace = false
+        bool isIgnoreWhitespace = false,
+        bool isOneColumn = false,
+        IReadOnlySet<string>? hiddenFiles = null,
+        bool isListBeside = false
     );
     IReadOnlyList<string> GetDiffFilePaths(CommitDiff diff);
     IReadOnlyList<string> GetDiffBinaryFilePaths(CommitDiff diff);
 }
 
+// Turns diffs into the rows the diff view draws. A source line is drawn after a gutter of a bar and
+// its line number: the bar, in the red or the green of a change, is what says a line changed, and
+// within a changed line only the words that differ are marked on a background, so the text reads as
+// text rather than as a block of color.
 class DiffRowService : IDiffRowService
 {
-    const int maxLineDiffsCount = 4;
-    const string diffMargin = "┃"; // │ ┃ ;
-    public static readonly Text NoLine = Text.Dark(new string('░', 300));
+    // The bar at the edge of a changed line's column
+    const string ChangeBar = "▌";
 
-    // Strips the line number gutter a row is drawn with, so a copy yields the file's own text.
-    // The gutter is the number right-aligned in 4 (wider if the number does not fit, which a large
-    // file reaches) followed by the one margin character.
+    // The side of a row with no line, e.g. beside a line added, drawn blank. 300 wide, so it fills a
+    // column of any width, and known by identity, which is how DiffRows and the view tell it apart.
+    public static readonly Text NoLine = Text.Black(new string(' ', 300));
+
     // The text of rows copied: the side in focus of the side by side rows, the one column of the
     // others, with no line number gutter and no filler of a side that has no line. A whole file
     // added or removed is drawn in one column, with its line number on its own side, which the copy
@@ -52,19 +62,22 @@ class DiffRowService : IDiffRowService
                 .Select(r => WithoutLineNbr(r.Text.ToString(), r.LineNbr))
         );
 
+    // Strips the line number gutter a row is drawn with, so a copy yields the file's own text
     public static string WithoutLineNbr(string rowText, int lineNbr)
     {
         var width = LineNbrWidth(lineNbr);
         return rowText.Length > width ? rowText[width..] : "";
     }
 
-    // How wide the line number is at the start of a row's text, which a copy and a search leave out;
-    // 0 for a row that is not a source line
-    public static int LineNbrWidth(int lineNbr) => lineNbr == 0 ? 0 : Math.Max(4, lineNbr.ToString().Length) + 1;
+    // How wide the gutter is at the start of a row's text, which a copy and a search leave out and the
+    // view keeps in place while the line scrolls sideways: the bar, the number right-aligned in 4,
+    // wider if it does not fit, which a large file reaches, and a space; 0 for a row that is not a
+    // source line
+    public static int LineNbrWidth(int lineNbr) => lineNbr == 0 ? 0 : Math.Max(4, lineNbr.ToString().Length) + 2;
 
     // The text of each side of a row that a search looks in: its line without the line number, and
     // nothing of a divider or of the filler of a side with no line, which are no text of the diff. A
-    // header row, e.g. 'Modified: <path>', spans both sides and is the left one.
+    // header row, e.g. a file's, spans both sides and is the left one.
     public static (string Left, string Right) SearchText(DiffRow row) =>
         row.Mode switch
         {
@@ -89,29 +102,37 @@ class DiffRowService : IDiffRowService
         CommitDiff[] commitDiffs,
         IReadOnlyDictionary<string, int> fileContext,
         IReadOnlyList<string> conflictPaths,
-        bool isIgnoreWhitespace = false
+        bool isIgnoreWhitespace = false,
+        bool isOneColumn = false,
+        IReadOnlySet<string>? hiddenFiles = null,
+        bool isListBeside = false
     )
     {
         commitDiffs = commitDiffs.Select(d => AsConflicted(d, conflictPaths)).ToArray();
+        var layout = new Layout(
+            isIgnoreWhitespace,
+            isOneColumn,
+            hiddenFiles ?? new HashSet<string>(),
+            conflictPaths.ToHashSet(),
+            isListBeside
+        );
         DiffRows rows = new DiffRows();
 
-        if (commitDiffs.Length > 1)
+        // A file history is one file over many commits, headed with the list of them, which the view's
+        // top row counts, unless they are listed beside it
+        var isHistory = commitDiffs.Length > 1;
+        if (isHistory && !layout.IsListBeside)
         {
-            rows.AddLine(Text.BrightCyan("═"));
-            rows.Add(Text.White($"{commitDiffs.Length} Commits:"));
-
             commitDiffs.ForEach(diff =>
                 rows.Add(
-                    Text.White($"  {diff.Time.Iso()}  {diff.Message.Max(60, true)}")
-                        .Dark($"  {diff.Id.Sid()} {diff.Author}")
+                    Text.Cyan($"  {diff.Id.Sid()}")
+                        .White($"  {diff.Message.Max(60, true)}")
+                        .Dark($"  {diff.Time.Iso()}  {diff.Author}")
                 )
             );
-            rows.Add(Text.Empty);
         }
 
-        commitDiffs.ForEach(diff => AddCommitDiff(diff, rows, fileContext, isIgnoreWhitespace));
-        rows.Add(Text.Empty);
-        rows.AddLine(Text.Yellow("━"));
+        commitDiffs.ForEach(diff => AddCommitDiff(diff, rows, fileContext, layout, isHistory));
         return rows;
     }
 
@@ -201,157 +222,208 @@ class DiffRowService : IDiffRowService
         CommitDiff commitDiff,
         DiffRows rows,
         IReadOnlyDictionary<string, int> fileContext,
-        bool isIgnoreWhitespace
+        Layout layout,
+        bool isHistory
     )
     {
-        AddCommitSummery(commitDiff, rows);
-        AddDiffFileNamesSummery(commitDiff, rows, isIgnoreWhitespace);
+        AddCommitSummery(commitDiff, rows, isHistory);
+        // The files of a commit are listed beside it, but those of a file history's commits are not
+        AddDiffFileNamesSummery(
+            commitDiff,
+            rows,
+            layout.IsIgnoreWhitespace,
+            isFiles: isHistory || !layout.IsListBeside
+        );
 
-        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext, isIgnoreWhitespace));
+        commitDiff.FileDiffs.ForEach(fd => AddFileDiff(fd, rows, fileContext, layout));
     }
 
-    // Add a summery of the commit with id, author, date and message
-    static void AddCommitSummery(CommitDiff commitDiff, DiffRows rows)
+    // The commit: its id and subject, and who made it when, each field left out that the diff has none
+    // of, e.g. the id of the uncommitted changes. The id and subject are the view's top row, where they
+    // stay in sight as the diff is scrolled (TitleOf), so they are a row only in a file history, of
+    // many commits, where a rule goes above each, which is what tells one commit from the next.
+    static void AddCommitSummery(CommitDiff commitDiff, DiffRows rows, bool isHistory)
     {
-        rows.AddLine(Text.Yellow("═"));
-        if (commitDiff.Id != "")
-            rows.Add(Text.Dark("Commit:  ").White(commitDiff.Id), "", commitDiff.Id);
-        if (commitDiff.Author != "")
-            rows.Add(Text.Dark("Author:  ").White(commitDiff.Author));
-        if (commitDiff.Time != DateTime.MinValue)
-            rows.Add(Text.Dark("Date:    ").White(commitDiff.Time.Iso()));
-        if (commitDiff.Message != "")
-            rows.Add(Text.Dark("Message: ").White(commitDiff.Message));
+        var title = TitleOf(commitDiff);
+        if (isHistory)
+        {
+            rows.Add(Text.Empty);
+            rows.AddLine(Text.Yellow("═"));
+            if (title.Length > 0)
+                rows.Add(title, "", commitDiff.Id);
+        }
 
-        rows.Add(Text.Empty);
+        List<string> by = [];
+        if (commitDiff.Author != "")
+            by.Add(commitDiff.Author);
+        if (commitDiff.Time != DateTime.MinValue)
+            by.Add(commitDiff.Time.Iso());
+        if (by.Count > 0)
+            rows.Add(Text.Dark(string.Join("  ", by)));
+
+        if ((isHistory && title.Length > 0) || by.Count > 0)
+            rows.Add(Text.Empty);
     }
 
-    // Add a summery of the files in the commit
-    static void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows, bool isIgnoreWhitespace)
+    // A commit's id and subject, e.g. 'f44b73c6  VAT rate from config', or only one of them
+    public static Text TitleOf(CommitDiff commitDiff)
+    {
+        var title = new TextBuilder();
+        if (commitDiff.Id != "")
+            title.Cyan(commitDiff.Id.Sid());
+        if (commitDiff.Message != "")
+            title.Dark(title.Length > 0 ? "  " : "").White(commitDiff.Message);
+        return title;
+    }
+
+    // The files of the commit, below a row counting them, each as the commit details list it: its
+    // letter, its path and the lines added and deleted in it, which line up in a column; the row
+    // counting them alone where they are listed beside the diff
+    static void AddDiffFileNamesSummery(CommitDiff commitDiff, DiffRows rows, bool isIgnoreWhitespace, bool isFiles)
     {
         rows.Add(FilesRow(commitDiff, isIgnoreWhitespace));
+        if (!isFiles)
+            return;
 
-        commitDiff.FileDiffs.ForEach(fd =>
-        {
-            var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
-            var diffMode = ToDiffModeText(fd);
-            var text = ToColorText($"  {diffMode, -12} {path}", fd).ToTextBuilder();
-            if (fd.IsRenamed)
-            {
-                text.Cyan(" (Renamed)");
-            }
-            if (fd.IsBinary)
-            {
-                text.Dark(" (Binary)");
-            }
-            if (fd.IsWhitespaceOnly)
-            {
-                text.Dark(" (Whitespace only)");
-            }
-            rows.Add(text);
-        });
+        var width = Math.Min(MaxPathWidth, commitDiff.FileDiffs.Select(f => PathOf(f).Length).DefaultIfEmpty(0).Max());
+        commitDiff.FileDiffs.ForEach(fd => rows.Add(Text.Dark("  ").Add(FileText(fd, PathOf(fd).PadRight(width)))));
     }
 
-    // "3 Files:  1 added, 2 modified   +25 -7 lines": how many files of each kind, worded and
-    // colored as the list below it, and the lines added and removed. Every changed line is in the
-    // hunks whatever their context, so the lines are counted as 'git diff --stat' counts them; a
-    // binary file has none, and a conflict's markers are not counted. With whitespace left out the
-    // row says so, since it is then not every change that is counted and shown.
+    // How far the paths of the file list are padded for the lines after them to line up: a longer
+    // path pushes its own lines out of the column rather than every other file's
+    const int MaxPathWidth = 50;
+
+    // A file as the file list and its header name it: its letter, its path, the lines added and
+    // deleted, or that it is binary, and that its changes are all whitespace, hidden
+    static TextBuilder FileText(FileDiff fd, string path)
+    {
+        var text = ChangedFileText.Row(KindOf(fd), path).ToTextBuilder();
+        if (fd.IsBinary)
+            text.Dark("  binary");
+        else
+            ChangedFileText.AddCounts(text, CountOf(fd, DiffMode.DiffAdded), CountOf(fd, DiffMode.DiffRemoved));
+        if (fd.IsWhitespaceOnly)
+            text.Dark("  whitespace only");
+        return text;
+    }
+
+    internal static string PathOf(FileDiff fd) => fd.IsRenamed ? $"{fd.PathBefore} → {fd.PathAfter}" : fd.PathAfter;
+
+    // Every changed line is in the hunks whatever their context, so the lines are counted as
+    // 'git diff --stat' counts them; a binary file has none, and a conflict's markers are not counted
+    internal static int CountOf(FileDiff fd, DiffMode mode) =>
+        fd.SectionDiffs.SelectMany(s => s.LineDiffs).Count(l => l.DiffMode == mode);
+
+    // "3 files changed  1 added, 2 modified  +25 -7": how many files of each kind, worded and colored
+    // as the letters of the list below it, and the lines added and deleted. With whitespace left out
+    // the row says so, since it is then not every change that is counted and shown.
     static Text FilesRow(CommitDiff diff, bool isIgnoreWhitespace)
     {
         var files = diff.FileDiffs;
-        var text = Text.White(files.Count == 1 ? "1 File:" : $"{files.Count} Files:");
+        var text = Text.White(files.Count == 1 ? "1 file changed" : $"{files.Count} files changed");
 
         var kinds = files.GroupBy(KindOf).ToDictionary(g => g.Key, g => g.Count());
         var separator = "  ";
-        foreach (var (kind, color) in Kinds)
+        foreach (var (kind, name) in Kinds)
         {
             if (kinds.GetValueOrDefault(kind) is var count and > 0)
             {
-                text.Dark(separator).Color(color, $"{count} {kind}");
+                text.Dark(separator).Color(ChangedFileText.ColorOf(kind), $"{count} {name}");
                 separator = ", ";
             }
         }
 
-        var lines = files.SelectMany(f => f.SectionDiffs).SelectMany(s => s.LineDiffs).ToList();
-        var added = lines.Count(l => l.DiffMode == DiffMode.DiffAdded);
-        var removed = lines.Count(l => l.DiffMode == DiffMode.DiffRemoved);
-        if (added + removed > 0)
-            text.Dark("   ").Green($"+{added}").Dark(" ").Red($"-{removed}").Dark(" lines");
+        var added = files.Sum(f => CountOf(f, DiffMode.DiffAdded));
+        var removed = files.Sum(f => CountOf(f, DiffMode.DiffRemoved));
+        ChangedFileText.AddCounts(text, added, removed);
         if (isIgnoreWhitespace)
-            text.Dark("   ").Yellow("whitespace hidden");
+            text.Dark("  ").Yellow("whitespace hidden");
 
         return text;
     }
 
-    // The kinds of files the summery counts, in the order and the colors of ToColorText
-    static readonly (string Kind, Color Color)[] Kinds =
+    // The kinds of files the files row counts, by their letter, in the order it names them
+    static readonly (char Kind, string Name)[] Kinds =
     [
-        ("added", Color.Green),
-        ("modified", Color.White),
-        ("renamed", Color.Cyan),
-        ("removed", Color.Red),
-        ("conflicted", Color.BrightYellow),
+        ('A', "added"),
+        ('M', "modified"),
+        ('R', "renamed"),
+        ('D', "deleted"),
+        ('C', "conflicted"),
     ];
 
     // A file renamed and modified is counted as renamed, which the list says it is too
-    static string KindOf(FileDiff fd) =>
+    internal static char KindOf(FileDiff fd) =>
         fd.DiffMode switch
         {
-            DiffMode.DiffAdded => "added",
-            DiffMode.DiffRemoved => "removed",
-            DiffMode.DiffConflicts => "conflicted",
-            _ => fd.IsRenamed ? "renamed" : "modified",
+            DiffMode.DiffAdded => 'A',
+            DiffMode.DiffRemoved => 'D',
+            DiffMode.DiffConflicts => 'C',
+            _ => fd.IsRenamed ? 'R' : 'M',
         };
 
-    // Add a diff for the file, which consists of several file section diffs
+    // A file's diff: a row naming it, which the view draws a rule after across the width, and its
+    // hunks, a blank row between two
     static void AddFileDiff(
         FileDiff fileDiff,
         DiffRows rows,
         IReadOnlyDictionary<string, int> fileContext,
-        bool isIgnoreWhitespace
+        Layout layout
     )
     {
         rows.Add(Text.Empty);
-        rows.AddLine(Text.Blue("━"));
 
         var fd = fileDiff;
-        var path = fd.IsRenamed ? $"{fd.PathBefore} => {fd.PathAfter}" : $"{fd.PathAfter}";
-        var diffMode = ToDiffModeText(fd);
-        var text = ToColorText($"{diffMode} {path}", fd).ToTextBuilder();
-        if (fd.IsRenamed)
-        {
-            text.Cyan("  (Renamed)");
-        }
-        if (fd.IsBinary)
-        {
-            text.Dark("  (Binary)");
-        }
-        if (fd.IsWhitespaceOnly)
-        {
-            text.Dark("  (Whitespace only)");
-        }
+        var header = Text.Magenta(ChangeBar).Dark(" ").Add(FileText(fd, PathOf(fd)));
         if (fileContext.TryGetValue(fd.PathAfter, out var contextLines) && contextLines != DiffContext.Default)
         {
-            text.Dark($"  {DiffContext.ToText(contextLines)}");
+            header.Dark($"  {DiffContext.ToText(contextLines)}");
         }
-        rows.Add(text, fd.PathAfter);
+        if (layout.HiddenFiles.Contains(fd.PathAfter))
+        { // Its header alone, h shows the lines again
+            rows.AddFileHeader(header.Dark("  lines hidden"), fd.PathAfter);
+            return;
+        }
+        if (layout.Unmerged.Contains(fd.PathAfter))
+        { // A file in conflict now is resolved in the resolver, where its sides are, not read here
+            rows.AddFileHeader(header, fd.PathAfter);
+            rows.Add(UnmergedText(fd));
+            return;
+        }
+        rows.AddFileHeader(header, fd.PathAfter);
 
         if (fd.IsWhitespaceOnly)
         { // Its lines are in the diff with whitespace, which has nothing else of it to show
-            rows.Add(Text.Empty);
-            rows.Add(Text.Dark("Only whitespace changed, which is hidden"));
+            rows.Add(Text.Dark("      Only whitespace changed, which is hidden"));
         }
 
-        fileDiff.SectionDiffs.ForEach(sd => AddSectionDiff(fileDiff, sd, rows, isIgnoreWhitespace));
+        // Between two hunks, where unchanged lines are left out, a line says so; the file's header is
+        // the first hunk's, whether lines are left out above it or not
+        for (var i = 0; i < fileDiff.SectionDiffs.Count; i++)
+        {
+            if (i > 0)
+                rows.AddHunkSeparator(HunkSeparator(fileDiff.SectionDiffs[i], fileDiff.SectionDiffs[i - 1]));
+            AddSectionDiff(fileDiff, fileDiff.SectionDiffs[i], rows, layout);
+        }
+    }
+
+    // What a file in conflict has, and the key that resolves it, e.g. '2 conflicts: Enter resolves
+    // them'; one with no markers, e.g. deleted on one side, is a conflict of the whole file
+    static Text UnmergedText(FileDiff fd)
+    {
+        var count = fd.SectionDiffs.SelectMany(s => s.LineDiffs).Count(l => l.DiffMode == DiffMode.DiffConflictStart);
+        var what = count switch
+        {
+            0 => "A conflict of the whole file",
+            1 => "1 conflict",
+            _ => $"{count} conflicts",
+        };
+        return Text.Dark("      ").Yellow(what).Dark($": Enter resolves {(count > 1 ? "them" : "it")}");
     }
 
     // Add a file section diff (the actual diff lines for a sub section of a file)
-    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows, bool isIgnoreWhitespace)
+    static void AddSectionDiff(FileDiff fileDiff, SectionDiff sectionDiff, DiffRows rows, Layout layout)
     {
-        rows.Add(Text.Empty);
-        rows.AddLine(Text.Dark("─"));
-
         var leftBlock = new Block();
         var rightBlock = new Block();
 
@@ -376,9 +448,12 @@ class DiffRowService : IDiffRowService
             {
                 case DiffMode.DiffConflictStart:
                     diffMode = DiffMode.DiffConflictStart;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
-                    var txt = Text.BrightMagenta("=== Start of conflict");
-                    rows.Add(txt, txt);
+                    AddBlocks(leftBlock, rightBlock, rows, layout);
+                    // In one column, the sides one after the other, each named by git's marker
+                    var start = Text.BrightMagenta("=== Start of conflict");
+                    if (layout.IsOneColumn)
+                        start.Dark("  ").Yellow(MarkerName(dl.Line));
+                    rows.AddConflictStart(start, layout.IsOneColumn);
                     break;
 
                 // The common ancestor of a 'diff3' or 'zdiff3' conflict. It belongs to neither
@@ -386,7 +461,7 @@ class DiffRowService : IDiffRowService
                 // which is where it used to end up for want of being recognised at all.
                 case DiffMode.DiffConflictBase:
                     diffMode = DiffMode.DiffConflictBase;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
+                    AddBlocks(leftBlock, rightBlock, rows, layout);
                     rows.Add(Text.Dark("=== Common ancestor"));
                     break;
 
@@ -396,9 +471,19 @@ class DiffRowService : IDiffRowService
 
                 case DiffMode.DiffConflictEnd:
                     diffMode = DiffMode.DiffConflictEnd;
-                    AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
-                    var txt2 = Text.BrightMagenta("=== End of conflict");
-                    rows.Add(txt2, txt2);
+                    var end = Text.BrightMagenta("=== End of conflict");
+                    if (layout.IsOneColumn)
+                    { // Ours, which is gone if the common ancestor came after it, and then theirs
+                        AddLines(leftBlock, rows);
+                        rows.Add(Text.BrightMagenta("=== ").Cyan(MarkerName(dl.Line)));
+                        AddLines(rightBlock, rows);
+                        rows.Add(end);
+                    }
+                    else
+                    {
+                        AddBlocks(leftBlock, rightBlock, rows, layout);
+                        rows.Add(end, end);
+                    }
                     break;
 
                 case DiffMode.DiffRemoved:
@@ -408,20 +493,20 @@ class DiffRowService : IDiffRowService
                     }
                     else if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(leftNr, dl.Line, Color.Yellow);
+                        leftBlock.Add(leftNr, dl.Line, LineKind.Ours);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(leftNr, dl.Line, Color.Yellow);
+                        rightBlock.Add(leftNr, dl.Line, LineKind.Theirs);
                     }
                     else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
                     { // Whole file removed, use one column
-                        Text removeTxt = Text.Dark($"{leftNr, 4}").Red(diffMargin).RedBg(WithoutCr(dl.Line));
-                        rows.Add(removeTxt, leftLineNbr: leftNr, removedText: dl.Line);
+                        var line = new Line(leftNr, dl.Line, LineKind.Removed);
+                        rows.Add(LineText(line), leftLineNbr: leftNr, removedText: dl.Line);
                     }
                     else
                     {
-                        leftBlock.Add(leftNr, dl.Line, Color.RedBg);
+                        leftBlock.Add(leftNr, dl.Line, LineKind.Removed);
                     }
 
                     leftNr++;
@@ -434,20 +519,20 @@ class DiffRowService : IDiffRowService
                     }
                     else if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(rightNr, dl.Line, Color.Yellow);
+                        leftBlock.Add(rightNr, dl.Line, LineKind.Ours);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(rightNr, dl.Line, Color.Yellow);
+                        rightBlock.Add(rightNr, dl.Line, LineKind.Theirs);
                     }
                     else if (fileDiff.DiffMode == DiffMode.DiffAdded)
                     { // Whole file added, use one column
-                        Text addTxt = Text.Dark($"{rightNr, 4}").Green(diffMargin).GreenBg(WithoutCr(dl.Line));
-                        rows.Add(addTxt, rightLineNbr: rightNr, addedText: dl.Line);
+                        var line = new Line(rightNr, dl.Line, LineKind.Added);
+                        rows.Add(LineText(line), rightLineNbr: rightNr, addedText: dl.Line);
                     }
                     else
                     {
-                        rightBlock.Add(rightNr, dl.Line, Color.GreenBg);
+                        rightBlock.Add(rightNr, dl.Line, LineKind.Added);
                     }
 
                     rightNr++;
@@ -460,17 +545,17 @@ class DiffRowService : IDiffRowService
                     }
                     else if (diffMode == DiffMode.DiffConflictStart)
                     {
-                        leftBlock.Add(rightNr, dl.Line, Color.Yellow);
+                        leftBlock.Add(rightNr, dl.Line, LineKind.Ours);
                     }
                     else if (diffMode == DiffMode.DiffConflictSplit)
                     {
-                        rightBlock.Add(rightNr, dl.Line, Color.Yellow);
+                        rightBlock.Add(rightNr, dl.Line, LineKind.Theirs);
                     }
                     else
                     {
-                        AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
-                        leftBlock.Add(leftNr, dl.Line, Color.White);
-                        rightBlock.Add(rightNr, dl.Line, Color.White);
+                        AddBlocks(leftBlock, rightBlock, rows, layout);
+                        leftBlock.Add(leftNr, dl.Line, LineKind.Same);
+                        rightBlock.Add(rightNr, dl.Line, LineKind.Same);
                     }
 
                     leftNr++;
@@ -479,59 +564,138 @@ class DiffRowService : IDiffRowService
             }
         }
 
-        AddBlocks(ref leftBlock, ref rightBlock, rows, isIgnoreWhitespace);
-        rows.AddLine(Text.Dark("─"));
+        AddBlocks(leftBlock, rightBlock, rows, layout);
     }
 
-    static void AddBlocks(ref Block leftBlock, ref Block rightBlock, DiffRows rows, bool isIgnoreWhitespace)
+    // Where unchanged lines are left out between two hunks, '⋯', which the line numbers say how many
+    // of, and the function git found the hunk in, e.g. 'public decimal Total()', where it is not the
+    // one before it: with no pattern for the file's language (e.g. '*.cs diff=csharp' in
+    // .gitattributes), git names the nearest line above that is not indented, a C# file's class for
+    // every hunk
+    static Text HunkSeparator(SectionDiff sd, SectionDiff previous) =>
+        sd.Function != "" && sd.Function != previous.Function
+            ? Text.Dark($"{LeftOutIndent}{LeftOutMark} ").Cyan(sd.Function)
+            : Text.Dark($"{LeftOutIndent}{LeftOutMark}");
+
+    // The mark of lines left out, where a side's line numbers are, which the view draws on the right
+    // side too
+    internal const string LeftOutMark = "⋯";
+    internal const string LeftOutIndent = "   ";
+
+    // The lines of a change side by side: the removed lines on the left, each beside the added line
+    // at the same place on the right, as FilePatch pairs them when some of a change's lines are
+    // committed or discarded, so what is chosen ends up where the view shows it
+    static void AddBlocks(Block leftBlock, Block rightBlock, DiffRows rows, Layout layout)
     {
+        if (layout.IsOneColumn)
+        {
+            AddOneColumn(leftBlock, rightBlock, rows, layout.IsIgnoreWhitespace);
+            return;
+        }
+
+        var isIgnoreWhitespace = layout.IsIgnoreWhitespace;
         // Add block parts where both block have lines
         var minCount = Math.Min(leftBlock.Lines.Count, rightBlock.Lines.Count);
         for (int i = 0; i < minCount; i++)
         {
-            var (left, right) = WithCrShown(leftBlock.Lines[i], rightBlock.Lines[i], isIgnoreWhitespace);
-            var (lT, rT) = GetDiffSides(left, right, isIgnoreWhitespace);
-            rows.Add(
-                lT,
-                rT,
-                left.LineNbr,
-                right.LineNbr,
-                RemovedText(leftBlock.Lines[i]),
-                AddedText(rightBlock.Lines[i])
-            );
+            var (left, right) = (leftBlock.Lines[i], rightBlock.Lines[i]);
+            var (lT, rT) =
+                left.Kind == LineKind.Removed && right.Kind == LineKind.Added
+                    ? ChangedSides(left, right, isIgnoreWhitespace)
+                    : (LineText(left), LineText(right));
+            rows.Add(lT, rT, left.LineNbr, right.LineNbr, RemovedText(left), AddedText(right));
         }
 
         // Add left lines where no corresponding on right
-        if (leftBlock.Lines.Count > rightBlock.Lines.Count)
+        for (int i = minCount; i < leftBlock.Lines.Count; i++)
         {
-            for (int i = rightBlock.Lines.Count; i < leftBlock.Lines.Count; i++)
-            {
-                var lL = leftBlock.Lines[i];
-                Text lT = Text.Dark($"{lL.LineNbr, 4}").Red(diffMargin).Color(lL.Color, WithoutCr(lL.Text));
-                rows.Add(lT, NoLine, lL.LineNbr, 0, RemovedText(lL));
-            }
+            var lL = leftBlock.Lines[i];
+            rows.Add(LineText(lL), NoLine, lL.LineNbr, 0, RemovedText(lL));
         }
 
         // Add right lines where no corresponding on left
-        if (rightBlock.Lines.Count > leftBlock.Lines.Count)
+        for (int i = minCount; i < rightBlock.Lines.Count; i++)
         {
-            for (int i = leftBlock.Lines.Count; i < rightBlock.Lines.Count; i++)
-            {
-                var rL = rightBlock.Lines[i];
-                Text rT = Text.Dark($"{rL.LineNbr, 4}").Green(diffMargin).Color(rL.Color, WithoutCr(rL.Text));
-                rows.Add(NoLine, rT, 0, rL.LineNbr, addedText: AddedText(rL));
-            }
+            var rL = rightBlock.Lines[i];
+            rows.Add(NoLine, LineText(rL), 0, rL.LineNbr, addedText: AddedText(rL));
         }
 
         leftBlock.Lines.Clear();
         rightBlock.Lines.Clear();
     }
 
-    // The text of a removed or an added line of a block, as the diff has it, null for an unchanged
-    // line or a conflict's, which are drawn in other colors
-    static string? RemovedText(Line line) => line.Color == Color.RedBg ? line.Text : null;
+    // The lines of a change in one column, as git writes them: the removed lines and then the added
+    // ones, each with the words marked that differ from the line it pairs with side by side. The
+    // unchanged line a block starts with, which is on both sides, is drawn once, numbered as it is now.
+    static void AddOneColumn(Block leftBlock, Block rightBlock, DiffRows rows, bool isIgnoreWhitespace)
+    {
+        var (left, right) = (leftBlock.Lines, rightBlock.Lines);
+        var same = 0;
+        for (; same < Math.Min(left.Count, right.Count) && left[same].Kind == LineKind.Same; same++)
+            rows.Add(LineText(right[same]), leftLineNbr: left[same].LineNbr, rightLineNbr: right[same].LineNbr);
 
-    static string? AddedText(Line line) => line.Color == Color.GreenBg ? line.Text : null;
+        var leftTexts = left.Select(LineText).ToList();
+        var rightTexts = right.Select(LineText).ToList();
+        for (int i = same; i < Math.Min(left.Count, right.Count); i++)
+        {
+            if (left[i].Kind == LineKind.Removed && right[i].Kind == LineKind.Added)
+                (leftTexts[i], rightTexts[i]) = ChangedSides(left[i], right[i], isIgnoreWhitespace);
+        }
+
+        for (int i = same; i < left.Count; i++)
+            rows.Add(leftTexts[i], leftLineNbr: left[i].LineNbr, removedText: RemovedText(left[i]));
+        for (int i = same; i < right.Count; i++)
+            rows.Add(rightTexts[i], rightLineNbr: right[i].LineNbr, addedText: AddedText(right[i]));
+
+        left.Clear();
+        right.Clear();
+    }
+
+    // The lines of a side of a conflict in one column
+    static void AddLines(Block block, DiffRows rows)
+    {
+        block.Lines.ForEach(l => rows.Add(LineText(l), leftLineNbr: l.LineNbr));
+        block.Lines.Clear();
+    }
+
+    // The name git wrote on a conflict's marker, e.g. 'HEAD' of '<<<<<<< HEAD'
+    static string MarkerName(string marker) => marker.TrimStart('<', '>', '|', '=').Trim();
+
+    // How the rows are made: with whitespace left out, in one column rather than two, with the lines
+    // of some files hidden, which files are in conflict now, which the resolver resolves, and whether
+    // the files or the commits are listed beside the diff
+    record Layout(
+        bool IsIgnoreWhitespace,
+        bool IsOneColumn,
+        IReadOnlySet<string> HiddenFiles,
+        IReadOnlySet<string> Unmerged,
+        bool IsListBeside
+    );
+
+    // The text of a removed or an added line of a block, as the diff has it, null for an unchanged
+    // line or a conflict's, which are no change of the commit
+    static string? RemovedText(Line line) => line.Kind == LineKind.Removed ? line.Text : null;
+
+    static string? AddedText(Line line) => line.Kind == LineKind.Added ? line.Text : null;
+
+    // A source line's gutter: the bar of a change in its color, or a space, and the line number
+    static TextBuilder Gutter(int lineNbr, Color? bar, Color nbrColor) =>
+        (bar != null ? Text.Color(bar, ChangeBar) : Text.Black(" ")).Color(nbrColor, $"{lineNbr, 4} ");
+
+    // A line as it is, with the gutter of its kind: a change's bar and number in its red or green,
+    // and the sides of a conflict in the colors the resolver gives them, ours yellow, theirs cyan
+    static Text LineText(Line line)
+    {
+        var (nbr, text) = (line.LineNbr, WithoutCr(line.Text));
+        return line.Kind switch
+        {
+            LineKind.Removed => Gutter(nbr, Color.Red, Color.Red).White(text),
+            LineKind.Added => Gutter(nbr, Color.Green, Color.Green).White(text),
+            LineKind.Ours => Gutter(nbr, Color.Yellow, Color.Dark).Yellow(text),
+            LineKind.Theirs => Gutter(nbr, Color.Cyan, Color.Dark).Cyan(text),
+            _ => Gutter(nbr, null, Color.Dark).White(text),
+        };
+    }
 
     // A line's '\r', kept of a file's '\r\n' line ends (DiffService reads the diff with them), is shown
     // only where it is the change, a change of line ends: as '␍' on the side of a changed pair that
@@ -549,144 +713,41 @@ class DiffRowService : IDiffRowService
 
     static string CrMarked(string text) => text.EndsWith('\r') ? text[..^1] + CrMark : text;
 
-    static (Text, Text) GetDiffSides(Line lL, Line rL, bool isIgnoreWhitespace)
+    // A removed line beside the added line it pairs with. Where most of the two is the same, the
+    // words that differ are marked, and the spaces one has before or after its text that the other
+    // has not, which no word shows, unless whitespace is left out. Where they share little, nothing
+    // is marked: the line was rewritten, and the marks would be noise.
+    static (Text, Text) ChangedSides(Line removed, Line added, bool isIgnoreWhitespace)
     {
-        // A change of the spaces before or after the text is marked, unless whitespace is left out
-        var (removedSpace, addedSpace) = isIgnoreWhitespace ? (Color.Black, Color.Black) : (Color.RedBg, Color.GreenBg);
+        var (lL, rL) = WithCrShown(removed, added, isIgnoreWhitespace);
+        var left = Gutter(lL.LineNbr, Color.Red, Color.Red);
+        var right = Gutter(rL.LineNbr, Color.Green, Color.Green);
+        // The spaces before and after the text are marked like words, unless whitespace is left out
+        var (removedSpace, addedSpace) = isIgnoreWhitespace ? (Color.White, Color.White) : (Color.RedBg, Color.GreenBg);
 
-        // Mark leading space changes in diff
-        var leftString = lL.Text.TrimStart();
-        var rightString = rL.Text.TrimStart();
+        // The text within the spaces before and after it, which the words are compared in. A line of
+        // spaces alone is all indent.
+        var (leftStart, rightStart) = (lL.Text.TrimStart(), rL.Text.TrimStart());
+        var (leftString, rightString) = (leftStart.TrimEnd(), rightStart.TrimEnd());
+        var words = LineWords.Of(leftString, rightString, isIgnoreWhitespace);
+        if (leftString != rightString && !words.IsAlike)
+            return (left.White(lL.Text), right.White(rL.Text));
 
-        // Add leading spaces back
-        var diffLeftPrefixMargin = lL.Text.Length - leftString.Length;
-        var diffRightPrefixMargin = rL.Text.Length - rightString.Length;
-        var minDiffPrefixMargin = Math.Min(diffLeftPrefixMargin, diffRightPrefixMargin);
-        var leftText = Text.Black(new string(' ', minDiffPrefixMargin));
-        if (diffLeftPrefixMargin > minDiffPrefixMargin)
-        {
-            leftText.Color(removedSpace, new string(' ', diffLeftPrefixMargin - minDiffPrefixMargin));
-        }
-        var rightText = Text.Black(new string(' ', minDiffPrefixMargin));
-        if (diffRightPrefixMargin > minDiffPrefixMargin)
-        {
-            rightText.Color(addedSpace, new string(' ', diffRightPrefixMargin - minDiffPrefixMargin));
-        }
+        // The indent both have, and what one has more of marked
+        var leftIndent = lL.Text.Length - leftStart.Length;
+        var rightIndent = rL.Text.Length - rightStart.Length;
+        var indent = Math.Min(leftIndent, rightIndent);
+        left.Black(new string(' ', indent)).Color(removedSpace, new string(' ', leftIndent - indent));
+        right.Black(new string(' ', indent)).Color(addedSpace, new string(' ', rightIndent - indent));
 
-        // Mark trailing space changes in diff
-        var leftLength = leftString.Length;
-        var rightLength = rightString.Length;
-        leftString = leftString.TrimEnd();
-        rightString = rightString.TrimEnd();
-        var leftSuffix = Text.Color(removedSpace, new string(' ', leftLength - leftString.Length));
-        var rightSuffix = Text.Color(addedSpace, new string(' ', rightLength - rightString.Length));
+        foreach (var run in words.Left)
+            left.Color(run.IsChanged ? Color.RedBg : Color.White, run.Text);
+        foreach (var run in words.Right)
+            right.Color(run.IsChanged ? Color.GreenBg : Color.White, run.Text);
 
-        var differ = new Differ();
-        var result = differ.CreateCharacterDiffs(leftString, rightString, true);
-
-        if (result.DiffBlocks.Count == 0)
-        {
-            if (leftString == rightString && lL.Color == Color.RedBg && rL.Color == Color.GreenBg)
-            { // Some change in space (before or after)
-                leftText.White(leftString).Add(leftSuffix);
-                rightText.White(rightString).Add(rightSuffix);
-                Text lTs = Text.Dark($"{lL.LineNbr, 4}").Cyan(diffMargin).Add(leftText);
-                Text rTs = Text.Dark($"{rL.LineNbr, 4}").Cyan(diffMargin).Add(rightText);
-                return (lTs, rTs);
-            }
-
-            // Same on both sides, just show both sides as same
-            Text lT2 = Text.Dark($"{lL.LineNbr, 4} ").Color(lL.Color, lL.Text);
-            Text rT2 = Text.Dark($"{rL.LineNbr, 4} ").Color(rL.Color, rL.Text);
-            return (lT2, rT2);
-        }
-
-        if (result.DiffBlocks.Count > maxLineDiffsCount)
-        { // To many differences in the line, show whole line side as diff
-            Text lT2 = Text.Dark($"{lL.LineNbr, 4}").Cyan(diffMargin).Color(lL.Color, lL.Text);
-            Text rT2 = Text.Dark($"{rL.LineNbr, 4}").Cyan(diffMargin).Color(rL.Color, rL.Text);
-            return (lT2, rT2);
-        }
-
-        // There are a few differences in a line, show them marked differently in both sides
-        int leftIndex = 0;
-        int rightIndex = 0;
-        foreach (var diff in result.DiffBlocks)
-        {
-            // Left side
-            if (diff.DeleteStartA > leftIndex)
-            { // Add text before the delete
-                leftText.White(leftString[leftIndex..diff.DeleteStartA]);
-            }
-            if (diff.DeleteCountA > 0)
-            { // Add text int read that is deleted
-                leftText.RedBg(leftString.Substring(diff.DeleteStartA, diff.DeleteCountA));
-            }
-            leftIndex = diff.DeleteStartA + diff.DeleteCountA;
-
-            // Right side
-            if (diff.InsertStartB > rightIndex)
-            { // Add text before the insert
-                rightText.White(rightString[rightIndex..diff.InsertStartB]);
-            }
-            if (diff.InsertCountB > 0)
-            { // Add text int green that is inserted
-                rightText.GreenBg(rightString.Substring(diff.InsertStartB, diff.InsertCountB));
-            }
-            rightIndex = diff.InsertStartB + diff.InsertCountB;
-        }
-
-        if (leftIndex < leftString.Length)
-        { // Add text after the last delete
-            leftText.White(leftString[leftIndex..]);
-        }
-        if (rightIndex < rightString.Length)
-        { // Add text after the last insert
-            rightText.White(rightString[rightIndex..]);
-        }
-
-        Text lT = Text.Dark($"{lL.LineNbr, 4}").Cyan(diffMargin).Add(leftText).Add(leftSuffix);
-        Text rT = Text.Dark($"{rL.LineNbr, 4}").Cyan(diffMargin).Add(rightText).Add(rightSuffix);
-        return (lT, rT);
-    }
-
-    // Returns the colored text based on the diff mode like "Modified:", "Added:", "Removed:" or "Conflicted:"
-    static Text ToColorText(string text, FileDiff fd)
-    {
-        if (fd.IsRenamed && !fd.SectionDiffs.Any())
-        {
-            return Text.Cyan(text);
-        }
-        if (fd.IsBinary && !fd.SectionDiffs.Any())
-        {
-            return Text.Dark(text);
-        }
-
-        return fd.DiffMode switch
-        {
-            DiffMode.DiffModified => (Text)Text.White(text),
-            DiffMode.DiffAdded => (Text)Text.Green(text),
-            DiffMode.DiffRemoved => (Text)Text.Red(text),
-            DiffMode.DiffConflicts => (Text)Text.BrightYellow(text),
-            _ => throw Asserter.Fail($"Unknown diffMode {fd.DiffMode}"),
-        };
-    }
-
-    // Returns the text to show for the diff mode like "Modified:", "Added:", "Removed:" or "Conflicted:"
-    static string ToDiffModeText(FileDiff fd)
-    {
-        if (fd.IsRenamed && !fd.SectionDiffs.Any())
-        {
-            return "Renamed:";
-        }
-
-        return fd.DiffMode switch
-        {
-            DiffMode.DiffConflicts => "Conflicts:",
-            DiffMode.DiffModified => "Modified:",
-            DiffMode.DiffAdded => "Added:",
-            DiffMode.DiffRemoved => "Removed:",
-            _ => throw Asserter.Fail($"Unknown diffMode {fd.DiffMode}"),
-        };
+        // The spaces after the text, which only a mark shows
+        left.Color(removedSpace, new string(' ', leftStart.Length - leftString.Length));
+        right.Color(addedSpace, new string(' ', rightStart.Length - rightString.Length));
+        return (left, right);
     }
 }

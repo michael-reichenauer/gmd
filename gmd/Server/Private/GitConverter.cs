@@ -33,6 +33,9 @@ static class GitConverter
 
     public static ConflictedFile ToConflictedFile(Git.ConflictedFile f) => new(f.Path, ToConflictKind(f.Kind));
 
+    public static ConflictSides ToConflictSides(Git.ConflictSides s) =>
+        new(s.OursBranch, s.OursSubject, s.TheirsSubject);
+
     public static GitOperation ToOperation(Git.GitOperation operation) =>
         operation switch
         {
@@ -130,7 +133,10 @@ static class GitConverter
             d.RightLine,
             d.RightCount,
             d.LineDiffs.Select(l => new LineDiff(ToDiffMode(l.DiffMode), l.Line)).ToList()
-        );
+        )
+        {
+            Function = d.Function,
+        };
 
     static DiffMode ToDiffMode(Git.DiffMode mode) =>
         mode switch

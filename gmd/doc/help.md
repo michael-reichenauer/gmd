@@ -537,11 +537,25 @@ Find more commands in the menus (the `m` key).
 
 ## Diff and Blame
 
-**Commit Diff** (`d`) shows the changes of a commit side by side, after a
-list of its files, headed by how many were added, modified, renamed and
-removed, and the lines added and removed, e.g.
-`3 Files:  1 added, 2 modified   +25 -7 lines`. A line whose line end
-alone changed, e.g. from LF to CRLF, has a `␍` on the side with the CR. `+` shows
+**Commit Diff** (`d`) shows the changes of a commit side by side, below the
+commit's id and subject, who made it when, and a list of its files: each
+with a letter, `M` modified, `A` added, `D` deleted, `R` renamed and `C`
+conflicted, and the lines added and deleted in it, headed by how many there
+are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`; the files
+are left out of it, that row kept, while they are listed beside the diff
+(below). Each file
+starts with a row naming it, underlined in blue. Where unchanged lines are
+left out between the parts that changed, a dark line with `⋯` where the line
+numbers are says so, with the function or heading git finds the next part in, when it is not
+the one before it. Git finds it by a pattern for the file's language, set
+in `.gitattributes`, e.g. `*.cs diff=csharp`; with none, it takes the
+nearest line above that is not indented, which in C# is the class for every
+part. A changed line has a bar
+beside its number, red for a line removed and green for a line added, and
+where a removed line and the added line beside it are mostly alike, the
+words that differ are marked. The cursor is the line number drawn reversed.
+A line whose line end alone changed, e.g. from LF to CRLF, has a `␍` on the
+side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
 stepping from the 6 lines of context it starts with to 15, and then to the
 whole file (and `=` does what `+` does, without the shift). It applies to
@@ -555,13 +569,41 @@ branch. Any two commits, wherever they are, are diffed with **Mark for
 Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
 other: the changes from the older of the two to the newer.
 
-Within the diff: `r` re-reads it from git, `s` scrolls to a file, `u`
+In a view narrower than 110 columns, the diff is in one column instead,
+each change's removed lines above its added ones, as git writes them, and
+a conflict's two sides one after the other, each named. `v` switches
+between the two, for the diff it is pressed in.
+
+On a terminal 150 columns wide or more, a diff has its files listed beside
+it, one file too, the one the cursor is in marked, each with its lines
+added and deleted, and e.g. `╎3` for three lines left out of the
+commit. A file history lists its commits instead, which its top then leaves
+out as the diff of a commit leaves out its files. `Tab` moves the keys to
+the list, where `↑` and `↓` go from file to file, and `Tab`, `Enter` or
+`Esc` back to the diff; a click on a file goes to it. `l` hides the list,
+for the width it takes, and shows it again; the diffs after open as it was
+left.
+
+`h` hides the lines of the file the cursor is in, a file that is generated,
+say, which is then drawn as its header alone, and `h` on it shows them
+again, for the diff it is pressed in.
+
+`]` and `[` go to the next and the previous change, a run of changed lines
+or a conflict, and `}` and `{` to the next and the previous file, and the
+line at the bottom says which it went to, e.g. `Change 3 of 9`. The top row
+names the commit, and once the header of the file the view is scrolled into
+is out of sight, that file, e.g. `f44b73c6  VAT rate › M Pricing.cs  +5 -5`.
+`s` opens **Go to**, the same moves and every file, or
+in a file history every commit.
+
+Within the diff: `r` re-reads it from git, `u`
 discards uncommitted changes (the change the cursor is on, the lines
 selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `x` leaves the change the
 cursor is on, or the lines selected, out of the next commit, or puts them
 back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
-two columns sideways and pick which one a selection copies from, `Ctrl-C`
+two columns sideways, their line numbers staying where they are, and pick
+which one a selection copies from, `Ctrl-C`
 copies the selected lines, and `Esc` or `q` closes the view.
 
 `f` or `/` searches the lines for a text, as it is typed and in any case,
@@ -574,7 +616,7 @@ the bottom says which one it is, e.g. `Match 2 of 7`.
 `w` hides the changes of whitespace alone, as GitHub's *Hide whitespace*
 does, and `w` again shows them. A line whose spaces alone changed is then
 unchanged, and the summary at the top says `whitespace hidden`. A file whose
-changes are all whitespace is still listed, as `(Whitespace only)` and with
+changes are all whitespace is still listed, as `whitespace only` and with
 no lines, so that it is not missed in what is committed, and can still be
 discarded. It is for the diff it was pressed in: the next one shows
 whitespace again. **Diff File**
@@ -611,25 +653,55 @@ lines, `m` opens the menu, and `Esc` or `q` closes the view.
 
 When a merge, rebase, cherry pick, revert or pull that gmd runs stops on
 conflicts, a box says so and names the files; its **Resolve Conflicts**
-opens the diff described below. For as long as the operation lasts, the top
-bar says what is in progress, e.g. `Merging: 1 conflict` in red, and in
-yellow once the conflicts are resolved. A click on it, or `Shift-M` for the
-repo menu, offers Resolve Conflicts, Continue, Skip and Abort.
+opens the resolver described below on the first of them. For as long as the
+operation lasts, the top bar says what is in progress, e.g.
+`Merging: 1 conflict` in red, and in yellow once the conflicts are
+resolved. A click on it, or `Shift-M` for the repo menu, offers Resolve
+Conflicts, Continue, Skip and Abort.
 
-To resolve the conflicts, open the diff of the uncommitted changes (`d` on
-the `©` row) and press `Enter` on a conflicted file. That opens the file
-the cursor is on, or the list of the conflicted files if the cursor is
-elsewhere. The same list is under **Resolve Conflicts** in the diff menu,
-and it names every conflicted file, including those the diff cannot show,
-such as one a side deleted, or a binary file. **Run External Merge Tool**
-in the diff menu opens a file in the tool git is configured with instead
+The files are resolved one after the other. Saving a file with every
+conflict decided marks it resolved and opens the next one still conflicted,
+and `}` and `{` go to the next or previous one without saving, asking first
+if there are decisions to keep. The header says which file it is, e.g.
+`file 1 of 3`, and a terminal at least 150 columns wide lists the files at
+the left, the resolved ones ticked; `Tab` moves into the list, where `↑`
+`↓` and `Enter` open another, and `l` hides it and shows it again, as in the
+diff, which the files after keep. A file with no text to merge, such as one a
+side deleted, or a binary file, asks its question as its turn comes (see
+below), and Cancel passes it over until the resolver is opened again. Once
+no conflict is left, a box asks whether to finish: **Commit** opens the
+commit dialog for a merge, a cherry pick or a revert, and **Continue** goes
+on with a rebase. **Later** leaves it for the commit (`c`) or the repo
+menu. Conflicts with nothing in progress, e.g. of a stash popped, have
+nothing to finish, and no box asks.
+
+The diff of the uncommitted changes (`d` on the `©` row) shows a conflicted
+file as one row saying how many conflicts it has, since its sides are in
+the resolver, where `Enter` on it opens it. With the cursor elsewhere,
+`Enter` offers the list of the conflicted files, which is also under
+**Resolve Conflicts** in the diff menu. **Run External Merge Tool** in the
+diff menu opens a file in the tool git is configured with instead
 (`git mergetool`).
 
-The two sides are shown beside each other, titled with the names git wrote
-into the markers (`HEAD` and `topic`, or a commit id during a rebase)
-rather than "ours" and "theirs", since during a rebase those two mean the
-opposite of what you would expect. A pane below shows what the conflict
-under the cursor resolves to as you decide.
+The two sides are shown beside each other, titled by name rather than
+"ours" and "theirs", since during a rebase those two mean the opposite of
+what you would expect: the branch HEAD is on, e.g. `main (HEAD)`, and the
+branch merged in, or during a rebase the commit being applied, each with
+the subject of its commit, which says what it was doing. Each side is shown as what it did to
+the version both started from, the common ancestor, which is what says why
+they conflict: `+` a line it added, `~` a line it changed, with the words
+it changed marked in its color, `-` a line of the ancestor's it removed, in
+dark, and the lines it kept in dark too. A line is numbered as its side has
+it, and the text between conflicts as the left side has it.
+
+A pane below, **Result**, shows the file as it will be saved, as your
+decisions so far make it: each decided conflict's lines with a bar in the
+color of the side they came from, magenta where written by hand, and each
+undecided one as a row saying which keys decide it. It goes along with the
+cursor: the line the cursor is on is marked in it, at the same place in the
+file, or the lines of the conflict the cursor is in, a third of the way down
+the pane. Its line numbers are the saved file's. `Shift-↑` `↓` or the mouse
+wheel over it scroll it on its own, until the cursor moves again.
 
 The whole file is shown, not just its conflicts, since the text around a
 conflict is what tells you what it is part of. The view opens on the first
@@ -640,38 +712,58 @@ next and previous one from wherever the cursor is.
 | ---------- | ---------------------------------------------------------- |
 | 1  2       | Take the left or the right side                            |
 | 3  4       | Take both, left first or right first                       |
+| c          | Combine both sides' changes, where they touch other words  |
 | 0          | Take the common ancestor, i.e. undo both sides' changes    |
 | u          | Clear the decision on this conflict                        |
-| e          | Edit the result of this conflict by hand                   |
+| e          | Type the result of this conflict by hand, Esc when done    |
 | ]  [       | Next or previous conflict (n and p do the same)            |
 | b          | Show the version both sides started from                   |
 | a          | Whole file: take one side, or put the conflicts back       |
-| s          | Save and mark the file resolved                            |
+| s          | Save and mark the file resolved, then on to the next file  |
+| }  {       | Next or previous file still conflicted                     |
+| Tab        | Into the list of files, and back                           |
+| l          | Hide or show the list of files                             |
 | m          | Open the menu, which lists all of these                    |
 | ←  →       | Scroll all the columns sideways                            |
 | Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 
 Nothing is written until `s`, so closing without saving leaves the file as
-it was, and closing with decisions unsaved asks first. A file saved with
+it was, and closing or going to another file with decisions unsaved asks
+first. A file saved with
 conflicts still undecided keeps their markers, and is marked resolved once
 none is left.
 
-`b` shows the version both sides started from, which is usually what
-settles which change to keep, and `0` resolves the conflict *to* it, the
-answer when neither change should have happened here. Git records that
-version in the file only when `merge.conflictStyle` is `diff3` or `zdiff3`;
-otherwise gmd works it out on demand from the staged versions, without
-touching your files, and shows it as it takes it. A file both sides created
+`b` shows the version both sides started from in a pane of its own,
+between them, and `0` resolves the conflict *to* it, the answer when
+neither change should have happened here. Git records that version in the
+file only when `merge.conflictStyle` is `diff3` or `zdiff3`; otherwise gmd
+works it out from the staged versions as the file opens, without touching
+your files. Where it cannot, the sides are shown as they are, in their
+colors. A file both sides created
 has no such version, and says so. Where both sides added lines that were
 not there before, the ancestor is empty, so `0` removes the region, which
 is also how to drop a conflict you want gone.
 
-`e` is for the merge that is neither side but something of both. A box
-opens holding what the conflict resolves to now, or both sides if you have
-not chosen yet, and it says which of the two it gave you. Emptying the box
-is how to delete the conflicted region outright. `Tab` moves from the box
-to the buttons, since Enter inside it is a newline.
+`c` combines both sides' changes, for the conflict git could not merge
+only because the lines the two changed touch: one side added a line above a
+line the other changed, or each changed other words of the same line. Each
+line takes the change made to it, and a line both changed takes the words
+each changed. Where they change the same words, or both write lines in one
+place, there is no one combination, and `c` says so; the result pane offers
+it for each conflict it can be had for. It is never taken by itself, and `u`
+takes it back.
+
+`e` is for the merge that is neither side but something of both. It is
+typed in the result pane, in place of the conflict's lines, with the file
+around it and both sides in sight above. It starts from what the conflict
+resolves to now, or if you have not chosen yet from both sides' changes
+combined where `c` can combine them, and from both sides where not, and the
+pane's title says which. The lines after it are numbered as they will be as
+you type. `Esc` is done, as is `Tab` or a click on the sides, and what you
+typed is the conflict's decision; with nothing typed it is left as it was.
+`Ctrl-Z` undoes, and `u` afterwards clears the decision. Emptying the text
+is how to delete the conflicted region outright.
 
 A file with no text to merge is not shown in columns; it asks the one
 question it can, and which question depends on which sides still have the

@@ -49,6 +49,31 @@ public class ConflictRowServiceTest
         );
     }
 
+    // A conflict's header is in the color of the result pane's title and of the line under the
+    // resolver's header, but for what was decided, and its line goes on to the end of the row, which
+    // the panes stop short of where the width does not split evenly
+    [TestMethod]
+    public void TestAConflictsHeaderIsLinedToTheEndOfTheRow()
+    {
+        var file = FileWithOneConflict();
+        var service = new ConflictRowService();
+        var resolution = new ConflictResolution(file);
+        var header = service.ToRows(file, resolution, false).Rows.First(r => r.IsHunkHeader);
+        var columns = ConflictColumns.Calculate(40, false);
+        Assert.AreEqual(39, columns.TotalWidth, "The panes are a column short of the width");
+
+        var text = service.ToRowText(header, columns, 0);
+
+        Assert.AreEqual("─── Conflict 1 ── unresolved ───────────", text.ToString());
+        Assert.AreEqual("mmm mmmmmmmm m mm RRRRRRRRRR mmmmmmmmmmm", gmdTest.Fixtures.TextColors.Of(text));
+        resolution.Set(0, HunkChoice.Ours);
+        var decided = service.ToRows(file, resolution, false).Rows.First(r => r.IsHunkHeader);
+        Assert.AreEqual(
+            "mmm mmmmmmmm m mm GGGGG GGGG mmmmmmmmmmm",
+            gmdTest.Fixtures.TextColors.Of(service.ToRowText(decided, columns, 0))
+        );
+    }
+
     [TestMethod]
     public void TestTwoPanesWithTheLabelsGitWrote()
     {
@@ -56,13 +81,13 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            a
-            ─── Conflict 1 ── unr
-            HEAD      │topic
-            ours      │theirs
-            b
+                1 a
+            ─── Conflict 1 ── unresolved ───
+            HEAD           │topic
+                2 ours     │    2 theirs
+                3 b
             """,
-            Draw(file, new ConflictResolution(file), 22)
+            Draw(file, new ConflictResolution(file), 32)
         );
     }
 
@@ -75,11 +100,12 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            a
-            ─── Conflict 1 ── unresolved ───────
+                1 a
+            ─── Conflict 1 ── unresolved ───────────────────────────────────────────────────────────────────────────
             HEAD                              │9c2f1a                            │topic
-            ours                              │base                              │theirs
-            b
+            -     base                        │      base                        │-     base
+            +   2 ours                        │                                  │+   2 theirs
+                3 b
             """,
             Draw(file, new ConflictResolution(file), 104, isShowBase: true)
         );
@@ -108,12 +134,13 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            ─── Conflict 1 ── unresolved ───────
+            ─── Conflict 1 ── unresolved ───────────────────────────────────────────────────────────────────────────
             HEAD                              │9c2f1a                            │topic
-            ours                              │base                              │theirs
-            ─── Conflict 2 ── unresolved ───────
+            -     base                        │      base                        │-     base
+            +   1 ours                        │                                  │+   1 theirs
+            ─── Conflict 2 ── unresolved ───────────────────────────────────────────────────────────────────────────
             HEAD                              │common ancestor (nothing here)    │topic
-            o2                                │                                  │t2
+                2 o2                          │                                  │    2 t2
             """,
             Draw(file, new ConflictResolution(file), 104, isShowBase: true)
         );
@@ -137,11 +164,12 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            a
-            ─── Conflict 1 ── unresolved ───────
+                1 a
+            ─── Conflict 1 ── unresolved ───────────────────────────────
             HEAD                         │topic
-            ours                         │theirs
-            b
+            -     base                   │-     base
+            +   2 ours                   │+   2 theirs
+                3 b
             """,
             drawn
         );
@@ -185,12 +213,12 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            ─── Conflict 1 ── unr
-            HEAD      │topic
-            o1        │t1
-            o2        │
+            ─── Conflict 1 ── unresolved ───
+            HEAD           │topic
+                1 o1       │    1 t1
+                2 o2       │
             """,
-            Draw(file, new ConflictResolution(file), 22)
+            Draw(file, new ConflictResolution(file), 32)
         );
     }
 
@@ -213,12 +241,12 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-               above
-            ─── Conflict 1 ── unr
-            HEAD      │topic
-               o1     │t1   x
+                1    above
+            ─── Conflict 1 ── unresolved ───
+            HEAD           │topic
+                2    o1    │    2 t1   x
             """,
-            Draw(file, new ConflictResolution(file), 22)
+            Draw(file, new ConflictResolution(file), 32)
         );
     }
 
@@ -252,6 +280,118 @@ public class ConflictRowServiceTest
             "Rebase  f.txt"
         );
     }
+
+    // With the common ancestor known, each side is drawn against it: '~' a line it changed, its words
+    // on its own color, '+' a line it added, '-' dark a line of the ancestor's it removed, and a line
+    // it kept dark, each numbered as the side has it, the text between conflicts as ours has it
+    [TestMethod]
+    public void TestEachSideIsDrawnAgainstTheAncestor()
+    {
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [
+                new ConflictSegment(Lines("above"), null),
+                new ConflictSegment(
+                    [],
+                    new ConflictHunk(
+                        0,
+                        "HEAD",
+                        "base",
+                        "topic",
+                        Lines("var x = 1;"),
+                        Lines("var x = 0;", "gone"),
+                        Lines("new", "var x = 0;", "gone")
+                    )
+                ),
+                new ConflictSegment(Lines("below"), null),
+            ],
+            true,
+            true,
+            HasBase: true
+        );
+
+        Assert.AreEqual(
+            """
+                1 above
+            ─── Conflict 1 ── unresolved ───────────────────────────────
+            HEAD                         │topic
+            ~   2 var x = 1;             │+   2 new
+            -     gone                   │    3 var x = 0;
+                                         │    4 gone
+                3 below
+            """,
+            Draw(file, new ConflictResolution(file), 60)
+        );
+    }
+
+    // Scrolled sideways, the gutter of mark and number stays where it is, and the text moves
+    [TestMethod]
+    public void TestTheGutterStaysWhileTheTextScrolls()
+    {
+        var file = FileWithOneConflict();
+        var service = new ConflictRowService();
+        var rows = service.ToRows(file, new ConflictResolution(file), false);
+        var columns = ConflictColumns.Calculate(40, false);
+
+        Assert.AreEqual(
+            "    2 urs          │    2 heirs",
+            service.ToRowText(rows.Rows[3], columns, 1).ToString().TrimEnd()
+        );
+    }
+
+    // The result is the file as it will be saved: the text between conflicts, a decided conflict's
+    // lines with a bar in the color of the side they came from, numbered as the file will be, and an
+    // undecided one a row saying which keys decide it, where its lines start
+    [TestMethod]
+    public void TestTheResultIsTheFileAsItWillBeSaved()
+    {
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [
+                new ConflictSegment(Lines("a"), null),
+                new ConflictSegment([], new ConflictHunk(0, "HEAD", "", "topic", Lines("o1"), [], Lines("t1", "t2"))),
+                new ConflictSegment(Lines("b"), null),
+                new ConflictSegment([], new ConflictHunk(1, "HEAD", "", "topic", Lines("o3"), [], Lines("t3"))),
+            ],
+            true,
+            true
+        );
+        var resolution = new ConflictResolution(file);
+        resolution.Set(0, HunkChoice.TheirsThenOurs);
+        var names = ConflictNames.Of(file, new ConflictSides("main", "", ""));
+
+        var result = new ConflictRowService().ToResult(file, resolution, names);
+
+        Assert.AreEqual(
+            """
+                1 a
+            ▌   2 t1
+            ▌   3 t2
+            ▌   4 o1
+                5 b
+            ▌      Conflict 2 is not decided: 1 main, 2 topic, 3 or 4 both, 0 neither, e edit
+            """,
+            string.Join("\n", result.Rows.Select(r => r.ToString()))
+        );
+        Assert.AreEqual("C\nC\nY", string.Join("\n", result.Rows.Skip(1).Take(3).Select(r => TextColorsOfBar(r))));
+        CollectionAssert.AreEqual(new[] { 1, 5 }, new[] { result.Starts[0], result.Starts[1] });
+        CollectionAssert.AreEqual(new[] { 4, 6 }, new[] { result.Ends[0], result.Ends[1] });
+
+        // Where the cursor is above, in the result: a line of the text between conflicts is the same
+        // line, and a conflict its lines, or its one row while undecided
+        Assert.AreEqual((0, 1), result.RangeOf(new ConflictAnchor(-1, 0, false)), "'a', above the first");
+        Assert.AreEqual((1, 4), result.RangeOf(new ConflictAnchor(0, 2, true)), "In conflict 1, its 3 lines");
+        Assert.AreEqual((4, 5), result.RangeOf(new ConflictAnchor(0, 0, false)), "'b', the line after it");
+        Assert.AreEqual((5, 6), result.RangeOf(new ConflictAnchor(1, 0, true)), "Conflict 2, undecided");
+        Assert.AreEqual((0, 0), ConflictResult.None.RangeOf(new ConflictAnchor(-1, 0, false)), "Nothing");
+    }
+
+    // The color letter of a row's bar, its first rune
+    static string TextColorsOfBar(gmd.Cui.Common.Text row) => gmdTest.Fixtures.TextColors.Of(row)[..1];
 
     // ---- columns ----
 

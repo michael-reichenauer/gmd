@@ -496,7 +496,8 @@ class Server : IServer
 
         return new ConflictState(
             GitConverter.ToOperation(status.Operation),
-            status.Conflicts.Select(GitConverter.ToConflictedFile).ToList()
+            status.Conflicts.Select(GitConverter.ToConflictedFile).ToList(),
+            status.IsFinishedByCommit
         );
     }
 
@@ -524,6 +525,13 @@ class Server : IServer
 
         return GitConverter.ToConflictFile(file);
     }
+
+    public async Task<Result<ConflictSides>> GetConflictSidesAsync(string wd) =>
+        await git.GetConflictSidesAsync(wd) switch
+        {
+            Git.ConflictSides sides => GitConverter.ToConflictSides(sides),
+            Error e => e,
+        };
 
     public Task<Result> ResolveConflictFileAsync(
         string path,
