@@ -11,7 +11,8 @@ namespace gmdE2eTest.Demo;
 //
 // The story: a repository where only your own branch and main are shown, two other branches
 // brought in (one from the branch menu, one from the marker where it was merged), a look at a
-// commit and its diff, a search, and then committing, pushing and updating the other branches.
+// commit and its diff, a search, then committing, pushing and updating the other branches, and
+// last merging main, which stops on a conflict that the resolver combines both changes of.
 // A caption under the screen says what each part shows (DemoRecording.Caption).
 [TestClass]
 public class DemoTest
@@ -82,12 +83,13 @@ public class DemoTest
         gmd.Send("Enter");
         gmd.WaitFor("Parents:");
         demo.Frame(2.5, "details");
+        // The file's header in the diff, which the details' list of files has no bar of
         gmd.Send("d");
-        gmd.WaitFor("M src/search.js");
+        gmd.WaitFor("▌ M src/search.js");
         demo.Caption("The diff, side by side");
         demo.Frame(4, "diff");
         gmd.Send("Escape");
-        gmd.WaitUntilGone("M src/search.js");
+        gmd.WaitUntilGone("▌ M src/search.js");
         demo.Caption("");
         demo.Frame(0.8);
         gmd.Send("Enter");
@@ -128,6 +130,43 @@ public class DemoTest
         gmd.WaitUntilGone("▼");
         demo.Caption("⇧u pulled every shown branch: main, which was behind origin (▼), is up to date");
         demo.Frame(3.5, "updated");
+
+        // Merge main, where a teammate changed the start of src/app.js, which this branch changed
+        // too: git stops on it, and the resolver combines the two, which changed other words. Left
+        // to highlight the current branch, whose e lists the branches to merge into it, down past
+        // ~feature/checkout and feature/search to main.
+        Press(gmd, demo, "Left", 0.6);
+        gmd.Send("e");
+        gmd.WaitFor("Merge into feature/login");
+        demo.Caption("e merges another branch into yours: main, with a teammate's change");
+        demo.Frame(1.2, "merge-menu");
+        Press(gmd, demo, "Down", 0.4);
+        Press(gmd, demo, "Down", 1);
+        gmd.Send("Enter");
+        gmd.WaitFor("Merge Stopped on Conflicts");
+        demo.Caption("Both changed the start of src/app.js: git stops on a conflict");
+        demo.Frame(3, "conflict-box");
+
+        gmd.Send("Enter"); // Resolve Conflicts, the default
+        gmd.WaitFor("─── Conflict 1");
+        demo.Caption("Each side as what it changed, and below, the file as it will be saved");
+        demo.Frame(4.5, "resolver");
+        gmd.Send("c");
+        gmd.WaitFor("both changes combined");
+        demo.Caption("They changed other words of the lines, and c combines both");
+        demo.Frame(4, "combined");
+        gmd.Send("s");
+        gmd.WaitFor("Conflicts Resolved");
+        demo.Caption("s saves the file, and with no conflict left, Commit finishes the merge");
+        demo.Frame(2.5, "resolved");
+        gmd.Send("Enter");
+        gmd.WaitFor("Merge branch 'main'");
+        demo.Frame(1.5, "merge-commit");
+        gmd.Send("M-o");
+        gmd.WaitUntilGone("on 'feature/login':"); // The commit dialog's title
+        gmd.WaitUntilGone("uncommitted");
+        demo.Caption("Merged, with both changes");
+        demo.Frame(3.5, "merged");
 
         demo.Save(CastPath);
     }
