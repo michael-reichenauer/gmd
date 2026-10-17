@@ -218,7 +218,6 @@ class ConflictView : IConflictView
             Height = Dim.Fill(resultHeight + hintsHeight),
             IsShowCursor = false,
             IsScrollMode = false,
-            IsHighlightCurrentIndex = true,
         };
 
         // Its title row is the border above it
@@ -397,8 +396,21 @@ class ConflictView : IConflictView
     {
         MoveToFirstHunkOnce();
 
+        // The cursor on the line number, as the diff draws it, while the keys are with the file
         var columns = ConflictColumns.Calculate(contentWidth, isShowBase);
-        var texts = rows.Rows.Skip(firstRow).Take(rowCount).Select(r => rowService.ToRowText(r, columns, rowStartX));
+        var texts = rows
+            .Rows.Skip(firstRow)
+            .Take(rowCount)
+            .Select(
+                (r, i) =>
+                    firstRow + i == currentIndex && contentView.HasFocus
+                        ? ConflictRowService.WithCursor(
+                            rowService.ToRowText(r, columns, rowStartX),
+                            r.GutterWidth,
+                            ConflictRowService.CursorColor
+                        )
+                        : rowService.ToRowText(r, columns, rowStartX)
+            );
 
         return (texts, rows.Count);
     }
@@ -415,7 +427,16 @@ class ConflictView : IConflictView
             var shown = result
                 .Rows.Skip(firstRow)
                 .Take(rowCount)
-                .Select((r, i) => IsAtCursor(firstRow + i) ? r.Subtext(0, width, isFillRest: true).ToHighlight() : r);
+                .Select(
+                    (r, i) =>
+                        IsAtCursor(firstRow + i)
+                            ? ConflictRowService.WithCursor(
+                                r,
+                                ConflictRowService.GutterWidth,
+                                ConflictRowService.ResultCursorColor
+                            )
+                            : r
+                );
             return (shown, result.Rows.Count);
         }
 

@@ -102,6 +102,20 @@ class ConflictRowService : IConflictRowService
     // How wide a line's gutter is: its mark, its number in 4 and a space
     internal const int GutterWidth = 6;
 
+    // The cursor on a row as the diff has it: the line number in the color, black on white in the
+    // file above and white on gray in the result below, the mark beside it and the line itself as
+    // they are; a row of no line number, e.g. a conflict's header, highlighted whole
+    internal static Text WithCursor(Text row, int gutterWidth, Color color) =>
+        gutterWidth == 0
+            ? row.ToHighlight()
+            : row.Subtext(0, 1)
+                .ToTextBuilder()
+                .Color(color, row.Subtext(1, gutterWidth - 1, isFillRest: true).ToString())
+                .Add(row.Subtext(gutterWidth, Math.Max(0, row.Length - gutterWidth)));
+
+    internal static readonly Color CursorColor = new(Terminal.Gui.Color.Black, Terminal.Gui.Color.White);
+    internal static readonly Color ResultCursorColor = new(Terminal.Gui.Color.White, Terminal.Gui.Color.DarkGray);
+
     static void AddHunk(
         ConflictRows rows,
         ConflictHunk hunk,

@@ -512,6 +512,7 @@ public class ConflictViewTest
             gmd.WaitForStable();
         }
         Assert.AreEqual("68 line 63 @4", Shown(MarkedInResult(gmd)));
+        Assert.AreEqual("69 line 63", CursorRowAbove(gmd), "The cursor, black on white on the number");
 
         // Scrolled on its own, and back with the cursor at its next move
         for (int i = 0; i < 3; i++)
@@ -526,21 +527,35 @@ public class ConflictViewTest
     }
 
     // The rows of the result pane marked as at the cursor, and the first one's row in the pane, read
-    // by their background, the highlight
+    // by the background of their line numbers, gray, 'D', which a row of no number has blank
     static (IReadOnlyList<string> Rows, int First) MarkedInResult(TmuxSession gmd)
     {
         var screen = ScreenText.Of(gmd.WaitForStable()).Split('\n');
         var title = screen.FindIndexBy(l => l.StartsWith("─── Result") || l.StartsWith("─── Typing"));
         var pane = screen.Skip(title + 1).ToList(); // To the bottom, the key hints being off
-        var backgrounds = ScreenText.BackgroundRows(gmd.CaptureColors(), title + 1, pane.Count).Split('\n');
-        var marked = pane.Select(
-                (r, i) => (Row: r.TrimEnd('┃').TrimEnd(), IsMarked: backgrounds[i].Trim().StartsWith('D'))
-            )
+        var backgrounds = ScreenText
+            .BackgroundRows(gmd.CaptureColors(), title + 1, pane.Count, isBlankShown: true)
+            .Split('\n');
+        var marked = pane.Select((r, i) => (Row: r.TrimEnd('┃').TrimEnd(), IsMarked: IsNumberOn(backgrounds[i], 'D')))
             .Select((r, i) => (r.Row, r.IsMarked, Index: i))
             .Where(r => r.IsMarked)
             .ToList();
         return (marked.Select(r => r.Row).ToList(), marked.Count > 0 ? marked[0].Index : -1);
     }
+
+    // The row of the file above the result whose line number is black on white, the cursor's
+    static string CursorRowAbove(TmuxSession gmd)
+    {
+        var screen = ScreenText.Of(gmd.WaitForStable()).Split('\n');
+        var title = screen.FindIndexBy(l => l.StartsWith("─── Result") || l.StartsWith("─── Typing"));
+        var backgrounds = ScreenText.BackgroundRows(gmd.CaptureColors(), 0, title, isBlankShown: true).Split('\n');
+        var rows = Enumerable.Range(0, title).Where(i => IsNumberOn(backgrounds[i], 'W')).ToList();
+        return string.Join(" | ", rows.Select(i => screen[i].TrimEnd('┃').Trim()));
+    }
+
+    // Whether the line number of a row is on the background, its five cells after the mark
+    static bool IsNumberOn(string background, char color) =>
+        background.Length > 5 && background[1..6] == new string(color, 5);
 
     // The marked rows without their line numbers' indent, and the row of the first in the pane, '@4'
     static string Shown((IReadOnlyList<string> Rows, int First) marked) =>
