@@ -49,6 +49,31 @@ public class ConflictRowServiceTest
         );
     }
 
+    // A conflict's header is in the color of the result pane's title and of the line under the
+    // resolver's header, but for what was decided, and its line goes on to the end of the row, which
+    // the panes stop short of where the width does not split evenly
+    [TestMethod]
+    public void TestAConflictsHeaderIsLinedToTheEndOfTheRow()
+    {
+        var file = FileWithOneConflict();
+        var service = new ConflictRowService();
+        var resolution = new ConflictResolution(file);
+        var header = service.ToRows(file, resolution, false).Rows.First(r => r.IsHunkHeader);
+        var columns = ConflictColumns.Calculate(40, false);
+        Assert.AreEqual(39, columns.TotalWidth, "The panes are a column short of the width");
+
+        var text = service.ToRowText(header, columns, 0);
+
+        Assert.AreEqual("─── Conflict 1 ── unresolved ───────────", text.ToString());
+        Assert.AreEqual("mmm mmmmmmmm m mm RRRRRRRRRR mmmmmmmmmmm", gmdTest.Fixtures.TextColors.Of(text));
+        resolution.Set(0, HunkChoice.Ours);
+        var decided = service.ToRows(file, resolution, false).Rows.First(r => r.IsHunkHeader);
+        Assert.AreEqual(
+            "mmm mmmmmmmm m mm GGGGG GGGG mmmmmmmmmmm",
+            gmdTest.Fixtures.TextColors.Of(service.ToRowText(decided, columns, 0))
+        );
+    }
+
     [TestMethod]
     public void TestTwoPanesWithTheLabelsGitWrote()
     {
@@ -57,7 +82,7 @@ public class ConflictRowServiceTest
         Assert.AreEqual(
             """
                 1 a
-            ─── Conflict 1 ── unresolved ──
+            ─── Conflict 1 ── unresolved ───
             HEAD           │topic
                 2 ours     │    2 theirs
                 3 b
@@ -76,7 +101,7 @@ public class ConflictRowServiceTest
         Assert.AreEqual(
             """
                 1 a
-            ─── Conflict 1 ── unresolved ───────
+            ─── Conflict 1 ── unresolved ───────────────────────────────────────────────────────────────────────────
             HEAD                              │9c2f1a                            │topic
             -     base                        │      base                        │-     base
             +   2 ours                        │                                  │+   2 theirs
@@ -109,11 +134,11 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            ─── Conflict 1 ── unresolved ───────
+            ─── Conflict 1 ── unresolved ───────────────────────────────────────────────────────────────────────────
             HEAD                              │9c2f1a                            │topic
             -     base                        │      base                        │-     base
             +   1 ours                        │                                  │+   1 theirs
-            ─── Conflict 2 ── unresolved ───────
+            ─── Conflict 2 ── unresolved ───────────────────────────────────────────────────────────────────────────
             HEAD                              │common ancestor (nothing here)    │topic
                 2 o2                          │                                  │    2 t2
             """,
@@ -140,7 +165,7 @@ public class ConflictRowServiceTest
         Assert.AreEqual(
             """
                 1 a
-            ─── Conflict 1 ── unresolved ───────
+            ─── Conflict 1 ── unresolved ───────────────────────────────
             HEAD                         │topic
             -     base                   │-     base
             +   2 ours                   │+   2 theirs
@@ -188,7 +213,7 @@ public class ConflictRowServiceTest
 
         Assert.AreEqual(
             """
-            ─── Conflict 1 ── unresolved ──
+            ─── Conflict 1 ── unresolved ───
             HEAD           │topic
                 1 o1       │    1 t1
                 2 o2       │
@@ -217,7 +242,7 @@ public class ConflictRowServiceTest
         Assert.AreEqual(
             """
                 1    above
-            ─── Conflict 1 ── unresolved ──
+            ─── Conflict 1 ── unresolved ───
             HEAD           │topic
                 2    o1    │    2 t1   x
             """,
@@ -290,7 +315,7 @@ public class ConflictRowServiceTest
         Assert.AreEqual(
             """
                 1 above
-            ─── Conflict 1 ── unresolved ───────
+            ─── Conflict 1 ── unresolved ───────────────────────────────
             HEAD                         │topic
             ~   2 var x = 1;             │+   2 new
             -     gone                   │    3 var x = 0;

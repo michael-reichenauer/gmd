@@ -129,7 +129,8 @@ class ConflictRowService : IConflictRowService
     {
         var choice = resolution.ChoiceOf(hunk.Index);
         var isCombined = resolution.CombinedOf(hunk.Index) != null;
-        var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ").Add(ChoiceText(choice, names, isCombined));
+        // Its line is drawn on to the end of the row, in the same color, as the row is drawn
+        var title = Text.BrightMagenta($"─── Conflict {hunk.Index + 1} ── ").Add(ChoiceText(choice, names, isCombined));
         rows.Add(ConflictRow.Header(title, hunk.Index));
 
         // The sides by name, not 'ours' and 'theirs' — during a rebase those two mean the opposite of
@@ -233,25 +234,32 @@ class ConflictRowService : IConflictRowService
     static Text ChoiceText(HunkChoice choice, ConflictNames names, bool isCombined) =>
         choice switch
         {
-            HunkChoice.Manual when isCombined => Text.Green("── both changes combined "),
-            HunkChoice.None => Text.Red("── unresolved ───────"),
-            HunkChoice.Ours => Text.Green($"── using {names.Ours.Max(30)} "),
-            HunkChoice.Theirs => Text.Green($"── using {names.Theirs.Max(30)} "),
-            HunkChoice.OursThenTheirs => Text.Green($"── using {names.Ours.Max(20)} then {names.Theirs.Max(20)} "),
-            HunkChoice.TheirsThenOurs => Text.Green($"── using {names.Theirs.Max(20)} then {names.Ours.Max(20)} "),
+            HunkChoice.Manual when isCombined => Text.Green("both changes combined"),
+            HunkChoice.None => Text.Red("unresolved"),
+            HunkChoice.Ours => Text.Green($"using {names.Ours.Max(30)}"),
+            HunkChoice.Theirs => Text.Green($"using {names.Theirs.Max(30)}"),
+            HunkChoice.OursThenTheirs => Text.Green($"using {names.Ours.Max(20)} then {names.Theirs.Max(20)}"),
+            HunkChoice.TheirsThenOurs => Text.Green($"using {names.Theirs.Max(20)} then {names.Ours.Max(20)}"),
             // Not the ancestor's own label, which is 'base' for a recovered one and whatever git
             // wrote for a diff3 one — neither says what taking it means the way these words do
-            HunkChoice.Base => Text.Green("── using the common ancestor "),
-            HunkChoice.Manual => Text.Green("── edited by hand "),
+            HunkChoice.Base => Text.Green("using the common ancestor"),
+            HunkChoice.Manual => Text.Green("edited by hand"),
             _ => Text.Dark(""),
         };
 
     // One drawn line: the panes side by side, or one text across the whole width
     public Text ToRowText(ConflictRow row, ConflictColumns columns, int startX)
     {
-        // Not padded: only the panes need to be, so their separators line up
+        // Not padded: only the panes need to be, so their separators line up. A conflict's header has
+        // its line drawn on to the end of the row, which the panes may stop a column or two short of.
         if (row.Mode == ConflictRowMode.SpanAll)
-            return Scroll(row.Panes[0], startX, columns.TotalWidth, row.GutterWidth, isPad: false);
+        {
+            var span = Scroll(row.Panes[0], startX, columns.TotalWidth, row.GutterWidth, isPad: false);
+            var width = Math.Max(columns.Width, columns.TotalWidth);
+            return row.IsHunkHeader && span.Length + 1 < width
+                ? span.ToTextBuilder().BrightMagenta(" " + new string('─', width - span.Length - 1))
+                : span;
+        }
 
         // The rows are built once, from what the user asked for, but the widths are worked out per
         // draw and may have dropped the ancestor because the view is too narrow for three. When they

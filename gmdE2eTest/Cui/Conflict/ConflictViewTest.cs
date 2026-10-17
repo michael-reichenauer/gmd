@@ -30,7 +30,7 @@ public class ConflictViewTest
                37 line 37
                38 line 38
                39 line 39
-            ─── Conflict 1 ── unresolved ───────
+            ─── Conflict 1 ── unresolved ──────────────────────────────────────────────────────────────────────────────────────────
             main (HEAD) · Change it on main                            │dev · Change it on dev
             ~  40 line 40 on main                                      │~  40 line 40 on dev
                41 line 41
@@ -149,7 +149,7 @@ public class ConflictViewTest
                37 line 37
                38 line 38
                39 line 39
-            ─── Conflict 1 ── using the common ancestor
+            ─── Conflict 1 ── using the common ancestor ───────────────────────────────────────────────────────────────────────────
             main (HEAD) · Change it on main        │common ancestor                        │dev · Change it on dev
             ~  40 line 40 on main                  │      line 40                          │~  40 line 40 on dev
                41 line 41
