@@ -121,7 +121,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   unhandled-exception path logs and shows. So `Result.cs`, `UnionPolyfill.cs` and the test helper
   `ResultAssert.cs` depend on nothing but the BCL and can be copied to another project as they are
   (one namespace line each).
-- The compiler is the .NET 11 RC1 SDK's (`global.json`; `LangVersion preview` in
+- The compiler is the .NET 11 RC2 SDK's since 2026-10-17, RC1 before (`global.json`; `LangVersion preview` in
   `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
   are polyfilled in `gmd/Utils/UnionPolyfill.cs`. CSharpier 1.3.0 parses no C# 15 syntax, which is
   why the union is a hand-written struct rather than a `union` declaration. A missing switch arm
