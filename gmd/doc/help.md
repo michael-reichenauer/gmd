@@ -558,7 +558,9 @@ throw changes away ask first, and what they throw away gmd keeps, for
   takes it back.
 - **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
-  squash them into one commit with a new message. The commits after them
+  squash them into one commit with a new message, which starts as the
+  oldest commit's, with the subjects of the others listed below it, as
+  GitHub lists them in a squash merge. The commits after them
   are put back on top as they were, merges and authors too, and **Undo**
   takes the squash back. Nothing changes until the squash is made. Commits
   on origin already can be squashed too, and `p` then pushes the squash with

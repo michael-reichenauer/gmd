@@ -314,9 +314,9 @@ class CommitMenu : ICommitMenu
             c1 = repo.Repo.ViewCommits[i1];
             c2 = repo.Repo.ViewCommits[i2];
             whyNot = CommitRewrite.WhyNotSquash(repo.Repo, c1, c2);
-            if (!c1.IsUncommitted && !c2.IsUncommitted)
+            if (whyNot == "")
             {
-                selected = $"{Sid(c1.Id)}...{Sid(c2.Id)}";
+                selected = $"{CommitRewrite.Squashed(repo.Repo, c1, c2).Count} Commits";
             }
         }
 

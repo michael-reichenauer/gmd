@@ -592,15 +592,7 @@ class CommitCommands : ICommitCommands
             if (!IsPushedRewriteConfirmed(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, c2)))
                 return Result.Ok;
 
-            var commits = new List<Commit>();
-            var c = c1;
-            while (c.Id != c2.ParentIds[0])
-            {
-                commits.Add(c);
-                if (!c.ParentIds.Any())
-                    break;
-                c = repo.Repo.CommitById[c.ParentIds[0]];
-            }
+            var commits = CommitRewrite.Squashed(repo.Repo, c1, c2);
 
             var forcePush = CommitRewrite.ForcePushOf(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, c2));
             if (!squashDlg.Show(repo.Repo, commits, forcePush, out var message, out var isForcePush))

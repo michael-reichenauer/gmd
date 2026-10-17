@@ -105,6 +105,22 @@ static class CommitRewrite
         return "";
     }
 
+    // The commits a squash makes one, from the newest selected down its first parents to the oldest,
+    // newest first. Once WhyNotSquash allows them, so the two are one branch's.
+    public static IReadOnlyList<Commit> Squashed(Repo repo, Commit newest, Commit oldest)
+    {
+        List<Commit> commits = [];
+        var c = newest;
+        while (c.Id != oldest.ParentIds[0])
+        {
+            commits.Add(c);
+            if (c.Id == oldest.Id || !c.ParentIds.Any() || !repo.CommitById.TryGetValue(c.ParentIds[0], out var parent))
+                break;
+            c = parent;
+        }
+        return commits;
+    }
+
     // What to ask before commits on origin are rewritten, or "" when there is nothing to ask: when the
     // branch is one others build on (Branch.IsShared), or some of them are someone else's, by author,
     // since the force push replaces them for everyone, and whoever has them has to take the new ones.
