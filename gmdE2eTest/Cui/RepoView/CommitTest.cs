@@ -614,6 +614,45 @@ public class CommitTest
         Assert.AreEqual("Add eta\nAdd gamma\nWork on dev", (await repo.GitAsync("log --format=%s -3 dev")).Trim());
     }
 
+    // The current branch reset to an older commit, keeping what the commits after it changed as
+    // uncommitted changes, after a question with Cancel the default. In the Undo sub menu of 'Add
+    // two' the item is eight moves from 'Undo Commit', where it opens, past 'Recover Lost Commits',
+    // 'Restore Deleted Branch', 'Restore Discarded Changes', 'Revert Commit', 'Drop', 'Uncommit Last
+    // Commit' and 'Uncommit ... and Newer'.
+    [TestMethod]
+    public async Task TestResetTheBranchToACommitKeepingTheChanges()
+    {
+        using var repo = await ThreeFilesAsync();
+        var sid = (await repo.GitAsync("rev-parse HEAD~1")).Trim()[..8];
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add one");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("m");
+        gmd.WaitFor($"Amend {sid} ...");
+        OpenSubMenu(gmd, 4, "Recover Lost Commits");
+        for (int i = 0; i < 8; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor($"Reset 'main' to {sid}?"), "The commit after it leaves the branch.");
+        gmd.Send("Left"); // From Cancel, the default, past Discard Changes to Keep Changes
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            $"Reset 'main' to {sid}, keeping the changes uncommitted: Undo takes it back",
+            ScreenText.LastLine(gmd.WaitFor($"Reset 'main' to {sid},"))
+        );
+        Assert.AreEqual("Add two\nAdd one", (await repo.GitAsync("log --format=%s")).Trim());
+        Assert.AreEqual("?? three.txt", (await repo.GitAsync("status --porcelain")).Trim());
+    }
+
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
     // working tree. Reached through the commit menu's Undo sub menu.
     //

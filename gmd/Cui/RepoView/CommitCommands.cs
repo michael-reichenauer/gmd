@@ -44,6 +44,7 @@ interface ICommitCommands
     void AmendOlderCommit(string id);
     void DropCommit(string id);
     void MoveCommit(string id, bool isUp);
+    void ResetBranchTo(string id);
     void CherryPick();
 
     void AddTag();
@@ -748,6 +749,50 @@ class CommitCommands : ICommitCommands
             status.Info($"Moved '{commit.Subject}' {(isUp ? "above" : "below")} '{other.Subject}': Undo takes it back");
             return Result.Ok;
         });
+
+    // The current branch reset to a commit, of it or another: what its commits after it changed kept
+    // as uncommitted changes, or discarded too, as asked, and Undo takes it back
+    public void ResetBranchTo(string id) =>
+        Do(async repo =>
+        {
+            var commit = repo.Repo.CommitById[id];
+            if (CommitRewrite.WhyNotResetTo(repo.Repo, commit) is var whyNot && whyNot != "")
+                return new Notice(whyNot);
+            var branchName = CurrentBranchName();
+            var choice = Confirm.ResetBranch(branchName, commit.Sid, commit.Subject, ResetWhat(repo.Repo, commit));
+            if (choice == ResetChoice.Cancel)
+                return Result.Ok;
+
+            var isKeepChanges = choice == ResetChoice.KeepChanges;
+            using (status.Progress($"Resetting '{branchName}' to {commit.Sid}"))
+            {
+                if (await server.ResetCurrentBranchAsync(repo.Repo, id, isKeepChanges) is Error e)
+                    return new Error($"Failed to reset '{branchName}' to {commit.Sid}", e);
+            }
+
+            Refresh();
+            var how = isKeepChanges ? "keeping the changes uncommitted" : "with the files";
+            status.Info($"Reset '{branchName}' to {commit.Sid}, {how}: Undo takes it back");
+            return Result.Ok;
+        });
+
+    // What a reset to the commit does to the branch: the commits after it that leave it, and whether
+    // origin keeps some of them, which a pull then brings back; or the move sideways to it
+    internal static string ResetWhat(Repo repo, Commit commit)
+    {
+        var branchName = repo.CurrentBranch().NiceNameUnique;
+        if (CommitRewrite.LeftByReset(repo, commit) is not { } left)
+            return $"'{branchName}' moves to it, a commit of '{commit.BranchNiceUniqueName}', off its own line.";
+
+        var them = left.Count == 1 ? "The commit after it leaves" : $"The {left.Count} commits after it leave";
+        var pushed = left.Count(c => !CommitRewrite.IsNotPushed(repo, c));
+        var onOrigin =
+            pushed == 0 ? ""
+            : pushed == left.Count && pushed == 1 ? "\nIt is on origin, which keeps it, and a pull brings it back."
+            : pushed == left.Count ? "\nThey are on origin, which keeps them, and a pull brings them back."
+            : $"\n{pushed} of them are on origin, which keeps them, and a pull brings them back.";
+        return $"{them} the branch.{onOrigin}";
+    }
 
     public bool CanUncommitLastCommit()
     {

@@ -113,6 +113,44 @@ static class CommitRewrite
         return CommitsDownTo(repo, parent) is null ? null : parent;
     }
 
+    // Why the current branch cannot be reset to a commit, or "" when it can: any commit, of the branch
+    // or another, but the one it is on
+    public static string WhyNotResetTo(Repo repo, Commit commit)
+    {
+        if (commit.IsUncommitted)
+            return "The branch is reset to a commit: move to one first";
+        if (repo.Status.IsMerging)
+            return Why.InProgress;
+        var current = repo.AllBranches.FirstOrDefault(b => b.IsCurrent);
+        if (current == null || current.IsDetached || current.IsRemote)
+            return "Not on a branch: switch to the one to reset first";
+        if (commit.Id == repo.CurrentCommit().Id)
+            return $"'{current.NiceNameUnique}' is on this commit already";
+        return "";
+    }
+
+    // The commits a reset of the current branch to this commit takes off it, newest first: the newer
+    // ones down its first parents, or null when the commit is not on that line, e.g. another branch's,
+    // or one merged in, which the branch moves sideways to
+    public static IReadOnlyList<Commit>? LeftByReset(Repo repo, Commit commit)
+    {
+        const int maxWalk = 10000;
+        List<Commit> left = [];
+        var c = repo.CurrentCommit();
+        while (c.Id != commit.Id)
+        {
+            left.Add(c);
+            if (
+                left.Count > maxWalk
+                || c.GitParentIds.Count == 0
+                || !repo.CommitById.TryGetValue(c.GitParentIds[0], out var parent)
+            )
+                return null;
+            c = parent;
+        }
+        return left;
+    }
+
     // Why the commits from this one up to the last of the current branch cannot be moved to a new
     // branch, e.g. made on main by mistake, or "" when they can: the ones Uncommit takes, not pushed
     // yet and with one before them for the branch to go back to, but with any changes left as they

@@ -481,6 +481,13 @@ throw changes away ask first, and what they throw away gmd keeps, for
 - **Uncommit Last Commit**: `git reset HEAD~1`, the changes stay uncommitted
 - **Uncommit <commit-sha> and Newer**: `git reset --soft <commit-sha>~`, so
   that commit and the ones after it are uncommitted
+- **Reset Branch to <commit-sha> ...**: the current branch moved to any
+  commit, of it or another, after a question that says how many commits
+  leave the branch, and that a pull brings back those origin has. **Keep
+  Changes**, `git reset --mixed`, leaves what they changed as uncommitted
+  changes, and **Discard Changes**, `git reset --keep`, takes the files back
+  to the commit too, which git refuses rather than overwrite an uncommitted
+  change. Undo takes it back, and Recover Lost Commits finds the commits.
 - **Discard All Changes**: `git reset --hard` and `git clean -fd`
 - **Discard All Changes and Ignored Files**: `git reset --hard` and
   `git clean -fxd`, i.e. the folder as a fresh clone of the last commit

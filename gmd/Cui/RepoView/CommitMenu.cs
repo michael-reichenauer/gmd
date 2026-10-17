@@ -156,6 +156,7 @@ class CommitMenu : ICommitMenu
         var step = BranchUndo.StepOf(repo.Repo, current);
         var whyNotDrop = CommitRewrite.WhyNotDrop(repo.Repo, repo.RowCommit);
         var whyNotUncommit = CommitRewrite.WhyNotUncommit(repo.Repo, repo.RowCommit);
+        var whyNotReset = CommitRewrite.WhyNotResetTo(repo.Repo, repo.RowCommit);
 
         return Menu
             .Items.Item(
@@ -202,6 +203,14 @@ class CommitMenu : ICommitMenu
                 () => cmds.UncommitUntilCommit(id),
                 () => whyNotUncommit == "",
                 () => whyNotUncommit
+            )
+            // To any commit, of the branch or another, asking whether to keep the changes
+            .Item(
+                repo.RowCommit.IsUncommitted ? "Reset Branch to Commit ..." : $"Reset Branch to {id.Sid()} ...",
+                "",
+                () => cmds.ResetBranchTo(id),
+                () => whyNotReset == "",
+                () => whyNotReset
             )
             .Separator()
             .Item(

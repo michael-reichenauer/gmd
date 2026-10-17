@@ -103,8 +103,8 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   product review already, a cherry pick of the selected commits and a reset of a branch to any
   commit. Later, an absorb of the uncommitted changes into the commits that last touched the lines.
   *Done (2026-10-17):* Move to New Branch ..., and Reorder (Move Above and Move Below, each naming
-  the commit passed), see below. A cherry pick of the selected commits too. Open: squash merge, a
-  reset of a branch to any commit, absorb.
+  the commit passed), see below. A cherry pick of the selected commits, and a reset of the current
+  branch to any commit, too. Open: squash merge, absorb.
 
 ### E, as done so far (2026-10-17)
 
@@ -123,6 +123,11 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   with `--no-commit` leaves git no sequence to continue. Now git's own `cherry-pick <ids>`, oldest
   first, recorded for Undo as one change; refused for rows of no one line, of the current branch,
   or with a merge among them. One commit is staged for the commit dialog as before.
+- *Reset Branch to <sha> ...* in the Undo sub menu: the current branch to any commit, Keep Changes
+  (`--mixed`) or Discard Changes (`--keep`), Cancel the default, the question counting the commits
+  that leave the branch and saying that origin keeps the pushed ones, which a pull brings back. Only
+  from where the repo has the branch (`ResetBranchAsync`). Left: a reset of pushed commits that is
+  meant to take them off origin too has no force push, the branch then being only behind.
 
 ### A, as done (2026-10-17)
 

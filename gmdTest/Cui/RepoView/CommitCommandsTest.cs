@@ -141,6 +141,27 @@ public class CommitCommandsTest
         Assert.AreEqual(Why.Changes, CommitCommands.WhyNotCherryPick(changed, Row(changed, "d2"), Row(changed, "d1")));
     }
 
+    // What the reset question says of the commits it takes off the branch, and of origin's copies
+    [TestMethod]
+    public async Task TestWhatAResetSays()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c4", "Fourth", "c3")
+            .Commit("c3", "Third", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c4", isCurrent: true, remoteTipCommit: "c3", ahead: 1)
+            .LocalBranch("dev", "c1")
+            .ViewRepoAsync();
+        var c = (string name) => repo.CommitById[RepoBuilder.Sha(name)];
+
+        Assert.AreEqual("The commit after it leaves the branch.", CommitCommands.ResetWhat(repo, c("c3")));
+        Assert.AreEqual(
+            "The 3 commits after it leave the branch.\n2 of them are on origin, which keeps them, and a pull brings them back.",
+            CommitCommands.ResetWhat(repo, c("c1"))
+        );
+    }
+
     static int Row(Repo repo, string name) => repo.CommitById[RepoBuilder.Sha(name)].ViewIndex;
 
     // main and dev, both from c1
