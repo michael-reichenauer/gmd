@@ -81,6 +81,17 @@ static class UI
     // end.
     internal static void Post(Action action) => queue.Post(action);
 
+    // Runs the action at once when on the main loop, and posts it there from any other thread: what
+    // follows a change that can come from a thread of its own, e.g. a status message, drawn in the
+    // same iteration of the main loop as the change when it is the main loop's, rather than one later
+    internal static void OnMainLoop(Action action)
+    {
+        if (app?.MainThreadId == Environment.CurrentManagedThreadId)
+            action();
+        else
+            Post(action);
+    }
+
     // Terminal.Gui 2.x shows the cursor only where a view puts it (View.Cursor), so there is nothing
     // to hide; kept for the callers, which hid it after 1.x had shown it
     internal static void HideCursor() { }

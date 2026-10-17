@@ -722,9 +722,10 @@ public class DiffViewTest
         gmd.WaitForStable();
         gmd.Send("Enter");
 
+        // Waited for by the message, not 'Discarded', which the question said too
         Assert.AreEqual(
             "Discarded 1 line of lines.txt: Restore Discarded Changes in the Undo menu brings it back",
-            ScreenText.LastLine(gmd.WaitFor("Discarded"))
+            ScreenText.LastLine(gmd.WaitFor("Discarded 1 line"))
         );
         StringAssert.EndsWith(File.ReadAllText(Path.Join(repo.Path, "lines.txt")), "line 10\nELEVEN\nline 12\n");
     }
@@ -813,8 +814,13 @@ public class DiffViewTest
             ScreenText.LastLine(gmd.WaitFor("Discarded all changes"))
         );
         Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        // Closing the diff after a discard refreshes the log, and keys are dropped while git reads it,
+        // with nothing on the screen moving: the menu key is sent once the refresh is done
+        var shown = gmd.LogCount("Showed ");
         gmd.Send("Escape");
         gmd.WaitUntilGone("A epsilon.txt");
+        gmd.WaitForLogTimes("Showed ", shown + 1);
+        gmd.WaitForStable();
 
         // The commit menu starts on 'Amend ...', and 'Undo' is three moves down, past 'Commit Diff'
         // and 'Mark for Diff'; in it, on 'Undo Commit', main's last change, as DeletedBranchesDlgTest

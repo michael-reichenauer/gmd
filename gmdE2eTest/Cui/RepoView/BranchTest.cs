@@ -226,8 +226,9 @@ public class BranchTest
         gmd.Send("Enter");
 
         // The name is filled in and the cursor is at its end, so the rename is a matter of editing
-        // it. There is no remote branch here, so the dialog says nothing about origin.
-        var dialog = gmd.WaitFor("Rename Branch");
+        // it. There is no remote branch here, so the dialog says nothing about origin. Waited for by
+        // what only the dialog says: the menu says 'Rename Branch' too, until it has closed.
+        var dialog = gmd.WaitFor("From: dev");
         Assert.AreEqual(
             """
                                           ╭ Rename Branch ───────────────────────────────────────────╮

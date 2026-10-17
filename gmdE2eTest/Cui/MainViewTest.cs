@@ -142,7 +142,9 @@ public class MainViewTest
 
         gmd.Send("DC");
 
-        var screen = gmd.WaitUntilGone("1  gmd");
+        gmd.WaitUntilGone("1  gmd");
+        // The message is drawn after the list, a moment later
+        var screen = gmd.WaitFor("Removed ~/code/gmd");
         StringAssert.Contains(screen, "▸ 1  web-shop");
         Assert.AreEqual(
             "Removed ~/code/gmd from the recent list, the folder is untouched",
