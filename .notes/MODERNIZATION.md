@@ -862,9 +862,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - `DiffFileList` and `ConflictFileList` repeat `Separated`, `Highlighted` and `Cut`, and count
     the scrollbar column in their width alike: one writer of a list row beside a view.
   - `WhyNotDiscardLines` and `WhyNotLeaveOut` repeat their chain of reasons.
-  - The "Narrowed by the list" branch of `DiffView.Show` cannot run: the list needs a terminal of
-    150 and takes a quarter of it at most, which leaves the diff 112 columns, above the 110 one
-    column starts below.
+  - The list beside the diff never narrows it into one column: the list needs a terminal of 150 and
+    takes a quarter of it at most, which leaves the diff 112 columns, above the 110 one column starts
+    below. `DiffView.Show` makes the rows again with the list beside them anyway (2026-10-17), for the
+    files it then leaves out of the diff's top, so its one-column check there is only a guard.
   - `ConflictWorkspace` calls `UI.InfoMessage` and `UI.ErrorMessage` itself, so its loop is tested
     end to end only; what it opens next (`ConflictFileList.After`) and what finishes
     (`FinishOf`) are unit tested. `RepoCommands.ResolveConflicts` is one more `async void`, run
