@@ -15,17 +15,28 @@ namespace gmdE2eTest.Demo;
 // same on every run however fast the machine is: a fixture with pinned dates, and a clock that
 // only moves when a frame says so.
 //
-// Below gmd's screen is a caption, which says what the frames show, as a subtitle does: a bar
-// across the cast under a blank row, so that it reads as no part of gmd.
+// Below gmd's screen is a caption, which says what the frames show, as a subtitle does: a panel
+// three rows high across the cast under a blank row, black on a light color gmd fills no row with,
+// so that it reads as no part of gmd. The keys it names are key caps, white on blue, written in the
+// caption between backticks, e.g. "`c` combines both", and each caption is a scene, numbered at the
+// panel's left of how many there are, e.g. '9/18': how far the demo has come, and that it started
+// over.
 sealed class DemoRecording
 {
     const int CaretTimeoutMs = 10000;
 
-    // The blank row between gmd's screen and the caption, and the caption
-    const int CaptionRows = 2;
+    // The blank row between gmd's screen and the caption, and the caption's three rows
+    const int CaptionRows = 4;
 
-    // Bright white on gray, a color gmd draws nothing in
-    const string CaptionColors = "\u001b[0;97;100m";
+    // Black on bright white, the caption's panel, a key as a key cap, white on blue, and the number
+    // of the scene in gray
+    const string PanelColors = "\u001b[0;30;107m";
+    const string KeyColors = "\u001b[0;97;44m";
+    const string SceneColors = "\u001b[0;90;107m";
+
+    // In the scene numbers until the cast is saved, when it is known how many scenes there are. Of
+    // characters JSON leaves as they are, since the frames are serialized before it is replaced.
+    const string SceneCountMark = "{{SCENES}}";
 
     readonly TmuxSession gmd;
     readonly int width;
@@ -35,6 +46,7 @@ sealed class DemoRecording
     double time = 0;
     int frameCount = 0;
     string caption = "";
+    int scene = 0;
 
     // The rewrite is applied to every captured screen, for what would otherwise differ between
     // runs, such as the time of the uncommitted row, which is DateTime.Now
@@ -46,8 +58,14 @@ sealed class DemoRecording
         this.rewrite = rewrite;
     }
 
-    // What the frames from now on show, until the next caption
-    public void Caption(string text) => caption = text;
+    // What the frames from now on show, until the next caption, which starts a scene; "" for none,
+    // which leaves the panel blank but for the number of the scene it is in
+    public void Caption(string text)
+    {
+        if (text != "" && text != caption)
+            scene++;
+        caption = text;
+    }
 
     // Adds the screen as it is now, shown for the given number of seconds. Every frame is a marker
     // in the cast, named by the label or else numbered, so that one frame can be rendered on its
@@ -86,7 +104,8 @@ sealed class DemoRecording
                 height = height + CaptionRows,
             }
         );
-        File.WriteAllLines(path, [header, .. events]);
+        var scenes = scene.ToString().PadRight(2); // As wide as the row was laid out for
+        File.WriteAllLines(path, [header, .. events.Select(e => e.Replace(SceneCountMark, scenes))]);
     }
 
     void WaitForCaret(int x)
@@ -100,15 +119,29 @@ sealed class DemoRecording
         }
     }
 
-    // The caption in the middle of a bar the width of the cast, or no bar when there is none
+    // The panel's middle row: the number of the scene at its left, and the caption in the middle of
+    // the width, its keys as key caps, or after the number where it is too long for the middle. The
+    // number is laid out two digits wide on each side, ' 9/18', since how many scenes there are is
+    // only known once all are recorded: a row a column too long would wrap the cast's last row.
     string CaptionLine()
     {
-        if (caption == "")
-            return "\u001b[0m";
-        var text = caption.Length > width - 4 ? caption[..(width - 4)] : caption;
-        var left = (width - text.Length) / 2;
-        return new string(' ', left) + text + new string(' ', width - left - text.Length);
+        var number = scene > 0 ? $"  {scene, 2}/{SceneCountMark}" : "";
+        var numberWidth = scene > 0 ? NumberWidth : 0;
+        var parts = caption.Split('`').Select((text, i) => (Text: i % 2 == 1 ? $" {text} " : text, IsKey: i % 2 == 1));
+        var length = parts.Sum(p => p.Text.Length);
+        var left = Math.Max(numberWidth + 2, (width - length) / 2);
+
+        var line = new StringBuilder(SceneColors).Append(number).Append(PanelColors);
+        line.Append(' ', Math.Max(0, left - numberWidth));
+        foreach (var (text, isKey) in parts)
+            line.Append(isKey ? KeyColors : PanelColors).Append(text);
+        line.Append(PanelColors).Append(' ', Math.Max(0, width - left - length));
+        return line.ToString();
     }
+
+    const int NumberWidth = 7; // '  ', two digits, '/', two digits
+
+    string BlankPanelRow() => PanelColors + new string(' ', width);
 
     string Event(string type, string data) => JsonSerializer.Serialize<object[]>([Math.Round(time, 3), type, data]);
 
@@ -123,7 +156,9 @@ sealed class DemoRecording
             .Append("\u001b[0m\u001b[2J\u001b[H")
             .AppendJoin("\r\n", rows)
             .Append("\u001b[0m")
-            .Append($"\u001b[{height + CaptionRows};1H{CaptionColors}{CaptionLine()}\u001b[0m");
+            .Append($"\u001b[{height + 2};1H{BlankPanelRow()}")
+            .Append($"\u001b[{height + 3};1H{CaptionLine()}")
+            .Append($"\u001b[{height + 4};1H{BlankPanelRow()}\u001b[0m");
 
         if (gmd.IsCursorVisible)
         {
