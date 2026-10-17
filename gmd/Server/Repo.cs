@@ -82,6 +82,11 @@ record Repo
     public IReadOnlyDictionary<string, RemoteRewrite> RemoteRewrites { get; init; } =
         new Dictionary<string, RemoteRewrite>();
 
+    // The local branches rewritten here since they were pushed, while origin still has the old
+    // version, by the local branch's name. Usually none.
+    public IReadOnlyDictionary<string, LocalRewrite> LocalRewrites { get; init; } =
+        new Dictionary<string, LocalRewrite>();
+
     // The name commits are made with in the repository, its user.name, or "" when none is set
     public string CurrentAuthor { get; init; } = "";
 

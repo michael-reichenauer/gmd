@@ -196,6 +196,7 @@ class ViewRepoCreater : IViewRepoCreater
             Worktrees = repo.Worktrees,
             UndoSteps = repo.UndoSteps,
             RemoteRewrites = repo.RemoteRewrites,
+            LocalRewrites = repo.LocalRewrites,
             CurrentAuthor = repo.CurrentAuthor,
         };
 
