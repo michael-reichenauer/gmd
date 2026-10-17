@@ -52,8 +52,9 @@ class MergedOnOriginNotes
             0 => null,
             1 => $"'{untold[0].Key}' was merged into '{untold[0].Value}' on origin: "
                 + "Delete Merged Branches in the repo menu deletes it here",
-            _ => $"{BranchPushPullCommands.Names(untold.Select(m => m.Key))} were merged on origin: "
-                + "Delete Merged Branches in the repo menu deletes them here",
+            // Counted rather than named, since two long names leave the status line no room
+            _ => $"{untold.Count} branches were merged on origin: Delete Merged Branches in the repo menu "
+                + "deletes them here",
         };
     }
 }

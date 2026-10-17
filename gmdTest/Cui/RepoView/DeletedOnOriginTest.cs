@@ -57,7 +57,7 @@ public class DeletedOnOriginTest
         Assert.IsNull(notes.Untold(RepoWith("f2", "feature")));
         Assert.IsNotNull(notes.Untold(RepoWith("f3", "feature")), "Another branch of the name");
         Assert.AreEqual(
-            "'a', 'b' were merged on origin: Delete Merged Branches in the repo menu deletes them here",
+            "2 branches were merged on origin: Delete Merged Branches in the repo menu deletes them here",
             notes.Untold(RepoWith("f2", "a", "b"))
         );
     }
