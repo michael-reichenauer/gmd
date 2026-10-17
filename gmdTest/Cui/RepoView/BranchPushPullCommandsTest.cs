@@ -1,6 +1,7 @@
 using gmd.Cui.RepoView;
 using gmd.Server;
 using gmdTest.Fixtures;
+using gmdTest.Server.Private.Augmented.Private;
 
 namespace gmdTest.Cui.RepoView;
 
@@ -23,6 +24,32 @@ public class BranchPushPullCommandsTest
         Assert.IsFalse(BranchPushPullCommands.CanPushCurrentBranch(repo));
         Assert.IsFalse(BranchPushPullCommands.CanPull(repo));
         Assert.IsFalse(BranchPushPullCommands.CanPullCurrentBranch(repo));
+    }
+
+    // A branch rewritten here after it was pushed, e.g. squashed: diverged from origin's, but the old
+    // version origin has is nothing to pull, and its push is a force push, which Push All leaves to be
+    // asked about on its own
+    [TestMethod]
+    public async Task TestABranchRewrittenHereIsPushedOnItsOwnAndNotPulled()
+    {
+        var repo = await LocalRewritesTest.Squashed(new RepoBuilder()).ViewRepoAsync();
+        var feature = repo.BranchByName["feature"];
+
+        Assert.IsTrue(BranchPushPullCommands.CanPushCurrentBranch(repo));
+        Assert.IsTrue(BranchPushPullCommands.CanPushBranch(repo, feature));
+        Assert.IsFalse(BranchPushPullCommands.CanPullCurrentBranch(repo));
+        Assert.IsFalse(BranchPushPullCommands.CanPullBranch(repo, feature));
+        Assert.IsFalse(BranchPushPullCommands.CanPull(repo));
+        Assert.IsFalse(BranchPushPullCommands.CanPush(repo), "Push All has nothing it pushes");
+        Assert.AreEqual("feature", BranchPushPullCommands.RewrittenToPush(repo).Single().BranchName);
+        Assert.AreEqual(
+            "Nothing to pull on 'feature', rewritten here by the rebase: p pushes it with force",
+            BranchPushPullCommands.WhyNoPullBranch(repo, feature)
+        );
+        Assert.AreEqual(
+            "'feature' was rewritten here by the rebase: push it with force first (p), then rebase it",
+            BranchCommands.WhyNotRebaseAndPush(repo, feature)
+        );
     }
 
     [TestMethod]

@@ -664,9 +664,11 @@ public class CommitTest
     }
 
     // Squashing a range of commits into one. The range is a shift-selection of two rows, which is
-    // what puts the ids into the menu item's own text and is what enables it at all.
+    // what puts the ids into the menu item's own text and is what enables it at all. The commits were
+    // pushed, so origin still has the two the squash replaced: that is said, they are drawn dark, with
+    // nothing to pull, and 'p' pushes the squash with force once asked, with Cancel as the default.
     [TestMethod]
-    public async Task TestSquashTwoCommitsIntoOne()
+    public async Task TestSquashTwoPushedCommitsIntoOneAndForcePushIt()
     {
         using var repo = await E2eRepo.CreatePushedPlainCommitsAsync(4);
         using var gmd = TmuxSession.StartGmd(repo, commitTime: TempRepo.BaseTime.AddMinutes(4));
@@ -685,23 +687,25 @@ public class CommitTest
         gmd.WaitFor("Squash c02addfd...8332dd93 on 'main'");
         gmd.Send("Enter");
 
-        // The two are now one, and the branch has diverged from its remote: one commit ahead of
-        // origin and two behind it, since the originals are still the remote's. Which is the
-        // clearest possible illustration of why squashing pushed commits is the wrong way round.
-        ScreenText.AssertEqual(
+        // The two are now one, and the originals are still the remote's: the old version, not
+        // commits to pull, which a pull would put back beside the squash
+        var screen = gmd.WaitFor("was rewritten here");
+        Assert.AreEqual(
             """
-             Gmd {repo}, ●main, ▼2, ▲1                                       commit on main [Ϙ Search] ? X
+             Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
              ╭┺ ●▲Commit number 02                                                (● main) 96a90999 Test User      2024-10-15 12:04
-            ┣│   ▼Commit number 03                                                (^/main) c02addfd Test User      2024-10-15 12:03
-            ┣│   ▼Commit number 02                                                         8332dd93 Test User      2024-10-15 12:02
+            ┣│    Commit number 03                                                (^/main) c02addfd Test User      2024-10-15 12:03
+            ┣│    Commit number 02                                                         8332dd93 Test User      2024-10-15 12:02
             ┣╯    Commit number 01                                                         5692a80d Test User      2024-10-15 12:01
             ┗     Commit number 00                                                         a823b76e Test User      2024-10-15 12:00
             """,
-            gmd.WaitFor("▲"),
-            repo.Path
+            ScreenText.Rows(screen, repo.Path, 0, 7)
         );
-
+        Assert.AreEqual(
+            "'main' was rewritten here by the squash: p pushes it with force, over origin's old version",
+            ScreenText.LastLine(screen)
+        );
         Assert.AreEqual(
             """
             Commit number 02
@@ -710,6 +714,21 @@ public class CommitTest
             """,
             await repo.GitAsync("log --format=%s"),
             "The top two commits are one, keeping the older of the two messages"
+        );
+
+        gmd.Send("p");
+        StringAssert.Contains(gmd.WaitFor("Force Push"), "and origin still has the 2 commits it replaced:");
+        gmd.Send("Left"); // From Cancel, the default, to Force Push
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Pushed 'main' with force, replacing the old version on origin",
+            ScreenText.LastLine(gmd.WaitFor("Pushed 'main' with force"))
+        );
+        Assert.AreEqual(
+            await repo.GitAsync("rev-parse main"),
+            await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main")
         );
     }
 

@@ -76,15 +76,20 @@ static class LogKeys
     }
 
     // 'p' pushes the highlighted branch, as the branch menu's Push does, and the current branch when
-    // none is highlighted, which goes through the command that asks before a force push
+    // none is highlighted, which goes through the command that asks before a force push. A branch
+    // rewritten here is pushed with force, which the hint says, since there is nothing to pull first.
     public static KeyAction Push(IViewRepo repo, Hoover hoover)
     {
         if (Hoovered(repo, hoover) is not Branch branch || IsCurrent(branch))
-            return new(BranchPushPullCommands.CanPushCurrentBranch(repo.Repo) ? "push" : "");
+        {
+            if (!BranchPushPullCommands.CanPushCurrentBranch(repo.Repo))
+                return new("");
+            return new(RewrittenHere.Of(repo.Repo, repo.Repo.CurrentBranch()) != null ? "force push" : "push");
+        }
 
-        return BranchPushPullCommands.CanPushBranch(repo.Repo, branch)
-            ? new("push")
-            : KeyAction.No(BranchPushPullCommands.WhyNoPushBranch(repo.Repo, branch));
+        return !BranchPushPullCommands.CanPushBranch(repo.Repo, branch)
+            ? KeyAction.No(BranchPushPullCommands.WhyNoPushBranch(repo.Repo, branch))
+            : new(RewrittenHere.Of(repo.Repo, branch) != null ? "force push" : "push");
     }
 
     // 'u' pulls the highlighted branch, as the branch menu's Pull does, and the current branch when

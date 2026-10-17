@@ -214,6 +214,7 @@ class RepoWriter : IRepoWriter
             text.BrightGreen("▲");
         else if (c.IsBehind)
             text.BrightBlue("▼");
+        // A commit of the old version of a branch rewritten here has nothing to pull, so no marker
         else if (c.IsUncommitted)
             text.Yellow("©");
         else
@@ -310,6 +311,10 @@ class RepoWriter : IRepoWriter
         else if (c.IsBehind)
         {
             text.BrightBlue(c.Subject);
+        }
+        else if (c.IsReplaced)
+        { // The old version of a branch rewritten here, which a force push replaces
+            text.Dark(c.Subject);
         }
         else if (c.Id == Repo.TruncatedLogCommitId)
         {

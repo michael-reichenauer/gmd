@@ -156,6 +156,19 @@ static class E2eRepo
         return repo;
     }
 
+    // The mirror of a force push on origin: 'Add zeta' is pushed, and then amended here, as an agent's
+    // 'git commit --amend' would, so 'main' has the new version and origin the old one. The amend is
+    // pinned to a minute of its own, so that its id is the same on every run.
+    public static async Task<TempRepo> CreateWithRewrittenHereAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+
+        await repo.GitAsync("push -q origin main");
+        repo.GitAt(["commit", "-q", "--amend", "-m", "Add zeta, reworded"], TempRepo.BaseTime.AddMinutes(8));
+
+        return repo;
+    }
+
     // The mirror of the above: everything is pushed and then the local branch is moved back a
     // commit, so origin has one the local branch has not got. That is what draws the behind marker
     // and gives 'Pull' something to do.
@@ -203,11 +216,14 @@ static class E2eRepo
         await repo.GitAsync("push -q origin work");
         await repo.GitAsync("reset -q --hard HEAD~1");
 
-        // 'main' diverged: the same move back, and then a local commit on top of it
-        await repo.GitAsync("checkout -q main");
+        // 'main' diverged: origin has a commit main never had, as someone else's push would leave it,
+        // made on a detached HEAD so that no branch's reflog has it, and main a commit of its own.
+        // Not pushed from main and moved back, as 'work' is: main's reflog would then say it was
+        // rewritten here (LocalRewrites), which has nothing to pull and is pushed with force.
+        await repo.GitAsync("checkout -q --detach main");
         await repo.CommitFileAtAsync("main2.txt", "remote\n", "Main remote", t.AddMinutes(10));
-        await repo.GitAsync("push -q origin main");
-        await repo.GitAsync("reset -q --hard HEAD~1");
+        await repo.GitAsync("push -q origin HEAD:main");
+        await repo.GitAsync("checkout -q main");
         await repo.CommitFileAtAsync("main3.txt", "local\n", "Main local", t.AddMinutes(11));
 
         await repo.GitAsync("checkout -q work");

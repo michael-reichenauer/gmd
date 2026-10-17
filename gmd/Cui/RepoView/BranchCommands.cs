@@ -371,10 +371,13 @@ class BranchCommands : IBranchCommands
     // A rebased branch that is on origin is pushed with force, leased on origin's tip as shown, so a
     // commit origin has and the branch has not would be dropped from origin: the fetch that brought
     // it in moved the lease along with it. Such commits are pulled first. "" when it can be rebased.
+    // One rewritten here has only the old version to drop there, which is no reason to pull, and which
+    // its own force push replaces first.
     internal static string WhyNotRebaseAndPush(Repo repo, Branch current) =>
-        current.RemoteName != "" && current.BehindCount > 0
+        RewrittenHere.Of(repo, current) is LocalRewrite rewrite ? RewrittenHere.WhyNoRebase(rewrite)
+        : current.RemoteName != "" && current.BehindCount > 0
             ? $"'{current.RemoteName}' has commits '{current.NiceNameUnique}' has not, which the push would drop: pull them first"
-            : "";
+        : "";
 
     public void DiffBranchesBranch(string branchName1, string branchName2) =>
         Do(async repo =>

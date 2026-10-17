@@ -456,6 +456,55 @@ public class PushPullTest
         );
     }
 
+    // A branch rewritten here after it was pushed, by an amend made outside gmd: said once it is found,
+    // with the old version drawn as no commit to pull, and the pull that would bring it back is not
+    // made, nor is the force push by Push All. 'p' asks first, with Cancel as the default.
+    [TestMethod]
+    public async Task TestABranchRewrittenHereIsNotPulled()
+    {
+        using var repo = await E2eRepo.CreateWithRewrittenHereAsync();
+        var onOrigin = await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main");
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        var screen = gmd.WaitFor("was rewritten here");
+        Assert.AreEqual(
+            "'main' was rewritten here by the amend: p pushes it with force, over origin's old version",
+            ScreenText.LastLine(screen)
+        );
+        Assert.AreEqual(
+            """
+             Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺ ●▲Add zeta, reworded                                              (● main) 54d31fe2 Test User      2024-10-15 12:07
+            ┣│    Add zeta                                                        (^/main) 4dd1e9f8 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                         [v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            """,
+            ScreenText.Rows(screen, repo.Path, 0, 5)
+        );
+
+        gmd.WaitUntilGone("was rewritten here");
+        gmd.Send("u");
+        Assert.AreEqual(
+            "Nothing to pull on 'main', rewritten here by the amend: p pushes it with force",
+            ScreenText.LastLine(gmd.WaitFor("Nothing to pull"))
+        );
+        gmd.Send("P");
+        Assert.AreEqual(
+            "'main' was rewritten here: push it on its own (p), which asks to force it",
+            ScreenText.LastLine(gmd.WaitFor("push it on its own"))
+        );
+
+        gmd.Send("p");
+        StringAssert.Contains(gmd.WaitFor("Force Push"), "and origin still has the 1 commit it replaced:");
+        gmd.Send("Enter"); // Cancel, the default
+        gmd.WaitUntilGone("Force Push replaces");
+        Assert.AreEqual(
+            onOrigin,
+            await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main"),
+            "origin is untouched"
+        );
+    }
+
     // A force push that only dropped a commit leaves 'main' just ahead, and a plain push of it would
     // put the commit back on origin: said once it is found, and the push asks first, with Cancel as
     // the default. Pull, with nothing new on origin, moves the commit of its own onto the new version.

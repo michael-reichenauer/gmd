@@ -1,9 +1,12 @@
 # Usability review
 
-Three reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
+Four reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
 its author's own use, so they look at it as someone new would.
 
-- **The diff and resolver review (2026-10-16)**, first below, looks at the two views most of the
+- **The rebase and squash review (2026-10-17)**, first below, looks at gmd for those who rebase,
+  squash and squash merge rather than merge: what it does with a history rewritten here or on
+  origin, and which rewrites of commits it could offer.
+- **The diff and resolver review (2026-10-16)** looks at the two views most of the
   work is read in, how they look and how they are used, and at the way through a conflict.
 - **The product review (2026-10-07)** steps back from the keys: whether choosing which
   branches are shown is a sound idea, who besides its author can use gmd, which features are missing
@@ -25,6 +28,93 @@ ask of any new feature:
 File references are as of each review. Close items here, or move them to `MODERNIZATION.md`, as
 they land. The usability review's safety findings (section 1, and Tier 1 of its proposals) are
 fixed, and most of Tiers 2 to 4; the product review's proposals are open.
+
+---
+
+## Rebase and squash review (2026-10-17)
+
+gmd is made for merge workflows, but most people and agents work on branches, merged with a commit,
+squash merged or rebase merged, and gmd can still help while a branch lives. Made by trying each
+case in the built binary in tmux, on throwaway repositories with an origin, and a stand-in for
+GitHub's squash merge and rebase merge (a second clone that merges and deletes the branch there).
+
+### Findings
+
+1. **Three rules for rewriting pushed commits.** Squash allows them, with no warning and no push;
+   Amend (the last commit or an older one), Drop and Uncommit refuse them ("Only a commit not yet
+   pushed can be amended"); Rebase and Push onto allows them, asks, and force pushes with a lease,
+   but only when the rebase has no conflict: continued after one, nothing pushes
+   (`BranchWriteService.RebaseBranchAsync`).
+2. **After a squash of pushed commits gmd advised the wrong thing.** The top bar said `▼3, ▲1`, the
+   three old commits were drawn `▼` "to pull", and the key hints offered `u pull` and no push. `p`
+   said "has remote commits not yet pulled. Pull current remote branch first before pushing, or do
+   you want to force push? NOTE: be careful!". `u` asked *Pull Diverged Branch* with Merge the
+   default, which would have merged the old commits back beside the squash, every change twice, and
+   saved `pull.rebase=false`; Rebase would have replayed the squash onto them, empty, undoing it.
+   The same followed a conflicted Rebase and Push onto, and an agent's rewrite on the command line.
+   gmd told the mirror case, origin force pushed by someone (`RemoteRewrites`), and not this one.
+3. **The squash dialog.** The message joins the old ones with `-----` lines, which go into the commit
+   as they are; the range is written `4050decb...80daa352`, git's three dots being the symmetric
+   difference; the commit gets the user as author and the time now, where git's own squash keeps
+   the first commit's; and nothing says the commits are on origin.
+4. **A branch squash or rebase merged on origin looks never pushed.** Once a fetch prunes the remote
+   branch the pull request deleted, `git branch -vv` says `[origin/feature: gone]`, but the
+   augmentation clears the remote name (`Augmenter.AddAugBranches`), so `p` says "'feature' is not
+   on origin yet: Push in its branch menu publishes it", which would make the deleted branch again,
+   and Amend and Drop take its commits for not pushed. Nothing says its work is in main. The
+   worktree list says `unmerged` (a tip with no child, `RepoExtensions.HasUnmergedCommits`) and
+   Remove Worktree leaves *Delete branch* unticked, so every agent branch merged by a squash pull
+   request looks unsafe to delete.
+
+### Proposals, most value first
+
+- **A. Tell "rewritten here, origin has the old version"**, the mirror of RemoteRewrites, from the
+  branch's own reflog: it was where origin is now, and something moved it off that commit. The old
+  version drawn dark rather than `▼`, `p` a force push asked first, naming what it replaces, `u`
+  never merging it back. *Done (2026-10-17)*, see below.
+- **B. One rule for rewriting pushed commits.** Squash, Amend (a reword too), Drop and Rebase of a
+  pushed branch when it is the user's to rewrite: not main nor an integration branch
+  (`WellKnownBranches`), and the commits replaced on origin their own (author), else the question
+  names the others. The dialog says the commits are on origin and has a *Push with force when done*
+  box, ticked, as Add Tag's *Push to origin* is. The way back is there already: the lease, Undo,
+  Restore origin. Rebase and Push onto then becomes Rebase onto. Answers "reword an old pushed
+  commit".
+- **C. Branches merged on origin by a squash or a rebase.** Keep git's `gone`: "deleted on origin",
+  `p` asking before publishing it again. Tell merged: a rebase merge by patch id (`git cherry
+  origin/main <branch>`, every commit `-`), a squash merge by the branch's whole change as one patch
+  among main's commits since the merge base (tried: a `commit-tree` of the branch's tree on the merge
+  base, then `git cherry`, gives `-` for the squash). Only for the local branches whose remote branch
+  is gone, so a few git calls. Say it in the log and the worktree list, and offer *Delete Merged
+  Branches ...*, a ListDlg of the local branches merged any of the three ways, with their worktrees,
+  recorded for Restore Deleted Branch: what `gh poi` and `git-delete-squashed` are for.
+- **D. Rebase.** `--update-refs`, so that a stack of branches (feature-b on feature-a, as agents
+  make) moves along, which gmd's branch hierarchy knows; it also lifts "another branch is on this
+  commit or after it" for Amend, Drop and Squash when that branch is local. `--autostash`, as Amend
+  of an older commit has, rather than refusing with changes.
+- **E. New commands.** Move commits to a new branch (committed on main by mistake: a branch at HEAD,
+  and `reset --keep` of main to origin's); reorder (Move Up and Move Down, an interactive rebase of a
+  todo gmd writes, which needs `GIT_SEQUENCE_EDITOR` per call, `Cmd` forcing it to `true`); squash
+  merge (`git merge --squash`, the commit dialog with the branch's subjects as a list, as GitHub
+  writes them, then the offer to delete the branch, which would look unmerged); and, open in the
+  product review already, a cherry pick of the selected commits and a reset of a branch to any
+  commit. Later, an absorb of the uncommitted changes into the commits that last touched the lines.
+
+### A, as done (2026-10-17)
+
+- `LocalRewrites` (beside `RemoteRewrites`) finds them, for the branches that have diverged from
+  their remote branch only, with no git call: the branch's reflog has origin's tip as a place it
+  was, and the move that took it off (the first after it to a commit without that tip) names it,
+  gmd's own record of a squash, amend or drop first. `Repo.LocalRewrites`, and `Commit.IsReplaced` on
+  the old version in the view repo instead of `IsBehind`, and no `HasRemoteOnly`, so nothing offers
+  a pull.
+- `RewrittenHere` says it: once on the status line when found, e.g. right after a squash
+  (`ForcePushNotes`); the hint `p force push`; the question before the force push, naming the commits
+  it replaces; `u`, the branch menu's Pull and Rebase and Push onto saying why not; Push All leaving
+  the branch out. The force push is leased on origin's tip as shown.
+- Not told, and shown as diverged as before: commits pushed on top of the old version since, whose
+  tip the branch never was at; and a branch only behind, e.g. a reset back, which a pull brings back
+  as before. Rebase and Push onto of a branch rewritten here asks for the force push first, rather
+  than rebasing and pushing once.
 
 ---
 

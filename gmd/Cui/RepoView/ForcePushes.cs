@@ -117,12 +117,14 @@ static class ForcePushes
     static string Commits(int count) => count == 1 ? "1 commit" : $"{count} commits";
 }
 
-// Which force pushes on origin have been told on the status line, so that each is told once, when a
-// refresh first finds it. One made by a push from here is not told: the undo or the push that made it
-// says what it did.
+// Which force pushes have been told on the status line, so that each is told once, when a refresh
+// first finds it: the ones on origin, and the ones a branch rewritten here needs (RewrittenHere). One
+// made on origin by a push from here is not told: the undo or the push that made it says what it did.
+// A rewrite here is told whoever made it, gmd's squash too, since that is when it needs saying.
 class ForcePushNotes
 {
     readonly HashSet<(string Branch, string Tip)> told = [];
+    readonly HashSet<(string Branch, string OldTip)> toldHere = [];
 
     // What to say of the rewrites of a shown repo not told yet, or null. All of them at once, since
     // each is marked as told: one fetch can bring force pushes on several branches.
@@ -134,6 +136,16 @@ class ForcePushNotes
             if (told.Add((r.BranchName, r.NewTipId)) && !r.IsByYou)
                 untold.Add(r);
         }
-        return untold.Count > 0 ? ForcePushes.Found(untold) : null;
+        var untoldHere = repo
+            .LocalRewrites.Values.OrderBy(r => r.BranchName)
+            .Where(r => toldHere.Add((r.BranchName, r.OldTipId)))
+            .ToList();
+
+        List<string> notes = [];
+        if (untold.Count > 0)
+            notes.Add(ForcePushes.Found(untold));
+        if (untoldHere.Count > 0)
+            notes.Add(RewrittenHere.Found(untoldHere));
+        return notes.Count > 0 ? string.Join("; ", notes) : null;
     }
 }

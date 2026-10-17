@@ -149,6 +149,10 @@ public record Commit(
     // is the other way round
     public bool IsParentsSwapped { get; init; }
 
+    // A commit origin has that its local branch no longer has, since the branch was rewritten here
+    // (Repo.LocalRewrites): the old version, which a force push replaces, rather than one to pull
+    public bool IsReplaced { get; init; }
+
     // The parents in the order git has them, e.g. to be shown to the user
     public IReadOnlyList<string> GitParentIds => IsParentsSwapped ? [ParentIds[1], ParentIds[0]] : ParentIds;
 

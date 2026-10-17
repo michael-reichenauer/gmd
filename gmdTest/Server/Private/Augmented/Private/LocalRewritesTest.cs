@@ -15,7 +15,7 @@ public class LocalRewritesTest
         LocalRewrites.Find(builder.ToGitRepo(), new Dictionary<string, RemoteRewrite>());
 
     // feature had a1 <- a2 <- a3, pushed, and the three were squashed here into s1, on the same base
-    static RepoBuilder Squashed(RepoBuilder builder) =>
+    internal static RepoBuilder Squashed(RepoBuilder builder) =>
         builder
             .Commit("s1", "Add login", "m1")
             .Commit("a3", "Validate", "a2")
@@ -238,5 +238,31 @@ public class LocalRewritesTest
                 .Find(builder.ToGitRepo(), new Dictionary<string, RemoteRewrite> { ["feature"] = remote })
                 .Count
         );
+    }
+
+    // The rewrites reach the repo the UI renders, and there the old version is no commit to pull:
+    // no ▼ on its commits, nothing to pull on either branch of the pair, and the new version to push
+    [TestMethod]
+    public async Task TestTheOldVersionIsNoCommitsToPull()
+    {
+        var repo = await Squashed(new RepoBuilder()).ViewRepoAsync();
+
+        Assert.AreEqual(Id("a3"), repo.LocalRewrites["feature"].OldTipId);
+        Assert.AreEqual(
+            "s1 ahead, a3 replaced, a2 replaced, a1 replaced, m1",
+            string.Join(
+                ", ",
+                repo.ViewCommits.Select(c =>
+                    c.Sid[..2]
+                    + (c.IsAhead ? " ahead" : "")
+                    + (c.IsBehind ? " behind" : "")
+                    + (c.IsReplaced ? " replaced" : "")
+                )
+            )
+        );
+        var local = repo.BranchByName["feature"];
+        var remote = repo.BranchByName["origin/feature"];
+        Assert.AreEqual((true, false), (local.HasLocalOnly, local.HasRemoteOnly));
+        Assert.AreEqual((true, false), (remote.HasLocalOnly, remote.HasRemoteOnly));
     }
 }
