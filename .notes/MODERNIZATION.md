@@ -1025,6 +1025,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
     dialog is at X -2, Y 0. *Ctrl-A, -C, -X, -V, -Z and -Y* are the edit keys of both text inputs,
     where 1.x's TextView had Emacs keys. *An emoji is drawn as itself*, two columns.
   - *Idle CPU about 3% of a core* (the input thread polls every 20 ms): not fixable from gmd.
+  - *`TextView` is obsolete in 2.5*, "superseded by tui-cs/Editor's EditorView", a package of its own.
+    `UITextView` (the commit message, the resolver's typing) is built on it, with spell checking in its
+    `OnDrawNormalColor`; a later 2.x may drop it, and then the port is to EditorView.
 
   Left to do before it goes to dev: try it in real terminals (iTerm2, Terminal.app, Windows
   Terminal, Ghostty) and on Windows and macOS, where 2.x's startup queries and its Windows driver are

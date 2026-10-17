@@ -11,7 +11,11 @@ namespace gmd.Cui.Common;
 // inserted into the text. With a SpellChecker set, misspelled words are drawn in red and F7 or
 // Ctrl+G opens the suggestions for the misspelled word at or after the caret. A right click or
 // Shift+F10 opens the context menu, with those suggestions on top when on a misspelled word.
+// TextView is obsolete in Terminal.Gui 2.5, superseded by tui-cs/Editor's EditorView, a package of its
+// own: see the port in .notes/MODERNIZATION.md
+#pragma warning disable CS0618
 class UITextView : TextView
+#pragma warning restore CS0618
 {
     // The spelling of the line being drawn, by reference: OnDrawNormalColor is called once per cell
     // and the line is drawn left to right, so the scan is done once per line per redraw. An edit

@@ -63,7 +63,7 @@ class UIButton : View
 
     // The key that presses the button wherever the focus is in its dialog: Alt and its hot letter,
     // e.g. Alt-O for OK, as with Terminal.Gui 1.x; null for a button with none
-    public Key? HotKey => HotIndex >= 0 ? ((Key)char.ToLowerInvariant(Shown[HotIndex])).WithAlt : null;
+    public Key? AltKey => HotIndex >= 0 ? ((Key)char.ToLowerInvariant(Shown[HotIndex])).WithAlt : null;
 
     public void Press()
     {
