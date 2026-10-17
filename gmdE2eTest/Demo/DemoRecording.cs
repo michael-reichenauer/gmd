@@ -119,25 +119,29 @@ sealed class DemoRecording
         }
     }
 
-    // The panel's middle row: the number of the scene at its left, and the caption in the middle of
-    // the width, its keys as key caps, or after the number where it is too long for the middle. The
-    // number is laid out two digits wide on each side, ' 9/18', since how many scenes there are is
-    // only known once all are recorded: a row a column too long would wrap the cast's last row.
+    // The panel's middle row: the number of the scene at its left, and the caption after it, its keys
+    // as key caps. Left aligned, so that each caption starts where the last did, by the number, rather
+    // than in the middle, where each started somewhere else. The number is laid out two digits wide on
+    // each side, ' 9/18', since how many scenes there are is only known once all are recorded: a row
+    // a column too long would wrap the cast's last row.
     string CaptionLine()
     {
         var number = scene > 0 ? $"  {scene, 2}/{SceneCountMark}" : "";
-        var numberWidth = scene > 0 ? NumberWidth : 0;
+        var left = NumberWidth + CaptionGap;
         var parts = caption.Split('`').Select((text, i) => (Text: i % 2 == 1 ? $" {text} " : text, IsKey: i % 2 == 1));
         var length = parts.Sum(p => p.Text.Length);
-        var left = Math.Max(numberWidth + 2, (width - length) / 2);
+        Assert.IsTrue(left + length <= width, $"The caption is too long for the panel: '{caption}'");
 
-        var line = new StringBuilder(SceneColors).Append(number).Append(PanelColors);
-        line.Append(' ', Math.Max(0, left - numberWidth));
+        var line = new StringBuilder(PanelColors).Append(' ', NumberWidth - (scene > 0 ? NumberWidth : 0));
+        line.Append(SceneColors).Append(number).Append(PanelColors).Append(' ', CaptionGap);
         foreach (var (text, isKey) in parts)
             line.Append(isKey ? KeyColors : PanelColors).Append(text);
-        line.Append(PanelColors).Append(' ', Math.Max(0, width - left - length));
+        line.Append(PanelColors).Append(' ', width - left - length);
         return line.ToString();
     }
+
+    // Between the number of the scene and the caption
+    const int CaptionGap = 3;
 
     const int NumberWidth = 7; // '  ', two digits, '/', two digits
 
