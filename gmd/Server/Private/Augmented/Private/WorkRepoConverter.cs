@@ -12,7 +12,7 @@ class WorkRepoConverter : IWorkRepoConverter
     public Repo ToRepo(WorkRepo workRepo)
     {
         var allCommits = workRepo.Commits.Select(ToCommit).ToList();
-        var allBranches = workRepo.Branches.Values.Select(ToBranch).ToList();
+        var allBranches = workRepo.Branches.Values.Select(b => ToBranch(b, workRepo.IntegrationNames)).ToList();
         var viewCommits = new List<Commit>();
         var viewBranches = new List<Branch>();
 
@@ -76,7 +76,7 @@ class WorkRepoConverter : IWorkRepoConverter
         };
     }
 
-    Branch ToBranch(WorkBranch b)
+    static Branch ToBranch(WorkBranch b, IReadOnlyCollection<string> integrationNames)
     {
         return new Branch(
             Name: b.Name,
@@ -114,6 +114,7 @@ class WorkRepoConverter : IWorkRepoConverter
             AheadCount = b.AheadCount,
             BehindCount = b.BehindCount,
             GoneRemoteName = b.GoneRemoteName,
+            IsShared = b.IsMainBranch || WellKnownBranches.NameTier(b.NiceName, integrationNames) > 0,
         };
     }
 }

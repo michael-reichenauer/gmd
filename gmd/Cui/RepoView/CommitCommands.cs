@@ -119,7 +119,7 @@ class CommitCommands : ICommitCommands
 
             // Said rather than nothing happening, as it used to for a key pressed with nothing to do
             if (result == CommitResult.NothingToCommit)
-                return new Notice(isAmend ? "Only a commit not yet pushed can be amended" : "Nothing to commit");
+                return new Notice(isAmend ? CommitRewrite.WhyNotAmendLast(repo.Repo) : "Nothing to commit");
             if (result == CommitResult.Committed)
             {
                 Refresh();
@@ -142,8 +142,10 @@ class CommitCommands : ICommitCommands
 
         if (!isAmend && repo.Repo.Status.IsOk)
             return CommitResult.NothingToCommit;
-        if (isAmend && !CommitRewrite.IsNotPushed(repo.Repo, repo.Repo.CurrentCommit()))
+        if (isAmend && CommitRewrite.WhyNotAmendLast(repo.Repo) != "")
             return CommitResult.NothingToCommit;
+        if (isAmend && !IsPushedRewriteConfirmed(repo.Repo, [repo.Repo.CurrentCommit()]))
+            return CommitResult.Cancelled;
 
         if (repo.Repo.CurrentBranch().IsDetached == true)
         {
@@ -553,6 +555,8 @@ class CommitCommands : ICommitCommands
             var c2 = repo.Repo.CommitById[id2];
             if (CommitRewrite.WhyNotSquash(repo.Repo, c1, c2) is var whyNot && whyNot != "")
                 return new Notice(whyNot);
+            if (!IsPushedRewriteConfirmed(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, c2)))
+                return Result.Ok;
 
             var commits = new List<Commit>();
             var c = c1;
@@ -588,6 +592,8 @@ class CommitCommands : ICommitCommands
         var commit = repo.Repo.CommitById[id];
         if (CommitRewrite.WhyNotAmend(repo.Repo, commit) is var whyNot && whyNot != "")
             return new Notice(whyNot);
+        if (!IsPushedRewriteConfirmed(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, commit)))
+            return Result.Ok;
 
         if (!commitDlg.ShowAmend(repo.Repo, () => ShowUncommittedDiff(true), commit, out var message, out var paths))
             return Result.Ok;
@@ -610,6 +616,8 @@ class CommitCommands : ICommitCommands
             var commit = repo.Repo.CommitById[id];
             if (CommitRewrite.WhyNotDrop(repo.Repo, commit) is var whyNot && whyNot != "")
                 return new Notice(whyNot);
+            if (!IsPushedRewriteConfirmed(repo.Repo, CommitRewrite.RewrittenBy(repo.Repo, commit)))
+                return Result.Ok;
             if (!Confirm.DropCommit(commit.Sid, commit.Subject, CurrentBranchName()))
                 return Result.Ok;
 
@@ -623,6 +631,11 @@ class CommitCommands : ICommitCommands
             status.Info($"Dropped '{commit.Subject}' from '{CurrentBranchName()}': Undo brings it back");
             return Result.Ok;
         });
+
+    // Commits on origin of a branch others build on, or someone else's, are rewritten only once the
+    // user said so (CommitRewrite.PushedWarning), with No the default
+    static bool IsPushedRewriteConfirmed(Repo repo, IReadOnlyList<Commit> commits) =>
+        CommitRewrite.PushedWarning(repo, commits) is var warning && (warning == "" || Confirm.RewritePushed(warning));
 
     public bool CanUncommitLastCommit()
     {

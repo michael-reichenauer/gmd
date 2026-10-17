@@ -222,6 +222,10 @@ public record Branch(
     // and a fetch then pruned: it was pushed, though it has no remote branch now. "" for any other.
     public string GoneRemoteName { get; init; } = "";
 
+    // A branch others build on, by its name: main, an integration branch, e.g. 'develop', or a release
+    // or hotfix branch. Rewriting its commits on origin is asked about first (CommitRewrite).
+    public bool IsShared { get; init; }
+
     public override string ToString() => IsRemote ? $"{Name}<-{LocalName}" : $"{Name}->{RemoteName}";
 }
 

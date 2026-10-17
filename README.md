@@ -147,8 +147,9 @@ once. Gmd keeps that readable rather than letting it flood the log:
   check), push and pull
   (every shown branch at once if you like), merge in either direction, create, rename and delete
   branches, tags (a list of them, to push or remove), stash, cherry pick, and file history.
-- **Tidy up before you push**: amend any commit not pushed yet, with a new message or the changes
-  you tick, drop one, or squash several, and Undo takes each back.
+- **Tidy up a branch**, before you push or after: amend any commit of it, with a new message or the
+  changes you tick, drop one, or squash several, and Undo takes each back. Once on origin, `p` then
+  pushes the branch with force, asking first, and a branch others build on is asked about before.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to
   each other, as what each did to the common ancestor, combines both where they changed other
   words, and takes you through the files one after the other, with the file as it will be saved

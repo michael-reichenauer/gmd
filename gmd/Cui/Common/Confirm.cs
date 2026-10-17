@@ -157,6 +157,10 @@ static class Confirm
             """
         );
 
+    // Rewriting commits on origin that others may have built on: the branch is shared, or some of them
+    // are someone else's (CommitRewrite.PushedWarning)
+    internal static bool RewritePushed(string question) => Ask("Rewrite Pushed Commits", question);
+
     // Deleting every merged branch listed, which Restore Deleted Branch brings back one by one
     internal static bool DeleteMergedBranches(string question) => Ask("Delete Merged Branches", question);
 

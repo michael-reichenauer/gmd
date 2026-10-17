@@ -21,7 +21,7 @@ class CommitRewriteService : ICommitRewriteService
         var c2 = repo.CommitById[id2];
         if (!c2.ParentIds.Any())
             return new Error("Last commit does not have a parent");
-        if (c1.BranchName != c2.BranchName)
+        if (c1.BranchPrimaryName != c2.BranchPrimaryName)
             return new Error("Commits are not on the same branch");
         var branch = repo.BranchByName[c1.BranchName];
 
@@ -94,7 +94,8 @@ class CommitRewriteService : ICommitRewriteService
     // takes back to uncommitted changes.
     //
     // What the menu checks (CommitRewrite) is checked here against git too, since the commits are
-    // rewritten: a commit on origin already, or one another branch or a tag is on, is left as it is.
+    // rewritten: a commit on another branch of origin, or one another branch or a tag is on, is left
+    // as it is. One on origin's copy of the branch is rewritten, and a force push replaces it there.
     public async Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths)
     {
         var commit = repo.CommitById[id];
@@ -128,8 +129,8 @@ class CommitRewriteService : ICommitRewriteService
         return Result.Ok;
     }
 
-    // Takes an older commit of the current branch, one not pushed yet, out of the branch: the newer
-    // commits are replayed onto its parent. One that conflicts without it stops the rebase there.
+    // Takes an older commit of the current branch out of the branch: the newer commits are replayed
+    // onto its parent. One that conflicts without it stops the rebase there.
     public async Task<Result> DropCommitAsync(Repo repo, string id)
     {
         var commit = repo.CommitById[id];
@@ -157,9 +158,10 @@ class CommitRewriteService : ICommitRewriteService
         return Result.Ok;
     }
 
-    // The current local branch, when only it has the commit: no remote branch, i.e. it is not pushed,
-    // and no other branch or tag, which would be left on the old commits. Asked of git rather than
-    // taken from the repo read, since the commits are rewritten.
+    // The current local branch, when only it and its copy on origin have the commit: no other remote
+    // branch, e.g. origin's main once it is merged there, nor another branch or a tag, which would be
+    // left on the old commits. Asked of git rather than taken from the repo read, since the commits are
+    // rewritten.
     async Task<Result<Branch>> CheckRewritableAsync(Repo repo, Commit commit)
     {
         var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote && !b.IsDetached);
@@ -171,11 +173,14 @@ class CommitRewriteService : ICommitRewriteService
             return refsResult.Error;
         if (!refs.Contains($"refs/heads/{local.Name}"))
             return new Error($"{commit.Sid} is not on '{local.NiceNameUnique}'");
-        if (refs.FirstOrDefault(r => r.StartsWith("refs/remotes/")) is string remote)
-            return new Error($"{commit.Sid} is on '{remote["refs/remotes/".Length..]}' already, i.e. pushed");
+        // origin/HEAD names another remote branch, e.g. origin/main, which is listed on its own
+        var ownRemote = local.RemoteName == "" ? "" : $"refs/remotes/{local.RemoteName}";
+        refs = refs.Where(r => !(r.StartsWith("refs/remotes/") && r.EndsWith("/HEAD"))).ToList();
+        if (refs.FirstOrDefault(r => r.StartsWith("refs/remotes/") && r != ownRemote) is string remote)
+            return new Error($"{commit.Sid} is on '{remote["refs/remotes/".Length..]}' already");
         if (refs.FirstOrDefault(r => r.StartsWith("refs/tags/")) is string tag)
             return new Error($"The tag '{tag["refs/tags/".Length..]}' is on {commit.Sid} or a commit after it");
-        if (refs.FirstOrDefault(r => r != $"refs/heads/{local.Name}") is string other)
+        if (refs.FirstOrDefault(r => r != $"refs/heads/{local.Name}" && r != ownRemote) is string other)
             return new Error($"'{other["refs/heads/".Length..]}' is on {commit.Sid} or a commit after it");
         return local;
     }
