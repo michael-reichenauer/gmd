@@ -657,7 +657,7 @@ public class MenuItemsTest
             })
         );
 
-    static string KeyName(Terminal.Gui.Key key) => ((char)key).ToString();
+    static string KeyName(Terminal.Gui.Input.Key key) => key.AsRune.ToString();
 
     // The reason a greyed out item gives, which it only has to while it is greyed out
     static string WhyNot(IReadOnlyList<MenuItem> items, string text)

@@ -53,9 +53,25 @@ static class TextContextMenu
             .Item("Redo", ShortcutOf(view, Command.Redo), () => Run(view, Command.Redo));
     }
 
-    // The key a view binds a command to, written the way the other menus write theirs
-    public static string ShortcutOf(View view, Command command) =>
-        view.KeyBindings.GetFirstFromCommands(command)?.ToString().Replace('+', '-') ?? "";
+    // The key a view binds a command to, written the way the other menus write theirs. Terminal.Gui
+    // binds several to some (Ctrl-/ and Ctrl-Z to undo), so the one every editor has is shown when
+    // the view binds it, else the first
+    public static string ShortcutOf(View view, Command command)
+    {
+        var keys = view.KeyBindings.GetAllFromCommands(command).ToList();
+        var common = CommonKeys.TryGetValue(command, out var k) && keys.Contains(k) ? k : keys.FirstOrDefault();
+        return common?.ToString().Replace('+', '-') ?? "";
+    }
+
+    static readonly Dictionary<Command, Key> CommonKeys = new()
+    {
+        [Command.SelectAll] = Key.A.WithCtrl,
+        [Command.Copy] = Key.C.WithCtrl,
+        [Command.Cut] = Key.X.WithCtrl,
+        [Command.Paste] = Key.V.WithCtrl,
+        [Command.Undo] = Key.Z.WithCtrl,
+        [Command.Redo] = Key.Y.WithCtrl,
+    };
 
     static void Run(View view, Command command) => view.InvokeCommand(command);
 }

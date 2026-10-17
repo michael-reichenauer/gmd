@@ -2,7 +2,7 @@ using gmd.Cui.App;
 using gmd.Cui.Common;
 using gmd.Cui.RepoView;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.ViewBase;
 
 namespace gmdTest.Fixtures;
 

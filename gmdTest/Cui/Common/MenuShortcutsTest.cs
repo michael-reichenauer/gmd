@@ -1,5 +1,5 @@
 using gmd.Cui.Common;
-using Key = Terminal.Gui.Key;
+using Key = Terminal.Gui.Input.Key;
 
 namespace gmdTest.Cui.Common;
 
@@ -11,20 +11,20 @@ public class MenuShortcutsTest
     [TestMethod]
     public void TestLettersAndShiftLetters()
     {
-        CollectionAssert.AreEqual(new[] { Key.c }, Keys("C"));
-        CollectionAssert.AreEqual(new[] { Key.E }, Keys("Shift-E"));
+        CollectionAssert.AreEqual(new[] { Key.C }, Keys("C"));
+        CollectionAssert.AreEqual(new[] { Key.E.WithShift }, Keys("Shift-E"));
     }
 
     [TestMethod]
     public void TestSeveralKeysAndOtherKeys()
     {
-        CollectionAssert.AreEqual(new[] { (Key)']', Key.n }, Keys("], N"));
+        CollectionAssert.AreEqual(new[] { (Key)']', Key.N }, Keys("], N"));
         CollectionAssert.AreEqual(new[] { (Key)'?', Key.F1 }, Keys("?, F1"));
         CollectionAssert.AreEqual(new[] { Key.D1 }, Keys("1"));
         CollectionAssert.AreEqual(new[] { (Key)'+' }, Keys("+"));
         CollectionAssert.AreEqual(new[] { (Key)'E' }, Keys("⇧e"), "As the menus write a shifted letter");
-        CollectionAssert.AreEqual(new[] { Key.C | Key.CtrlMask }, Keys("Ctrl-C"));
-        CollectionAssert.AreEqual(new[] { Key.W | Key.AltMask }, Keys("Alt-W"));
+        CollectionAssert.AreEqual(new[] { Key.C.WithCtrl }, Keys("Ctrl-C"));
+        CollectionAssert.AreEqual(new[] { Key.W.WithAlt }, Keys("Alt-W"));
         CollectionAssert.AreEqual(new[] { Key.F7 }, Keys("F7"));
         CollectionAssert.AreEqual(new[] { Key.Backspace }, Keys("Backspace"));
     }
@@ -33,7 +33,7 @@ public class MenuShortcutsTest
     [TestMethod]
     public void TestWhatIsNotAKeyOfTheMenuGivesNone()
     {
-        CollectionAssert.AreEqual(new[] { Key.q }, Keys("Q, Esc"), "Esc closes the menu");
+        CollectionAssert.AreEqual(new[] { Key.Q }, Keys("Q, Esc"), "Esc closes the menu");
         foreach (
             var shortcut in new[] { "", "Enter", "Esc", "Esc ", "←", "→", "⇧→", "Shift-→", "'M R'", "(no suggestions)" }
         )
@@ -46,9 +46,9 @@ public class MenuShortcutsTest
     {
         var keys = MenuShortcuts.Of([Item("Commit ...", "C"), Item("Amend ...", "A")]);
 
-        Assert.AreEqual(0, keys[Key.c]);
         Assert.AreEqual(0, keys[Key.C]);
-        Assert.AreEqual(1, keys[Key.a]);
+        Assert.AreEqual(0, keys[Key.C.WithShift]);
+        Assert.AreEqual(1, keys[Key.A]);
     }
 
     // ... unless the upper case is another item's "Shift-", which is a different command: in a
@@ -58,8 +58,8 @@ public class MenuShortcutsTest
     {
         var keys = MenuShortcuts.Of([Item("Push All Branches", "⇧p"), Item("Push", "P")]);
 
-        Assert.AreEqual(1, keys[Key.p]);
-        Assert.AreEqual(0, keys[Key.P]);
+        Assert.AreEqual(1, keys[Key.P]);
+        Assert.AreEqual(0, keys[Key.P.WithShift]);
     }
 
     // A greyed out item keeps its key, which then says why it is greyed out (see Menu), rather than
@@ -70,8 +70,8 @@ public class MenuShortcutsTest
     {
         var keys = MenuShortcuts.Of([Item("Push", "P"), Item("Push All Branches", "⇧p") with { IsDisabled = true }]);
 
-        Assert.AreEqual(0, keys[Key.p]);
-        Assert.AreEqual(1, keys[Key.P], "The greyed out item, which says why");
+        Assert.AreEqual(0, keys[Key.P]);
+        Assert.AreEqual(1, keys[Key.P.WithShift], "The greyed out item, which says why");
     }
 
     // The first item showing a key wins
@@ -80,7 +80,7 @@ public class MenuShortcutsTest
     {
         var keys = MenuShortcuts.Of([Item("First", "D"), Item("Second", "D")]);
 
-        Assert.AreEqual(0, keys[Key.d]);
+        Assert.AreEqual(0, keys[Key.D]);
     }
 
     static Key[] Keys(string shortcut) => MenuShortcuts.KeysOf(shortcut).ToArray();

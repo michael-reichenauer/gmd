@@ -67,7 +67,19 @@ static class UI
 
     internal static void StartInput() => keys.GitDone();
 
-    internal static void Post(Action action) => App.Invoke(action);
+    // Runs the action on the main loop, after what runs now, from any thread. Not Terminal.Gui's
+    // Invoke, which runs it at once when called on the main loop: gmd posts to have it run after the
+    // key or the draw it is in is done, e.g. the menu's first move off a greyed out item, which run at
+    // once, before the menu was laid out, moved nowhere and called itself again, without end.
+    internal static void Post(Action action) =>
+        App.AddTimeout(
+            TimeSpan.Zero,
+            () =>
+            {
+                action();
+                return false;
+            }
+        );
 
     // Terminal.Gui 2.x shows the cursor only where a view puts it (View.Cursor), so there is nothing
     // to hide; kept for the callers, which hid it after 1.x had shown it

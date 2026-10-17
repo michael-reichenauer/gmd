@@ -43,12 +43,16 @@ sealed class TempHome : IDisposable
     // the bottom row, and every test opens a repository for the first time.
     //
     // The recent repositories are what the start page lists, and none unless a test sets them.
+    //
+    // The colors are the 16 of the terminal's theme, as escape codes 30 to 37 and 90 to 97, which is
+    // what the color letters of ScreenText read; gmd's own palettes are 24-bit RGB (see Palette).
     static string ConfigJson(bool isKeyHints, bool isHiddenBranchesTip, IReadOnlyList<string> recentFolders) =>
         $$"""
             {
               "CheckUpdates": false,
               "AutoUpdate": false,
               "ShowKeyHints": {{(isKeyHints ? "true" : "false")}},
+              "Colors": "16",
               "IsHiddenBranchesTold": {{(isHiddenBranchesTip ? "false" : "true")}},
               "RecentFolders": {{System.Text.Json.JsonSerializer.Serialize(recentFolders)}}
             }
