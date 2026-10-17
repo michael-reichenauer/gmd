@@ -3,9 +3,11 @@
 # Records the demo animation the README shows: runs the scripted session in
 # gmdE2eTest/Demo/DemoTest.cs, i.e. the built gmd in tmux on a repository made for it, which writes
 # it as an asciicast, and renders that as a GIF with agg (https://github.com/asciinema/agg).
+# Beside it, the two pictures the README compares, git's log graph of that repository and gmd's,
+# GitLog.gif and GmdLog.gif, each a GIF of one frame.
 # Everything is pinned, so the animation only changes when what gmd draws does.
 #
-# Usage: scripts/demo [output.gif]      (default: gmd/doc/Animation.gif)
+# Usage: scripts/demo [output.gif]      (default: gmd/doc/Animation.gif, the pictures beside it)
 #
 # Paths, the output and CAST, are relative to the repository root, which this runs at.
 #
@@ -28,13 +30,17 @@ if ! command -v "$agg" >/dev/null; then
   exit 1
 fi
 
+pictures="$(mktemp -d)"
 cast="${CAST:-}"
 if [ -z "$cast" ]; then
   cast="$(mktemp)"
-  trap 'rm -f "$cast"' EXIT
+  trap 'rm -rf "$cast" "$pictures"' EXIT
+else
+  trap 'rm -rf "$pictures"' EXIT
 fi
 
-GMD_DEMO_CAST="$cast" dotnet test gmdE2eTest/gmdE2eTest.csproj -tl:false -v quiet --nologo --filter "TestCategory=Demo"
+GMD_DEMO_CAST="$cast" GMD_DEMO_PICTURES="$pictures" \
+  dotnet test gmdE2eTest/gmdE2eTest.csproj -tl:false -v quiet --nologo --filter "TestCategory=Demo"
 
 fontArgs=()
 if [ -n "${FONT_DIR:-}" ]; then
@@ -49,9 +55,15 @@ fi
 # with a background of its own shows as dark blocks around every word.
 campbell="0c0c0c,cccccc,0c0c0c,c50f1f,13a10e,c19c00,0037da,881798,3a96dd,cccccc,767676,e74856,16c60c,f9f1a5,3b78ff,b4009e,61d6d6,f2f2f2"
 
-"$agg" "${fontArgs[@]}" --quiet \
-  --text-font-family "JetBrains Mono,DejaVu Sans Mono" --font-size 16 --line-height 1.32 \
-  --theme "$campbell" --last-frame-duration 3 \
-  "$cast" "$out"
+render() {
+  "$agg" "${fontArgs[@]}" --quiet \
+    --text-font-family "JetBrains Mono,DejaVu Sans Mono" --font-size 16 --line-height 1.32 \
+    --theme "$campbell" --last-frame-duration 3 \
+    "$1" "$2"
+  echo "Wrote $2"
+}
 
-echo "Wrote $out"
+render "$cast" "$out"
+dir="$(dirname "$out")"
+render "$pictures/git-log.cast" "$dir/GitLog.gif"
+render "$pictures/gmd-log.cast" "$dir/GmdLog.gif"

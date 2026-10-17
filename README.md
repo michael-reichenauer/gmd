@@ -52,59 +52,12 @@ a squash merge that you can take back, and it never touches the history.
 Here is a small repository with five branches, and a sixth merged and deleted, as
 `git log --graph --oneline --decorate --all` shows it:
 
-```text
-* 4c13bbd (origin/main) Update dependencies
-| * 1d99d6a (HEAD -> feature/login) Show login errors
-| * b826c09 (origin/feature/login) Remember me option
-| *   101b39e Merge branch 'main' into feature/login
-| |\
-| |/
-|/|
-| * f617b05 Validate email and password
-| * 4309d4b Add login page
-| | * 83d45d5 (origin/feature/dark-mode, feature/dark-mode) Add theme toggle
-| | * 09c5518 Add dark theme
-| |/
-|/|
-* |   ddf6a02 (tag: v1.1, main) Merge branch 'bugfix/cart-total'
-|\ \
-| |/
-|/|
-| * beb669c (origin/bugfix/cart-total, bugfix/cart-total) Fix rounding of cart total
-|/
-| * 6fd3597 (origin/feature/search, feature/search) Highlight search matches
-| * 6e028ff Search by category
-| * 669997e Add search box
-|/
-* 744dfa8 (tag: v1.0) Add install steps to README
-*   f36ef44 Merge branch 'feature/checkout'
-|\
-| * 5ca9760 Add checkout form
-| * 2ecfa80 Add shopping cart
-* | 6584425 Add product images
-|/
-* 471dc10 Add product catalog
-* 9e1fe92 Initial project setup
-```
+![git log --graph of the repository: the six branches drawn as one tangle of lines, crossing and merging, each commit in the order of its date whichever branch it is on](gmd/doc/GitLog.gif)
 
 And here as gmd first shows it, while you work on `feature/login`: your branch and `main`, each in
 a column of its own, and the other branches hidden.
 
-```text
-      ┣  ©1 uncommitted change                    (● feature/login)
-┣     ┃  ▼Update dependencies                              (^/main)
-┃    ╭┺ ●▲Show login errors
-┃   ┣╯    Remember me option                      (^/feature/login)
-┃  ╭╊     Merge branch 'main' into feature/login
-┣┴┺╯┃     Merge branch 'bugfix/cart-total'             (main)[v1.1]
-┃   ┣     Validate email and password
-┃  ╭┺     Add login page
-┣┴─╯      Add install steps to README                        [v1.0]
-┣╮        Merge branch 'feature/checkout'
-┣         Add product images
-┣╯        Add product catalog
-┗         Initial project setup
-```
+![gmd's log of the same repository: main down the left, feature/login in a column of its own beside it, the other branches hidden, with dark marks beside main where they come and go](gmd/doc/GmdLog.gif)
 
 Git does not record which branch a commit was made on. Gmd works that out from your reflog, the
 merge messages and the branch structure, which is how `feature/checkout`, merged and deleted long
@@ -113,12 +66,14 @@ ambiguous, and you can set it by hand.
 
 ## Reading the Graph
 
-In the picture above, and in color on the screen:
+In the picture above:
 
 - **`main` runs down the left** (`┣`, down to `┗` for its first commit), and each branch has a
   column of its own to the right of the branch it was made from, here `feature/login`.
+- **Each branch has a color of its own**, its column and its name in brackets. The commits of the
+  branch you are on are white, and those of the other branches gray.
 - **A branch and its copy on origin** are two columns side by side, origin's on the left: `▼`
-  marks a commit to pull (`Update dependencies`, on `^/main`) and `▲` a commit to push
+  marks a commit to pull (`Load the catalog before rendering it`, on `^/main`) and `▲` a commit to push
   (`Show login errors`). `^` is short for origin.
 - **`●` is the commit you have checked out** and `(● feature/login)` the branch you are on.
   `©1 uncommitted change` is what you have not committed yet.

@@ -24,6 +24,15 @@ public class DemoTest
 
     static string CastPath => Environment.GetEnvironmentVariable("GMD_DEMO_CAST") ?? "";
 
+    // The folder the README's pictures are recorded in, see RecordReadmePictures
+    static string PicturesPath => Environment.GetEnvironmentVariable("GMD_DEMO_PICTURES") ?? "";
+
+    // gmd's log of the demo's repository as the README shows it, all of its rows in sight, and its
+    // subjects and branch names, as 'git log --oneline' has them, and not the ids, the authors and
+    // the times, which a wider view adds, and the animation shows
+    const int PictureWidth = 80;
+    const int PictureHeight = 15;
+
     [TestMethod]
     [TestCategory("Demo")]
     public async Task RecordDemo()
@@ -172,6 +181,38 @@ public class DemoTest
         demo.Save(CastPath);
     }
 
+    // The two pictures the README compares, of the repository the demo starts from: git's own graph
+    // of it, 'git log --graph', in git's colors, and gmd's log as gmd first shows it. Each a cast of
+    // one frame, which scripts/demo renders beside the animation, so that they are made again with
+    // it, and change only when what git or gmd draws does.
+    [TestMethod]
+    [TestCategory("Demo")]
+    public async Task RecordReadmePictures()
+    {
+        if (PicturesPath == "")
+            Assert.Inconclusive("The README's pictures are only recorded by scripts/demo");
+
+        using var repo = await DemoRepo.CreateAsync();
+
+        // Before gmd runs, which adds refs of its own that --all would show
+        var log = Proc.Ok("git", ["log", "--graph", "--oneline", "--decorate", "--all", "--color=always"], repo.Path);
+        var rows = log.TrimEnd('\n').Split('\n');
+        var width = rows.Max(r => Regex.Replace(r, @"\x1b\[[0-9;]*m", "").Length) + 1;
+        DemoRecording.SaveText(Path.Join(PicturesPath, "git-log.cast"), rows, width);
+
+        using var gmd = TmuxSession.StartGmd(repo, PictureWidth, PictureHeight, commitTime: DemoRepo.Now);
+        var picture = new DemoRecording(
+            gmd,
+            PictureWidth,
+            PictureHeight,
+            screen => Rewrite(screen, repo.Path),
+            isCaptioned: false
+        );
+        gmd.WaitFor("Initial project setup");
+        picture.Frame(1, "gmd-log");
+        picture.Save(Path.Join(PicturesPath, "gmd-log.cast"));
+    }
+
     // A key that only moves a highlight, which draws no text to wait for, so it is waited for by
     // the screen settling
     static void Press(TmuxSession gmd, DemoRecording demo, string key, double seconds)
@@ -191,7 +232,8 @@ public class DemoTest
         var dates = string.Join("|", new[] { today.AddDays(-1), today }.Select(d => d.ToString("yyyy-MM-dd")));
         var now = DemoRepo.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
+        // A time, or a narrower view's date alone
         screen = screen.Replace(repoPath, $"/{DemoRepo.RelativePath}");
-        return Regex.Replace(screen, $@"\b({dates}) \d\d:\d\d\b", now);
+        return Regex.Replace(screen, $@"\b({dates})( \d\d:\d\d)?\b", m => m.Groups[2].Success ? now : now[..10]);
     }
 }
