@@ -424,7 +424,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // enough, which nothing else would redraw it for
     void OnStatusChanged()
     {
-        UI.Post(() =>
+        UI.OnMainLoop(() =>
         {
             UpdateStatusLine();
             UI.AddTimeout(

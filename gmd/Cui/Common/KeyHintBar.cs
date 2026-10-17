@@ -33,7 +33,7 @@ class KeyHintBar : View
     {
         Visible = isHintsShown;
         status.Changed += () =>
-            UI.Post(() =>
+            UI.OnMainLoop(() =>
             {
                 Update();
                 UI.AddTimeout(
