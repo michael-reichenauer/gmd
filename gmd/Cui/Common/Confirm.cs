@@ -8,6 +8,15 @@ namespace gmd.Cui.Common;
 // against is an Enter on the wrong item, and an Enter on the question would only repeat it. What
 // they throw away gmd keeps, for Restore Discarded Changes (Server.DiscardedChanges), which the
 // questions say, and the status line once it is done.
+// What the question before a reset of the current branch was answered with: its commits' changes kept
+// as uncommitted changes, or the files taken back to the commit too
+enum ResetChoice
+{
+    Cancel,
+    KeepChanges,
+    DiscardChanges,
+}
+
 // What the question before a rewrite of commits, a drop or a rebase, was answered with
 enum RewriteChoice
 {
@@ -199,6 +208,29 @@ static class Confirm
     // Rewriting commits on origin that others may have built on: the branch is shared, or some of them
     // are someone else's (CommitRewrite.PushedWarning)
     internal static bool RewritePushed(string question) => Ask("Rewrite Pushed Commits", question);
+
+    // A reset of the current branch to a commit, whose commits after it leave the branch, Undo the way
+    // back, with Cancel the default: what they changed kept as uncommitted changes ('reset --mixed'),
+    // or the files taken back to the commit too ('reset --keep', which git refuses rather than
+    // overwrite an uncommitted change). What it says of the commits is CommitCommands'.
+    internal static ResetChoice ResetBranch(string branchName, string sid, string subject, string what)
+    {
+        var choice = UI.InfoMessage(
+            "Reset Branch",
+            $"Reset '{branchName}' to {sid}?\n\n  {sid} {subject}\n\n{what}\n\n"
+                + "Keep Changes leaves what it takes off as uncommitted changes,\n"
+                + "Discard Changes takes the files back to the commit too, where no\n"
+                + "uncommitted change is in the way. Undo takes the reset back.",
+            2,
+            ["Keep Changes", "Discard Changes", "Cancel"]
+        );
+        return choice switch
+        {
+            0 => ResetChoice.KeepChanges,
+            1 => ResetChoice.DiscardChanges,
+            _ => ResetChoice.Cancel,
+        };
+    }
 
     // Deleting every merged branch listed, which Restore Deleted Branch brings back one by one
     internal static bool DeleteMergedBranches(string question) => Ask("Delete Merged Branches", question);

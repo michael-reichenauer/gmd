@@ -453,4 +453,30 @@ public class CommitRewriteTest
             CommitRewrite.WhyNotMove(repo, C(repo, "c1"), true)
         );
     }
+
+    // The current branch is reset to any commit but the one it is on, and the reset takes the newer
+    // ones of its line off it, or moves it sideways, to another branch's commit
+    [TestMethod]
+    public async Task TestWhatAResetTakesOffTheBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("f2", "Feature two", "f1")
+            .Commit("f1", "Feature one", "c2")
+            .Commit("d1", "Dev", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2")
+            .LocalBranch("dev", "d1")
+            .LocalBranch("feature", "f2", isCurrent: true)
+            .ViewRepoAsync("dev");
+
+        Assert.AreEqual("'feature' is on this commit already", CommitRewrite.WhyNotResetTo(repo, C(repo, "f2")));
+        Assert.AreEqual("", CommitRewrite.WhyNotResetTo(repo, C(repo, "c1")));
+        CollectionAssert.AreEqual(
+            new[] { "f2", "f1", "c2" },
+            CommitRewrite.LeftByReset(repo, C(repo, "c1"))!.Select(c => c.Sid[..2]).ToArray(),
+            "Down its line, main's commits too"
+        );
+        Assert.IsNull(CommitRewrite.LeftByReset(repo, C(repo, "d1")), "Sideways");
+    }
 }

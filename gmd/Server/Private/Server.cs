@@ -656,6 +656,13 @@ class Server : IServer
 
     public Task<Result> UncommitLastCommitAsync(string wd) => Paused(() => git.UncommitLastCommitAsync(wd));
 
+    public Task<Result> ResetCurrentBranchAsync(Repo repo, string toId, bool isKeepChanges)
+    {
+        var branch = repo.CurrentBranch();
+        var tipId = repo.CurrentCommit().Id;
+        return Paused(() => git.ResetBranchAsync(branch.Name, toId, tipId, !isKeepChanges, repo.Path));
+    }
+
     public Task<Result> UncommitUntilCommitAsync(string id, string wd) =>
         Paused(() => git.UncommitUntilCommitAsync(id, wd));
 

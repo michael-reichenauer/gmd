@@ -165,6 +165,10 @@ interface IServer
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
 
+    // The current branch reset to a commit, its changes since kept as uncommitted ones ('--mixed'),
+    // or the files taken back too ('--keep'); only from where the repo has it
+    Task<Result> ResetCurrentBranchAsync(Repo repo, string toId, bool isKeepChanges);
+
     // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see UndoService
     Task<Result> UndoStepAsync(Repo repo, UndoStep step);
 
