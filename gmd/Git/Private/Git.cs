@@ -289,6 +289,9 @@ internal class Git : IGit
     public Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
         commitService.RebaseOntoKeepingMergesAsync(onto, upstream, wd);
 
+    public Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd) =>
+        commitService.IsMergedByContentAsync(ours, theirs, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
         commitService.GetRefsContainingAsync(id, wd);
 

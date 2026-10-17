@@ -559,6 +559,36 @@ class RepoView : IRepoView, IRepoViewInputHost
         Log.Info($"Showed updated worktrees {viewRepo}");
     }
 
+    // The read after a repo is shown of which branches deleted on origin were merged there, which git
+    // does not say (Repo.MergedOnOrigin): only while a branch is not known yet, since that is a git
+    // command each, and never over an update in progress
+    void UpdateMergedOnOrigin()
+    {
+        UI.AssertOnUIThread();
+        if (reads.IsReading || !server.HasUnknownMergedOnOrigin(repo.Repo))
+            return;
+
+        ShowMergedOnOriginRepoAsync().RunInBackground();
+    }
+
+    // As for the worktrees: nothing is waited for, and the repo is only replaced when something
+    // was found and nothing else was shown meanwhile
+    async Task ShowMergedOnOriginRepoAsync()
+    {
+        var shown = repo.Repo;
+        var viewRepoResult = await server.GetMergedOnOriginRepoAsync(shown);
+        if (viewRepoResult is not Server.Repo viewRepo)
+        {
+            Log.Warn($"Failed to read the branches merged on origin, {viewRepoResult.Error}");
+            return;
+        }
+        if (repo.Repo != shown || viewRepo.MergedOnOrigin.Count == shown.MergedOnOrigin.Count)
+            return;
+
+        ShowRepo(viewRepo);
+        Log.Info($"Showed the branches merged on origin {viewRepo}");
+    }
+
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
         // The current row can have moved without the hoover following it, e.g. when a command
@@ -598,6 +628,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
             UpdateWorktreesStatus();
+            UpdateMergedOnOrigin();
             return Result.Ok;
         }
     }
@@ -637,6 +668,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             viewRepo = WithCurrentBranchShown(viewRepo);
             ShowRepo(viewRepo);
             UpdateWorktreesStatus();
+            UpdateMergedOnOrigin();
 
             if (commitId != "")
             {

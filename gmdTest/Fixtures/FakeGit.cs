@@ -387,6 +387,16 @@ class FakeGit : IGit
     public Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
         throw new NotSupportedException();
 
+    // What IsMergedByContentAsync answers, by the branch tip asked about; any other is not merged
+    public HashSet<string> MergedByContent { get; } = [];
+    public List<(string Ours, string Theirs)> MergedByContentAsked { get; } = [];
+
+    public Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd)
+    {
+        MergedByContentAsked.Add((ours, theirs));
+        return Task.FromResult<Result<bool>>(MergedByContent.Contains(theirs));
+    }
+
     public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
         throw new NotSupportedException();
 

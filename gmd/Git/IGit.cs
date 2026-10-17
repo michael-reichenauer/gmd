@@ -167,6 +167,10 @@ interface IGit
     // Moves the commits of the current branch after 'upstream' onto 'onto', keeping their merges
     Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
 
+    // Whether merging commit 'theirs' into commit 'ours' would change nothing, i.e. what 'theirs'
+    // changed is in 'ours' already, e.g. squash merged or rebase merged: false too on a conflict
+    Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd);
+
     // The branches, remote branches and tags on the commit or after it, as full ref names
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);

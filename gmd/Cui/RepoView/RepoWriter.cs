@@ -450,6 +450,10 @@ class RepoWriter : IRepoWriter
                             }
                         }
                     }
+                    else if (repo.Repo.MergedOnOrigin.ContainsKey(b.Name))
+                    { // Only local, origin's deleted once it was squash merged or rebase merged there
+                        tipText.Color(color, "(").White(marker).Green("✓ ").Color(color, $"{branchName})");
+                    }
                     else
                     { // Only local branch (no remote branch)
                         if (marker != "")

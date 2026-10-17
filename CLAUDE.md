@@ -124,7 +124,9 @@ Key types and flow:
   run, to the write services of the augmented layer (`BranchWriteService`, `CommitRewriteService`,
   `UndoService`, `DeletedBranchService`). Every write the user asks for runs in `Server.Paused`,
   which pauses the file monitor; the background fetch does not. `GitConverter` turns git's records
-  into the server's.
+  into the server's. Which branches deleted on origin were squash or rebase merged there, which git
+  does not count merged, is `MergedOnOriginService`: a `git merge-tree` per branch, so read after the
+  repo is shown, as the other worktrees' changes are, and kept for the session (`Repo.MergedOnOrigin`).
 - `Augmented/Private/BranchStructureService.cs` — the heart of the product, and the most subtle
   code in the repo. `DetermineCommitBranches` is only the pipeline: set branch tips → link
   parents/children → assign branches to commits → build hierarchy → find root branch → compute

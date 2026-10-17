@@ -12,6 +12,7 @@ interface ICommitService
     Task<Result> DropCommitAsync(string id, string wd);
     Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd);
     Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
+    Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd);
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
@@ -225,6 +226,33 @@ class CommitService : ICommitService
             await cmd.RunAsync("git", $"rebase --rebase-merges --onto {onto} {upstream}", wd),
             "The rebase stopped on conflicts"
         );
+
+    // Whether merging 'theirs' into 'ours' would change nothing: what 'theirs' changed since the two
+    // parted is in 'ours' already, as it is once squash merged or rebase merged, which git does not
+    // count as merged, since the commits that went in are copies. 'git merge-tree' merges with no
+    // branch, index or working tree touched, and gives the merge's tree, which is then ours. A
+    // conflict means not; a git older than 2.38, which has no '--write-tree', fails. The trees of a
+    // result unlike ours are written to the repository, as objects nothing refers to, which a gc
+    // removes in time.
+    public async Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd)
+    {
+        var merged = await cmd.RunRawAsync(
+            "git",
+            $"merge-tree --write-tree --no-messages {ours} {theirs}",
+            wd,
+            skipLogError: true
+        );
+        if (merged.ExitCode == 1)
+            return false; // Conflicts, which the output lists after the tree
+        var mergedResult = merged.ToResult();
+        if (mergedResult is not string output)
+            return mergedResult.Error;
+
+        var treeResult = await cmd.RunAsync("git", $"rev-parse {ours}^{{tree}}", wd);
+        if (treeResult is not string oursTree)
+            return treeResult.Error;
+        return output.Split('\n')[0].Trim() == oursTree.Trim();
+    }
 
     // The branches, remote branches and tags that have the commit, i.e. are on it or after it, as
     // full ref names, e.g. 'refs/heads/main', 'refs/remotes/origin/main' and 'refs/tags/v1'

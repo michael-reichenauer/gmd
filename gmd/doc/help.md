@@ -291,6 +291,7 @@ selects them too, in any terminal.
 | ß      | Stash based on commit                                        |
 | ▲      | Commit not yet pushed (green subject)                        |
 | ▼      | Commit not yet pulled (blue subject)                         |
+| ✓      | Branch squash or rebase merged on origin, deleted there      |
 | ^      | Abbreviation for 'origin' in branch names                    |
 | ~      | Deleted branch (inactive, drawn in gray)                     |
 | o      | Branch shown in the graph (in branch menus)                  |
@@ -328,6 +329,15 @@ A branch deleted on origin, e.g. by GitHub once its pull request was
 merged, and then by a fetch here, is said to be in the details pane,
 `(deleted on origin)`, and `p` says so rather than pushing it: **Push** in
 its branch menu makes it again on origin, after asking.
+
+Merged by a squash or a rebase first, as GitHub's squash merge and rebase
+merge do, the branch is not merged as git counts it, since what went into
+main are copies of its commits. Gmd tells it by content, once the repo is
+shown: merging the branch into main, or into the branch it was made from,
+as origin has them, would change nothing. Its tip is then marked `✓`, e.g.
+`(✓ feature)`, the details pane says `(merged into main on origin)`, and
+the worktree list counts it merged. A branch whose lines main changed
+again since is not told.
 
 A branch with both unpulled and unpushed commits can only be pushed by
 force, which `p` asks about first, and is not updated by `Shift-U`, which

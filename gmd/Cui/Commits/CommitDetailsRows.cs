@@ -127,6 +127,8 @@ static class CommitDetailsRows
             text.Color(colors.GetColor(repo, branch), NameOf(branch));
             if (!branch.IsGitBranch)
                 text.Dark("  (deleted)");
+            else if (repo.MergedOnOrigin.TryGetValue(branch.Name, out var into))
+                text.Dark($"  (merged into {into} on origin)");
             else if (branch.GoneRemoteName != "")
                 text.Dark("  (deleted on origin)");
         }

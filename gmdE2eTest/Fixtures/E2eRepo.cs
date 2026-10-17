@@ -186,6 +186,31 @@ static class E2eRepo
         return repo;
     }
 
+    // The same with 'feature' squash merged into main on origin before it was deleted there, as a pull
+    // request merged with GitHub's squash merge leaves it: main on origin has a copy of its changes,
+    // 'Feature (#1)', and git counts 'feature' unmerged. The squash is made on a detached HEAD, so
+    // that no branch's reflog has it, and pushed to origin's main; main here is behind it.
+    public static async Task<TempRepo> CreateWithBranchSquashMergedOnOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+        var t = TempRepo.BaseTime;
+
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("feature.txt", "feature\n", "Add feature", t.AddMinutes(8));
+        await repo.CommitFileAtAsync("feature.txt", "feature\nfixed\n", "Fix feature", t.AddMinutes(9));
+        await repo.GitAsync("push -q --set-upstream origin feature");
+        await repo.GitAsync("checkout -q --detach origin/main");
+        await repo.GitAsync("merge -q --squash feature");
+        repo.GitAt(["commit", "-q", "-m", "Feature (#1)"], t.AddMinutes(10));
+        await repo.GitAsync("push -q origin HEAD:main");
+        await repo.GitAsync("checkout -q feature");
+        await repo.GitAsync($"-C \"{repo.Path}-origin\" update-ref -d refs/heads/feature");
+        await repo.GitAsync("fetch -q --prune origin");
+
+        return repo;
+    }
+
     // The mirror of the above: everything is pushed and then the local branch is moved back a
     // commit, so origin has one the local branch has not got. That is what draws the behind marker
     // and gives 'Pull' something to do.

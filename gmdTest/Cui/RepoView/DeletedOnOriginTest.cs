@@ -18,12 +18,13 @@ public class DeletedOnOriginTest
     [TestMethod]
     public async Task TestItIsNoBranchToPublish()
     {
-        var feature = (await RepoAsync()).BranchByName["feature"];
+        var repo = await RepoAsync();
+        var feature = repo.BranchByName["feature"];
 
         Assert.IsTrue(DeletedOnOrigin.IsGone(feature));
         Assert.AreEqual(
             "'feature' was deleted on origin, e.g. its pull request was merged: Push in its branch menu puts it back",
-            DeletedOnOrigin.WhyNoPush(feature)
+            DeletedOnOrigin.WhyNoPush(repo, feature)
         );
         Assert.AreEqual(
             """
@@ -32,7 +33,7 @@ public class DeletedOnOriginTest
             'origin/feature' was deleted on origin, e.g. when its pull
             request was merged. Pushing makes it again there, for everyone.
             """,
-            DeletedOnOrigin.PushAgainQuestion(feature)
+            DeletedOnOrigin.PushAgainQuestion(repo, feature)
         );
     }
 }
