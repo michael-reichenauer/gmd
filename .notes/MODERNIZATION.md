@@ -1067,6 +1067,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
     repo gmd had open.
   - *Static fields are initialized in the order they are written*: the palettes, built from a table of
     code colors written below them, read it as null, and gmd did not start.
+  - *A line's time limit cuts it short, and the first lines are the slow ones*: they compile the
+    grammar's regular expressions. With 50 ms, the end-to-end test of the colors, eight gmds at once
+    in CI, got the keyword and the number of its one line colored and not the comment after them.
+    500 ms now, VS Code's, and a line cut short is logged.
 - **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7), the first two of
   which the spike above shows working:
   - *Light terminals.* Every color is on a forced black background (`Color.Make` pairs each with

@@ -34,8 +34,10 @@ readonly record struct CodeSpan(int Start, int Length, ColorName Color);
 class CodeGrammars : ICodeGrammars
 {
     // How long a line may take to color, past which the rest of it is drawn as it was, as VS Code
-    // gives up on a line rather than stall, and how long a line may be to be colored at all
-    static readonly TimeSpan LineTimeout = TimeSpan.FromMilliseconds(50);
+    // gives up on a line rather than stall, and how long a line may be to be colored at all. As long
+    // as VS Code gives a line: the first lines pay for compiling the grammar's regular expressions, and
+    // with 50 ms, eight gmds starting at once left the end of a diff's first line uncolored.
+    static readonly TimeSpan LineTimeout = TimeSpan.FromMilliseconds(500);
     internal const int MaxLineLength = 2000;
 
     readonly Dictionary<string, ICodeGrammar?> byExtension = [];
@@ -106,6 +108,8 @@ class CodeGrammars : ICodeGrammars
             try
             {
                 var result = grammar.TokenizeLine(line, state as IStateStack, LineTimeout);
+                if (result.Tokens.Length > 0 && result.Tokens[^1].EndIndex < line.Length)
+                    Log.Info($"Colored a line in part, it took longer than {LineTimeout.TotalMilliseconds} ms");
                 List<CodeSpan> spans = [];
                 foreach (var token in result.Tokens)
                 {
