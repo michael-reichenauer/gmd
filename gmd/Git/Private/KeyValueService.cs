@@ -1,19 +1,23 @@
 namespace gmd.Git.Private;
 
-// Values kept in the repository under a ref of their own, which can be pushed to origin and fetched
-// from it like a branch. Beside the repository's own value is a record of origin's, as last fetched
-// or pushed, so that a caller merging the two can tell which side changed what since.
+// Values shared through origin under a ref of their own, pushed and fetched like a branch. The caller
+// keeps its own value where it likes and pushes it from there, and origin's is fetched into a record
+// of it, as last fetched or pushed, so that a caller merging the two can tell which side changed what
+// since. A value of the repository's own, under the ref origin has it under, is only read and deleted:
+// it is where values were kept before the caller kept them.
 interface IKeyValueService
 {
     Task<Result<string>> GetValueAsync(string key, string wd);
-    Task<Result> SetValueAsync(string key, string value, string wd);
+
+    // Removes the repository's own value: done also when there is none
+    Task<Result> DeleteValueAsync(string key, string wd);
 
     // Origin's value as last fetched or pushed
     Task<Result<string>> GetOriginValueAsync(string key, string wd);
 
     // Pushes the value over origin's as last fetched or pushed, and records it as origin's: true, or
     // false when origin's has changed since, which is then to be fetched and merged first
-    Task<Result<bool>> PushValueAsync(string key, string wd);
+    Task<Result<bool>> PushValueAsync(string key, string value, string wd);
 
     // Fetches origin's value into the record of it, leaving the repository's own as it is
     Task<Result> FetchValueAsync(string key, string wd);
@@ -31,46 +35,23 @@ class KeyValueService : IKeyValueService
     public Task<Result<string>> GetValueAsync(string key, string wd) =>
         cmd.RunAsync("git", $"cat-file -p {KeyRef(key)}", wd, true, true);
 
-    public async Task<Result> SetValueAsync(string key, string value, string wd)
-    {
-        var path = TmpFilePath(wd);
-        try
-        {
-            // Store the temp file with key value in the git database (returns an object id)
-            if (Result.Catch(() => File.WriteAllText(path, value)) is Error writeError)
-                return writeError;
-            var hashed = await cmd.RunAsync("git", $"hash-object -w {Cmd.Quote(path)}", wd, true, true);
-            if (hashed is not string objectId)
-                return hashed.Error;
-            objectId = objectId.Trim();
-
-            // Add a ref pointer to the stored object for easier retrieval
-            if (await cmd.RunAsync("git", $"update-ref {KeyRef(key)} {objectId}", wd, true) is Error updateError)
-                return updateError;
-        }
-        finally
-        {
-            if (Result.Catch(() => File.Delete(path)) is Error e)
-                Log.Warn($"{e}");
-        }
-
-        return Result.Ok;
-    }
+    public async Task<Result> DeleteValueAsync(string key, string wd) =>
+        await cmd.RunAsync("git", $"update-ref -d {KeyRef(key)}", wd, true, true);
 
     public Task<Result<string>> GetOriginValueAsync(string key, string wd) =>
         cmd.RunAsync("git", $"cat-file -p {OriginRef(key)}", wd, true, true);
 
-    // Pushed by its object id, resolved first, so that a value set while the push runs is not recorded
-    // as origin's. Forced, since the value is a merge of the two rather than a fast forward of origin's,
-    // but leased on origin's value as last fetched or pushed, or on there being none, when there is no
-    // record of it: a value another clone pushed since is refused rather than pushed over, which lost
-    // what was chosen there, and the push says so, false.
-    public async Task<Result<bool>> PushValueAsync(string key, string wd)
+    // Pushed by its object id, stored in the git database for it, with no ref of the repository's own
+    // pointing at it: the record of origin's does, once it is pushed. Forced, since the value is a merge
+    // of the two rather than a fast forward of origin's, but leased on origin's value as last fetched or
+    // pushed, or on there being none, when there is no record of it: a value another clone pushed
+    // since is refused rather than pushed over, which lost what was chosen there, and the push says
+    // so, false.
+    public async Task<Result<bool>> PushValueAsync(string key, string value, string wd)
     {
-        var resolved = await cmd.RunAsync("git", $"rev-parse --verify {KeyRef(key)}", wd, true, true);
-        if (resolved is not string output)
-            return resolved.Error;
-        var id = output.Trim();
+        var stored = await StoreAsync(value, wd);
+        if (stored is not string id)
+            return stored.Error;
         var lastOrigin = await cmd.RunAsync("git", $"rev-parse --verify --quiet {OriginRef(key)}", wd, true, true);
         var expected = lastOrigin is string last ? last.Trim() : "";
 
@@ -91,6 +72,26 @@ class KeyValueService : IKeyValueService
     // whether it is a fast forward)
     public async Task<Result> FetchValueAsync(string key, string wd) =>
         await cmd.RunAsync("git", $"fetch origin +{KeyRef(key)}:{OriginRef(key)}", wd, true, true);
+
+    // The value in the git database, by a temp file, and its object id
+    async Task<Result<string>> StoreAsync(string value, string wd)
+    {
+        var path = TmpFilePath(wd);
+        try
+        {
+            if (Result.Catch(() => File.WriteAllText(path, value)) is Error writeError)
+                return writeError;
+            var hashed = await cmd.RunAsync("git", $"hash-object -w {Cmd.Quote(path)}", wd, true, true);
+            if (hashed is not string objectId)
+                return hashed.Error;
+            return objectId.Trim();
+        }
+        finally
+        {
+            if (Result.Catch(() => File.Delete(path)) is Error e)
+                Log.Warn($"{e}");
+        }
+    }
 
     string KeyRef(string key) => $"refs/gmd-metadata-key-value/{key}";
 

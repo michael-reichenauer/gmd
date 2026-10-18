@@ -4,15 +4,15 @@ using gmdTest.Utils;
 namespace gmdTest.Git;
 
 // The key/value service is how gmd shares the user's branch choices: a value is stored as a plain
-// git object, and a ref under 'refs/gmd-metadata-key-value/' points at it so it can be pushed and
-// pulled like a branch.
+// git object, and pushed to a ref under 'refs/gmd-metadata-key-value/' on origin, so that it can be
+// pushed and fetched like a branch.
 [TestClass]
 public class KeyValueServiceTest
 {
     const string KeyRef = "refs/gmd-metadata-key-value/data";
     const string OriginRef = "refs/gmd-metadata-key-value-origin/data";
 
-    // SetValueAsync writes the value to a temp file under .git before handing it to git
+    // PushValueAsync writes the value to a temp file under .git before handing it to git
     string wd = "";
 
     [TestInitialize]
@@ -51,9 +51,23 @@ public class KeyValueServiceTest
         AssertError(result, "Expected the git failure to propagate");
     }
 
-    // The value goes into the git object database, and the ref is then pointed at the new object
+    // Removed, also when there is none, which git does not count a failure
     [TestMethod]
-    public async Task TestSetValueStoresTheValueAndUpdatesTheRef()
+    public async Task TestDeleteValueDeletesTheRef()
+    {
+        var cmd = new FakeCmd("");
+
+        AssertOk(await new KeyValueService(cmd).DeleteValueAsync("data", wd));
+
+        Assert.AreEqual($"update-ref -d {KeyRef}", cmd.Calls[0].Args);
+    }
+
+    // Push is forced, since the value is a merge of the local and remote data rather than a fast
+    // forward of it, but leased on origin's value as last fetched or pushed. The value goes into the
+    // git object database, with no ref of the repository's own, and the object is pushed and recorded
+    // as origin's.
+    [TestMethod]
+    public async Task TestPushValue()
     {
         var written = "";
         var cmd = new FakeCmd(
@@ -66,21 +80,30 @@ public class KeyValueServiceTest
                     written = File.ReadAllText(path);
                     return FakeCmd.Ok("objectid123\n");
                 }
-                return FakeCmd.Ok("");
+                return FakeCmd.Ok(args.Contains("--quiet") ? "lastorigin456\n" : "");
             }
         );
 
-        AssertOk(await new KeyValueService(cmd).SetValueAsync("data", "the value", wd));
+        Assert.IsTrue(AssertOk(await new KeyValueService(cmd).PushValueAsync("data", "the value", wd)));
 
         Assert.AreEqual("the value", written);
         StringAssert.StartsWith(cmd.Calls[0].Args, "hash-object -w ");
-        Assert.AreEqual($"update-ref {KeyRef} objectid123", cmd.Calls[1].Args, "The object id is trimmed");
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                $"rev-parse --verify --quiet {OriginRef}",
+                $"push --porcelain origin --force-with-lease={KeyRef}:lastorigin456 objectid123:{KeyRef}",
+                $"update-ref {OriginRef} objectid123",
+            },
+            cmd.Calls.Skip(1).Select(c => c.Args).ToArray(),
+            "The object id is trimmed"
+        );
     }
 
     // In a linked worktree '.git' is a file pointing at the real git dir, so the temp file has to
     // go there — joining '.git' blindly would try to write inside a file
     [TestMethod]
-    public async Task TestSetValueWritesItsTempFileInTheRealGitDirWhenDotGitIsAFile()
+    public async Task TestPushValueWritesItsTempFileInTheRealGitDirWhenDotGitIsAFile()
     {
         var realGitDir = Path.Join(wd, "real-git-dir");
         Directory.CreateDirectory(realGitDir);
@@ -96,7 +119,7 @@ public class KeyValueServiceTest
             }
         );
 
-        AssertOk(await new KeyValueService(cmd).SetValueAsync("data", "the value", wd));
+        AssertOk(await new KeyValueService(cmd).PushValueAsync("data", "the value", wd));
 
         Assert.AreEqual(Path.GetFullPath(realGitDir), Path.GetDirectoryName(tempPath));
         Assert.AreEqual(0, Directory.GetFiles(realGitDir).Length, "The temp file is removed");
@@ -104,49 +127,25 @@ public class KeyValueServiceTest
 
     // The temp file must not be left behind in .git
     [TestMethod]
-    public async Task TestSetValueRemovesItsTempFile()
+    public async Task TestPushValueRemovesItsTempFile()
     {
         var cmd = new FakeCmd("objectid123\n");
 
-        await new KeyValueService(cmd).SetValueAsync("data", "the value", wd);
+        await new KeyValueService(cmd).PushValueAsync("data", "the value", wd);
 
         Assert.AreEqual(0, Directory.GetFiles(Path.Join(wd, ".git")).Length);
     }
 
     [TestMethod]
-    public async Task TestSetValueRemovesItsTempFileAlsoWhenGitFails()
+    public async Task TestPushValueRemovesItsTempFileAlsoWhenGitFails()
     {
         var cmd = new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: not a git repository"));
 
-        var result = await new KeyValueService(cmd).SetValueAsync("data", "the value", wd);
+        var result = await new KeyValueService(cmd).PushValueAsync("data", "the value", wd);
 
         AssertError(result, "Expected the git failure to propagate");
         Assert.AreEqual(0, Directory.GetFiles(Path.Join(wd, ".git")).Length);
-    }
-
-    // Push is forced, since the value is a merge of the local and remote data rather than a
-    // fast forward of it, but leased on origin's value as last fetched or pushed. It pushes the object
-    // the value is when the push starts, and records that one as origin's, so that a value set
-    // meanwhile is not taken for origin's.
-    [TestMethod]
-    public async Task TestPushValue()
-    {
-        var cmd = new FakeCmd(
-            (_, args, _) => FakeCmd.Ok(args.Contains("--quiet") ? "lastorigin456\n" : "objectid123\n")
-        );
-
-        Assert.IsTrue(AssertOk(await new KeyValueService(cmd).PushValueAsync("data", wd)));
-
-        CollectionAssert.AreEqual(
-            new[]
-            {
-                $"rev-parse --verify {KeyRef}",
-                $"rev-parse --verify --quiet {OriginRef}",
-                $"push --porcelain origin --force-with-lease={KeyRef}:lastorigin456 objectid123:{KeyRef}",
-                $"update-ref {OriginRef} objectid123",
-            },
-            cmd.Calls.Select(c => c.Args).ToArray()
-        );
+        Assert.AreEqual(1, cmd.Calls.Count, "Nothing is pushed");
     }
 
     // With no record of origin's value, the lease is on origin having none
@@ -157,7 +156,7 @@ public class KeyValueServiceTest
             (_, args, _) => args.Contains("--quiet") ? FakeCmd.Fail("") : FakeCmd.Ok("objectid123\n")
         );
 
-        AssertOk(await new KeyValueService(cmd).PushValueAsync("data", wd));
+        AssertOk(await new KeyValueService(cmd).PushValueAsync("data", "the value", wd));
 
         Assert.AreEqual(
             $"push --porcelain origin --force-with-lease={KeyRef}: objectid123:{KeyRef}",
@@ -176,7 +175,7 @@ public class KeyValueServiceTest
                     : FakeCmd.Ok("objectid123\n")
         );
 
-        Assert.IsFalse(AssertOk(await new KeyValueService(cmd).PushValueAsync("data", wd)));
+        Assert.IsFalse(AssertOk(await new KeyValueService(cmd).PushValueAsync("data", "the value", wd)));
 
         Assert.IsFalse(cmd.Calls.Any(c => c.Args.StartsWith("update-ref")));
     }
@@ -190,7 +189,7 @@ public class KeyValueServiceTest
                 args.StartsWith("push") ? FakeCmd.Fail("fatal: unable to access") : FakeCmd.Ok("objectid123\n")
         );
 
-        AssertError(await new KeyValueService(cmd).PushValueAsync("data", wd));
+        AssertError(await new KeyValueService(cmd).PushValueAsync("data", "the value", wd));
 
         Assert.IsFalse(cmd.Calls.Any(c => c.Args.StartsWith("update-ref")));
     }

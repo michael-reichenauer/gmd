@@ -61,7 +61,7 @@ public class RefreshTimingTest
 
         var cmd = new Cmd();
         var git = TempRepo.NewGit(cmd);
-        var metaDataService = new MetaDataService(git, new FakeRepoConfig());
+        var metaDataService = new MetaDataService(git, new FakeRepoConfig(), new MetaDataFile());
 
         // The git reads, the log on its own and with the parse, and the rest the way the service reads them
         var logArgs = $"log --all --date-order {LogService.CommitFormat} --max-count={MaxCommitCount}";

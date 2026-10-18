@@ -5,9 +5,9 @@ using gmdTest.Fixtures;
 namespace gmdTest.Augmented;
 
 // MetaDataService is the storage side of the user's branch choices: the choices are serialized to
-// JSON and kept in git under a ref of their own, so they can be pushed and pulled between users
-// like a branch. MetaDataTest covers the choices themselves, this covers getting them in and out
-// of git and merging another user's.
+// JSON and kept in a file in the git dir, and shared, when that is turned on, through a git value
+// that is pushed and fetched like a branch. MetaDataTest covers the choices themselves, this covers
+// getting them in and out of the file and git, and merging another user's.
 [TestClass]
 public class MetaDataServiceTest
 {
@@ -16,6 +16,7 @@ public class MetaDataServiceTest
 
     FakeGit git = null!;
     FakeRepoConfig repoConfig = null!;
+    FakeMetaDataFile file = null!;
     MetaDataService service = null!;
 
     [TestInitialize]
@@ -23,7 +24,15 @@ public class MetaDataServiceTest
     {
         git = new FakeGit();
         repoConfig = new FakeRepoConfig();
-        service = new MetaDataService(git, repoConfig);
+        file = new FakeMetaDataFile();
+        service = new MetaDataService(git, repoConfig, file);
+    }
+
+    // What the file holds, as this gmd keeps the metadata
+    string Local
+    {
+        get => file.TextByPath[Path];
+        set => file.TextByPath[Path] = value;
     }
 
     // Sharing is off unless the user turns it on, which is what makes the fetch and push below
@@ -51,7 +60,7 @@ public class MetaDataServiceTest
     public async Task TestAChangeWaitsForTheOneBefore()
     {
         var held = new TaskCompletionSource();
-        git.NextSetValueHeld = held.Task;
+        file.NextWriteHeld = held.Task;
         var id = RepoBuilder.Sha("e1");
 
         var keeping = service.AddWitnessedAsync(Path, [new WitnessedBranch(id, "feature1")]);
@@ -74,13 +83,14 @@ public class MetaDataServiceTest
         AssertOk(await service.AddWitnessedAsync(Path, [new WitnessedBranch(id, "feature1")]));
         AssertOk(await service.AddWitnessedAsync(Path, [new WitnessedBranch(id, "feature1")]));
 
-        Assert.AreEqual(1, git.ValueCalls.Count(c => c.StartsWith("set")), string.Join(", ", git.ValueCalls));
+        Assert.AreEqual(1, file.Writes);
         var read = AssertOk(await service.GetMetaDataAsync(Path));
         Assert.IsTrue(read.TryGetWitnessedBranch(id, out var name));
         Assert.AreEqual("feature1", name);
     }
 
-    // A repo nobody has made a choice in has no key at all, which is not an error
+    // A repo nobody has made a choice in has no file, nor a value a gmd before kept, which is not an
+    // error, and nothing is written for it
     [TestMethod]
     public async Task TestGetWithNoStoredValueIsEmptyMetaData()
     {
@@ -88,16 +98,74 @@ public class MetaDataServiceTest
 
         Assert.AreEqual(0, metaData.CommitBranchById.Count);
         CollectionAssert.AreEqual(new[] { "get data" }, git.ValueCalls);
+        Assert.AreEqual(0, file.Writes);
     }
 
     [TestMethod]
-    public async Task TestGetWithUnreadableValueIsAnError()
+    public async Task TestGetWithUnreadableFileIsAnError()
     {
-        git.Values[Key] = "not json";
+        Local = "not json";
 
         var result = await service.GetMetaDataAsync(Path);
 
         AssertError(result, "Expected the deserialization to fail");
+    }
+
+    // The file is read, and git is not asked, once there is one
+    [TestMethod]
+    public async Task TestGetReadsTheFile()
+    {
+        Local = Json(("abc123", "*dev"));
+        git.Values[Key] = Json(("abc123", "*main"));
+
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));
+        Assert.AreEqual("dev", name);
+        Assert.AreEqual(0, git.ValueCalls.Count);
+    }
+
+    // A gmd before kept the metadata in the repository, as a git value, which is read as long as there
+    // is no file, and a read writes nothing: neither the file nor the repository
+    [TestMethod]
+    public async Task TestGetReadsTheValueAGmdBeforeKeptUntilThereIsAFile()
+    {
+        git.Values[Key] = Json(("abc123", "*dev"));
+
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
+
+        Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));
+        Assert.AreEqual("dev", name);
+        Assert.AreEqual(0, file.Writes);
+        CollectionAssert.AreEqual(new[] { "get data" }, git.ValueCalls);
+    }
+
+    // The first write moves the metadata into the file, the value read included, and deletes the git
+    // value, so that nothing of it is left in the repository
+    [TestMethod]
+    public async Task TestTheFirstWriteMovesTheValueIntoTheFile()
+    {
+        git.Values[Key] = Json(("abc123", "*dev"));
+
+        AssertOk(await service.UpdateMetaDataAsync(Path, m => m.SetCommitBranch("def456", "main")));
+
+        Assert.IsFalse(git.Values.ContainsKey(Key), "The git value is deleted");
+        var metaData = AssertOk(await service.GetMetaDataAsync(Path));
+        Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var name, out _));
+        Assert.AreEqual("dev", name, "The value read is kept");
+        Assert.IsTrue(metaData.TryGetCommitBranch("def456", out name, out _));
+        Assert.AreEqual("main", name, "and the change");
+    }
+
+    // ... once: the git value is deleted at the first write alone
+    [TestMethod]
+    public async Task TestALaterWriteLeavesGitAlone()
+    {
+        Local = Json(("abc123", "*dev"));
+
+        AssertOk(await service.UpdateMetaDataAsync(Path, m => m.SetCommitBranch("def456", "main")));
+
+        Assert.AreEqual(0, git.ValueCalls.Count, string.Join(", ", git.ValueCalls));
     }
 
     // Sync is off by default, so nothing reaches git
@@ -121,11 +189,13 @@ public class MetaDataServiceTest
     public async Task TestPushSendsTheValueWhenSyncIsEnabled()
     {
         EnableSync();
-        git.Values[Key] = Json(("abc123", "*dev"));
+        Local = Json(("abc123", "*dev"));
 
         AssertOk(await service.PushMetaDataAsync(Path));
 
-        Assert.AreEqual(git.Values[Key], git.RemoteValues[Key]);
+        var pushed = MetaData.Parse(git.RemoteValues[Key]);
+        Assert.IsTrue(pushed.TryGetCommitBranch("abc123", out var name, out _));
+        Assert.AreEqual("dev", name);
     }
 
     // Nobody has pushed choices yet, so there is nothing to fetch. Not an error, it is the normal
@@ -138,6 +208,7 @@ public class MetaDataServiceTest
         AssertOk(await service.FetchMetaDataAsync(Path));
 
         CollectionAssert.AreEqual(new[] { "get data", "get origin data", "fetch data" }, git.ValueCalls);
+        Assert.AreEqual(0, file.Writes);
     }
 
     // Another user's choices are taken over, and since the merge changed the local data it is
@@ -161,7 +232,7 @@ public class MetaDataServiceTest
     public async Task TestFetchKeepsLocalChoicesTheRemoteDoesNotHave()
     {
         EnableSync();
-        git.Values[Key] = Json(("local1", "*main"));
+        Local = Json(("local1", "*main"));
         git.RemoteValues[Key] = Json(("remote1", "*dev"));
 
         AssertOk(await service.FetchMetaDataAsync(Path));
@@ -177,7 +248,7 @@ public class MetaDataServiceTest
     {
         EnableSync();
         var id = RepoBuilder.Sha("e1");
-        git.Values[Key] = Json((id, "*main"));
+        Local = Json((id, "*main"));
         var remote = new MetaData();
         remote.SetWitnessed(id, "dev");
         git.RemoteValues[Key] = JsonSerializer.Serialize(remote);
@@ -198,7 +269,7 @@ public class MetaDataServiceTest
     public async Task TestFetchPrefersTheRemoteValueOnConflict()
     {
         EnableSync();
-        git.Values[Key] = Json(("abc123", "*main"));
+        Local = Json(("abc123", "*main"));
         git.RemoteValues[Key] = Json(("abc123", "*dev"));
 
         AssertOk(await service.FetchMetaDataAsync(Path));
@@ -213,12 +284,12 @@ public class MetaDataServiceTest
     public async Task TestFetchWritesNothingWhenAlreadyInSync()
     {
         EnableSync();
-        git.Values[Key] = Json(("abc123", "*dev"));
+        Local = Json(("abc123", "*dev"));
         git.RemoteValues[Key] = Json(("abc123", "*dev"));
 
         AssertOk(await service.FetchMetaDataAsync(Path));
 
-        CollectionAssert.DoesNotContain(git.ValueCalls, "set data");
+        Assert.AreEqual(0, file.Writes);
     }
 
     // A removed choice is stored as an empty value rather than being deleted, so the removal
@@ -237,7 +308,7 @@ public class MetaDataServiceTest
                 }
             )
         );
-        git.RemoteValues[Key] = git.Values[Key];
+        git.RemoteValues[Key] = Local;
 
         AssertOk(await service.FetchMetaDataAsync(Path));
         var metaData = AssertOk(await service.GetMetaDataAsync(Path));
@@ -253,7 +324,7 @@ public class MetaDataServiceTest
     public async Task TestFetchKeepsAValueChangedHereSinceTheLastFetch()
     {
         EnableSync();
-        git.Values[Key] = Json(("abc123", "*main"));
+        Local = Json(("abc123", "*main"));
         git.OriginValues[Key] = Json(("abc123", "*dev"));
         git.RemoteValues[Key] = Json(("abc123", "*dev"));
 
@@ -269,7 +340,7 @@ public class MetaDataServiceTest
     public async Task TestFetchTakesAValueChangedOnOriginSinceTheLastFetch()
     {
         EnableSync();
-        git.Values[Key] = Json(("abc123", "*dev"));
+        Local = Json(("abc123", "*dev"));
         git.OriginValues[Key] = Json(("abc123", "*dev"));
         git.RemoteValues[Key] = Json(("abc123", "*main"));
 
@@ -285,7 +356,7 @@ public class MetaDataServiceTest
     public async Task TestFetchPrefersOriginsValueWhenBothChangedIt()
     {
         EnableSync();
-        git.Values[Key] = Json(("abc123", "*main"));
+        Local = Json(("abc123", "*main"));
         git.OriginValues[Key] = Json(("abc123", "*dev"));
         git.RemoteValues[Key] = Json(("abc123", "*feature"));
 
@@ -301,13 +372,13 @@ public class MetaDataServiceTest
     public async Task TestFetchNeverWritesOverTheLocalValue()
     {
         EnableSync();
-        git.Values[Key] = Json(("abc123", "*main"));
+        Local = Json(("abc123", "*main"));
         git.OriginValues[Key] = Json(("abc123", "*dev"));
         git.RemoteValues[Key] = Json(("abc123", "*dev"));
 
         AssertOk(await service.FetchMetaDataAsync(Path));
 
-        CollectionAssert.DoesNotContain(git.ValueCalls, "set data");
-        Assert.AreEqual(Json(("abc123", "*main")), git.Values[Key]);
+        Assert.AreEqual(0, file.Writes);
+        Assert.AreEqual(Json(("abc123", "*main")), Local);
     }
 }

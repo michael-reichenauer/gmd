@@ -116,6 +116,11 @@ interface IMetaDataService
     Task<Result> AddWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed);
 }
 
+// The metadata is kept in a file of its own in the git dir (MetaDataFile), on this machine alone, and
+// shared through origin only when the shared branch structure is on (RepoConfig.SyncMetaData), as a
+// git value (IGit.PushValueAsync). A gmd before kept it in the repository, under the ref it is shared
+// through, which is read until the file is first written, and deleted then.
+//
 // The metadata is read, changed and written whole, so every change is made under one lock, each on
 // what the one before wrote. Otherwise a change made in the background, e.g. keeping what the reflog
 // witnessed, and one the user made meanwhile each wrote a copy of its own, and the later write lost
@@ -127,28 +132,41 @@ interface IMetaDataService
 class MetaDataService : IMetaDataService
 {
     const string metaDataKey = "data";
+    static readonly JsonSerializerOptions options = new() { WriteIndented = true };
     readonly IGit git;
     readonly IRepoConfigService repoConfig;
+    readonly IMetaDataFile file;
     readonly SemaphoreSlim changing = new(1, 1);
 
-    internal MetaDataService(IGit git, IRepoConfigService repoConfig)
+    internal MetaDataService(IGit git, IRepoConfigService repoConfig, IMetaDataFile file)
     {
         this.git = git;
         this.repoConfig = repoConfig;
+        this.file = file;
     }
 
     public async Task<Result<MetaData>> GetMetaDataAsync(string path)
     {
+        if (!file.Exists(path))
+            return await GetUnmovedMetaDataAsync(path);
+
+        var read = await file.ReadAsync(path);
+        if (read is not string json)
+            return read.Error;
+        return Result.Catch(() => MetaData.Parse(json));
+    }
+
+    // The metadata where a gmd before kept it, the repository's own git value, or none: the normal
+    // state of a repo nobody has made a choice in, and of one whose reflog decided nothing. None too
+    // when it was moved into the file just now, after the file was looked for, which is then read.
+    async Task<Result<MetaData>> GetUnmovedMetaDataAsync(string path)
+    {
         var read = await git.GetValueAsync(metaDataKey, path);
         if (read is not string json)
-        { // Failed to read local value
-            if (IsNoLocalKey(read.Error))
-            { // No local key,
-                return new MetaData();
-            }
-
-            // Failed to get local value
-            return read.Error;
+        {
+            if (!IsNoLocalKey(read.Error))
+                return read.Error;
+            return file.Exists(path) ? await GetMetaDataAsync(path) : new MetaData();
         }
 
         return Result.Catch(() => MetaData.Parse(json));
@@ -174,14 +192,18 @@ class MetaDataService : IMetaDataService
         return new Disposable(() => changing.Release());
     }
 
+    // The first write moves the metadata into the file, and deletes the git value it was read from
+    // until then, so that nothing of it is left in the repository
     async Task<Result> WriteMetaDataAsync(string path, MetaData metaData)
     {
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        string json = JsonSerializer.Serialize(metaData, options);
-
-        if (await git.SetValueAsync(metaDataKey, json, path) is Error e)
+        var isMoving = !file.Exists(path);
+        if (await file.WriteAsync(path, JsonSerializer.Serialize(metaData, options)) is Error e)
             return e;
-        // Log.Info($"Wrote:\n{json}");
+
+        if (isMoving && await git.DeleteValueAsync(metaDataKey, path) is Error deleteError)
+        { // The file is what is read from now on, so the value is merely left behind
+            Log.Warn($"Failed to delete the metadata's git value, kept in a file now: {deleteError}");
+        }
         return Result.Ok;
     }
 
@@ -320,7 +342,10 @@ class MetaDataService : IMetaDataService
         {
             for (var tries = 0; tries < MaxPushes; tries++)
             {
-                if (await git.PushValueAsync(metaDataKey, path) is not false)
+                if (await GetMetaDataAsync(path) is not MetaData metaData)
+                    return Result.Ok;
+                var json = JsonSerializer.Serialize(metaData, options);
+                if (await git.PushValueAsync(metaDataKey, json, path) is not false)
                     return Result.Ok;
 
                 using (await LockAsync())

@@ -386,7 +386,7 @@ var result = await git.GetStatusAsync(wd);
 if (result is not Status status) return result.Error;
 
 // Propagate, no value
-if (await git.SetValueAsync(key, json, wd) is Error e) return e;
+if (await git.FetchValueAsync(key, wd) is Error e) return e;
 
 // Branch on the outcome: exhaustive, no discard arm
 return await server.PullAsync(name, wd) switch

@@ -33,7 +33,7 @@ public class MetaDataServiceIntegrationTest
         var config = new FakeRepoConfig();
         config.Set(repo.Path, c => c.SyncMetaData = true);
         config.Set(other, c => c.SyncMetaData = true);
-        service = new MetaDataService(repo.Git, config);
+        service = new MetaDataService(repo.Git, config, new MetaDataFile());
     }
 
     [TestCleanup]
@@ -47,6 +47,25 @@ public class MetaDataServiceIntegrationTest
         var metaData = AssertOk(await service.GetMetaDataAsync(path));
         Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var branch, out _));
         return branch;
+    }
+
+    // A gmd before kept the metadata in the repository, under the ref it is shared through, which is
+    // read until the first write moves it into the file in the git dir, and deletes the ref
+    [TestMethod]
+    public async Task TestTheFirstWriteMovesTheMetaDataOutOfTheRepository()
+    {
+        var valuePath = System.IO.Path.Join(repo.Path, ".git", "value.json");
+        File.WriteAllText(valuePath, """{ "CommitBranchBySid": { "abc123": "*dev" } }""");
+        var id = (await repo.GitAsync($"hash-object -w \"{valuePath}\"")).Trim();
+        File.Delete(valuePath);
+        await repo.GitAsync($"update-ref refs/gmd-metadata-key-value/data {id}");
+        Assert.AreEqual("dev", await GetAsync(repo.Path), "Read from the ref");
+
+        await SetAsync(repo.Path, "main", "def456");
+
+        Assert.AreEqual("dev", await GetAsync(repo.Path), "Read from the file");
+        Assert.AreEqual("", await repo.GitAsync("for-each-ref refs/gmd-metadata-key-value"), "The ref is gone");
+        Assert.IsTrue(File.Exists(System.IO.Path.Join(repo.Path, ".git", MetaDataFile.FileName)));
     }
 
     [TestMethod]

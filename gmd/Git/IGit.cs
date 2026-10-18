@@ -188,9 +188,9 @@ interface IGit
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
     Task<Result<string>> GetValueAsync(string key, string wd);
-    Task<Result> SetValueAsync(string key, string value, string wd);
+    Task<Result> DeleteValueAsync(string key, string wd);
     Task<Result<string>> GetOriginValueAsync(string key, string wd);
-    Task<Result<bool>> PushValueAsync(string key, string wd);
+    Task<Result<bool>> PushValueAsync(string key, string value, string wd);
     Task<Result> FetchValueAsync(string key, string wd);
     Task<Result> StashAsync(string message, string wd);
     Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd);

@@ -79,11 +79,11 @@ class FakeGit : IGit
         return Task.FromResult(Result.Ok);
     }
 
-    // The git key/value storage, i.e. the 'refs/gmd-metadata-key-value/<key>' refs MetaDataService
-    // stores the user's branch choices in. Values is what this repo has, RemoteValues what the
-    // remote server has, and OriginValues this repo's record of the remote's as last fetched or
-    // pushed: a fetch copies remote to the record, and a push copies local to remote and the record,
-    // which is all MetaDataService needs from git.
+    // The git key/value storage, i.e. the 'refs/gmd-metadata-key-value/<key>' refs the metadata is
+    // shared through. Values is what this repo has, where a gmd before kept the metadata, RemoteValues
+    // what the remote server has, and OriginValues this repo's record of the remote's as last fetched
+    // or pushed: a fetch copies remote to the record, and a push copies the value pushed to remote and
+    // the record, which is all MetaDataService needs from git.
     public Dictionary<string, string> Values { get; } = [];
 
     public Dictionary<string, string> RemoteValues { get; } = [];
@@ -100,24 +100,16 @@ class FakeGit : IGit
             Values.TryGetValue(key, out var value)
                 ? value
                 // The message git gives for a ref that does not exist, which MetaDataService reads
-                // as 'no local value yet' rather than as a failure
+                // as 'no local value'
                 : new Error($"fatal: Not a valid object name refs/gmd-metadata-key-value/{key}")
         );
     }
 
-    // Holds the next write until the task completes, so that a test can start another meanwhile
-    public Task? NextSetValueHeld { get; set; }
-
-    public async Task<Result> SetValueAsync(string key, string value, string wd)
+    public Task<Result> DeleteValueAsync(string key, string wd)
     {
-        ValueCalls.Add($"set {key}");
-        var held = NextSetValueHeld;
-        NextSetValueHeld = null;
-        if (held != null)
-            await held;
-
-        Values[key] = value;
-        return Result.Ok;
+        ValueCalls.Add($"delete {key}");
+        Values.Remove(key);
+        return Task.FromResult(Result.Ok);
     }
 
     public Task<Result<string>> GetOriginValueAsync(string key, string wd)
@@ -131,11 +123,9 @@ class FakeGit : IGit
     }
 
     // Leased on origin's value as last fetched or pushed, as git's push is
-    public Task<Result<bool>> PushValueAsync(string key, string wd)
+    public Task<Result<bool>> PushValueAsync(string key, string value, string wd)
     {
         ValueCalls.Add($"push {key}");
-        if (!Values.TryGetValue(key, out var value))
-            return Task.FromResult<Result<bool>>(new Error("fatal: Needed a single revision"));
         if (RemoteValues.GetValueOrDefault(key) != OriginValues.GetValueOrDefault(key))
             return Task.FromResult<Result<bool>>(false);
 
