@@ -165,9 +165,10 @@ static class MessageDlg
         var d = new DialogView(title, () => useErrorColors ? ColorSchemes.ErrorDialog : ColorSchemes.InfoDialog)
         {
             Height = msgBoxHeight,
-            // textWidth + (left + right), as wide as the title and the buttons too
+            // textWidth + (left + right), as wide as the title and the buttons too, which are inside
+            // the borders as the text is: without them a row of buttons wider than the text was cut
             Width = Math.Min(
-                Math.Max(maxWidthLine, Math.Max(title.Length, Math.Max(textWidth + 2, buttonsWidth))),
+                Math.Max(maxWidthLine, Math.Max(title.Length, Math.Max(textWidth, buttonsWidth) + 2)),
                 cols
             ),
             InitialFocus = focus,
