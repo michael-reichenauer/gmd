@@ -156,6 +156,16 @@ class BlameRowService : IBlameRowService
         ];
     }
 
+    // A revision as the header names it: an id short, as everywhere, with what follows it kept, e.g.
+    // '1be33bd1^' for the version before a commit, which a diff blames a removed line in; a name as it
+    // is, e.g. 'HEAD' or 'stash@{0}^'
+    public static string ReferenceText(string reference)
+    {
+        var name = reference.TrimEnd('^', '~');
+        var isId = name.Length >= 40 && name.All(char.IsAsciiHexDigit);
+        return (isId ? name.Sid() : name) + reference[name.Length..];
+    }
+
     // The commit is named only on the first row of a run, the rest of the run is blank under it
     static void WriteCommit(TextBuilder text, BlameRow row, BlameColumns cw)
     {

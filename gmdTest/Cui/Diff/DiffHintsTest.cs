@@ -129,6 +129,25 @@ public class DiffHintsTest
         );
     }
 
+    // b blames the file the cursor is in, after the search, where the cursor is in a file to blame
+    [TestMethod]
+    public void TestBIsOfferedInAFileToBlame()
+    {
+        Assert.AreEqual(
+            "m menu  Esc close  ] [ change  + - context  } { file  f search  b blame  w hide whitespace  v one column  ←→ columns",
+            Line(
+                DiffHints.For(
+                    canCommit: false,
+                    hasContext: true,
+                    hasConflicts: false,
+                    hasSearch: false,
+                    isWhitespaceHidden: false,
+                    canBlame: true
+                )
+            )
+        );
+    }
+
     static string Line(IReadOnlyList<KeyHint> hints) => string.Join("  ", hints.Select(h => $"{h.Key} {h.Text}"));
 
     // In one column, v shows the sides again, and ← and → only scroll, there being no column to pick

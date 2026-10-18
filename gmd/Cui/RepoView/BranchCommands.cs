@@ -410,12 +410,15 @@ class BranchCommands : IBranchCommands
 
             message = $"Diff '{branch1.NiceNameUnique}' to '{branch2.NiceNameUnique}'";
 
-            var source = DiffSource.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path));
+            var source = DiffSource.Single(n => server.GetPreviewMergeDiffAsync(sha2, sha1, message, n, repo.Path)) with
+            {
+                Sides = new(sha2, sha1),
+            };
             var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
-            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see CommitCommands.ShowDiff
+            UI.Post(() => diffView.Show(diffs, source, repo.Repo)); // Outside Do, see CommitCommands.ShowDiff
             return Result.Ok;
         });
 

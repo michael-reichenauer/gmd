@@ -66,6 +66,39 @@ public class DiffViewTest
         StringAssert.Contains(line, "\u001b[38;2;106;153;85m// so far", "The comment green");
     }
 
+    // b blames the file the cursor is in, at the commit, with the cursor on the line: here the change
+    // ']' goes to, line 4, 'FOUR'. Esc comes back to the diff.
+    [TestMethod]
+    public async Task TestBBlamesTheLineTheCursorIsOn()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\nthree\nfour\nfive\n", "Add lines", t.AddMinutes(7));
+        var head = await repo.CommitFileAtAsync(
+            "alpha.txt",
+            "one\ntwo\nthree\nFOUR\nfive\n",
+            "Change four",
+            t.AddMinutes(8)
+        );
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change four");
+        gmd.Send("d");
+        gmd.WaitFor("FOUR");
+        gmd.Send("]");
+        gmd.WaitFor("Change 1 of 1");
+
+        gmd.Send("b");
+
+        var blame = gmd.WaitFor("Blame  alpha.txt");
+        StringAssert.StartsWith(ScreenText.Rows(blame, repo.Path, 0, 1), $"Blame  alpha.txt  @{head.Sid()}");
+        var backgrounds = ScreenText.BackgroundRows(gmd.CaptureColors(), 0, 12).Split('\n');
+        var cursorRow = Array.FindIndex(backgrounds, b => b.Contains('D'));
+        StringAssert.Contains(ScreenText.Rows(blame, repo.Path, cursorRow, 1), "   4┃FOUR", "The cursor on line 4");
+
+        gmd.Send("Escape");
+        StringAssert.Contains(gmd.WaitUntilGone("Blame  alpha.txt"), "Change four", "Back in the diff");
+    }
+
     // '+' shows more of the file around its changes and '-' shows less, stepping 6 → 15 → the whole
     // file. It is per file: the file the cursor is on is the one that changes. What is asserted is
     // the file header and the first lines under it, which is where both halves show — the header
@@ -578,8 +611,8 @@ public class DiffViewTest
             ▌  20 line 20                         │Hide Whitespace Changes                 w  │
                21 line 21                         │Show in One Column                      v  │
                22 line 22                         │Hide the Lines of long.txt              h  │
-               23 line 23                         │Focus Left Column                       ←  │
-               24 line 24                         │Focus Right Column                      →  │
+               23 line 23                         │Blame long.txt at Line 25               b  │
+               24 line 24                         │Focus Left Column                       ←  │
             """,
             ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path

@@ -290,6 +290,18 @@ public class BlameRowServiceTest
     // The colors of the code of a row, after the line number's '┃'
     static string CodeColors(Text row) => TextColors.Of(row)[(row.ToString().IndexOf('┃') + 1)..].TrimEnd();
 
+    // The revision the header names: an id short with what follows it, the version before a commit
+    // that a diff blames a removed line in, and a name as it is
+    [TestMethod]
+    public void TestTheHeaderNamesTheRevision()
+    {
+        Assert.AreEqual("11111111", BlameRowService.ReferenceText(Id1));
+        Assert.AreEqual("11111111^", BlameRowService.ReferenceText(Id1 + "^"));
+        Assert.AreEqual("11111111~", BlameRowService.ReferenceText(Id1 + "~"));
+        Assert.AreEqual("HEAD", BlameRowService.ReferenceText("HEAD"));
+        Assert.AreEqual("stash@{0}^", BlameRowService.ReferenceText("stash@{0}^"));
+    }
+
     // A search is of the code, so its match is marked there and not in the gutter, here the sid
     // 11111111, and stays marked on the cursor's row, where a search puts the cursor
     [TestMethod]

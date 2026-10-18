@@ -315,13 +315,17 @@ class CommitCommands : ICommitCommands
                 {
                     CanCommit = commitId == Repo.UncommittedId,
                     IsCommittedWhole = repo.Repo.Status.IsMerging,
+                    Sides = commitId == Repo.UncommittedId ? DiffSides.Uncommitted : null,
                 };
             }
             else
             {
                 repoView.ClearSelection();
                 var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
-                source = DiffSource.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path));
+                source = DiffSource.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path)) with
+                {
+                    Sides = new($"{commitId2}~", commitId),
+                };
             }
 
             var diffsResult = await source.Reload(DiffContext.Default);
@@ -342,7 +346,7 @@ class CommitCommands : ICommitCommands
             // be counted, with no marquee and with the keys not held while git works
             UI.Post(() =>
             {
-                var rsp = diffView.Show(diffs, source, repo.Path, conflicts);
+                var rsp = diffView.Show(diffs, source, repo.Repo, conflicts);
                 if (rsp == DiffResult.Commit && !isFromCommit)
                 {
                     RefreshAndCommit();
@@ -381,12 +385,15 @@ class CommitCommands : ICommitCommands
             var message = $"Diff {older.Sid} to {newer.Sid}";
             var source = DiffSource.Single(n =>
                 server.GetPreviewMergeDiffAsync(older.Id, newer.Id, message, n, repo.Path)
-            );
+            ) with
+            {
+                Sides = new(older.Id, newer.Id),
+            };
             var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error("Failed to get diff", diffsResult.Error);
 
-            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
+            UI.Post(() => diffView.Show(diffs, source, repo.Repo)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
@@ -483,12 +490,15 @@ class CommitCommands : ICommitCommands
     public void StashDiff(string name) =>
         Do(async repo =>
         {
-            var source = DiffSource.Single(n => server.GetStashDiffAsync(name, n, repo.Path));
+            var source = DiffSource.Single(n => server.GetStashDiffAsync(name, n, repo.Path)) with
+            {
+                Sides = new($"{name}^", name),
+            };
             var diffsResult = await source.Reload(DiffContext.Default);
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to diff stash {name}", diffsResult.Error);
 
-            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
+            UI.Post(() => diffView.Show(diffs, source, repo.Repo)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 
@@ -970,7 +980,7 @@ class CommitCommands : ICommitCommands
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to show file history", diffsResult.Error);
 
-            UI.Post(() => diffView.Show(diffs, source, repo.Path)); // Outside Do, see ShowDiff
+            UI.Post(() => diffView.Show(diffs, source, repo.Repo)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 

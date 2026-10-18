@@ -215,7 +215,7 @@ class UndoCommands : IUndoCommands
         if (diffsResult is not CommitDiff[] diffs)
             return new Error("Failed to diff what was discarded", diffsResult.Error);
 
-        diffView.Show(diffs, source, repo.Path);
+        diffView.Show(diffs, source, repo.Repo);
         return Result.Ok;
     }
 
@@ -236,13 +236,16 @@ class UndoCommands : IUndoCommands
                         n,
                         repo.Path
                     )
-                );
+                ) with
+                {
+                    Sides = new($"{work.OldestId}~", work.TipId),
+                };
 
         var diffsResult = await source.Reload(DiffContext.Default);
         if (diffsResult is not CommitDiff[] diffs)
             return new Error("Failed to diff the lost commits", diffsResult.Error);
 
-        diffView.Show(diffs, source, repo.Path);
+        diffView.Show(diffs, source, repo.Repo);
         return Result.Ok;
     }
 
