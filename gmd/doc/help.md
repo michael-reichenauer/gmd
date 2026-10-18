@@ -673,8 +673,9 @@ words that differ are marked. The code is in the colors of its language, as
 VS Code's Dark+ and Light+ themes color it, known by the file's extension, for
 some fifty languages. Each part of a file is colored from where it starts, so
 one that starts inside a comment of many lines is colored as code until the
-comment ends. **Color the code in diffs by its language** in **Config ...**
-turns it off, and the `16` colors have none to spare for it. The cursor is the line number drawn reversed.
+comment ends. **Color the code in diffs and blame by its language** in
+**Config ...** turns it off, here and in the blame, and the `16` colors have
+none to spare for it. The cursor is the line number drawn reversed.
 A line whose line end alone changed, e.g. from LF to CRLF, has a `␍` on the
 side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
@@ -760,13 +761,14 @@ any order, the names that start with the first word first, and clearing it
 goes back to the tree. `Enter` or a click picks the file, or opens or
 closes a folder, and `Esc` closes the dialog.
 
-**Blame File ...** shows which commit last changed each line of the file. Consecutive lines from the same commit are
-bracketed together with `┌ │ └` (`╺` for a run of a single line) and that
-commit is named once per run rather than on every line, which is what makes
-this readable where the console `git blame` is not. The bracket and the
-short id are shaded by age, from yellow for the newest commit through to
-gray for the oldest, and lines that are not committed yet are bright yellow
-and marked `©`.
+**Blame File ...** shows which commit last changed each line of the file.
+Consecutive lines from the same commit are bracketed together with `┌ │ └`
+(`╺` for a run of a single line) and that commit is named once per run
+rather than on every line, which is what makes this readable where the
+console `git blame` is not. The bracket and the short id are shaded by age,
+from yellow for the newest commit through to gray for the oldest. The code
+is in the colors of its language, as in the diff, but for the lines that
+are not committed yet, which are bright yellow and marked `©`.
 
 Within the blame: `Enter` toggles the commit details of the current line,
 the same pane the log view shows, which follows the cursor as you move down

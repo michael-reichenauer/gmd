@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using gmd.Cui.Common;
 using gmd.Cui.Diff;
 using gmd.Server;
@@ -10,34 +9,6 @@ namespace gmdTest.Cui.Diff;
 [TestClass]
 public class DiffSyntaxTest
 {
-    // A grammar of two rules: 'int' is a keyword, and a comment runs from '/*' to '*/', over lines,
-    // which is what the state a line ends in carries. It keeps every line it is asked to color.
-    class FakeGrammar : ICodeGrammar
-    {
-        public List<string> Lines { get; } = [];
-
-        public CodeLine Tokenize(string line, object? state)
-        {
-            Lines.Add(line);
-            if (state is true || line.Contains("/*"))
-            {
-                var start = state is true ? 0 : line.IndexOf("/*");
-                var end = line.Contains("*/") ? line.IndexOf("*/") + 2 : line.Length;
-                return new CodeLine([new CodeSpan(start, end - start, ColorName.CodeComment)], !line.Contains("*/"));
-            }
-            var spans = Regex
-                .Matches(line, @"\bint\b")
-                .Select(m => new CodeSpan(m.Index, m.Length, ColorName.CodeKeyword))
-                .ToList();
-            return new CodeLine(spans, false);
-        }
-    }
-
-    class FakeGrammars(ICodeGrammar? grammar) : ICodeGrammars
-    {
-        public ICodeGrammar? For(string path) => path.EndsWith(".cs") ? grammar : null;
-    }
-
     static FileDiff FileOf(string path, DiffMode fileMode, params SectionDiff[] sections) =>
         new(path, path, false, false, fileMode, sections);
 
@@ -90,7 +61,7 @@ public class DiffSyntaxTest
                 )
             )
         );
-        var syntax = new DiffSyntax(rows, new FakeGrammars(new FakeGrammar()));
+        var syntax = new DiffSyntax(rows, new FakeCodeGrammars(new FakeCodeGrammar()));
 
         Assert.AreEqual(
             """
@@ -131,7 +102,7 @@ public class DiffSyntaxTest
                 )
             )
         );
-        var syntax = new DiffSyntax(rows, new FakeGrammars(new FakeGrammar()));
+        var syntax = new DiffSyntax(rows, new FakeCodeGrammars(new FakeCodeGrammar()));
 
         Assert.AreEqual(
             """
@@ -154,7 +125,7 @@ public class DiffSyntaxTest
                 SectionOf(20, 21, (DiffMode.DiffSame, "int x;"), (DiffMode.DiffAdded, "int y;"))
             )
         );
-        var syntax = new DiffSyntax(rows, new FakeGrammars(new FakeGrammar()));
+        var syntax = new DiffSyntax(rows, new FakeCodeGrammars(new FakeCodeGrammar()));
 
         Assert.AreEqual(
             """
@@ -178,7 +149,7 @@ public class DiffSyntaxTest
                 SectionOf(0, 1, (DiffMode.DiffAdded, "/* a"), (DiffMode.DiffAdded, "b */ int c;"))
             )
         );
-        var syntax = new DiffSyntax(rows, new FakeGrammars(new FakeGrammar()));
+        var syntax = new DiffSyntax(rows, new FakeCodeGrammars(new FakeCodeGrammar()));
 
         Assert.AreEqual(
             """
@@ -207,7 +178,7 @@ public class DiffSyntaxTest
             ),
             isOneColumn: true
         );
-        var syntax = new DiffSyntax(rows, new FakeGrammars(new FakeGrammar()));
+        var syntax = new DiffSyntax(rows, new FakeCodeGrammars(new FakeCodeGrammar()));
 
         Assert.AreEqual(
             """
@@ -230,8 +201,8 @@ public class DiffSyntaxTest
                 SectionOf(1, 1, (DiffMode.DiffSame, "int a;"), (DiffMode.DiffRemoved, "b"), (DiffMode.DiffAdded, "c"))
             )
         );
-        var grammar = new FakeGrammar();
-        var syntax = new DiffSyntax(rows, new FakeGrammars(grammar));
+        var grammar = new FakeCodeGrammar();
+        var syntax = new DiffSyntax(rows, new FakeCodeGrammars(grammar));
 
         ColorsOf(rows, syntax);
         ColorsOf(rows, syntax);
@@ -245,8 +216,8 @@ public class DiffSyntaxTest
     {
         var lines = Enumerable.Range(1, 5000).Select(i => (DiffMode.DiffAdded, $"line {i}")).ToArray();
         var rows = RowsOf(FileOf("a.cs", DiffMode.DiffAdded, SectionOf(0, 1, lines)));
-        var grammar = new FakeGrammar();
-        var syntax = new DiffSyntax(rows, new FakeGrammars(grammar));
+        var grammar = new FakeCodeGrammar();
+        var syntax = new DiffSyntax(rows, new FakeCodeGrammars(grammar));
 
         syntax.Colored(rows.Rows[^1].Left, rows.Count - 1, false);
 
@@ -259,7 +230,7 @@ public class DiffSyntaxTest
     public void TestAFileWithNoGrammarIsAsItIs()
     {
         var rows = RowsOf(FileOf("a.txt", DiffMode.DiffModified, SectionOf(1, 1, (DiffMode.DiffSame, "int a;"))));
-        var syntax = new DiffSyntax(rows, new FakeGrammars(new FakeGrammar()));
+        var syntax = new DiffSyntax(rows, new FakeCodeGrammars(new FakeCodeGrammar()));
 
         var row = rows.Rows[^1];
         Assert.AreSame(row.Left, syntax.Colored(row.Left, rows.Count - 1, false));

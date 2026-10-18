@@ -1,5 +1,6 @@
 using gmd.Cui.Blame;
 using gmd.Cui.Common;
+using gmdTest.Fixtures;
 using ServerBlame = gmd.Server.Blame;
 using ServerBlameCommit = gmd.Server.BlameCommit;
 using ServerBlameLine = gmd.Server.BlameLine;
@@ -264,6 +265,30 @@ public class BlameRowServiceTest
         // 8 of gutter leaves 10 for the code, scrolled 5 in, so both ends are cut
         Assert.AreEqual("╺ │   1┃…6789abcd…", service.ToRowText(rows.Rows[0], cw, 5, false, false).ToString());
     }
+
+    // The code in its language's colors, the spans given counted from the start of the code, the
+    // gutter left as it is; a line not committed yet stays bright yellow, which says what it is; and a
+    // search match is marked over the colors
+    [TestMethod]
+    public void TestTheCodeIsInTheColorsOfItsSpans()
+    {
+        var service = new BlameRowService();
+        var rows = service.ToBlameRows(BlameOf((Id1, "int x = 1;"), (Id0, "int y = 2;")));
+        var cw = BlameColumns.Calculate(BlameDetails.Minimal, 50, 2);
+        IReadOnlyList<CodeSpan> code = [new(0, 3, ColorName.CodeKeyword), new(8, 1, ColorName.CodeNumber)];
+
+        var committed = service.ToRowText(rows.Rows[0], cw, 0, false, false, "", code);
+        var uncommitted = service.ToRowText(rows.Rows[1], cw, 0, false, false, "", code);
+        var found = service.ToRowText(rows.Rows[0], cw, 0, false, false, "x", code);
+
+        Assert.AreEqual("╺ 11111111 │   1┃int x = 1;", committed.ToString().TrimEnd());
+        Assert.AreEqual("Y YYYYYYYY D   DDKKK W W #W", TextColors.Of(committed).TrimEnd());
+        Assert.AreEqual("yyy y y yy", CodeColors(uncommitted));
+        Assert.AreEqual("KKK * W #W", CodeColors(found));
+    }
+
+    // The colors of the code of a row, after the line number's '┃'
+    static string CodeColors(Text row) => TextColors.Of(row)[(row.ToString().IndexOf('┃') + 1)..].TrimEnd();
 
     // A search is of the code, so its match is marked there and not in the gutter, here the sid
     // 11111111, and stays marked on the cursor's row, where a search puts the cursor

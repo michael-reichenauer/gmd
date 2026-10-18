@@ -48,7 +48,9 @@ class BlameView : IBlameView
 
     readonly IHelpPage helpPage;
     readonly Config config;
+    readonly ICodeGrammars grammars;
     KeyHintBar hintBar = null!;
+    BlameSyntax? syntax;
 
     // The search of the lines, f and then n and Shift-N, and the status line of this view, which says
     // what it found, as in the diff
@@ -66,11 +68,13 @@ class BlameView : IBlameView
         IClipboardService clipboard,
         Func<ICommitDetailsView> newDetailsView,
         IHelpPage helpPage,
-        Config config
+        Config config,
+        ICodeGrammars grammars
     )
     {
         this.helpPage = helpPage;
         this.config = config;
+        this.grammars = grammars;
         this.blameRowService = blameRowService;
         this.server = server;
         this.progress = progress;
@@ -216,11 +220,23 @@ class BlameView : IBlameView
                         rowStartX,
                         i + firstRow == currentIndex,
                         contentView.IsRowSelected(i + firstRow),
-                        search.IsActive ? search.Text : ""
+                        search.IsActive ? search.Text : "",
+                        CodeOf(i + firstRow)
                     )
             );
 
         return (rows, blameRows.Rows.Count);
+    }
+
+    // The code of a row in its language's colors, as in the diff: unless in the 16 colors, which have
+    // none to spare for it, or unless the config says not to
+    IReadOnlyList<CodeSpan> CodeOf(int index)
+    {
+        if (!config.ColorCode || Palette.Current.IsSixteen)
+            return [];
+        if (syntax?.Rows != blameRows)
+            syntax = grammars.For(blame.Path) is ICodeGrammar grammar ? new BlameSyntax(blameRows, grammar) : null;
+        return syntax?.SpansOf(index) ?? [];
     }
 
     void SetHeader()
