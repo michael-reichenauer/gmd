@@ -33,17 +33,24 @@ static class DiffText
 
     public static string BodyColorsOf(DiffRows rows) => Join(Lines(BodyRowsOf(rows), TextColors.Of));
 
-    public static IReadOnlyList<DiffRow> BodyRowsOf(DiffRows rows)
+    // The colors of the first file's lines as the view shows them, which is given each row and its
+    // index, e.g. with its code colored (DiffSyntax)
+    public static string BodyColorsOf(DiffRows rows, Func<DiffRow, int, DiffRow> shown) =>
+        Join(Lines(BodyIndexesOf(rows).Select(i => shown(rows.Rows[i], i)).ToList(), TextColors.Of));
+
+    public static IReadOnlyList<DiffRow> BodyRowsOf(DiffRows rows) =>
+        BodyIndexesOf(rows).Select(i => rows.Rows[i]).ToList();
+
+    static IEnumerable<int> BodyIndexesOf(DiffRows rows)
     {
         var header = rows.Rows.FindIndexBy(r => r.FilePath != "");
         if (header == -1)
             return [];
 
-        return rows
-            .Rows.Skip(header + 1)
-            .TakeWhile(r => r.FilePath == "")
-            .Where(r => r.Fill == null && !IsBlank(r)) // A row with a line after it separates hunks
-            .ToList();
+        return Enumerable
+            .Range(header + 1, rows.Count - header - 1)
+            .TakeWhile(i => rows.Rows[i].FilePath == "")
+            .Where(i => rows.Rows[i].Fill == null && !IsBlank(rows.Rows[i])); // A row with a line after it separates hunks
     }
 
     static bool IsBlank(DiffRow r) => r.Mode == DiffRowMode.SpanBoth && r.Left.ToString() == "";

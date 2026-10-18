@@ -673,7 +673,12 @@ nearest line above that is not indented, which in C# is the class for every
 part. A changed line has a bar
 beside its number, red for a line removed and green for a line added, and
 where a removed line and the added line beside it are mostly alike, the
-words that differ are marked. The cursor is the line number drawn reversed.
+words that differ are marked. The code is in the colors of its language, as
+VS Code's Dark+ and Light+ themes color it, known by the file's extension, for
+some fifty languages. Each part of a file is colored from where it starts, so
+one that starts inside a comment of many lines is colored as code until the
+comment ends. **Color the code in diffs by its language** in **Config ...**
+turns it off, and the `16` colors have none to spare for it. The cursor is the line number drawn reversed.
 A line whose line end alone changed, e.g. from LF to CRLF, has a `␍` on the
 side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,

@@ -977,7 +977,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
     native `libonigwrap` is put beside the binary, where the updater, which swaps one file, would
     leave it behind: `IncludeNativeLibrariesForSelfExtract=true` bundles it, extracted to
     `~/.net/gmd/` at the first start. Without it highlighting is silently off. It is built for
-    linux, osx and win, x64 and arm64.
+    linux, osx and win, x64 and arm64. (The port does not bundle it that way, see the syntax colors
+    below: the host's extraction can stop gmd from starting.)
   - *Costs.* Start to a drawn log 340 ms against 270 ms (release builds in tmux, the spike drawing
     less than 1.x). Idle CPU about 3% of a core against 0.4%: 2.x polls, its input thread every
     20 ms (`InputImpl`, not configurable) and the main loop 25 times a second
@@ -1029,13 +1030,35 @@ Add new open issues and findings here as work lands; keep them short and drop th
     `UITextView` (the commit message, the resolver's typing) is built on it, with spell checking in its
     `OnDrawNormalColor`; a later 2.x may drop it, and then the port is to EditorView.
 
-  Left to do before it goes to dev: try it in real terminals (iTerm2, Terminal.app, Windows
-  Terminal, Ghostty) and on Windows and macOS, where 2.x's startup queries and its Windows driver are
-  untried; the setting `Colors` in the Config dialog; help.md and the README where they describe
-  colors; re-record the demo and the README's pictures (the user does, `scripts/demo`). Syntax colors
-  in the diff (the spike's `SyntaxColors`) come after, and need the highlighter's native library
-  bundled into the single file (`IncludeNativeLibrariesForSelfExtract`), which is left out of the
-  release now, unused.
+  Merged into dev on 2026-10-17 for pre-releases, tried by the user on Linux, Windows and macOS. The
+  setting `Colors` is in the Config dialog, and help.md and the README describe the colors; the demo
+  and the README's pictures are the user's to re-record (`scripts/demo`). Left: real terminals
+  beyond those (iTerm2, Terminal.app, Ghostty), and the upstream issues (a reminder on 2026-10-24).
+
+  **Syntax colors in the diff (2026-10-18)**, branch `mr/syntax-colors`. TextMateSharp is called
+  directly, not through 2.x's `TextMateSyntaxHighlighter`, whose single state and theme colors fit a
+  Markdown code block, not two sides of many hunks in gmd's palettes. `CodeGrammars` loads a grammar
+  per extension, `CodeScopes` turns a token's scopes into gmd's code color names (Dark+ and Light+ RGB
+  in `Palette`, none in the 16 colors), and `DiffSyntax` colors the rows as they are drawn, each side
+  of a file line after line with the state carried, cached; a large file added whole is colored
+  from 100 lines above the one jumped to rather than from its top. About 0.1 ms a line (Debug), the
+  grammar 40 ms to load. Found on the way:
+  - *C#'s grammar reads members and statements alike from a fresh state*, as at the top of a file
+    (top-level statements), but from inside a class body it reads `if (x)` as a method and
+    `return` as its name. So each hunk starts afresh, never primed with a class or a method.
+  - *`IncludeNativeLibrariesForSelfExtract` can stop gmd from starting.* The .NET host extracts the
+    bundled native libraries to `$HOME/.net/gmd/<hash>/` as the single file starts, and where it
+    cannot make that folder it stops: "Failed to determine location for extracting embedded files",
+    `--version` too, so the updater's check of a new version (`BinaryInstaller`) would have refused
+    every update there. gmd embeds `libonigwrap` itself (a target in `gmd.csproj`, from the package's
+    resolved native assets, an error when there is none) and `OnigurumaLibrary` writes it out on first
+    use, into the user's `LocalApplicationData` (`~/.local/share/gmd/` on Linux) named by its hash,
+    and loads it; where anything fails, code is not colored, and gmd says so in the log.
+  - *`Environment.GetFolderPath` returns "" for a folder not made yet*, unless `DoNotVerify`, and
+    `Path.Join("", "gmd")` is a path in the current folder: the first try wrote the library into the
+    repo gmd had open.
+  - *Static fields are initialized in the order they are written*: the palettes, built from a table of
+    code colors written below them, read it as null, and gmd did not start.
 - **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7), the first two of
   which the spike above shows working:
   - *Light terminals.* Every color is on a forced black background (`Color.Make` pairs each with

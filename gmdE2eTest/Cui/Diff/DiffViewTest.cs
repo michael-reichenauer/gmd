@@ -46,6 +46,26 @@ public class DiffViewTest
         StringAssert.Contains(gmd.WaitUntilGone("A delta.txt"), "Merge branch 'dev' into main");
     }
 
+    // The code of a file is in its language's colors, those of VS Code's Dark+ in the dark palette.
+    // The grammars' regular expressions are run by a native library (CodeGrammars), so this is where
+    // a build that left it out shows. The 16 colors, which the other tests draw in, have none for code.
+    [TestMethod]
+    public async Task TestCodeIsInItsLanguagesColors()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAtAsync("Total.cs", "int total = 42; // so far\n", "Add total", TempRepo.BaseTime);
+        using var gmd = TmuxSession.StartGmd(TempHome.Create(colors: "dark"), repo.Path);
+        gmd.WaitFor("Add total");
+
+        gmd.Send("d");
+        gmd.WaitFor("int total");
+
+        var line = gmd.CaptureColors().Split('\n').Single(l => l.Contains("so far"));
+        StringAssert.Contains(line, "\u001b[38;2;86;156;214mint", "The keyword blue");
+        StringAssert.Contains(line, "\u001b[38;2;181;206;168m42", "The number green");
+        StringAssert.Contains(line, "\u001b[38;2;106;153;85m// so far", "The comment green");
+    }
+
     // '+' shows more of the file around its changes and '-' shows less, stepping 6 → 15 → the whole
     // file. It is per file: the file the cursor is on is the one that changes. The window asserted
     // is the file header and the first lines under it, which is where both halves show — the header

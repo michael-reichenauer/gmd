@@ -266,7 +266,12 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   pairs them the same way, and that is what decides where a line kept ends up when part of a change
   is committed or discarded, so the view would otherwise show one file and commit another. The rows
   are side by side, or in one column (`isOneColumn`) on a narrow view, and `DiffFileList` is the list
-  of files drawn beside a wide diff.
+  of files drawn beside a wide diff. `DiffSyntax` colors the code of the rows as they are drawn, each
+  side of a file line after line, a hunk starting afresh: the grammars are TextMateSharp's
+  (`Cui/Common/CodeGrammars`, the scopes turned into gmd's colors by `CodeScopes`), whose regular
+  expressions run on a native library a release embeds and `OnigurumaLibrary` writes out and loads,
+  rather than the .NET host's extraction, which can stop gmd from starting. Nothing is colored
+  wherever it cannot be loaded, nor in the 16 colors.
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
   context larger than any file, since git has no "all". `DiffSource` is what the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
@@ -781,7 +786,7 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
-  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
+  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `DiffSyntax`, `CodeScopes`, `BranchFinder`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `MergedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output

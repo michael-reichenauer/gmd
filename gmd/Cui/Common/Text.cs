@@ -102,6 +102,10 @@ class Text
 
             var fg = fragment.Color.Foreground;
 
+            // The colors of code are for the background, and code selected is the selection's text
+            if (newBg == Common.Color.White && fg >= ColorName.CodeKeyword)
+                fg = ColorName.Black;
+
             // Make sure foreground color is readable on new background
             if (fg == newBg && fg == Common.Color.White)
             { // White or yellow on white is not readable
@@ -326,6 +330,10 @@ class TextBuilder
             if (fragment.Color == Common.Color.Match)
                 continue; // A search match stays marked, as in Text.ToHighlight
             var fg = fragment.Color.Foreground;
+
+            // The colors of code are for the background, and code selected is the selection's text
+            if (newBg == Common.Color.White && fg >= ColorName.CodeKeyword)
+                fg = ColorName.Black;
 
             // Make sure foreground color is readable on new background
             if (fg == newBg && fg == Common.Color.White)

@@ -47,6 +47,10 @@ class DiffView : IDiffView
     DiffRows diffRows = new DiffRows();
     DiffSource source = null!;
 
+    // The code of the rows in its language's colors, made anew with the rows
+    readonly ICodeGrammars grammars;
+    DiffSyntax? syntax;
+
     // The context lines of each file that is not at the default, keyed on path. Only the file the
     // cursor is on is ever stepped, so the others keep whatever they were last shown with.
     readonly Dictionary<string, int> fileContext = [];
@@ -113,9 +117,11 @@ class DiffView : IDiffView
         IConflictWorkspace conflictWorkspace,
         IHelpPage helpPage,
         Config config,
-        LeftOutLines leftOut
+        LeftOutLines leftOut,
+        ICodeGrammars grammars
     )
     {
+        this.grammars = grammars;
         this.helpPage = helpPage;
         this.config = config;
         this.leftOut = leftOut;
@@ -1486,7 +1492,7 @@ class DiffView : IDiffView
             var spanText =
                 isLeftOutLeft || isLeftOutRight ? LeftOutText(row.Left, row.LineNbr)
                 : row.FilePath != "" ? WithLeftOutNote(row.Left, row.FilePath)
-                : Marked(row.Left, row.LineNbr);
+                : Marked(Code(row.Left, index, false), row.LineNbr);
             // A line across the view, of a file added or removed whole or in one column, scrolls
             // sideways as a side does, its gutter staying put
             var text =
@@ -1501,8 +1507,12 @@ class DiffView : IDiffView
         }
 
         // The left and right text is shown side by side with a gray vertical line char in between
-        var leftText = isLeftOutLeft ? LeftOutText(row.Left, row.LeftLineNbr) : Marked(row.Left, row.LeftLineNbr);
-        var rightText = isLeftOutRight ? LeftOutText(row.Right, row.RightLineNbr) : Marked(row.Right, row.RightLineNbr);
+        var leftText = isLeftOutLeft
+            ? LeftOutText(row.Left, row.LeftLineNbr)
+            : Marked(Code(row.Left, index, false), row.LeftLineNbr);
+        var rightText = isLeftOutRight
+            ? LeftOutText(row.Right, row.RightLineNbr)
+            : Marked(Code(row.Right, index, true), row.RightLineNbr);
         var left = SideText(leftText, row.LeftLineNbr, row.Left == DiffRowService.NoLine, columnWidth);
         var right = SideText(rightText, row.RightLineNbr, row.Right == DiffRowService.NoLine, columnWidth);
 
@@ -1587,6 +1597,17 @@ class DiffView : IDiffView
             : text.ToTextBuilder().Black(" ").Add(fill.ToLine(width - text.Length - 1));
 
     // The text with what the search found marked, after the line number, which is not searched
+    // A side of a row with its code in its language's colors, unless in the 16 colors, which have none
+    // to spare for it, or unless the config says not to
+    Text Code(Text side, int index, bool isRight)
+    {
+        if (!config.ColorCode || Palette.Current.IsSixteen)
+            return side;
+        if (syntax?.Rows != diffRows)
+            syntax = new DiffSyntax(diffRows, grammars);
+        return syntax.Colored(side, index, isRight);
+    }
+
     Text Marked(Text text, int lineNbr) =>
         !search.IsActive || text == DiffRowService.NoLine
             ? text
