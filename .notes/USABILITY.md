@@ -1,9 +1,11 @@
 # Usability review
 
-Four reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
+Five reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
 its author's own use, so they look at it as someone new would.
 
-- **The rebase and squash review (2026-10-17)**, first below, looks at gmd for those who rebase,
+- **The file browser review (2026-10-18)**, first below, looks at the dialog Blame File and Full
+  File History pick their file in, which was a workaround.
+- **The rebase and squash review (2026-10-17)** looks at gmd for those who rebase,
   squash and squash merge rather than merge: what it does with a history rewritten here or on
   origin, and which rewrites of commits it could offer.
 - **The diff and resolver review (2026-10-16)** looks at the two views most of the
@@ -28,6 +30,44 @@ ask of any new feature:
 File references are as of each review. Close items here, or move them to `MODERNIZATION.md`, as
 they land. The usability review's safety findings (section 1, and Tier 1 of its proposals) are
 fixed, and most of Tiers 2 to 4; the product review's proposals are open.
+
+---
+
+## File browser review (2026-10-18)
+
+Blame File and Full File History pick a file of the row's commit in `FileBrowseDlg`, written early
+as a workaround over Terminal.Gui's `TreeView`. Tried in the built binary in tmux, on a clone of gmd
+itself (617 files).
+
+### Findings
+
+1. **A fixed 50 by 20 box**, whatever the terminal, so deep paths were cut and a tree of a few
+   hundred files was a long walk through a small window.
+2. **No way to type a name.** The only way to a file was the arrows through its folders, in a repo
+   of thousands of files.
+3. **Enter on a folder did nothing**, and only `→` opened one, which nothing said: no key hints, and
+   a Cancel button but none to pick with.
+4. **It did not look like gmd**: `TreeView`'s own `├>` lines, an open folder with no marker at all,
+   folders and files in the same color, and its own highlight, on the name alone.
+5. **Nothing pointed at the likely file.** It opened on the first folder, though the file wanted is
+   most often one the commit changed.
+
+### As done (2026-10-18)
+
+All five: the dialog is now laid out as Find Branch is, a field to type in over a list and a status
+line with the keys, as large as the terminal allows (up to 90 by 34). With nothing typed, the list
+is the tree (`FileTree`), gmd's own rows (`FileBrowseRows`): `▸` / `▾`, dark guides, folders in
+blue, the files the commit changed marked with their letter at the right and their folders with a
+`•`, those folders opened and the cursor on the first such file. Typing lists the files whose path
+has every word (`FileFinder`, ranked as `BranchFinder` is), the words marked in yellow; clearing it
+goes back to the tree as it was. Enter or a click picks a file or opens and closes a folder, `→` /
+`←` open, close and go up. The titles are the menu items', and the status line says what the files
+are (`617 files of commit 1be33bd1`) and what Enter does where the cursor is.
+
+Open: **the folder browser** (`FolderBrowseDlg`: Init, Clone, Add Worktree and opening a repository,
+from the start page or the repo menu) is the same kind of workaround over `TreeView` and looks as
+the file browser did; it lists the file system lazily, so it would share the rows rather than
+`FileTree`.
 
 ---
 

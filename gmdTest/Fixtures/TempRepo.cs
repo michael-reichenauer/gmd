@@ -129,7 +129,13 @@ sealed class TempRepo : IDisposable
     // running a 'git merge' or 'git rebase' that stops, and those exit non-zero.
     public async Task<string> GitAllowFailAsync(string args) => (await cmd.RunRawAsync("git", args, Path)).Output;
 
-    public void WriteFile(string name, string text) => File.WriteAllText(IOPath.Join(Path, name), text);
+    // The file's folders are made, so a name can be a path, e.g. 'src/app/main.c'
+    public void WriteFile(string name, string text)
+    {
+        var path = IOPath.Join(Path, name);
+        Directory.CreateDirectory(IOPath.GetDirectoryName(path)!);
+        File.WriteAllText(path, text);
+    }
 
     public void DeleteFile(string name) => File.Delete(IOPath.Join(Path, name));
 

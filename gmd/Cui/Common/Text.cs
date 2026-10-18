@@ -170,7 +170,8 @@ class Text
     // The text with each place the query is found in it marked in Color.Match, as RowSearch finds it,
     // from char index 'from' on, so that a line number gutter before it, which is not searched, is
     // not marked either. The marks go around the very chars that matched, whatever their colors were.
-    public Text WithMatches(string query, int from = 0)
+    // A list where every row matches marks them in a color of their own, which is quieter.
+    public Text WithMatches(string query, int from = 0, Common.Color? mark = null)
     {
         var ranges = RowSearch.MatchRanges(ToString(), query, from);
         if (ranges.Count == 0)
@@ -187,7 +188,7 @@ class Text
                 var (markStart, markEnd) = (Math.Max(matchStart, at), Math.Min(matchEnd, end));
                 if (markStart > at)
                     newText.Color(fragment.Color, fragment.Text[(at - start)..(markStart - start)]);
-                newText.Color(Common.Color.Match, fragment.Text[(markStart - start)..(markEnd - start)]);
+                newText.Color(mark ?? Common.Color.Match, fragment.Text[(markStart - start)..(markEnd - start)]);
                 at = markEnd;
             }
             if (at < end)
