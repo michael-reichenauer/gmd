@@ -42,9 +42,16 @@ public class DemoTest
 
         using var repo = await DemoRepo.CreateAsync();
 
-        // The commit the demo makes is pinned too, to the demo's 'now'. The key-hint line is on, as
-        // it is for a user, rather than off as the other end-to-end tests have it (see TempHome).
-        using var gmd = TmuxSession.StartGmd(repo, Width, Height, commitTime: DemoRepo.Now, isKeyHints: true);
+        // The commit the demo makes is pinned too, to the demo's 'now'. Shown as a user sees gmd in a
+        // dark terminal, rather than as the other end-to-end tests draw it (see TempHome): the key-hint
+        // line on, and the dark palette, whose branch and code colors the 16 colors have none of.
+        using var gmd = TmuxSession.StartGmd(
+            TempHome.Create(isKeyHints: true, colors: "dark"),
+            repo.Path,
+            Width,
+            Height,
+            commitTime: DemoRepo.Now
+        );
         var demo = new DemoRecording(gmd, Width, Height, screen => Rewrite(screen, repo.Path));
 
         // The log: the current branch and main, and ┣╮ markers where hidden branches come and go
@@ -182,9 +189,9 @@ public class DemoTest
     }
 
     // The two pictures the README compares, of the repository the demo starts from: git's own graph
-    // of it, 'git log --graph', in git's colors, and gmd's log as gmd first shows it. Each a cast of
-    // one frame, which scripts/demo renders beside the animation, so that they are made again with
-    // it, and change only when what git or gmd draws does.
+    // of it, 'git log --graph', in git's colors, and gmd's log as gmd first shows it, in the dark
+    // palette as the animation is. Each a cast of one frame, which scripts/demo renders beside the
+    // animation, so that they are made again with it, and change only when what git or gmd draws does.
     [TestMethod]
     [TestCategory("Demo")]
     public async Task RecordReadmePictures()
@@ -200,7 +207,13 @@ public class DemoTest
         var width = rows.Max(r => Regex.Replace(r, @"\x1b\[[0-9;]*m", "").Length) + 1;
         DemoRecording.SaveText(Path.Join(PicturesPath, "git-log.cast"), rows, width);
 
-        using var gmd = TmuxSession.StartGmd(repo, PictureWidth, PictureHeight, commitTime: DemoRepo.Now);
+        using var gmd = TmuxSession.StartGmd(
+            TempHome.Create(colors: "dark"),
+            repo.Path,
+            PictureWidth,
+            PictureHeight,
+            commitTime: DemoRepo.Now
+        );
         var picture = new DemoRecording(
             gmd,
             PictureWidth,

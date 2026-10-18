@@ -789,7 +789,9 @@ them that says what the frames show, its keys written between backticks drawn as
 caption a scene numbered of how many (`9/18`), and `scripts/demo` renders that with agg, which
 `scripts/installtools` installs with its fonts. Everything is pinned, including what would differ
 between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
-byte for byte the same and the GIF only changes when what gmd draws does. When gmd's UI changes in
+byte for byte the same and the GIF only changes when what gmd draws does. It is drawn in the dark
+palette (`TempHome.Create(colors: "dark")`), as a user sees gmd, not in the 16 colors the other
+end-to-end tests draw in, which have none of the branch and code colors. When gmd's UI changes in
 a way the demo passes through, re-record it; when a step of the script goes wrong, `CAST=<path>
 scripts/demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step. The
 same run makes the two pictures the README compares, `GitLog.gif`, git's own `log --graph` of the
