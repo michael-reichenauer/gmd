@@ -27,7 +27,7 @@ class InitRepoDlg : IInitRepoDlg
             () =>
             {
                 FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (browseDlg.Show(browseFolders) is not string path || path == "")
+                if (browseDlg.Show("Folder to Init", "choose", browseFolders) is not string path || path == "")
                     return;
                 pathField.Text = path;
             }

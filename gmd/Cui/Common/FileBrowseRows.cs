@@ -52,12 +52,31 @@ static class FileBrowseRows
     public static Text FoundRow(string path, char change, IReadOnlyList<string> words, int width) =>
         PathRow(path, change, words, width, " ");
 
-    static Text PathRow(string path, char change, IReadOnlyList<string> words, int width, string margin)
+    static Text PathRow(string path, char change, IReadOnlyList<string> words, int width, string margin) =>
+        PathRow(
+            path,
+            Color.White,
+            change != ' ' ? ChangedFileText.Letter(change) : Text.Black(" "),
+            words,
+            width,
+            margin
+        );
+
+    // A path, its folders dark and its name in the color given, the words in yellow, and the mark at
+    // the right; the folder browser's too, with its own separator
+    internal static Text PathRow(
+        string path,
+        Color nameColor,
+        Text mark,
+        IReadOnlyList<string> words,
+        int width,
+        string margin
+    )
     {
-        var mark = change != ' ' ? ChangedFileText.Letter(change) : Text.Black(" ");
-        var shown = CutStart(path, width - margin.Length - 3);
-        var slash = shown.LastIndexOf('/');
-        Text text = new TextBuilder().Black(margin).Dark(shown[..(slash + 1)]).White(shown[(slash + 1)..]);
+        var shown = CutStart(path, width - margin.Length - mark.Length - 2);
+        // A separator at the end is the root's, '/', which is a name rather than a folder it is in
+        var slash = shown.Length > 1 ? shown[..^1].LastIndexOfAny(['/', Path.DirectorySeparatorChar]) : -1;
+        Text text = new TextBuilder().Black(margin).Dark(shown[..(slash + 1)]).Color(nameColor, shown[(slash + 1)..]);
         foreach (var word in words)
             text = text.WithMatches(word, margin.Length, Color.BrightYellow);
 
@@ -65,13 +84,13 @@ static class FileBrowseRows
     }
 
     // The mark one column in from the right edge, the row padded to it
-    static Text WithMark(TextBuilder text, Text mark, int width)
+    internal static Text WithMark(TextBuilder text, Text mark, int width)
     {
-        var padding = Math.Max(1, width - text.Length - 2);
+        var padding = Math.Max(1, width - text.Length - mark.Length - 1);
         return text.Black(new string(' ', padding)).Add(mark).Black(" ");
     }
 
-    static string CutEnd(string text, int width) =>
+    internal static string CutEnd(string text, int width) =>
         text.Length <= width || width < 2 ? text : text[..(width - 1)] + "…";
 
     static string CutStart(string text, int width) =>

@@ -125,10 +125,23 @@ are linked both ways instead: `b` in any diff blames the file at the cursor's co
 removed line in the version before), and `⇧l` in the blame shows the file's history at the line's
 commit, each on top of the other, `Esc` going back.
 
-Open: **the folder browser** (`FolderBrowseDlg`: Init, Clone, Add Worktree and opening a repository,
-from the start page or the repo menu) is the same kind of workaround over `TreeView` and looks as
-the file browser did; it lists the file system lazily, so it would share the rows rather than
-`FileTree`.
+**The folder browser (2026-10-18)** (`FolderBrowseDlg`: Init, Clone, Create Worktree and opening a
+repository, from the start page or the repo menu) was the same kind of workaround over `TreeView`,
+and is now laid out as the file browser is, its rows drawn the same way (`FolderBrowseRows`, sharing
+`FileBrowseRows`' helpers), as large as the terminal allows, titled for what it picks for (*Open
+Repo*, *Folder to Clone Into*, ...) and its status line saying where the cursor is and what Enter
+does. The tree (`FolderTree`) starts from the folders given, home and `/`, each by its whole path
+(`~/code`), the first open, and reads a folder only as it is opened, since it is the disk and not a
+list of paths, so it shares the rows rather than `FileTree`; a folder listed is looked into only for
+its `.git`, which marks it `repo` at the right, where the file browser has a change's letter. A
+folder not read yet has `▸`, and loses it once read with nothing in it. Dot folders come last, not
+hidden, as `.worktrees` is wanted for Create Worktree. Typing (`FolderFinder`) cannot search the
+whole disk, so it does two things: a name finds among the folders listed so far, ranked as
+`FileFinder` ranks files, and a path (`~/...`, `/...`) lists the folders in the folder it names, as
+a shell completes one, the folder itself first when the path ends in a separator, so Enter picks it;
+`→` at the end of the text goes into the folder found, as its path. Enter or a click on a name
+picks, a click on `▸` / `▾` opens or closes. The Cancel button went, as the file browser has none:
+Esc closes it.
 
 ---
 

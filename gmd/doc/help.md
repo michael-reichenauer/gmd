@@ -202,11 +202,18 @@ repository.
 - **Undo a mistake:** **Undo** in the commit menu (`m`) takes back the last
   change of the branch you are on, e.g. a commit, a merge or a pull.
 - **Switch repository:** `o`, then the number of a recent one, or browse to,
-  clone or create one. Started outside a repository, gmd shows a start page
-  instead of the log: `Enter` opens the most recent repository, `1` to `9`
-  any one listed, which includes those in the folder gmd was started in, and
-  `Delete` takes one off the recent list, leaving its folder as it is.
-  `gmd -m` shows the start page inside a repository too.
+  clone or create one. Browsing shows the folders as a tree, starting from
+  the one most likely wanted, open, with the repositories marked `repo`:
+  `→` and `←` open and close a folder. Typing a name finds it among the
+  folders listed, and typing a path, e.g. `~/code/`, lists the folders in
+  it, `→` going into the one found. `Enter` or a click on a name picks the
+  folder, and a click on `▸` opens it. Clone, Init and Create Worktree pick
+  their folder the same way, with **Browse**. Started outside a repository,
+  gmd shows a start page instead of the log: `Enter` opens the most recent
+  repository, `1` to `9` any one listed, which includes those in the folder
+  gmd was started in, and `Delete` takes one off the recent list, leaving
+  its folder as it is. `gmd -m` shows the start page inside a repository
+  too.
 - **Clean up after pull requests:** **Delete Merged Branches ...** in the repo
   menu (`Shift-M`) lists the local branches merged into main, by a squash or
   a rebase on GitHub too, marked `✓` in the log, and deletes them.

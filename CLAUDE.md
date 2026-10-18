@@ -822,7 +822,7 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
-  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `DiffSyntax`, `BlameSyntax`, `ConflictSyntax`, `CodeLines`, `CodeScopes`, `BranchFinder`, `FileTree`, `FileFinder`, `FileBrowseRows`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
+  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `DiffSyntax`, `BlameSyntax`, `ConflictSyntax`, `CodeLines`, `CodeScopes`, `BranchFinder`, `FileTree`, `FileFinder`, `FileBrowseRows`, `FolderTree`, `FolderFinder`, `FolderBrowseRows`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `MergedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
