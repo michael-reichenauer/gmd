@@ -413,7 +413,9 @@ class ContentView : View
         IReadOnlyList<Text> currentRows = rows.ToList();
         scroll.SetTotalCount(totalCount);
 
-        while (!currentRows.Any() && TotalCount > 0)
+        // Not in a view with no room for a row, which gets none wherever it is moved to, e.g. the commit
+        // details hidden, which Terminal.Gui 2.x still draws, at a height of 0
+        while (!currentRows.Any() && TotalCount > 0 && drawCount > 0)
         { // TotalCount now less than previous FirstIndex, need to adjust FirstIndex and CurrentIndex and try again
             scroll.MoveToEndOfContent();
             (rows, totalCount) = onGetContent!(FirstIndex, drawCount, CurrentIndex, ContentWidth);

@@ -501,6 +501,24 @@ public class LogViewTest
         );
     }
 
+    // Enter hides the details it showed, and the log goes on taking keys. Hiding them hung gmd: the
+    // pane, left with rows and no room for one, asked for its rows again and again, since
+    // Terminal.Gui 2.x draws a view of no height.
+    [TestMethod]
+    public async Task TestEnterHidesTheDetails()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Enter");
+        gmd.WaitFor("Parents:");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Parents:");
+        gmd.Send("Enter");
+        gmd.WaitFor("Parents:");
+    }
+
     // Tab moves into the details pane, and the cursor and page keys then scroll a message too long
     // for it rather than move to another commit, which they went on doing, since only the drawn focus
     // moves. Tab back and they move the commit again.
