@@ -1141,7 +1141,7 @@ public class DiffViewTest
         }
         PickCommitMenuItem(gmd, 2, "Mark for Diff");
         Assert.AreEqual(
-            $"Marked {beta} for a diff: Diff with {beta} in the menu of another commit diffs the two",
+            $"Marked {beta} for a diff (Δ): Diff with {beta} in the menu of another commit diffs the two",
             ScreenText.LastLine(gmd.WaitFor($"Marked {beta}"))
         );
 
@@ -1152,6 +1152,32 @@ public class DiffViewTest
         var diff = gmd.WaitFor($"Diff {beta} to 17d85ba8");
         StringAssert.Contains(diff, "A delta.txt");
         StringAssert.Contains(diff, "A gamma.txt", "And what the merge brought in between");
+    }
+
+    // The commit marked is marked 'Δ' at the start of its row, which the menu of any other commit
+    // only names, and its own menu has Unmark for Diff where Mark for Diff was, which takes the mark
+    // away. Moves counted as in TestADiffOfAnyTwoCommits.
+    [TestMethod]
+    public async Task TestTheCommitMarkedForADiffIsMarkedInTheLogUntilUnmarked()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var beta = (await repo.GitAsync("rev-parse \":/Add beta\"")).Trim()[..8];
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        for (int i = 0; i < 3; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        PickCommitMenuItem(gmd, 2, "Mark for Diff");
+        var log = ScreenText.Rows(gmd.WaitFor($"Marked {beta}"), repo.Path, 2, 5);
+        StringAssert.Contains(log, "┣╯Δ  Add beta");
+        Assert.AreEqual(1, log.Count(c => c == 'Δ'), "On its row alone");
+
+        PickCommitMenuItem(gmd, 2, "Unmark for Diff");
+        var unmarked = gmd.WaitFor($"Unmarked {beta}");
+        Assert.AreEqual($"Unmarked {beta} for a diff", ScreenText.LastLine(unmarked));
+        StringAssert.Contains(ScreenText.Rows(unmarked, repo.Path, 2, 5), "┣╯   Add beta");
     }
 
     static void PickCommitMenuItem(TmuxSession gmd, int moves, string item)

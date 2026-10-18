@@ -217,6 +217,50 @@ public class RepoWriterTest
         StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 120), "┺ß● Second");
     }
 
+    // The commit marked for a diff, in the stash's column, so that it is seen at the start of its
+    // row, where Diff with in the menu of another commit only names it
+    [TestMethod]
+    public async Task TestTheCommitMarkedForADiffIsMarked()
+    {
+        var view = await View();
+        var mark = new DiffMark();
+        mark.Set(view.Path, RepoBuilder.Sha("c2"));
+
+        // Hoovering a branch turns the current row's highlight off, see the ahead and behind test
+        var rows = Rows(view, 120, hooverBranch: "main", hooverIndex: 0, diffMark: mark);
+
+        StringAssert.StartsWith(rows[1].ToString(), "┣  Δ  Second");
+        StringAssert.StartsWith(TextColors.Of(rows[1]), "M  c  WWWWWW", "In bright cyan, as no other mark is");
+        Assert.IsFalse(rows[0].ToString().Contains('Δ') || rows[2].ToString().Contains('Δ'), "The one marked only");
+    }
+
+    // The mark is there for a moment and has to be seen, so it is drawn over a stash's 'ß', which
+    // the top bar still counts
+    [TestMethod]
+    public async Task TestTheDiffMarkTakesTheColumnOverFromAStash()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .Stash("stash@{0}", "c2")
+            .ViewRepoAsync();
+        var mark = new DiffMark();
+        mark.Set(repo.Path, RepoBuilder.Sha("c2"));
+
+        StringAssert.StartsWith(Rows(new FakeViewRepo(repo), 120, diffMark: mark)[0].ToString(), "┣─┺Δ● Second");
+    }
+
+    // A mark is of the repository it was made in, so another one opened in the same gmd has none
+    [TestMethod]
+    public async Task TestAMarkInAnotherRepositoryIsNotDrawn()
+    {
+        var mark = new DiffMark();
+        mark.Set("/some/other/repo", RepoBuilder.Sha("c2"));
+
+        Assert.IsFalse(Page(await View(), 120, diffMark: mark).Contains('Δ'));
+    }
+
     // The branch tips, i.e. the '(name)' after the subject saying which branches end at this commit
 
     [TestMethod]
@@ -397,8 +441,19 @@ public class RepoWriterTest
 
     static bool IsSelected(Text row) => row.Fragments.Any(f => f.Color.Background == Color.White.Foreground);
 
-    static string Page(FakeViewRepo view, int width, int firstRow = 0, int count = 20, Selection? selection = null) =>
-        string.Join("\n", Rows(view, width, firstRow, count, selection: selection).Select(t => t.ToString().TrimEnd()));
+    static string Page(
+        FakeViewRepo view,
+        int width,
+        int firstRow = 0,
+        int count = 20,
+        Selection? selection = null,
+        DiffMark? diffMark = null
+    ) =>
+        string.Join(
+            "\n",
+            Rows(view, width, firstRow, count, selection: selection, diffMark: diffMark)
+                .Select(t => t.ToString().TrimEnd())
+        );
 
     static string FirstRow(FakeViewRepo view, int width) => Rows(view, width)[0].ToString().TrimEnd();
 
@@ -410,9 +465,10 @@ public class RepoWriterTest
         int currentIndex = 0,
         string hooverBranch = "",
         int hooverIndex = -1,
-        Selection? selection = null
+        Selection? selection = null,
+        DiffMark? diffMark = null
     ) =>
-        new RepoWriter(new BranchColorService(new FakeRepoConfig()), new GraphWriter())
+        new RepoWriter(new BranchColorService(new FakeRepoConfig()), new GraphWriter(), diffMark ?? new DiffMark())
             .ToPage(view, firstRow, count, currentIndex, hooverBranch, hooverIndex, width, selection ?? NoSelection)
             .ToList();
 

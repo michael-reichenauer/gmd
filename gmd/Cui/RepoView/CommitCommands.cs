@@ -25,6 +25,7 @@ interface ICommitCommands
     void ShowCurrentRowDiff();
     void ShowDiff(string commitId, string commitId2, bool isFromCommit = false);
     void MarkForDiff(string commitId);
+    void UnmarkForDiff();
     void DiffWithMarked(string commitId);
     void ShowFileHistory();
     void BlameFile();
@@ -363,12 +364,24 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
+    // The log draws the mark, so it is drawn anew, the rows of both the old and the new mark
     public void MarkForDiff(string commitId)
     {
         var repo = context.ViewRepo;
         diffMark.Set(repo.Path, commitId);
+        repoView.View.SetNeedsDraw();
         var sid = commitId.Sid();
-        status.Info($"Marked {sid} for a diff: Diff with {sid} in the menu of another commit diffs the two");
+        status.Info(
+            $"Marked {sid} for a diff ({DiffMark.Marker}): Diff with {sid} in the menu of another commit diffs the two"
+        );
+    }
+
+    public void UnmarkForDiff()
+    {
+        var sid = diffMark.IdIn(context.ViewRepo.Path).Sid();
+        diffMark.Clear();
+        repoView.View.SetNeedsDraw();
+        status.Info($"Unmarked {sid} for a diff");
     }
 
     // The changes from the older of the two commits to the newer, whichever is marked, i.e. what
