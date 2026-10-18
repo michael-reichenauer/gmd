@@ -1218,10 +1218,12 @@ public class DiffViewTest
             ScreenText.LastLine(gmd.WaitFor("different branches"))
         );
 
-        // 'More dev work' and 'Work on dev', both on dev
+        // 'More dev work' and 'Work on dev', both on dev, both in the diff, which its title says
         SelectTwoRowsFrom(gmd, 3);
         gmd.Send("C-d");
-        gmd.WaitFor("dev.txt");
+        var work = (await repo.GitAsync("rev-parse \":/Work on dev\"")).Trim()[..8];
+        var more = (await repo.GitAsync("rev-parse \":/More dev work\"")).Trim()[..8];
+        StringAssert.Contains(gmd.WaitFor("dev.txt"), $"Diff of 2 commits, {work} to {more}");
     }
 
     static void SelectTwoRowsFrom(TmuxSession gmd, int row)

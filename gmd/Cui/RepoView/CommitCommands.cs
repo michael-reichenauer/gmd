@@ -322,7 +322,7 @@ class CommitCommands : ICommitCommands
             else
             {
                 repoView.ClearSelection();
-                var msg = $"Diff between {commitId.Sid()} and {commitId2.Sid()}";
+                var msg = RangeTitle(repo.Repo, commitId, commitId2);
                 source = DiffSource.Single(n => server.GetDiffRangeAsync(commitId2, commitId, msg, n, repo.Path)) with
                 {
                     Sides = new($"{commitId2}~", commitId),
@@ -363,6 +363,20 @@ class CommitCommands : ICommitCommands
             });
             return Result.Ok;
         });
+
+    // The title of a range diff, which is the changes the selected commits made, the oldest one's
+    // too, so it counts them: 'Diff of 3 commits, 4a15fb13 to 17d85ba8'. The diff of two commits
+    // marked is 'Diff 4a15fb13 to 17d85ba8', the changes after the older one, which it leaves out.
+    // The commits counted are those of the branch, as the selection is drawn on them alone.
+    internal static string RangeTitle(Repo repo, string newerId, string olderId)
+    {
+        var (newer, older) = (repo.CommitById[newerId], repo.CommitById[olderId]);
+        var count = repo
+            .ViewCommits.Skip(newer.ViewIndex)
+            .Take(older.ViewIndex - newer.ViewIndex + 1)
+            .Count(c => c.BranchPrimaryName == newer.BranchPrimaryName);
+        return $"Diff of {count} commits, {older.Sid} to {newer.Sid}";
+    }
 
     // The log draws the mark, so it is drawn anew, the rows of both the old and the new mark
     public void MarkForDiff(string commitId)
