@@ -223,6 +223,30 @@ public class ContentScrollTest
         Assert.IsFalse(scroll.Scroll(1)); // The last row is now the bottom row of the view
     }
 
+    // A line kept on its row of the view after the rows were made anew, e.g. with more context
+    // around it: the rows scroll to put it there, as far as the first and the last rows let them
+    [TestMethod]
+    public void TestShowIndexAtPutsTheCursorOnThatRowOfTheView()
+    {
+        var scroll = NewScroll(100);
+
+        scroll.ShowIndexAt(50, 3);
+        Assert.AreEqual(47, scroll.FirstIndex);
+        Assert.AreEqual(50, scroll.CurrentIndex);
+
+        scroll.ShowIndexAt(2, 5);
+        Assert.AreEqual(0, scroll.FirstIndex, "No rows above the first");
+        Assert.AreEqual(2, scroll.CurrentIndex);
+
+        scroll.ShowIndexAt(98, 2);
+        Assert.AreEqual(90, scroll.FirstIndex, "No blank rows below the last");
+        Assert.AreEqual(98, scroll.CurrentIndex);
+
+        var few = NewScroll(4);
+        few.ShowIndexAt(3, 1);
+        Assert.AreEqual(0, few.FirstIndex, "Fewer rows than the view");
+    }
+
     static ContentScroll NewScroll(int totalCount, int height = 10)
     {
         var scroll = new ContentScroll(() => height);

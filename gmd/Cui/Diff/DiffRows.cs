@@ -48,7 +48,7 @@ class DiffRows
     internal void AddFileHeader(Text header, string filePath)
     {
         Add(header, filePath);
-        rows[^1] = rows[^1] with { Fill = Text.Blue("─") };
+        rows[^1] = rows[^1] with { Fill = Text.BrightCyan("─") };
     }
 
     // Where unchanged lines are left out between two hunks, '⋯' and a line

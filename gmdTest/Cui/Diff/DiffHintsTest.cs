@@ -37,6 +37,25 @@ public class DiffHintsTest
         );
     }
 
+    // On the '⋯' between two hunks Enter shows more context, as + does, conflicts or not
+    [TestMethod]
+    public void TestEnterOnTheMarkOfLinesLeftOutShowsMore()
+    {
+        Assert.AreEqual(
+            "m menu  Esc close  Enter more context  ] [ change  + - context  } { file  f search  w hide whitespace  v one column  ←→ columns",
+            Line(
+                DiffHints.For(
+                    canCommit: false,
+                    hasContext: true,
+                    hasConflicts: true,
+                    hasSearch: false,
+                    isWhitespaceHidden: false,
+                    isOnHunkSeparator: true
+                )
+            )
+        );
+    }
+
     // A line history, 'git log -L', takes no context, so '+' and '-' are not offered
     [TestMethod]
     public void TestALineHistoryHasNoContextToStep()

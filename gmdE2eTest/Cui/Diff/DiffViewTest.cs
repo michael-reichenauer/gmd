@@ -67,10 +67,11 @@ public class DiffViewTest
     }
 
     // '+' shows more of the file around its changes and '-' shows less, stepping 6 → 15 → the whole
-    // file. It is per file: the file the cursor is on is the one that changes. The window asserted
-    // is the file header and the first lines under it, which is where both halves show — the header
+    // file. It is per file: the file the cursor is on is the one that changes. What is asserted is
+    // the file header and the first lines under it, which is where both halves show — the header
     // names the context it is at, and the first line says how far up the file it now starts. The
-    // hunk header between them is the line git found above the hunk, as it names a function.
+    // line the cursor is on stays where it is, see TestMoreContextKeepsTheCursorsLineInPlace, so
+    // the whole file is looked at from its top, Home.
     //
     // The cursor has to be inside a file for the keys to mean anything, hence the Down presses;
     // each one is its own Send, since a key sent into a screen that has not settled is dropped.
@@ -93,19 +94,13 @@ public class DiffViewTest
         Assert.IsFalse(atDefault.Contains("(context"), "No context is named while it is the default");
 
         gmd.Send("+");
-        ScreenText.AssertEqual(
-            """
-            ▌ M long.txt  +1 -1  (context 15) ─────────────────────────────────────────────────────────────────────────────────────┃
-                5 line 5                                               │    5 line 5                                               ┃
-                6 line 6                                               │    6 line 6                                               ┃
-                7 line 7                                               │    7 line 7                                               ┃
-                8 line 8                                               │    8 line 8                                               ┃
-            """,
-            ScreenText.Rows(gmd.WaitFor("(context 15)"), repo.Path, 7, 5),
-            repo.Path
-        );
+        var at15 = ScreenText.Of(gmd.WaitFor("(context 15)"), repo.Path);
+        StringAssert.Contains(at15, "\n▌ M long.txt  +1 -1  (context 15) ───");
+        StringAssert.Contains(at15, "\n    5 line 5 ", "Drawn from line 5");
 
         gmd.Send("+");
+        gmd.WaitForLog("--unified=100000");
+        gmd.Send("Home");
         ScreenText.AssertEqual(
             """
             ▌ M long.txt  +1 -1  (whole file) ─────────────────────────────────────────────────────────────────────────────────────┃
@@ -148,6 +143,71 @@ public class DiffViewTest
                 gmd.WaitForStable();
             }
         }
+    }
+
+    // + and - keep the line the cursor is on where it is on the screen, the lines coming and going
+    // around it, here in a view shorter than the diff, so that there are rows to scroll. It used to
+    // be scrolled to five rows from the top, so the line jumped, and what was being read with it.
+    [TestMethod]
+    public async Task TestMoreContextKeepsTheCursorsLineInPlace()
+    {
+        using var repo = await E2eRepo.CreateWithLongFileAsync();
+        using var gmd = TmuxSession.StartGmd(repo, height: 20);
+        gmd.WaitFor("Change both files");
+        gmd.Send("d");
+        gmd.WaitFor("M long.txt");
+        for (int i = 0; i < 14; i++)
+        {
+            gmd.Send("Down");
+            gmd.WaitForStable();
+        }
+        var (row, line) = CursorRow(gmd, repo);
+        StringAssert.Contains(line, "21 line 21");
+
+        gmd.Send("+");
+        gmd.WaitFor("    7 line 7 "); // Above the line, in sight once more context came in above it
+
+        Assert.AreEqual((row, line), CursorRow(gmd, repo));
+    }
+
+    // Enter on the '⋯' where lines are left out between two hunks shows more context, as + does. The
+    // line above it stays where it was, and the lines that were left out come in below it, where the
+    // cursor is: here all of them, so the two hunks are one.
+    [TestMethod]
+    public async Task TestEnterOnTheMarkOfLinesLeftOutShowsMore()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 40).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", TempRepo.BaseTime);
+        lines[4] = "line 5 changed";
+        lines[34] = "line 35 changed";
+        var text = string.Join("\n", lines) + "\n";
+        await repo.CommitFileAtAsync("long.txt", text, "Two changes", TempRepo.BaseTime.AddMinutes(1));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Two changes");
+        gmd.Send("d");
+        var screen = ScreenText.Of(gmd.WaitFor("line 35 changed"), repo.Path);
+        var (_, y) = TmuxSession.PositionOf(screen, "   ⋯ ─");
+        gmd.Click(1, y);
+        gmd.WaitUntil(() => CursorRow(gmd, repo).Row == y, "the cursor on the '⋯'");
+
+        gmd.Send("Enter");
+
+        var rows = ScreenText.Of(gmd.WaitFor("(context 15)"), repo.Path).Split('\n');
+        Assert.IsFalse(rows.Any(r => r.Contains("⋯ ─")), "The hunks are one");
+        StringAssert.StartsWith(rows[y - 1], "   11 line 11 ", "The line above the '⋯' where it was");
+        Assert.AreEqual(y, CursorRow(gmd, repo).Row, "The cursor where the '⋯' was");
+        StringAssert.StartsWith(rows[y], "   12 line 12 ", "On the first line that was left out");
+    }
+
+    // The row the cursor is on, and the text of its left side. It is drawn on a line's number, black
+    // on white, and on a row with none, e.g. the '⋯', as the whole row on dark.
+    static (int Row, string Line) CursorRow(TmuxSession gmd, TempRepo repo)
+    {
+        var backgrounds = ScreenText.BackgroundRows(gmd.CaptureColors(), 0, 40).Split('\n');
+        var row = Array.FindIndex(backgrounds, r => r.Contains('W') || r.Count(c => c == 'D') > 20);
+        var line = row == -1 ? "" : ScreenText.Of(gmd.Capture(), repo.Path).Split('\n')[row];
+        return (row, line.Split('│')[0].TrimEnd());
     }
 
     // ] and [ go to the next and the previous change, } and { to the next and the previous file, each
@@ -412,24 +472,25 @@ public class DiffViewTest
         gmd.WaitFor("Two changes");
         gmd.Send("d");
 
-        // Git names the nearest line above that is not indented, which in this file is the line above
+        // With nothing after the '⋯', where git's text after the '@@' would be: in this file the line
+        // above, as git names the nearest line above that is not indented
         var screen = gmd.WaitFor("line 35 changed");
         Assert.AreEqual(
             """
                11 line 11                                              │   11 line 11
-               ⋯ line 28 ───────────────────────────────────────────────── ⋯ ──────────────────────────────────────────────────────
+               ⋯ ───────────────────────────────────────────────────────── ⋯ ──────────────────────────────────────────────────────
                29 line 29                                              │   29 line 29
             """,
             ScreenText.Rows(screen, repo.Path, 17, 3)
         );
         Assert.AreEqual(
-            "   D CCCC CC DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD D DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+            "   D DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD D DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
             ScreenText.ColorRows(gmd.CaptureColors(), 18, 1)
         );
 
         gmd.Resize(100, 40);
         screen = gmd.WaitForMoving(s => !s.Contains("│"), "the one column layout");
-        StringAssert.Contains(ScreenText.Of(screen, repo.Path), "\n   ⋯ line 28 ─────");
+        StringAssert.Contains(ScreenText.Of(screen, repo.Path), "\n   ⋯ ─────");
         Assert.IsFalse(ScreenText.Of(screen, repo.Path).Contains("─ ⋯ ─"), "One mark in one column");
     }
 

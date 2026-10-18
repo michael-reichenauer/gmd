@@ -664,13 +664,9 @@ conflicted, and the lines added and deleted in it, headed by how many there
 are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`; the files
 are left out of it, that row kept, while they are listed beside the diff
 (below). Each file
-starts with a row naming it, underlined in blue. Where unchanged lines are
+starts with a row naming it, with a line in cyan after it. Where unchanged lines are
 left out between the parts that changed, a dark line with `⋯` where the line
-numbers are says so, with the function or heading git finds the next part in, when it is not
-the one before it. Git finds it by a pattern for the file's language, set
-in `.gitattributes`, e.g. `*.cs diff=csharp`; with none, it takes the
-nearest line above that is not indented, which in C# is the class for every
-part. A changed line has a bar
+numbers are says so, and `Enter` on it shows more of them, as `+` does. A changed line has a bar
 beside its number, red for a line removed and green for a line added, and
 where a removed line and the added line beside it are mostly alike, the
 words that differ are marked. The code is in the colors of its language, as
@@ -685,7 +681,9 @@ more of the file the cursor is on around its changes and `-` shows less,
 stepping from the 6 lines of context it starts with to 15, and then to the
 whole file (and `=` does what `+` does, without the shift). It applies to
 that one file, so the rest of the commit stays as it was, and the header of
-a widened file says what it is showing. The menu has the same two, as
+a widened file says what it is showing. The line the cursor is on stays
+where it is on the screen, the lines coming and going around it; on the `⋯`,
+the line above it stays, and the lines left out come in below it. The menu has the same two, as
 **More Context** and **Less Context**, naming the file they would act on
 and what it would then show.
 

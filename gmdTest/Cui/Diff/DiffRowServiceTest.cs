@@ -1181,11 +1181,11 @@ public class DiffRowServiceTest
         Assert.AreEqual("    1 two │     1 two", DiffText.Of(rows).Split('\n')[^1]);
     }
 
-    // Between two hunks, where unchanged lines are left out, a line starting with '⋯', naming the
-    // function git found the hunk in where that is not the one before it: with no pattern for C#, git
-    // names the class for each, and a name on every hunk said nothing. The first hunk is under the
-    // file's header, with none, though lines are left out above it too. The file's line is blue,
-    // which sets it apart from the hunks' dark ones.
+    // Between two hunks, where unchanged lines are left out, a line starting with '⋯', and not the
+    // function git found the hunk in, which it writes after the '@@': with no pattern for C#, git names
+    // the class, or any line of a text, which puzzled more than it told. The first hunk is under the
+    // file's header, with none, though lines are left out above it too. The file's line is bright
+    // blue, which sets it apart from the hunks' dark ones.
     [TestMethod]
     public void TestHunksAreSeparatedWhereLinesAreLeftOut()
     {
@@ -1201,7 +1201,7 @@ public class DiffRowServiceTest
                ⋯ ─
                20 same     │    20 same
             ▌  21 a = 1;   │ ▌  21 a = 2;
-               ⋯ decimal Total() ─
+               ⋯ ─
                40 same     │    40 same
             ▌  41 b = 1;   │ ▌  41 b = 2;
                ⋯ ─
@@ -1211,9 +1211,9 @@ public class DiffRowServiceTest
             string.Join("\n", text.Skip(header))
         );
         var colors = DiffText.ColorsOf(rows).Split('\n').Skip(header).ToArray();
-        Assert.AreEqual("M Y WWWWWWWWWW  GG RR B", colors[0]);
+        Assert.AreEqual("M Y WWWWWWWWWW  GG RR c", colors[0]);
         Assert.AreEqual("   D D", colors[3]);
-        Assert.AreEqual("   D CCCCCCC CCCCCCC D", colors[6]);
+        Assert.AreEqual("   D D", colors[6]);
     }
 
     // A file of four hunks, two in each of the functions git found them in
