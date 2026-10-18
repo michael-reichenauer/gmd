@@ -566,14 +566,13 @@ public class LogViewTest
         Assert.AreEqual("MMMMMMMMMMMMMMMMMMMMM", LogScrollbar());
         Assert.AreEqual("D", DetailsScrollbar());
 
+        // Waited for, as a stable screen can be the one from before the key, on a loaded machine
         gmd.Send("Tab");
-        gmd.WaitForStable();
-        Assert.AreEqual("DDDDDDDDDDDDDDDDDDDDD", LogScrollbar());
+        gmd.WaitUntil(() => LogScrollbar() == "DDDDDDDDDDDDDDDDDDDDD", "the log's scrollbar to be gray");
         Assert.AreEqual("M", DetailsScrollbar());
 
         gmd.Send("Tab");
-        gmd.WaitForStable();
-        Assert.AreEqual("MMMMMMMMMMMMMMMMMMMMM", LogScrollbar());
+        gmd.WaitUntil(() => LogScrollbar() == "MMMMMMMMMMMMMMMMMMMMM", "the log's scrollbar to be magenta");
         Assert.AreEqual("D", DetailsScrollbar());
 
         gmd.Send("Down");
@@ -675,7 +674,7 @@ public class LogViewTest
         // that change which branches are shown at all, the undo of showing dev above among them,
         // and the ones that pull and push them all.
         gmd.Send("Right");
-        var branches = gmd.WaitForStable();
+        var branches = gmd.WaitFor("╭ Branches");
         Assert.AreEqual(
             """
                      │Open Commit in Browser                │

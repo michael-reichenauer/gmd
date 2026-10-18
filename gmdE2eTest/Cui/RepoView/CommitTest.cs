@@ -363,8 +363,9 @@ public class CommitTest
         gmd.Send("Enter");
 
         // Same row, same position, new message and a new id — and the time column does not move,
-        // since amending keeps the author date and only the committer date is rewritten
-        var committed = gmd.WaitFor("Add zeta amended");
+        // since amending keeps the author date and only the committer date is rewritten. The row's
+        // '▲' waited for: the dialog's field, which is up until the commit is made, has the text too.
+        var committed = gmd.WaitFor("▲Add zeta amended");
         Assert.AreEqual(
             """
              Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X

@@ -130,8 +130,26 @@ sealed class TmuxSession : IDisposable
     public string WaitUntilGone(string expected, int timeoutMs = DefaultTimeoutMs) =>
         Poll(screen => !screen.Contains(expected), $"text '{expected}' to disappear", timeoutMs);
 
-    // Polls until the screen has simply stopped changing
+    // Polls until the screen has simply stopped changing. Not a wait for what a key did: a screen
+    // that has not changed for three polls is stable before a key is acted on too, which a loaded
+    // machine, as CI is, takes longer than that for at times. Before asserting what a key changed,
+    // wait for the change itself, with WaitFor or WaitUntil.
     public string WaitForStable(int timeoutMs = DefaultTimeoutMs) => Poll(_ => true, "the screen to settle", timeoutMs);
+
+    // Polls until a condition holds, e.g. on the colors of a capture, which WaitFor cannot look for
+    public void WaitUntil(Func<bool> isDone, string what, int timeoutMs = DefaultTimeoutMs)
+    {
+        var clock = Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < timeoutMs)
+        {
+            if (isDone())
+                return;
+
+            Thread.Sleep(PollMs);
+        }
+
+        Assert.Fail($"Timed out after {timeoutMs} ms waiting for {what}\n{Diagnostics(Capture())}");
+    }
 
     // Polls until the screen matches and returns it as it was at that moment, without waiting for
     // it to settle. The one wait that does not, because what it is for is something that moves:

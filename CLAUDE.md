@@ -708,7 +708,10 @@ test must keep doing:
 - **Polling, never sleeping.** `WaitFor` waits for the text *and* for three identical captures in a
   row. The stability half is not optional: gmd **drops** keystrokes while a git command is running
   (`Progress.Show` → `UI.StopInput` → `RootKeyEvent = _ => true`), so a key sent into a moving
-  screen is silently lost, not queued.
+  screen is silently lost, not queued. And before asserting what a key changed, wait for the change
+  itself (`WaitFor` its text, `WaitUntil` for a color), not for a stable screen: one unchanged for
+  three polls is also the screen from before a key that a loaded machine, as CI is, has not acted on
+  yet. Three tests flaked in CI that way.
 - **A fresh repo per test.** `<repo>/.git/.gmdconfig` holds the shown-branch list and is rewritten
   on every repo show, and it is the one piece of state `HOME` cannot isolate.
 - **Pinned dates when the test lets gmd commit.** `StartGmd(repo, commitTime: …)` puts

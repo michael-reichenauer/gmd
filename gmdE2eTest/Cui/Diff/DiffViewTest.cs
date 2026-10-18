@@ -714,7 +714,7 @@ public class DiffViewTest
 
         Assert.AreEqual(
             "Discarded 3 lines of lines.txt: Restore Discarded Changes in the Undo menu brings it back",
-            ScreenText.LastLine(gmd.WaitFor("Discarded"))
+            ScreenText.LastLine(gmd.WaitFor("Discarded 3 lines")) // The question says 'Discarded' too
         );
         Assert.AreEqual(
             "line 1\nTWO\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\n",
