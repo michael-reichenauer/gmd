@@ -265,7 +265,8 @@ public class DiffViewTest
         using var gmd = TmuxSession.StartGmd(repo, width: 100, height: 30);
         gmd.WaitFor("uncommitted");
         gmd.Send("d");
-        StringAssert.Contains(ScreenText.Of(gmd.WaitFor("A epsilon.txt"), repo.Path), "    1 alpha\n▌   2 changed");
+        // The line added has a '+' where side by side has a bar
+        StringAssert.Contains(ScreenText.Of(gmd.WaitFor("A epsilon.txt"), repo.Path), "    1 alpha\n+   2 changed");
 
         gmd.Resize(140, 30); // Side by side, and narrower than the list of files is drawn at
         gmd.WaitFor("│▌   2 changed");
@@ -277,7 +278,7 @@ public class DiffViewTest
         );
         StringAssert.Contains(
             ScreenText.Of(gmd.Capture(), repo.Path),
-            "    1 alpha\n▌   2 changed",
+            "    1 alpha\n+   2 changed",
             "Wide, as v chose"
         );
         gmd.Send("v");
