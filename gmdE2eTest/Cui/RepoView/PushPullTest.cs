@@ -562,10 +562,12 @@ public class PushPullTest
             ScreenText.Rows(gmd.WaitFor("✓ feature"), repo.Path, 0, 6)
         );
 
+        // Waited for by what only 'p' says: the note said as the ✓ was drawn is still up, and says
+        // 'was merged into' too, which a slow machine showed the assert before 'p' was acted on
         gmd.Send("p");
         Assert.AreEqual(
             "'feature' was merged into 'main' on origin, and deleted there: nothing to push",
-            ScreenText.LastLine(gmd.WaitFor("was merged into"))
+            ScreenText.LastLine(gmd.WaitFor("nothing to push"))
         );
 
         gmd.Send("Down"); // From main's squash, at the top, to the tip of 'feature'
