@@ -509,6 +509,13 @@ class ContentView : View
         SetCurrentIndex(index);
     }
 
+    // The cursor on the index, on that row of the view, see ContentScroll.ShowIndexAt
+    internal void ShowIndexAt(int index, int viewRow)
+    {
+        scroll.ShowIndexAt(index, viewRow);
+        SetNeedsDraw();
+    }
+
     internal void SetCurrentIndex(int index)
     {
         scroll.SetCurrentIndex(index);

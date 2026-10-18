@@ -402,7 +402,7 @@ class DiffRowService : IDiffRowService
         for (var i = 0; i < fileDiff.SectionDiffs.Count; i++)
         {
             if (i > 0)
-                rows.AddHunkSeparator(HunkSeparator(fileDiff.SectionDiffs[i], fileDiff.SectionDiffs[i - 1]));
+                rows.AddHunkSeparator(HunkSeparator);
             AddSectionDiff(fileDiff, fileDiff.SectionDiffs[i], rows, layout);
         }
     }
@@ -568,14 +568,11 @@ class DiffRowService : IDiffRowService
     }
 
     // Where unchanged lines are left out between two hunks, '⋯', which the line numbers say how many
-    // of, and the function git found the hunk in, e.g. 'public decimal Total()', where it is not the
-    // one before it: with no pattern for the file's language (e.g. '*.cs diff=csharp' in
-    // .gitattributes), git names the nearest line above that is not indented, a C# file's class for
-    // every hunk
-    static Text HunkSeparator(SectionDiff sd, SectionDiff previous) =>
-        sd.Function != "" && sd.Function != previous.Function
-            ? Text.Dark($"{LeftOutIndent}{LeftOutMark} ").Cyan(sd.Function)
-            : Text.Dark($"{LeftOutIndent}{LeftOutMark}");
+    // of. Not the text git writes after a hunk's '@@', the function it found the hunk in: with no
+    // pattern for the file's language (e.g. '*.cs diff=csharp' in .gitattributes), git names the
+    // nearest line above that is not indented, a C# file's class, or any line of a text, which was
+    // more puzzling than telling.
+    static Text HunkSeparator => Text.Dark($"{LeftOutIndent}{LeftOutMark}");
 
     // The mark of lines left out, where a side's line numbers are, which the view draws on the right
     // side too

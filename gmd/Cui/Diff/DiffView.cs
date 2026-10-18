@@ -212,7 +212,8 @@ class DiffView : IDiffView
                     LeaveOutHint(),
                     isOneColumn,
                     listWidth > 0,
-                    IsListHidden
+                    IsListHidden,
+                    IsOnHunkSeparator
                 ),
             () => status.Current
         );
@@ -290,14 +291,16 @@ class DiffView : IDiffView
         view.RegisterKeyHandler((Key)125, () => GoToFile(1)); // '}'
         view.RegisterKeyHandler((Key)123, () => GoToFile(-1)); // '{'
 
-        // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. Nothing
-        // was bound to it in this view before.
+        // 'Open what the cursor is on', which is what Enter means everywhere else in gmd: on the '⋯'
+        // where lines are left out between two hunks, more of them, as + shows
         view.RegisterKeyHandler(
             Key.Enter,
             () =>
             {
                 if (isListFocus)
                     ToggleListFocus();
+                else if (IsOnHunkSeparator)
+                    StepContext(1);
                 else
                     ResolveCurrentConflict();
             }
@@ -1009,9 +1012,15 @@ class DiffView : IDiffView
     // Shows the file the cursor is on with more (step 1) or less (step -1) context around its
     // changes. Git only has whole-diff options, so the diff is re-fetched at the new context and
     // just this one file taken from it, leaving the other files at whatever they were shown with.
+    //
+    // The line the cursor is on stays on its row of the view, so the lines come and go around it
+    // rather than move it. On the '⋯' between two hunks it is the line above, and the cursor goes
+    // on the row below it, where the lines that were left out come in.
     async void StepContext(int step)
     {
-        var anchor = CurrentAnchor();
+        var below = IsOnHunkSeparator ? 1 : 0;
+        var anchor = diffRows.AnchorAt(contentView.CurrentIndex - below);
+        var viewRow = contentView.CurrentIndex - contentView.FirstIndex;
         var wanted = WantedContext(anchor, step);
         if (wanted == 0)
         {
@@ -1030,8 +1039,17 @@ class DiffView : IDiffView
 
             fileContext[anchor.FilePath] = wanted;
             SetDiffs(DiffRowService.ReplaceFileDiff(diffs, anchor.FilePath, fetched), anchor);
+            var index = diffRows.IndexOf(anchor);
+            if (index != -1)
+                contentView.ShowIndexAt(Math.Min(index + below, diffRows.Count - 1), viewRow);
         }
     }
+
+    // Whether the cursor is on the '⋯' where lines are left out between two hunks
+    bool IsOnHunkSeparator =>
+        contentView.CurrentIndex >= 0
+        && contentView.CurrentIndex < diffRows.Count
+        && diffRows.Rows[contentView.CurrentIndex].IsSeparator;
 
     // The context the file would then be shown with, or 0 if the step would do nothing: the diff has
     // no context to step, there is no file under the cursor, that file has no lines shown, its changes
@@ -1572,8 +1590,7 @@ class DiffView : IDiffView
             .Add(text.Subtext(gutterWidth, Math.Max(0, text.Length - gutterWidth)));
 
     // Where unchanged lines are left out between two hunks, side by side: '⋯' where each side's line
-    // numbers are, the function git found the hunk in after the left one, cut short of the right one,
-    // and the line through both on to the end of the row
+    // numbers are, and the line through both on to the end of the row
     static Text SeparatorText(Text text, Text fill, int columnWidth, int viewWidth)
     {
         var right = columnWidth + 1 + DiffRowService.LeftOutIndent.Length; // The right side's '⋯'
