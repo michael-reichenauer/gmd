@@ -773,6 +773,9 @@ any order, the names that start with the first word first, and clearing it
 goes back to the tree. `Enter` or a click picks the file, or opens or
 closes a folder, and `Esc` closes the dialog.
 
+**File History ...** shows every commit that changed the file, opened at the
+commit the menu is for when it is one of them, the newer ones above it.
+
 **Blame File ...** shows which commit last changed each line of the file.
 Consecutive lines from the same commit are bracketed together with `┌ │ └`
 (`╺` for a run of a single line) and that commit is named once per run

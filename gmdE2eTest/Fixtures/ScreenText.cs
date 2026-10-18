@@ -81,6 +81,73 @@ static class ScreenText
     public static string BackgroundRows(string escapedCapture, int first, int count, bool isBlankShown = false) =>
         Join(ColorLines(escapedCapture, isForeground: false, isBlankShown).Skip(first).Take(count));
 
+    // Whether the menu item with the text is the one the cursor is on, i.e. drawn on a background
+    // other than the menu's left border beside it, which is how a menu highlights it in any palette.
+    // An item is written right after that border and is matched whole, followed by its padding, its
+    // sub menu marker or the border, so that 'Undo' is not the 'Undo Commit ...' of a sub menu open
+    // beside it.
+    public static bool IsMenuItemCurrent(string escapedCapture, string text)
+    {
+        var background = "";
+        foreach (var escapedLine in escapedCapture.Split('\n'))
+        {
+            var (line, backgrounds) = Cells(escapedLine, ref background);
+            for (var at = line.IndexOf($"│{text}"); at != -1; at = line.IndexOf($"│{text}", at + 1))
+            {
+                var rest = line[(at + 1 + text.Length)..];
+                var isWhole = rest == "" || rest.StartsWith("  ") || rest.StartsWith(" >") || rest.StartsWith('│');
+                if (isWhole && backgrounds[at + 1] != backgrounds[at])
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    // The characters of an escaped row and the background each is drawn on, as the code that set
+    // it, e.g. '100' in the 16 colors or '48;2;48;48;48' in a palette's RGB. The background carries
+    // on from the row before, as tmux writes it.
+    static (string Line, List<string> Backgrounds) Cells(string escapedLine, ref string background)
+    {
+        var line = new StringBuilder();
+        var backgrounds = new List<string>();
+        var i = 0;
+        while (i < escapedLine.Length)
+        {
+            if (escapedLine[i] == Escape && i + 1 < escapedLine.Length && escapedLine[i + 1] == '[')
+            {
+                var end = escapedLine.IndexOf('m', i);
+                if (end == -1)
+                    break;
+
+                var parts = escapedLine[(i + 2)..end].Split(';');
+                for (var p = 0; p < parts.Length; p++)
+                {
+                    var code = int.TryParse(parts[p], out var c) ? c : 0;
+                    if (code is 0 or 49)
+                        background = "";
+                    else if (code is (>= 40 and <= 47) or (>= 100 and <= 107))
+                        background = parts[p];
+                    else if (code is 38 or 48)
+                    { // An extended color, 5;<index> or 2;<r>;<g>;<b>
+                        var length = p + 1 < parts.Length && parts[p + 1] == "5" ? 2 : 4;
+                        if (code == 48)
+                            background = string.Join(';', parts.Skip(p).Take(length + 1));
+                        p += length;
+                    }
+                }
+
+                i = end + 1;
+                continue;
+            }
+
+            line.Append(escapedLine[i]);
+            backgrounds.Add(background);
+            i++;
+        }
+
+        return (line.ToString(), backgrounds);
+    }
+
     // Asserts the screen matches. On a mismatch the actual screen is printed as a block that can
     // be read, checked and pasted straight back into the test, which is how these snapshots are
     // written and updated in the first place.

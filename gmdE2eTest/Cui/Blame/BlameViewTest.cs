@@ -185,9 +185,6 @@ public class BlameViewTest
         gmd.WaitFor("Blame: alpha.txt");
     }
 
-    // 'Blame File ...' is the second last item of the commit menu, so 'End' and two 'Up' is the
-    // steadier walk to it than counting downwards past the items OnCursorDown skips. One key per
-    // Send with a wait after each, since a menu redraw drops whatever was sent behind it.
     // 'i' copies the line's commit id and Shift-I its whole message, as they copy a commit's in the
     // log view; the message from the log, since the blame has only its subject. 'g' steps the
     // gutter's detail down, the author first.
@@ -392,12 +389,7 @@ public class BlameViewTest
     {
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        gmd.Send("End");
-        gmd.WaitForStable();
-        gmd.Send("Up");
-        gmd.WaitForStable();
-        gmd.Send("Up");
-        gmd.WaitForStable();
+        gmd.SelectMenuItem("Blame File ...");
         gmd.Send("Enter");
         gmd.WaitFor("Find:");
         gmd.SendText(path);

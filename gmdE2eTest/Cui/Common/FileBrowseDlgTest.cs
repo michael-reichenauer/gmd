@@ -109,23 +109,41 @@ public class FileBrowseDlgTest
         StringAssert.Contains(history, "Add gamma", "The history of gamma.txt");
     }
 
-    // Opens the item of the commit menu, the last two of which are Blame File and File History:
-    // 'End' and 'Up' are the steadier walk there than counting down past the items it skips
+    // From the menu of an older commit, the history of a file it changed opens at that commit, as
+    // the blame's ⇧l opens it at the line's: here at 'Change two', the newer 'Change one' above it
+    // scrolled away. The lines are many, so that the history is longer than the screen.
+    [TestMethod]
+    public async Task TestTheHistoryOpensAtTheRowsCommit()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        var rest = string.Concat(Enumerable.Range(3, 60).Select(i => $"line {i}\n"));
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\n" + rest, "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "one\nTWO\n" + rest, "Change two", t.AddMinutes(8));
+        await repo.CommitFileAtAsync("alpha.txt", "ONE\nTWO\n" + rest, "Change one", t.AddMinutes(9));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change one");
+        gmd.Send("Down");
+        gmd.WaitUntil(
+            () => ScreenText.BackgroundRows(gmd.CaptureColors(), 3, 1).Contains('D'),
+            "the cursor on 'Change two'"
+        );
+
+        OpenFromCommitMenu(gmd, "File History");
+        gmd.WaitFor("Enter history"); // On alpha.txt, the file the commit changed
+        gmd.Send("Enter");
+
+        var top = ScreenText.Rows(gmd.WaitUntilGone("Find:"), repo.Path, 0, 2);
+        StringAssert.Contains(top, "Change two", "At the row's commit");
+        Assert.IsFalse(top.Contains("Change one"), "Scrolled past the newer one");
+    }
+
+    // Opens the item of the commit menu
     static void OpenFromCommitMenu(TmuxSession gmd, string item)
     {
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        gmd.Send("End");
-        gmd.WaitForStable();
-        gmd.Send("Up");
-        gmd.WaitForStable();
-        gmd.Send("Up");
-        gmd.WaitForStable();
-        if (item == "File History")
-        {
-            gmd.Send("Up");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem($"{item} ...");
         gmd.Send("Enter");
         gmd.WaitFor($"╭ {item} ");
     }
