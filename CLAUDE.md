@@ -169,8 +169,13 @@ Key types and flow:
   stash dropped: `Server/Private/DiscardedChanges.cs` keeps them, the working tree before and after
   each discard as commits on `refs/gmd/discarded`, whose reflog keeps them for git's 30 days, which
   Restore Discarded Changes puts back (`SnapshotService` in the git layer).
-- `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
-  data so they can be pushed/pulled and shared.
+- `Augmented/Private/MetaDataService.cs` — keeps the branches the user set by hand, and what the
+  reflog decided, in `.git/gmd-metadata.json` (`MetaDataFile`), never in the repository: an older
+  gmd kept it as the ref `refs/gmd-metadata-key-value/data`, read until the first write moves it.
+  With the shared branch structure on (`RepoConfig.SyncMetaData`, off by default) the entries for
+  commits origin has, and only those (`IGit.GetIdsOnOriginAsync`), are pushed under that ref after a
+  branch push, and origin's is fetched into `refs/gmd-metadata-key-value-origin/data` and merged.
+  The README's "What Gmd Stores and Sends" lists everything gmd writes; keep it complete.
 - `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,
   `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
   details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
@@ -548,7 +553,8 @@ own, and `Program` says what failed once the terminal is given back.
   several gmd instances share: a write reads the file afresh and renames a new file over it, and a
   file that is not json is set aside as `<file>.unreadable` rather than stopping gmd.
 - Per-repo state — `Common/RepoConfig.cs`.
-- Shared branch metadata — inside the git repo via `MetaDataService`.
+- Branch metadata — `.git/gmd-metadata.json`, via `MetaDataService`, shared through origin only when
+  the shared branch structure is on.
 
 ## Testing
 
@@ -624,7 +630,8 @@ both take their color letters from `TextColors`.
 The other fakes in `gmdTest/Fixtures/`: `FakeViewRepo` stands in for `IViewRepo`, for the log
 view's writer and menus, and `FakeRepoView` for the view, which `FakeRepoView.Context` puts in a
 `CommandContext` for the command classes and menus; `FakeSpellChecker` has the word list a test gives it; `FakeConfigService`
-is a config whose `Set` sticks, for a test of what a class saves rather than reads.
+is a config whose `Set` sticks, for a test of what a class saves rather than reads; `FakeMetaDataFile`
+is the metadata's file in the git dir, for the tests of `MetaDataService`.
 
 **`FakeCmd`** (`gmdTest/Utils/`) is a double for `ICmd`, the seam between the git services and
 the `git` executable. Every git service takes `ICmd` in its constructor, so canned output tests

@@ -1006,7 +1006,8 @@ keep a column of its own:
 
 - Where git's local reflog still says which branch a commit was made on,
   or which branch a branch was started from, that decides, and is kept in
-  the branch metadata for when the reflog has expired.
+  a file of gmd's in the `.git` folder, `gmd-metadata.json`, for when the
+  reflog has expired.
 - Merge messages name the branches that were merged, e.g. "Merge branch
   'dev' into main", which brings back branches deleted long ago.
 - Otherwise, where branches meet, the one the others were started from
@@ -1021,8 +1022,15 @@ When it cannot decide, the branch is drawn white and its tip is labeled
 the right branch for a commit, which is then marked `Φ`. **Ambiguous** in
 the Show Branch menu lists the ambiguous branches.
 
-The branches set by hand can be shared: **Config ...** in the repo menu
-can push them with the repository, so that everyone sees the same graph.
+What gmd keeps there, the branches set by hand and what the reflog said,
+can be shared with others using gmd: **Share the branch structure with
+others using gmd** in **Config ...** in the repo menu, which says what it
+pushes before it is turned on. Gmd then pushes to origin, after a branch,
+which branch each commit is on, only for the commits origin has, as
+`refs/gmd-metadata-key-value/data`, and fetches what the others who share
+it pushed, so that you see the same branches. Turned off, what was pushed
+stays on origin, and `git push origin :refs/gmd-metadata-key-value/data`
+removes it.
 
 
 ## Problems and Feedback
