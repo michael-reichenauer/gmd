@@ -50,17 +50,17 @@ static class MessageDlg
             }
         }
 
-        // An extra row for the marquee, above the button
+        // The marquee a blank row below the text, and the button a blank row below the marquee: the
+        // rows of the message, one blank and the marquee's, and the blank row a message box has above
+        // its buttons. Without, the marquee is where a message box has that blank row.
         d =
             cancelButton == null
-                ? CreateDialog(false, title, message, [])
-                : CreateDialog(false, title, message + "\n", [cancelButton], AskCancel);
+                ? CreateDialog(false, title, message + "\n", [])
+                : CreateDialog(false, title, message + "\n\n", [cancelButton], AskCancel);
         if (cancelButton != null)
             cancelButton.Clicked += AskCancel;
 
-        // The box's own marquee, on the row that the buttons of a normal message box would use, or
-        // the one above the button
-        var marquee = new Marquee(Pos.Center(), Pos.AnchorEnd(cancelButton == null ? 1 : 2));
+        var marquee = new Marquee(Pos.Center(), Pos.AnchorEnd(cancelButton == null ? 1 : 3));
         d.Inner.Add(marquee.View);
 
         // The posted close can only run once the modal below is pumping the main loop, since this
