@@ -6,7 +6,15 @@ namespace gmd.Cui.Blame;
 interface IBlameRowService
 {
     BlameRows ToBlameRows(Server.Blame blame);
-    Text ToRowText(BlameRow row, BlameColumns cw, int rowStartX, bool isCurrent, bool isSelected, string search = "");
+    Text ToRowText(
+        BlameRow row,
+        BlameColumns cw,
+        int rowStartX,
+        bool isCurrent,
+        bool isSelected,
+        string search = "",
+        IReadOnlyList<CodeSpan>? code = null
+    );
     IReadOnlyList<Text> ToDetailsRows(Server.BlameCommit commit);
 }
 
@@ -97,14 +105,16 @@ class BlameRowService : IBlameRowService
         return colorById;
     }
 
-    // search is the text a search found, marked where it is in the code, "" for none
+    // search is the text a search found, marked where it is in the code, "" for none, and code the
+    // spans of the code in its language's colors (BlameSyntax), none where it is not colored
     public Text ToRowText(
         BlameRow row,
         BlameColumns cw,
         int rowStartX,
         bool isCurrent,
         bool isSelected,
-        string search = ""
+        string search = "",
+        IReadOnlyList<CodeSpan>? code = null
     )
     {
         // The run bracket is drawn outside the highlight, the same way the log view highlights the
@@ -114,7 +124,7 @@ class BlameRowService : IBlameRowService
         var rest = new TextBuilder();
         WriteCommit(rest, row, cw);
         rest.Dark(LineNbrPrefix).Dark(TxtRight($"{row.LineNbr}", cw.LineNbr)).Dark(LineNbrSuffix);
-        rest.Add(ClipCode(CodeText(row).WithMatches(search), cw.Code, rowStartX));
+        rest.Add(ClipCode(CodeText(row).WithCode(0, code ?? []).WithMatches(search), cw.Code, rowStartX));
 
         Text restText =
             isSelected ? rest.Select()
@@ -181,6 +191,8 @@ class BlameRowService : IBlameRowService
         }
     }
 
+    // A line not committed yet is bright yellow, as the log view's uncommitted row, and is left so
+    // when the code is colored, which colors the text's own white alone
     static Text CodeText(BlameRow row) =>
         Text.Color(row.Commit.IsUncommitted ? Color.BrightYellow : Color.White, row.Text);
 

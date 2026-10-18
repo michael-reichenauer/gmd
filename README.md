@@ -148,8 +148,8 @@ once. Gmd keeps that readable rather than letting it flood the log:
   code in the colors of its language. The context shown around the changes can be widened for one
   file at a time, up to the whole file, and the changes of whitespace alone can be hidden.
 - **Blame** that groups lines by the commit that last changed them and shades each commit by its
-  age. You can step back to the version before a commit to get past a reformat or a rename, or see
-  every commit that changed the lines you select.
+  age, the code in the colors of its language. You can step back to the version before a commit to
+  get past a reformat or a rename, or see every commit that changed the lines you select.
 - **Search** of the messages, the changed files and the changes themselves, stepping through the
   matches in the log, and of the lines of a diff or a blame.
 - **Diff any two commits**, wherever they are in the log.

@@ -119,6 +119,25 @@ public class BlameViewTest
         Assert.AreEqual(localMain, await repo.GitAsync("rev-parse main"), "main is untouched");
     }
 
+    // The code is in its language's colors, as in the diff (DiffViewTest), those of VS Code's Dark+ in
+    // the dark palette; the 16 colors, which the other tests draw in, have none for code
+    [TestMethod]
+    public async Task TestCodeIsInItsLanguagesColors()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAtAsync("Total.cs", "int total = 42; // so far\n", "Add total", TempRepo.BaseTime);
+        using var gmd = TmuxSession.StartGmd(TempHome.Create(colors: "dark"), repo.Path);
+        gmd.WaitFor("Add total");
+
+        OpenBlameOf(gmd, "Total.cs");
+        gmd.WaitFor("Blame  Total.cs");
+
+        var line = gmd.CaptureColors().Split('\n').Single(l => l.Contains("so far"));
+        StringAssert.Contains(line, "\u001b[38;2;86;156;214mint", "The keyword blue");
+        StringAssert.Contains(line, "\u001b[38;2;181;206;168m42", "The number green");
+        StringAssert.Contains(line, "\u001b[38;2;106;153;85m// so far", "The comment green");
+    }
+
     // Both cases open the menu, as in the diff view
     [TestMethod]
     [DataRow("m")]
