@@ -199,6 +199,48 @@ class Text
         return newText;
     }
 
+    // The text with the spans of its code, from char index 'from', in their colors, where it is drawn
+    // in the text's own color, on whatever background it has: not a gutter before it, nor text whose
+    // color says what it is, e.g. a line not committed yet. Shared by the diff and the blame.
+    public Text WithCode(int from, IReadOnlyList<CodeSpan> spans)
+    {
+        if (spans.Count == 0)
+            return this;
+
+        var colored = new TextBuilder();
+        var start = 0; // Where the fragment starts in the whole text, as a char index
+        foreach (var fragment in fragments)
+        {
+            var end = start + fragment.Text.Length;
+            var at = start; // How far into the text the fragment has been added
+            if (IsCodeText(fragment.Color))
+            {
+                foreach (var span in spans)
+                {
+                    var (spanStart, spanEnd) = (
+                        Math.Max(from + span.Start, at),
+                        Math.Min(from + span.Start + span.Length, end)
+                    );
+                    if (spanEnd <= spanStart)
+                        continue;
+                    if (spanStart > at)
+                        colored.Color(fragment.Color, fragment.Text[(at - start)..(spanStart - start)]);
+                    var color = new Common.Color(span.Color, fragment.Color.Background);
+                    colored.Color(color, fragment.Text[(spanStart - start)..(spanEnd - start)]);
+                    at = spanEnd;
+                }
+            }
+            if (at < end)
+                colored.Color(fragment.Color, fragment.Text[(at - start)..]);
+            start = end;
+        }
+        return colored;
+    }
+
+    // The text's own color, or a diff's changed word on its background
+    static bool IsCodeText(Common.Color color) =>
+        color.Foreground is ColorName.White or ColorName.OnRemoved or ColorName.OnAdded;
+
     // Draws the text on the view, starting at x,y, from column startIndex, length columns long
     public void Draw(Terminal.Gui.ViewBase.View view, int x, int y, int startIndex = 0, int length = int.MaxValue)
     {

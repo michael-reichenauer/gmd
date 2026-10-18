@@ -57,7 +57,7 @@ class DiffSyntax
         // added, and of the old one where it was removed
         var isNew = row.Mode == DiffRowMode.SideBySide ? isRight : row.RightLineNbr != 0;
         var spans = (isNew ? file.New : file.Old).SpansOf(index);
-        return spans.Count == 0 ? side : WithSpans(side, DiffRowService.LineNbrWidth(lineNbr), spans);
+        return side.WithCode(DiffRowService.LineNbrWidth(lineNbr), spans);
     }
 
     // The lines of each side of a file, in the order they are shown, from its header row to the next
@@ -92,44 +92,6 @@ class DiffSyntax
     }
 
     static string CodeOf(Text side, int lineNbr) => DiffRowService.WithoutLineNbr(side.ToString(), lineNbr);
-
-    // The text with the spans of its code, from char index 'from', in their colors, where it is drawn in
-    // the text's color, on whatever background it has
-    internal static Text WithSpans(Text text, int from, IReadOnlyList<CodeSpan> spans)
-    {
-        var colored = new TextBuilder();
-        var start = 0; // Where the fragment starts in the whole text, as a char index
-        foreach (var fragment in text.Fragments)
-        {
-            var end = start + fragment.Text.Length;
-            var at = start; // How far into the text the fragment has been added
-            if (IsCodeText(fragment.Color))
-            {
-                foreach (var span in spans)
-                {
-                    var (spanStart, spanEnd) = (
-                        Math.Max(from + span.Start, at),
-                        Math.Min(from + span.Start + span.Length, end)
-                    );
-                    if (spanEnd <= spanStart)
-                        continue;
-                    if (spanStart > at)
-                        colored.Color(fragment.Color, fragment.Text[(at - start)..(spanStart - start)]);
-                    var color = new Color(span.Color, fragment.Color.Background);
-                    colored.Color(color, fragment.Text[(spanStart - start)..(spanEnd - start)]);
-                    at = spanEnd;
-                }
-            }
-            if (at < end)
-                colored.Color(fragment.Color, fragment.Text[(at - start)..]);
-            start = end;
-        }
-        return colored;
-    }
-
-    // The text's own color, or a changed word's on its background
-    static bool IsCodeText(Color color) =>
-        color.Foreground is ColorName.White or ColorName.OnRemoved or ColorName.OnAdded;
 
     record FileLines(SideLines Old, SideLines New);
 
