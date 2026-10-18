@@ -26,7 +26,7 @@ class ConfigDlg : IConfigDlg
     public bool Show(string repoPath)
     {
         int width = 60;
-        int height = 22;
+        int height = 24;
 
         var repoConf = repoConfig.Get(repoPath);
         var dlg = new UIDialog("Config", width, height);
@@ -58,6 +58,16 @@ class ConfigDlg : IConfigDlg
         var isAddGmdToPath = dlg.AddCheckBox(1, 14, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
         isAddGmdToPath.Visible = !Build.IsDevInstance() && Build.IsWindows;
 
+        // The palette, see Palette.Choose, picked from the list or typed
+        dlg.AddLabel(1, 16, "Colors:");
+        var colors = dlg.AddComboTextField(10, 16, 10, 5, () => Palette.Settings, config.Colors);
+        dlg.AddLabel(1, 18, Text.Dark("auto picks dark or light by the terminal's background,"));
+        dlg.AddLabel(1, 19, Text.Dark("16 is the 16 colors of the terminal's theme"));
+        dlg.Validate(
+            () => Palette.Settings.Contains(colors.Text),
+            $"Colors is one of {string.Join(", ", Palette.Settings)}"
+        );
+
         if (!dlg.ShowOkCancel())
             return false;
 
@@ -81,7 +91,9 @@ class ConfigDlg : IConfigDlg
             c.AllowPreview = isAllowPreview.Checked;
             c.SpellCheck = isSpellCheck.Checked;
             c.ShowKeyHints = isShowKeyHints.Checked;
+            c.Colors = colors.Text;
         });
+        UI.UsePalette(colors.Text);
 
         UpdatePathVariable(isAddGmdToPath.Checked);
         updater.CheckUpdateAvailableAsync().RunInBackground();

@@ -1,5 +1,6 @@
 using System.Drawing;
 using Terminal.Gui.App;
+using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 
@@ -31,6 +32,25 @@ static class UI
             if (keys.IsDropping)
                 key.Handled = true;
         };
+    }
+
+    // Draws in the palette of the Colors setting ("auto", "dark", "light" or "16") and the terminal:
+    // what it can do, and its own background, which Terminal.Gui asks it for as it starts and which
+    // picks the light palette or the dark one; everything is drawn again when the palette changes
+    internal static void UsePalette(string setting)
+    {
+        var driver = App.Driver;
+        var palette = Palette.Choose(
+            setting,
+            driver?.ColorCapabilities?.Capability ?? ColorCapabilityLevel.TrueColor,
+            driver?.DefaultAttribute?.Background
+        );
+        if (palette == Palette.Current && Terminal.Gui.Drivers.Driver.Force16Colors == palette.IsSixteen)
+            return;
+
+        Palette.Use(palette);
+        Log.Info($"Colors {palette.Name} for '{setting}', terminal {driver?.ColorCapabilities?.Capability}");
+        App.LayoutAndDraw(forceRedraw: true);
     }
 
     // The size of the screen, which a menu or a message box is fitted into
