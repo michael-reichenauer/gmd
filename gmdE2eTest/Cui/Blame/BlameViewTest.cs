@@ -160,7 +160,9 @@ public class BlameViewTest
 
         gmd.Send("L");
 
-        var history = gmd.WaitUntilGone("Blame  alpha.txt");
+        // Waited for by the author's email, which the diff writes and the blame does not, rather than
+        // by the blame being gone, which a slow read of the history shows as nothing at all
+        var history = gmd.WaitFor($"<{TempRepo.AuthorEmail}>");
         StringAssert.Contains(ScreenText.Rows(history, repo.Path, 0, 2), "Change two", "At the line's commit");
         Assert.IsFalse(ScreenText.Rows(history, repo.Path, 0, 2).Contains("Change one"), "Scrolled past the newer one");
 

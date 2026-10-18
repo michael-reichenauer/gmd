@@ -105,7 +105,7 @@ public class FileBrowseDlgTest
         StringAssert.Contains(found, "gamma.txt");
         gmd.Send("Enter");
 
-        var history = gmd.WaitUntilGone("Find:");
+        var history = WaitForHistory(gmd);
         StringAssert.Contains(history, "Add gamma", "The history of gamma.txt");
     }
 
@@ -133,10 +133,15 @@ public class FileBrowseDlgTest
         gmd.WaitFor("Enter history"); // On alpha.txt, the file the commit changed
         gmd.Send("Enter");
 
-        var top = ScreenText.Rows(gmd.WaitUntilGone("Find:"), repo.Path, 0, 2);
+        var top = ScreenText.Rows(WaitForHistory(gmd), repo.Path, 0, 2);
         StringAssert.Contains(top, "Change two", "At the row's commit");
         Assert.IsFalse(top.Contains("Change one"), "Scrolled past the newer one");
     }
+
+    // The history, shown once it is read, which only begins as the dialog closes: waiting for the
+    // dialog to be gone alone took the screen while it was read, with nothing on it but the bar.
+    // The author's email is what the diff writes and the log does not.
+    static string WaitForHistory(TmuxSession gmd) => gmd.WaitFor($"<{TempRepo.AuthorEmail}>");
 
     // Opens the item of the commit menu
     static void OpenFromCommitMenu(TmuxSession gmd, string item)
