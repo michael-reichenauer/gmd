@@ -65,6 +65,10 @@ class ConflictView : IConflictView
     readonly IServer server;
     readonly IProgress progress;
     readonly IConflictRowService rowService;
+    readonly ICodeGrammars grammars;
+
+    // The code of the file colored, made for each file and each read of one, see Syntax
+    ConflictSyntax? syntax;
 
     ContentView contentView = null!;
     ContentView resultView = null!;
@@ -122,7 +126,8 @@ class ConflictView : IConflictView
         IProgress progress,
         IConflictRowService rowService,
         IHelpPage helpPage,
-        Config config
+        Config config,
+        ICodeGrammars grammars
     )
     {
         this.helpPage = helpPage;
@@ -130,6 +135,7 @@ class ConflictView : IConflictView
         this.server = server;
         this.progress = progress;
         this.rowService = rowService;
+        this.grammars = grammars;
     }
 
     // The conflict the cursor is in, or the nearest one before it, so the commands and the result
@@ -400,22 +406,37 @@ class ConflictView : IConflictView
 
         // The cursor on the line number, as the diff draws it, while the keys are with the file
         var columns = ConflictColumns.Calculate(contentWidth, isShowBase);
+        var code = Syntax();
         var texts = rows
             .Rows.Skip(firstRow)
             .Take(rowCount)
             .Select(
                 (r, i) =>
-                    firstRow + i == currentIndex && contentView.HasFocus
-                        ? ConflictRowService.WithCursor(
-                            rowService.ToRowText(r, columns, rowStartX),
-                            r.GutterWidth,
-                            ConflictRowService.CursorColor
-                        )
-                        : rowService.ToRowText(r, columns, rowStartX)
+                {
+                    var text = rowService.ToRowText(code?.Colored(r) ?? r, columns, rowStartX);
+                    return firstRow + i == currentIndex && contentView.HasFocus
+                        ? ConflictRowService.WithCursor(text, r.GutterWidth, ConflictRowService.CursorColor)
+                        : text;
+                }
             );
 
         return (texts, rows.Count);
     }
+
+    // The code in its language's colors, as the diff colors it, unless in the 16 colors, which have
+    // none to spare for it, or unless the config says not to (DiffView.Code)
+    ConflictSyntax? Syntax()
+    {
+        if (!config.ColorCode || Palette.Current.IsSixteen)
+            return null;
+        if (!ReferenceEquals(syntax?.File, file))
+            syntax = grammars.For(file.Path) is ICodeGrammar grammar ? new ConflictSyntax(file, grammar) : null;
+        return syntax;
+    }
+
+    // A row of a result, the file as it will be saved, with its code colored
+    Text ResultRow(ConflictResult result, int index, ConflictSyntax? code) =>
+        code?.ColoredResult(result, index) ?? result.Rows[index];
 
     // The file as it will be saved, which is the whole point of the pane: the decisions are visible
     // as text, in the file around them, rather than only as words in the conflicts' headers, and an
@@ -424,25 +445,24 @@ class ConflictView : IConflictView
     // While a conflict is typed, the pane is the file around it, the text view laid over its rows
     (IEnumerable<Text> rows, int total) OnGetResultContent(int firstRow, int rowCount, int _, int width)
     {
+        var code = Syntax();
         if (typingView == null)
         {
-            var shown = result
-                .Rows.Skip(firstRow)
-                .Take(rowCount)
-                .Select(
-                    (r, i) =>
-                        IsAtCursor(firstRow + i)
-                            ? ConflictRowService.WithCursor(
-                                r,
-                                ConflictRowService.GutterWidth,
-                                ConflictRowService.ResultCursorColor
-                            )
-                            : r
+            var shown = Enumerable
+                .Range(firstRow, Math.Max(0, Math.Min(rowCount, result.Rows.Count - firstRow)))
+                .Select(i =>
+                    IsAtCursor(i)
+                        ? ConflictRowService.WithCursor(
+                            ResultRow(result, i, code),
+                            ConflictRowService.GutterWidth,
+                            ConflictRowService.ResultCursorColor
+                        )
+                        : ResultRow(result, i, code)
                 );
             return (shown, result.Rows.Count);
         }
 
-        var rows = typing.Rows(typingResult, typingHunk, typingView.TopRow);
+        var rows = typing.Rows(typingResult, typingHunk, typingView.TopRow, i => ResultRow(typingResult, i, code));
         return (rows.Take(rowCount), rows.Count);
     }
 

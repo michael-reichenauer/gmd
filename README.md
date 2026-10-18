@@ -166,9 +166,10 @@ once. Gmd keeps that readable rather than letting it flood the log:
   each back. Once on origin, the rewrite is pushed with force, when you tick its box or with `p`
   later, and a branch others build on, such as main, is asked about first.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to
-  each other, as what each did to the common ancestor, combines both where they changed other
-  words, and takes you through the files one after the other, with the file as it will be saved
-  below. When you are done you can commit or continue, skip or abort the operation.
+  each other, as what each did to the common ancestor, the code in the colors of its language,
+  combines both where they changed other words, and takes you through the files one after the
+  other, with the file as it will be saved below. When you are done you can commit or continue,
+  skip or abort the operation.
 - **Worktrees**: see every worktree of a repository and which ones have uncommitted changes, and
   open, add or remove them.
 - **Open in the browser**: a branch, a commit or the repository on GitHub, GitLab, Bitbucket, Azure
@@ -396,7 +397,7 @@ scripts and the conventions.
 - [DiffPlex](https://github.com/mmanela/diffplex) (Apache 2.0) highlights the characters that
   changed within a line of the diff.
 - [TextMateSharp](https://github.com/danipen/TextMateSharp) (MIT), with the TextMate grammars of
-  VS Code, colors the code in a diff by its language. Their regular expressions are run by
+  VS Code, colors the code in a diff, a blame and a conflict by its language. Their regular expressions are run by
   [Oniguruma](https://github.com/kkos/oniguruma) (BSD 2-clause) through
   [Onigwrap](https://github.com/aikawayataro/Onigwrap) (MIT), a native library embedded in the
   executable (see `gmd/doc/licenses/libonigwrap.license`).

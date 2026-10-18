@@ -833,6 +833,32 @@ public class ConflictViewTest
     static string ListOf(string screen) =>
         string.Join("\n", ScreenText.Rows(screen, "", 2, 3).Split('\n').Select(r => r[..(r.IndexOf('│') + 1)]));
 
+    // The code is in its language's colors, those of VS Code's Dark+ in the dark palette, as in the
+    // diff: the text between the conflicts, a line a side added, the words a side kept of a line it
+    // changed, while the words it changed keep its color, and the file as it will be saved below. The
+    // grammars' regular expressions are run by a native library (CodeGrammars), and the 16 colors,
+    // which the other tests draw in, have none for code.
+    [TestMethod]
+    public async Task TestTheCodeIsInItsLanguagesColors()
+    {
+        using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
+        using var gmd = TmuxSession.StartGmd(TempHome.Create(colors: "dark"), repo.Path);
+        OpenTheResolver(gmd, "Pricing.cs");
+        var rows = gmd.WaitFor("─── Conflict 1").Split('\n');
+        var colors = gmd.CaptureColors().Split('\n');
+        string ColorsOf(int row) => colors[row];
+
+        var first = rows.FindIndexBy(r => r.Contains("1 decimal Total"));
+        StringAssert.Contains(ColorsOf(first), "\u001b[38;2;86;156;214mdecimal", "The keyword blue");
+        var changed = rows.FindIndexBy(r => r.Contains("return Math.Round"));
+        StringAssert.Contains(ColorsOf(changed), "\u001b[38;2;197;134;192mreturn", "The control keyword purple");
+        StringAssert.Contains(ColorsOf(changed), "\u001b[48;2;193;156;0mMath.Round(", "main's change on yellow");
+        StringAssert.Contains(ColorsOf(changed), "\u001b[38;2;86;156;214mvar", "dev's line added, its keyword blue");
+        var saved = rows.ToList().FindLastIndex(r => r.Contains("3     var sum"));
+        Assert.IsTrue(saved > rows.FindIndexBy(r => r.Contains("─── Result:")), "In the result pane");
+        StringAssert.Contains(ColorsOf(saved), "\u001b[38;2;86;156;214mvar", "The result's keyword blue");
+    }
+
     // e types a conflict's result by hand in the result pane, in the file around it, with the sides in
     // sight above, from both sides' changes combined where they can be. Esc is done, and what was typed
     // is the decision; leaving it with nothing typed leaves the conflict as it was. It was a box over

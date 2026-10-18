@@ -58,7 +58,7 @@ class ConfigDlg : IConfigDlg
         var colors = dlg.AddComboTextField(10, 16, 10, 5, () => Palette.Settings, config.Colors);
         dlg.AddLabel(1, 18, Text.Dark("auto picks dark or light by the terminal's background,"));
         dlg.AddLabel(1, 19, Text.Dark("16 is the 16 colors of the terminal's theme"));
-        var isColorCode = dlg.AddCheckBox(1, 21, "Color the code in diffs and blame by its language", config.ColorCode);
+        var isColorCode = dlg.AddCheckBox(1, 21, "Color the code by its language", config.ColorCode);
         dlg.Validate(
             () => Palette.Settings.Contains(colors.Text),
             $"Colors is one of {string.Join(", ", Palette.Settings)}"
