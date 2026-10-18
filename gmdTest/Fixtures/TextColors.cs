@@ -9,7 +9,10 @@ namespace gmdTest.Fixtures;
 // uses for a captured screen: 'M' magenta, 'm' bright magenta, 'W' white, 'D' dark, '.' black.
 // The two background colors a diff marks its changes with are '-' (red background, i.e. removed)
 // and '+' (green background, i.e. added), chosen so a diff's colors read as a diff, and a search
-// match is '*' (black on yellow, see Color.Match). ScreenText
+// match is '*' (black on yellow, see Color.Match). The colors of code, which have no RGB of their own
+// in the 16 colors, are what they color: '/' a comment, '"' a string, '#' a number, 'K' a keyword,
+// 'L' a control keyword (if, return), 'T' a type, 'F' a function, 'V' a variable, 'N' a constant,
+// 'E' an escape, 'X' a tag and 'A' an attribute. ScreenText
 // spells '-' as the terminal default instead — these are separate alphabets for separate
 // fixtures, since one reads a Text and the other a terminal capture.
 static class TextColors
@@ -34,7 +37,21 @@ static class TextColors
         (Color.RedBg, '-'),
         (Color.GreenBg, '+'),
         (Color.Match, '*'),
+        (Code(ColorName.CodeComment), '/'),
+        (Code(ColorName.CodeString), '"'),
+        (Code(ColorName.CodeNumber), '#'),
+        (Code(ColorName.CodeKeyword), 'K'),
+        (Code(ColorName.CodeControl), 'L'),
+        (Code(ColorName.CodeType), 'T'),
+        (Code(ColorName.CodeFunction), 'F'),
+        (Code(ColorName.CodeVariable), 'V'),
+        (Code(ColorName.CodeConstant), 'N'),
+        (Code(ColorName.CodeEscape), 'E'),
+        (Code(ColorName.CodeTag), 'X'),
+        (Code(ColorName.CodeAttribute), 'A'),
     ];
+
+    static Color Code(ColorName name) => new(name, ColorName.Background);
 
     // A blank rune keeps its space, so the letters line up below the runes they belong to — but
     // only where the color is a foreground on the default background. A space carrying a

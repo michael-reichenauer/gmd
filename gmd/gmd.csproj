@@ -31,6 +31,22 @@
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
   </ItemGroup>
 
+  <!-- Oniguruma (libonigwrap), the native library the grammars that color code in a diff run their
+       regular expressions with (Cui/Common/CodeGrammars.cs), embedded for the platform built for, as a
+       release is, which OnigurumaLibrary writes out and loads when it is not beside gmd. The single
+       file leaves native libraries beside it, which a release is not shipped with, and bundled, the
+       .NET host extracts them as gmd starts, and gmd does not start at all where it cannot. -->
+  <Target Name="EmbedOniguruma" AfterTargets="ResolvePackageAssets" Condition="'$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <Oniguruma Include="@(NativeCopyLocalItems)" Condition="'%(Filename)' == 'libonigwrap'" />
+      <EmbeddedResource Include="@(Oniguruma)" LogicalName="gmd.native.libonigwrap" />
+    </ItemGroup>
+    <Error
+      Condition="'@(Oniguruma)' == ''"
+      Text="No libonigwrap for $(RuntimeIdentifier) to embed, code would not be colored"
+    />
+  </Target>
+
   <ItemGroup>
     <!-- The spell check dictionary (SCOWL en_US, see doc/spelling/en_US.license). LogicalName pins the
          resource names rather than relying on how the folder path is mangled into one. -->
