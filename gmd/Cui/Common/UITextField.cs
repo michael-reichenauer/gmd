@@ -13,7 +13,7 @@ namespace gmd.Cui.Common;
 //
 // Terminal.Gui counts the caret and the scroll offset in graphemes, the spell checking in runes,
 // which are the same for text with no combining marks.
-class UITextField : TextField
+class UITextField : TextField, IPasteTarget
 {
     readonly Typing typing;
 
@@ -75,6 +75,14 @@ class UITextField : TextField
             ClearAllSelection();
             CursorPosition = caret;
         }
+    }
+
+    // Through the field's own paste, which takes the first line, as Ctrl-V does
+    public void PasteText(string text)
+    {
+        var sanitized = OnSanitizingPaste(text);
+        if (sanitized != "")
+            OnPaste(sanitized);
     }
 
     protected override bool OnKeyDown(Key key)

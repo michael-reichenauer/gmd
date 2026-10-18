@@ -150,9 +150,9 @@ class ContentView : View
             SetNeedsDraw();
     }
 
-    // SPIKE: 2.x calls OnKeyDown on the focused view first, then its superviews', so this is what 1.x's
-    // ProcessHotKey was here. A Key is a class with a KeyCode, compared by it, and Shift a property of
-    // it, so the switch on key values became a chain of comparisons.
+    // The keys registered, and the moves of the cursor. Terminal.Gui calls OnKeyDown on the focused
+    // view first, then on its superviews'. A Key is a class with a KeyCode, compared by it, and Shift
+    // a property of it.
     protected override bool OnKeyDown(Key key)
     {
         // Log.Info($"Key: {key}");
@@ -213,7 +213,7 @@ class ContentView : View
         return base.OnKeyDown(key);
     }
 
-    // SPIKE: the mouse is the Mouse of 2.x, its Position relative to the viewport, which here is the frame
+    // The mouse's Position is relative to the viewport, which here is the frame
     protected override bool OnMouseEvent(Mouse ev)
     {
         var (evX, evY) = ev.Position is Point p ? (p.X, p.Y) : (0, 0);
@@ -279,8 +279,8 @@ class ContentView : View
         return false;
     }
 
-    // SPIKE: 2.x clears the viewport with the view's scheme before this, which the rows then cover; the
-    // background left below the last row is the scheme's, so the top view's scheme is gmd's colors
+    // Terminal.Gui clears the viewport with the view's scheme before this, which the rows then cover;
+    // the background left below the last row is the scheme's, so the top view's scheme is gmd's colors
     protected override bool OnDrawingContent(DrawContext? context)
     {
         IReadOnlyList<Text> currentRows = GetContentRows();

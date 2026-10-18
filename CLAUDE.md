@@ -517,6 +517,9 @@ changes another while it is drawn (a label it fills in, the key-hint line it is 
 that change, or it is never drawn. So does a change of the focus made as the focus changes
 (`HasFocusChanged`): 2.x throws when the view it was moving the focus to has not got it, and gmd
 crashes. The arrow keys move the focus too, in 2.x, wherever the view with it has no use for them.
+A paste from the terminal (bracketed paste) is gmd's to place: `UI.Paste` puts it into the input the
+keys go to (`IPasteTarget`), since 2.x gives it to the view it last recorded as focused, which in a
+dialog just opened is the inside of its frame, and drops it where no input has the keys.
 
 The colors are names (`ColorName`, `Cui/Common/Color.cs`), drawn in the RGB of the `Palette` in use:
 dark (Campbell) or light, picked by the terminal's own background, which 2.x asks the terminal for,

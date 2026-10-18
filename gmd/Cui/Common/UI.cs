@@ -24,6 +24,11 @@ static class UI
     {
         app = application;
         application.Iteration += (_, _) => queue.RunPosted();
+        application.Paste += (_, e) =>
+        {
+            Paste(e.Text);
+            e.Handled = true;
+        };
 
         // Keys are dropped while git works (KeyGate): the application's KeyDown is raised before any
         // view gets the key, and a key marked handled there goes no further
@@ -32,6 +37,18 @@ static class UI
             if (keys.IsDropping)
                 key.Handled = true;
         };
+    }
+
+    // A paste from the terminal (a bracketed paste, which Terminal.Gui turns on) goes into the input
+    // the keys go to, down the focus of the view on top, and nowhere else: not as keys into a view
+    // that takes no text, where its letters would be keys of the log. Terminal.Gui 2.5 gives it to
+    // the view it recorded as focused, which as a dialog opens is the dialog's inside rather than
+    // the field in it that has the focus (Runnable.RaiseIsModalChangedEvent records Focused, not
+    // MostFocused), so a paste into a dialog's first field went nowhere until a key moved the focus.
+    static void Paste(string text)
+    {
+        if (Current?.MostFocused is IPasteTarget target)
+            target.PasteText(text);
     }
 
     // Draws in the palette of the Colors setting ("auto", "dark", "light" or "16") and the terminal:

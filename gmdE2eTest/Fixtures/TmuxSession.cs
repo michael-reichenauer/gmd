@@ -315,6 +315,10 @@ sealed class TmuxSession : IDisposable
         return (0, 0);
     }
 
+    // Pastes the text as a terminal does, between the markers of a bracketed paste, which gmd's
+    // Terminal.Gui asks the terminal for, with a line's end as the CR a terminal sends for it
+    public void Paste(string text) => SendText($"\u001b[200~{text.Replace("\n", "\r")}\u001b[201~");
+
     // Sends text literally, for typing into a dialog, so that e.g. "Down" is five characters
     // rather than a cursor key
     public void SendText(string text) => Tmux("send-keys", "-t", "gmd", "-l", text);
