@@ -51,8 +51,9 @@ fi
 # graph's box drawing characters meet from one row to the next rather than leave gaps.
 #
 # The colors are Windows Terminal's Campbell scheme, as background, foreground and the 16 ANSI
-# colors. Its black has to be the background: gmd paints black behind its text, which any theme
-# with a background of its own shows as dark blocks around every word.
+# colors, which git's log and the caption panel are drawn in. gmd draws in the RGB of its dark
+# palette, which is Campbell too, on the terminal's background, so the theme's has to be Campbell's
+# black, or gmd's colors would be on another than they were made for.
 campbell="0c0c0c,cccccc,0c0c0c,c50f1f,13a10e,c19c00,0037da,881798,3a96dd,cccccc,767676,e74856,16c60c,f9f1a5,3b78ff,b4009e,61d6d6,f2f2f2"
 
 render() {
