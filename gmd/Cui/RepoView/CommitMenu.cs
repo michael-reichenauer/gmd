@@ -81,8 +81,7 @@ class CommitMenu : ICommitMenu
             .Items(GetSquashItems())
             .Item("Commit Diff", "d", () => cmds.ShowCurrentRowDiff())
             // Any two commits, which a range selected with ⇧↑↓ is only for commits of one branch
-            .Item("Mark for Diff", "", () => cmds.MarkForDiff(c.Id), () => !c.IsUncommitted, () => NoCommit)
-            .Items(GetDiffWithMarkedItems(c))
+            .Items(GetMarkForDiffItems(c))
             .SubMenu("Undo", "", GetCommitUndoItems())
             .SubMenu("Stash", "", GetStashMenuItems())
             // On any row, since its list of every tag is not about the commit
@@ -305,14 +304,26 @@ class CommitMenu : ICommitMenu
 
     const string NoCommit = "The uncommitted changes are no commit: move to one first";
 
-    // The diff of this commit with the one marked for a diff, once one is
-    IEnumerable<MenuItem> GetDiffWithMarkedItems(Commit c)
+    // Marking this commit for a diff, or unmarking it when it is the one marked, and the diff of
+    // this commit with the one marked, once one is. Mark and Unmark are one item, so the items after
+    // them are as many moves down whichever it is.
+    IEnumerable<MenuItem> GetMarkForDiffItems(Commit c)
     {
         var markedId = diffMark.IdIn(repo.Path);
+        var items =
+            c.Id == markedId
+                ? Menu.Items.Item("Unmark for Diff", "", () => cmds.UnmarkForDiff())
+                : Menu.Items.Item(
+                    "Mark for Diff",
+                    "",
+                    () => cmds.MarkForDiff(c.Id),
+                    () => !c.IsUncommitted,
+                    () => NoCommit
+                );
         if (markedId == "" || !repo.Repo.CommitById.ContainsKey(markedId))
-            return [];
+            return items;
 
-        return Menu.Items.Item(
+        return items.Item(
             $"Diff with {Sid(markedId)}",
             "",
             () => cmds.DiffWithMarked(c.Id),

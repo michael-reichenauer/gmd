@@ -310,6 +310,7 @@ selects them too, in any terminal.
 | *      | Detached commit (commit checked out, not a branch)           |
 | ⌂      | Commit and branch checked out in another worktree            |
 | ß      | Stash based on commit                                        |
+| ±      | Commit marked for a diff (Mark for Diff, in the commit menu) |
 | ▲      | Commit not yet pushed (green subject)                        |
 | ▼      | Commit not yet pulled (blue subject)                         |
 | ✓      | Branch squash or rebase merged on origin, deleted there      |
@@ -689,9 +690,13 @@ the line above it stays, and the lines left out come in below it. The menu has t
 and what it would then show.
 
 Rows selected with `Shift-↑↓` and `d` diff the commits of a range on one
-branch. Any two commits, wherever they are, are diffed with **Mark for
-Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
-other: the changes from the older of the two to the newer.
+branch: the changes they made, the oldest one's too, titled e.g. *Diff of 3
+commits*. Any two commits, wherever they are, are diffed with **Mark for
+Diff** in the commit menu of one, which marks it `±` in the log, and
+**Diff with <id>** in the menu of the other: the changes from the older of
+the two to the newer, so not the older one's own. The mark stays for diffs
+with other commits too, until another commit is marked or **Unmark for
+Diff** in its menu takes it away.
 
 In a view narrower than 110 columns, the diff is in one column instead,
 each change's removed lines above its added ones, as git writes them, each

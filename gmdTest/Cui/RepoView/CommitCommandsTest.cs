@@ -162,6 +162,25 @@ public class CommitCommandsTest
         );
     }
 
+    // A range diff is the changes of the commits selected, the oldest one's too, unlike the diff of
+    // two commits marked, so its title counts them. Only those of its branch, which the selection is
+    // drawn on, not dev's rows between them.
+    [TestMethod]
+    public async Task TestARangeDiffIsTitledWithTheCommitsOfItsBranch()
+    {
+        var repo = await TwoLines().ViewRepoAsync("dev");
+        Assert.IsTrue(Row(repo, "d2") > Row(repo, "c3") && Row(repo, "d1") < Row(repo, "c1"), "dev is in between");
+
+        Assert.AreEqual(
+            "Diff of 3 commits, c1000000 to c3000000",
+            CommitCommands.RangeTitle(repo, RepoBuilder.Sha("c3"), RepoBuilder.Sha("c1"))
+        );
+        Assert.AreEqual(
+            "Diff of 2 commits, d1000000 to d2000000",
+            CommitCommands.RangeTitle(repo, RepoBuilder.Sha("d2"), RepoBuilder.Sha("d1"))
+        );
+    }
+
     static int Row(Repo repo, string name) => repo.CommitById[RepoBuilder.Sha(name)].ViewIndex;
 
     // main and dev, both from c1

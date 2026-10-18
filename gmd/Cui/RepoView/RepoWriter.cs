@@ -25,13 +25,15 @@ class RepoWriter : IRepoWriter
 
     readonly IBranchColorService branchColorService;
     readonly IGraphWriter graphWriter;
+    readonly DiffMark diffMark;
 
     record Columns(int Subject, int Sid, int Author, int Time, int GraphWidth);
 
-    public RepoWriter(IBranchColorService branchColorService, IGraphWriter graphWriter)
+    public RepoWriter(IBranchColorService branchColorService, IGraphWriter graphWriter, DiffMark diffMark)
     {
         this.branchColorService = branchColorService;
         this.graphWriter = graphWriter;
+        this.diffMark = diffMark;
     }
 
     public IEnumerable<Text> ToPage(
@@ -60,6 +62,7 @@ class RepoWriter : IRepoWriter
         var crb = repo.Repo.BranchByName[crc.BranchName];
         var isUncommitted = !repo.Repo.Status.IsOk;
         var isBranchDetached = crb.IsDetached;
+        var markedId = diffMark.IdIn(repo.Path);
         Columns cw = ColumnWidths(repo, width);
 
         // Branch? prevBranch = null;
@@ -72,7 +75,7 @@ class RepoWriter : IRepoWriter
             // Build row
             var graphText = new TextBuilder();
             WriteGraph(graphText, repo.Graph, i, cw.GraphWidth, hooverBranchName, i == hooverIndex);
-            WriteBlankOrStash(graphText, c);
+            WriteDiffMarkOrStash(graphText, c, markedId);
             WriteCheckoutMarker(
                 graphText,
                 c,
@@ -155,8 +158,15 @@ class RepoWriter : IRepoWriter
         text.Add(graphWriter.ToText(graph, index, maxGraphWidth, highlightBranchName, isHoverIndex));
     }
 
-    static void WriteBlankOrStash(TextBuilder text, Commit c)
+    // The commit marked for a diff, which takes the column over from a stash: the mark is there for
+    // a moment and has to be seen, while the top bar still counts the stash
+    static void WriteDiffMarkOrStash(TextBuilder text, Commit c, string markedId)
     {
+        if (c.Id == markedId)
+        {
+            text.BrightCyan(DiffMark.Marker);
+            return;
+        }
         if (c.HasStash)
         {
             text.White("ß");
