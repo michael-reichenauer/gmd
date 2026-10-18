@@ -121,6 +121,17 @@ While a commit, push or pull runs it says what is being done, in cyan. For
 a few seconds after a command it says what the command did, or why a key
 or a greyed out menu item did nothing, and in red when a fetch failed.
 
+### Colors
+
+Gmd draws in colors of its own: a dark palette, or a light one when the
+terminal's background is light, which gmd asks the terminal as it starts.
+Branches get twelve colors, picked by their names, and `g` changes the
+color of the highlighted one. **Colors** in **Config ...** in the repo menu
+chooses: `auto` (dark or light by the terminal), `dark`, `light`, or `16`,
+the 16 colors of the terminal's own theme on black, with five branch colors,
+which is also what a terminal of 16 colors gets. A terminal without 24-bit
+color, e.g. macOS Terminal before macOS 26, needs `16`.
+
 
 ## Showing and Hiding Branches
 
@@ -263,6 +274,8 @@ In dialogs and text fields:
 | Alt-O      | OK, e.g. to commit while typing in the message box         |
 | Ctrl-D     | Show the diff of what is committed, in the commit dialog   |
 | Ctrl-A     | After a merge, add the merged commits' subjects            |
+| Ctrl-A     | Otherwise select all; Ctrl-C, -X, -V copy, cut and paste   |
+| Ctrl-Z     | Undo typing (Ctrl-Y redo)                                  |
 | Space, a   | Untick or tick a file, or all, in the commit file list     |
 | F7         | Spelling suggestions (also Ctrl-G)                         |
 | Shift-F10  | Text menu: spelling, copy, paste (also right-click)        |

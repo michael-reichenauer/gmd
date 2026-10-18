@@ -1,6 +1,6 @@
 # Contributing to Gmd
 
-Gmd is written in C# for .NET 10 on [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) 1.x.
+Gmd is written in C# for .NET 10 on [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) 2.x.
 It runs the `git` command line for everything and uses no Git library. The code is layered, and
 each layer calls only the one below it:
 

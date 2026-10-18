@@ -86,7 +86,13 @@ class Program
         // has no part in either.
         using IApplication app = Application.Create().Init();
         UI.SetApp(app);
-        UsePalette(app);
+        UI.UsePalette(config.Colors);
+        if (app.Driver is IDriver driver)
+        {
+            // The terminal says what its background is a moment after the start, which picks the
+            // light palette or the dark one, as the setting is then
+            driver.DefaultAttributeChanged += (_, _) => UI.Post(() => UI.UsePalette(config.Colors));
+        }
         LogGitVersionAsync().RunInBackground();
 
         // Esc, Terminal.Gui's quit key, ends the view on top, which is gmd itself when no view above
@@ -97,31 +103,6 @@ class Program
         // Run blocks until the user quits the application
         app.Run(view, HandleUIMainLoopError);
         view.Dispose();
-    }
-
-    // The palette by the Colors setting and the terminal: the terminal's own background, which
-    // Terminal.Gui asks the terminal for as it starts, picks the light palette or the dark one once
-    // the answer is in, and everything is drawn again in it
-    void UsePalette(IApplication app)
-    {
-        Palette Choose() =>
-            Palette.Choose(
-                config.Colors,
-                app.Driver?.ColorCapabilities?.Capability ?? ColorCapabilityLevel.TrueColor,
-                app.Driver?.DefaultAttribute?.Background
-            );
-
-        Palette.Use(Choose());
-        Log.Info($"Colors:  {Palette.Current.Name}, terminal {app.Driver?.ColorCapabilities?.Capability}");
-        if (app.Driver is IDriver driver)
-        {
-            driver.DefaultAttributeChanged += (_, _) =>
-                UI.Post(() =>
-                {
-                    Palette.Use(Choose());
-                    app.LayoutAndDraw(forceRedraw: true);
-                });
-        }
     }
 
     bool HandleUIMainLoopError(Exception e)

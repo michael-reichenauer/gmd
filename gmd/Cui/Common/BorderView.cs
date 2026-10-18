@@ -2,8 +2,9 @@ using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
-// A rectangle drawn in one color, used to frame another view, e.g. a multi line text input. Its
-// inside is left as it is: the view framed is drawn over it.
+// A rectangle drawn in one color, used to frame another view, e.g. a multi line text input. It is
+// under the view it frames (UIDialog.AddBorderView), which Terminal.Gui draws first and keeps it off,
+// and it keeps the views under it off its lines, e.g. the text a drop down list is opened over.
 class BorderView : View
 {
     readonly Color color;
@@ -12,7 +13,6 @@ class BorderView : View
     {
         CanFocus = false;
         this.color = color;
-        ViewportSettings |= ViewportSettingsFlags.Transparent;
     }
 
     protected override bool OnDrawingContent(DrawContext? context)

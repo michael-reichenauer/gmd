@@ -153,6 +153,9 @@ sealed class Palette
         Changed?.Invoke();
     }
 
+    // What the Colors setting can be, see Choose
+    internal static readonly IReadOnlyList<string> Settings = ["auto", "dark", "light", "16"];
+
     // The palette for the Colors setting ("auto", "dark", "light" or "16"), what Terminal.Gui found
     // the terminal can do, and the terminal's own background, which it asks the terminal for as it
     // starts and which is null until the answer is in, or with a terminal that does not answer

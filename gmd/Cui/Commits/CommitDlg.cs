@@ -289,7 +289,9 @@ class CommitDlg : ICommitDlg
             showDiff();
             return true;
         }
-        if (key == Key.A.WithCtrl)
+        // After a merge, Ctrl-A adds the merged commits' subjects; otherwise it is the message box's
+        // own, which selects all, as the edit menu says
+        if (key == Key.A.WithCtrl && commits?.Count > 0)
         {
             AddMergeMessages();
             return true;
