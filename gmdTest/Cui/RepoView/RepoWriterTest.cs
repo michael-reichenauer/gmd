@@ -229,9 +229,9 @@ public class RepoWriterTest
         // Hoovering a branch turns the current row's highlight off, see the ahead and behind test
         var rows = Rows(view, 120, hooverBranch: "main", hooverIndex: 0, diffMark: mark);
 
-        StringAssert.StartsWith(rows[1].ToString(), "┣  Δ  Second");
+        StringAssert.StartsWith(rows[1].ToString(), "┣  ±  Second");
         StringAssert.StartsWith(TextColors.Of(rows[1]), "M  c  WWWWWW", "In bright cyan, as no other mark is");
-        Assert.IsFalse(rows[0].ToString().Contains('Δ') || rows[2].ToString().Contains('Δ'), "The one marked only");
+        Assert.IsFalse(rows[0].ToString().Contains('±') || rows[2].ToString().Contains('±'), "The one marked only");
     }
 
     // The mark is there for a moment and has to be seen, so it is drawn over a stash's 'ß', which
@@ -248,7 +248,7 @@ public class RepoWriterTest
         var mark = new DiffMark();
         mark.Set(repo.Path, RepoBuilder.Sha("c2"));
 
-        StringAssert.StartsWith(Rows(new FakeViewRepo(repo), 120, diffMark: mark)[0].ToString(), "┣─┺Δ● Second");
+        StringAssert.StartsWith(Rows(new FakeViewRepo(repo), 120, diffMark: mark)[0].ToString(), "┣─┺±● Second");
     }
 
     // A mark is of the repository it was made in, so another one opened in the same gmd has none
@@ -258,7 +258,7 @@ public class RepoWriterTest
         var mark = new DiffMark();
         mark.Set("/some/other/repo", RepoBuilder.Sha("c2"));
 
-        Assert.IsFalse(Page(await View(), 120, diffMark: mark).Contains('Δ'));
+        Assert.IsFalse(Page(await View(), 120, diffMark: mark).Contains('±'));
     }
 
     // The branch tips, i.e. the '(name)' after the subject saying which branches end at this commit

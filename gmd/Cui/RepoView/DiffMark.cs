@@ -9,7 +9,7 @@ namespace gmd.Cui.RepoView;
 class DiffMark
 {
     // Drawn in the column before the subject, over a stash's 'ß', which the top bar still counts
-    public const string Marker = "Δ";
+    public const string Marker = "±";
 
     string repoPath = "";
     string commitId = "";
