@@ -1,15 +1,29 @@
 namespace gmd.Cui.Common;
 
-// How the file browser draws its rows, each as wide as the list: a row of the tree while nothing is
-// typed, and a file found once something is. Both have at the right the letter of a file's change in
-// the commit, in the color the commit details and the diff give it, so the files it changed stand
-// out wherever they are. Plain, with no view, so the rows are asserted as text.
+// How the file browser draws its rows, each as wide as the list: the changed files and the tree
+// while nothing is typed, and a file found once something is. All have at the right the letter of a
+// file's change in the commit, in the color the commit details and the diff give it, so the files it
+// changed stand out wherever they are. Plain, with no view, so the rows are asserted as text.
 static class FileBrowseRows
 {
+    // A row of what is shown while nothing is typed: a heading, white with a dark rule after it, a
+    // changed file as its path, lined up with the names of the tree, or a row of the tree
+    public static Text TreeRow(FileTree.Row row, int width) =>
+        row.Kind switch
+        {
+            FileTree.RowKind.Heading => Text.Black(" ")
+                .White(row.Name)
+                .Dark($" {new string('─', Math.Max(0, width - row.Name.Length - 3))}")
+                .Black(" "),
+            FileTree.RowKind.Changed => PathRow(row.Path, row.Change, [], width, "   "),
+            _ => TreeNodeRow(row, width),
+        };
+
     // A dark guide for each folder the row is in, under that folder's marker, then a folder's '▾'
-    // when open or '▸' when closed and its name in blue, or a file's name, lined up with the names
-    // of the folders beside it. A folder holding a changed file has a '•' where a file has its letter.
-    public static Text TreeRow(FileTree.Row row, int width)
+    // when open or '▸' when closed and its name in the light blue of the key hints (cyan), or a
+    // file's name, lined up with the names of the folders beside it. A folder holding a changed file
+    // has a '•' where a file has its letter.
+    static Text TreeNodeRow(FileTree.Row row, int width)
     {
         var text = new TextBuilder().Black(" ");
         for (var i = 0; i < row.Depth; i++)
@@ -26,7 +40,7 @@ static class FileBrowseRows
         var nameWidth = width - text.Length - 3;
         var name = CutEnd(row.Name, nameWidth);
         if (row.IsFolder)
-            text.BrightBlue(name);
+            text.Cyan(name);
         else
             text.White(name);
 
@@ -35,14 +49,17 @@ static class FileBrowseRows
 
     // A file found: its folders dark and its name white, the words typed in yellow where they are,
     // and a path too long for the row cut at its start, where its folders are
-    public static Text FoundRow(string path, char change, IReadOnlyList<string> words, int width)
+    public static Text FoundRow(string path, char change, IReadOnlyList<string> words, int width) =>
+        PathRow(path, change, words, width, " ");
+
+    static Text PathRow(string path, char change, IReadOnlyList<string> words, int width, string margin)
     {
         var mark = change != ' ' ? ChangedFileText.Letter(change) : Text.Black(" ");
-        var shown = CutStart(path, width - 4);
+        var shown = CutStart(path, width - margin.Length - 3);
         var slash = shown.LastIndexOf('/');
-        Text text = new TextBuilder().Black(" ").Dark(shown[..(slash + 1)]).White(shown[(slash + 1)..]);
+        Text text = new TextBuilder().Black(margin).Dark(shown[..(slash + 1)]).White(shown[(slash + 1)..]);
         foreach (var word in words)
-            text = text.WithMatches(word, 1, Color.BrightYellow);
+            text = text.WithMatches(word, margin.Length, Color.BrightYellow);
 
         return WithMark(text.ToTextBuilder(), mark, width);
     }

@@ -1005,14 +1005,14 @@ class CommitCommands : ICommitCommands
 
     // A file of the row's commit, picked in the file browser, or "" when it was closed with none
     // picked. The uncommitted row has no tree of its own, so its branch supplies the files, and the
-    // uncommitted changes are the ones marked. Reading what a commit changed is only for the marks,
+    // uncommitted changes are the ones listed first. Reading what a commit changed is only for the marks,
     // so a failure to is no reason not to offer its files.
     async Task<Result<string>> PickFileAsync(IViewRepo repo, string title, string action)
     {
         var commit = repo.RowCommit;
-        var (reference, about) = commit.IsUncommitted
-            ? (commit.BranchName, $"branch {commit.BranchName}")
-            : (commit.Id, $"commit {commit.Id.Sid()}");
+        var (reference, about, changedHeading) = commit.IsUncommitted
+            ? (commit.BranchName, $"branch {commit.BranchName}", "Uncommitted changes")
+            : (commit.Id, $"commit {commit.Id.Sid()}", $"Changed in commit {commit.Id.Sid()}");
 
         var filesTask = server.GetFilePathsAsync(reference, repo.Path);
         var changes = commit.IsUncommitted
@@ -1029,7 +1029,9 @@ class CommitCommands : ICommitCommands
         if (filesResult is not IReadOnlyList<string> paths)
             return new Error($"Failed to get files", filesResult.Error);
 
-        return new FileBrowseDlg().Show(title, paths, changes, about, action) is string path ? path : "";
+        return new FileBrowseDlg().Show(title, paths, changes, changedHeading, about, action) is string path
+            ? path
+            : "";
 
         static Dictionary<string, char> LoggedNone(Error e)
         {

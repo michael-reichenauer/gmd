@@ -55,14 +55,18 @@ itself (617 files).
 ### As done (2026-10-18)
 
 All five: the dialog is now laid out as Find Branch is, a field to type in over a list and a status
-line with the keys, as large as the terminal allows (up to 90 by 34). With nothing typed, the list
-is the tree (`FileTree`), gmd's own rows (`FileBrowseRows`): `▸` / `▾`, dark guides, folders in
-blue, the files the commit changed marked with their letter at the right and their folders with a
-`•`, those folders opened and the cursor on the first such file. Typing lists the files whose path
-has every word (`FileFinder`, ranked as `BranchFinder` is), the words marked in yellow; clearing it
-goes back to the tree as it was. Enter or a click picks a file or opens and closes a folder, `→` /
-`←` open, close and go up. The titles are the menu items', and the status line says what the files
-are (`617 files of commit 1be33bd1`) and what Enter does where the cursor is.
+line with the keys, as large as the terminal allows (up to 90 by 34). With nothing typed
+(`FileTree`, drawn in gmd's own rows by `FileBrowseRows`), the files the commit changed come first
+under *Changed in commit 1be33bd1* (*Uncommitted changes* on that row), the cursor on the first, and
+then under *All files* the tree, every folder closed: `▸` / `▾`, dark guides, folders in the light
+blue of the key hints, a changed file's letter at the right and a `•` on a folder holding one. The
+first version opened the folders of the changed files instead, which the author could not tell the
+reason for: some folders open and others not, the `•` far off at the right edge. The arrows skip the
+two headings. Typing lists the files whose path has every word (`FileFinder`, ranked as
+`BranchFinder` is), the words marked in yellow; clearing it goes back to the tree as it was. Enter
+or a click picks a file or opens and closes a folder, `→` / `←` open, close and go up. The titles
+are the menu items', and the status line says what the files are (`617 files of commit 1be33bd1`)
+and what Enter does where the cursor is.
 
 Open: **the folder browser** (`FolderBrowseDlg`: Init, Clone, Add Worktree and opening a repository,
 from the start page or the repo menu) is the same kind of workaround over `TreeView` and looks as

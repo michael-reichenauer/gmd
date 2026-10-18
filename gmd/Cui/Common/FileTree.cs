@@ -1,16 +1,30 @@
 namespace gmd.Cui.Common;
 
-// The files of a commit as a tree of folders, which the file browser shows while nothing is typed:
-// which folders are open, the rows that makes, and where the arrow keys go. Folders come before
-// files, each in name order, case ignored, as a file manager lists them. The files the commit
-// changed have the letter of their change, their folders say they hold one, and those folders are
-// open as the tree is made, so the files most likely wanted are in sight. Plain, with no view, so it
-// is unit testable.
+// What the file browser shows while nothing is typed: the files the commit changed, under a heading
+// that says so, since they are the ones most likely wanted, and then every file of the commit as a
+// tree of folders, all closed to begin with, so that it looks the same whatever the commit changed.
+// Which folders are open, the rows that makes, and where the arrow keys go, past the headings, which
+// are no rows to be on. Folders come before files, each in name order, case ignored, as a file
+// manager lists them. A changed file has the letter of its change in the tree too, and a folder
+// holding one says so. Plain, with no view, so it is unit testable.
 class FileTree
 {
-    // A row: a folder or a file, how deep it is, whether a folder is open, and the letter of a
-    // file's change in the commit (' ' for none), or for a folder whether it holds a changed file
-    public record Row(string Path, string Name, int Depth, bool IsFolder, bool IsOpen, char Change, bool HasChanges);
+    public enum RowKind
+    {
+        Heading,
+        Changed, // A file the commit changed, in the list of them above the tree
+        Folder,
+        File,
+    }
+
+    // A row: a heading, a changed file above the tree, or a folder or a file of the tree, how deep it
+    // is there, whether a folder is open, and the letter of a file's change in the commit (' ' for
+    // none), or for a folder whether it holds a changed file
+    public record Row(RowKind Kind, string Path, string Name, int Depth, bool IsOpen, char Change, bool HasChanges)
+    {
+        public bool IsHeading => Kind == RowKind.Heading;
+        public bool IsFolder => Kind == RowKind.Folder;
+    }
 
     class Node
     {
@@ -30,6 +44,8 @@ class FileTree
         public bool HasChanges { get; set; }
     }
 
+    public const string AllFilesHeading = "All files";
+
     static readonly IComparer<Node> NameOrder = Comparer<Node>.Create(
         (a, b) =>
             a.IsFolder != b.IsFolder ? (a.IsFolder ? -1 : 1)
@@ -40,37 +56,71 @@ class FileTree
     readonly Node root = new("", "", null);
     readonly Dictionary<string, Node> nodes = [];
     readonly HashSet<string> open = [];
+    readonly List<Row> changed = []; // The changed files under their heading, then the tree's; none when none
     List<(Node Node, int Depth)> shown = [];
     List<Row>? rows;
 
-    public FileTree(IReadOnlyList<string> paths, IReadOnlyDictionary<string, char> changes)
+    // changedHeading says what the changes are, e.g. 'Changed in commit 1be33bd1'
+    public FileTree(IReadOnlyList<string> paths, IReadOnlyDictionary<string, char> changes, string changedHeading)
     {
         foreach (var path in paths)
             Add(path);
         Sort(root);
 
+        List<Node> changedFiles = [];
         foreach (var (path, change) in changes)
         {
             if (!nodes.TryGetValue(path, out var file) || file.IsFolder)
                 continue; // Not one of the files listed, e.g. one the commit deleted
             file.Change = change;
+            changedFiles.Add(file);
             for (var folder = file.Parent; folder != root && folder != null; folder = folder.Parent)
-            {
                 folder.HasChanges = true;
-                open.Add(folder.Path);
-            }
+        }
+
+        if (changedFiles.Count > 0)
+        {
+            changed.Add(Heading(changedHeading));
+            changed.AddRange(
+                changedFiles
+                    .OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(f => f.Path, StringComparer.Ordinal)
+                    .Select(f => new Row(RowKind.Changed, f.Path, f.Path, 0, false, f.Change, false))
+            );
+            changed.Add(Heading(AllFilesHeading));
         }
 
         Update();
     }
 
-    public IReadOnlyList<Row> Rows => rows ??= shown.Select(s => ToRow(s.Node, s.Depth)).ToList();
+    public IReadOnlyList<Row> Rows => rows ??= [.. changed, .. shown.Select(s => ToRow(s.Node, s.Depth))];
 
-    // The rows there are with every folder open, i.e. every file and folder
-    public int AllCount => nodes.Count;
+    // The rows there are with every folder open, i.e. every file and folder, and the changed files
+    public int AllCount => changed.Count + nodes.Count;
 
-    // The first file the commit changed, where the cursor starts, or the first row when it changed none
-    public int FirstChanged => Math.Max(0, shown.FindIndex(s => !s.Node.IsFolder && s.Node.Change != ' '));
+    // Where the cursor starts: on the first changed file, or the first row when none
+    public int First => changed.Count > 0 ? 1 : 0;
+
+    // Where moving the cursor by the rows takes it, within them and past a heading
+    public int Step(int index, int move)
+    {
+        var count = Rows.Count;
+        if (count == 0)
+            return 0;
+        var to = Math.Clamp(index + move, 0, count - 1);
+        var direction = move < 0 ? -1 : 1;
+        for (var i = to; i >= 0 && i < count; i += direction)
+        {
+            if (!Rows[i].IsHeading)
+                return i;
+        }
+        for (var i = to; i >= 0 && i < count; i -= direction)
+        {
+            if (!Rows[i].IsHeading)
+                return i;
+        }
+        return index;
+    }
 
     // What Enter does on a folder: opens or closes it, the cursor staying on it
     public void Toggle(int index)
@@ -108,9 +158,10 @@ class FileTree
         return node.Parent is Node parent && parent != root ? IndexOf(parent) : index;
     }
 
-    Node? At(int index) => index >= 0 && index < shown.Count ? shown[index].Node : null;
+    // The node of a row of the tree, null for a heading or a changed file above it
+    Node? At(int index) => index - changed.Count is var i && i >= 0 && i < shown.Count ? shown[i].Node : null;
 
-    int IndexOf(Node node) => shown.FindIndex(s => s.Node == node);
+    int IndexOf(Node node) => changed.Count + shown.FindIndex(s => s.Node == node);
 
     void Add(string path)
     {
@@ -136,7 +187,7 @@ class FileTree
             Sort(child);
     }
 
-    // The rows shown: each folder's own after it while it is open
+    // The rows of the tree: each folder's own after it while it is open
     void Update()
     {
         List<(Node, int)> rows = [];
@@ -154,6 +205,16 @@ class FileTree
         this.rows = null;
     }
 
+    static Row Heading(string text) => new(RowKind.Heading, "", text, 0, false, ' ', false);
+
     Row ToRow(Node node, int depth) =>
-        new(node.Path, node.Name, depth, node.IsFolder, open.Contains(node.Path), node.Change, node.HasChanges);
+        new(
+            node.IsFolder ? RowKind.Folder : RowKind.File,
+            node.Path,
+            node.Name,
+            depth,
+            open.Contains(node.Path),
+            node.Change,
+            node.HasChanges
+        );
 }

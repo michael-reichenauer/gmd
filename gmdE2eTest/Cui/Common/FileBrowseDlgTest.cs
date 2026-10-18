@@ -19,10 +19,11 @@ public class FileBrowseDlgTest
         return repo;
     }
 
-    // The folders of the file the commit added are open, and the cursor is on it, marked with its
-    // letter, so Enter blames it. The status line says what the files are and what Enter does.
+    // The file the commit added is listed first, under a heading that says so, with its letter and
+    // the cursor on it, so Enter blames it; then every file as a tree, all closed, where it is marked
+    // too. The status line says what the files are and what Enter does.
     [TestMethod]
-    public async Task TestTheBrowserOpensAtTheFileTheCommitChanged()
+    public async Task TestTheBrowserOpensOnTheFilesTheCommitChanged()
     {
         using var repo = await CreateRepoAsync();
         using var gmd = TmuxSession.StartGmd(repo);
@@ -35,26 +36,29 @@ public class FileBrowseDlgTest
                            ╭ Blame File ────────────────────────────────────────────────────────────────────────────╮
                            │ Find:                                                                                ] │
                            │────────────────────────────────────────────────────────────────────────────────────────│
-                           │ ▾ src                                                                               •  │
-                           │ │ ▾ app                                                                             •  │
-                           │ │ │   main.c                                                                        A  │
+                           │ Changed in commit 7b9d57d6 ──────────────────────────────────────────────────────────  │
+                           │   src/app/main.c                                                                    A  │
+                           │ All files ───────────────────────────────────────────────────────────────────────────  │
+                           │ ▸ src                                                                               •  │
                            │   alpha.txt                                                                            │
                            │   beta.txt                                                                             │
                            │   delta.txt                                                                            │
                            │   dev.txt                                                                              │
                            │   gamma.txt                                                                            │
+                           │                                                                                        │
+                           │                                                                                        │
                            │ 6 files of commit 7b9d57d6   ↑↓ select  ←→ folders  Enter blame                        │
                            ╰────────────────────────────────────────────────────────────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Enter blame"), repo.Path, 13, 13)
+            ScreenText.Rows(gmd.WaitFor("Enter blame"), repo.Path, 12, 16)
         );
 
         gmd.Send("Enter");
         gmd.WaitFor("Blame  src/app/main.c");
     }
 
-    // ← goes up to the folder and closes it, → opens it again; typing finds a file instead, and
-    // Enter shows its history
+    // ↓ goes past the heading into the tree, → opens a folder and goes into it, ← closes it; typing
+    // finds a file instead, and Enter shows its history
     [TestMethod]
     public async Task TestTheArrowsOpenFoldersAndTypingFindsAFile()
     {
@@ -64,12 +68,24 @@ public class FileBrowseDlgTest
         OpenFromCommitMenu(gmd, "Full File History");
         gmd.WaitFor("Enter history");
 
+        gmd.Send("Down");
+        gmd.WaitFor("Enter open");
+        gmd.Send("Right");
+        gmd.WaitFor("│ ▸ app");
+        gmd.Send("Right");
+        gmd.WaitForStable();
+        gmd.Send("Right");
+        gmd.WaitFor("│ │   main.c");
         gmd.Send("Left");
-        gmd.WaitFor("Enter close");
-        gmd.Send("Left");
-        var closed = gmd.WaitUntilGone("main.c");
+        var closed = gmd.WaitUntilGone("│ │   main.c");
         Assert.AreEqual(
             """
+                           ╭ Full File History ─────────────────────────────────────────────────────────────────────╮
+                           │ Find:                                                                                ] │
+                           │────────────────────────────────────────────────────────────────────────────────────────│
+                           │ Changed in commit 7b9d57d6 ──────────────────────────────────────────────────────────  │
+                           │   src/app/main.c                                                                    A  │
+                           │ All files ───────────────────────────────────────────────────────────────────────────  │
                            │ ▾ src                                                                               •  │
                            │ │ ▸ app                                                                             •  │
                            │   alpha.txt                                                                            │
@@ -78,11 +94,11 @@ public class FileBrowseDlgTest
                            │   dev.txt                                                                              │
                            │   gamma.txt                                                                            │
                            │                                                                                        │
+                           │ 6 files of commit 7b9d57d6   ↑↓ select  ←→ folders  Enter open                         │
+                           ╰────────────────────────────────────────────────────────────────────────────────────────╯
             """,
-            ScreenText.Rows(closed, repo.Path, 16, 8)
+            ScreenText.Rows(closed, repo.Path, 12, 16)
         );
-        gmd.Send("Right");
-        gmd.WaitFor("main.c");
 
         gmd.SendText("gam");
         var found = gmd.WaitFor("1 of 6 files");

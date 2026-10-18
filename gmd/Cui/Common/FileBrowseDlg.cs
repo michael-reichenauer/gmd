@@ -2,13 +2,13 @@ using Terminal.Gui.Input;
 
 namespace gmd.Cui.Common;
 
-// Picks a file of a commit, for Blame File and Full File History: the files as a tree of folders to
-// browse (FileTree), or once something is typed, the files whose path has it (FileFinder), the
-// files the commit changed marked with their letter in both. Clearing what was typed goes back to
-// the tree as it was. The field has the keyboard, so the dialog takes the keys that move in the list
-// before the field sees them, as Find Branch does, and ← → too while nothing is typed, which open and
-// close the folders of the tree. Enter or a click picks a file, or opens or closes a folder. The rows
-// are drawn by FileBrowseRows.
+// Picks a file of a commit, for Blame File and Full File History: the files the commit changed and
+// then all of them as a tree of folders to browse (FileTree), or once something is typed, the files
+// whose path has it (FileFinder), the files the commit changed marked with their letter wherever
+// they are. Clearing what was typed goes back to the tree as it was. The field has the keyboard, so
+// the dialog takes the keys that move in the list before the field sees them, as Find Branch does,
+// and ← → too while nothing is typed, which open and close the folders of the tree. Enter or a click
+// picks a file, or opens or closes a folder. The rows are drawn by FileBrowseRows.
 class FileBrowseDlg
 {
     const int MaxWidth = 90;
@@ -30,12 +30,14 @@ class FileBrowseDlg
     string action = "";
     Result<string> picked = new Error("No file picked");
 
-    // The files to pick from, and the letter of each one the commit changed; about is what the files
-    // are, e.g. 'commit 1be33bd1', and action what picking one does, e.g. 'blame'
+    // The files to pick from, and the letter of each one the commit changed, listed first under the
+    // heading, e.g. 'Changed in commit 1be33bd1'; about is what the files are, e.g. 'commit 1be33bd1',
+    // and action what picking one does, e.g. 'blame'
     internal Result<string> Show(
         string title,
         IReadOnlyList<string> files,
         IReadOnlyDictionary<string, char> changes,
+        string changedHeading,
         string about,
         string action
     )
@@ -44,9 +46,9 @@ class FileBrowseDlg
         this.changes = changes;
         this.about = about;
         this.action = action;
-        tree = new FileTree(files, changes);
+        tree = new FileTree(files, changes, changedHeading);
 
-        // As tall as the tree with every folder open needs, within the screen, so that a commit of
+        // As tall as the list with every folder open needs, within the screen, so that a commit of
         // few files is not a box of blank rows: the list plus the field, the line under it, the
         // status and the borders
         var width = Math.Min(MaxWidth, UI.ScreenSize.Width - 4);
@@ -69,7 +71,7 @@ class FileBrowseDlg
         statusLabel = dlg.AddLabel(1, height - 3);
 
         findField.TextChanged += (_, _) => Update();
-        ShowTreeAt(tree.FirstChanged);
+        ShowTreeAt(tree.First);
 
         dlg.Show(findField);
         return picked;
@@ -136,13 +138,13 @@ class FileBrowseDlg
         if (key == Key.Enter)
             Activate();
         else if (key == Key.CursorUp)
-            listView.Move(-1);
+            Move(-1);
         else if (key == Key.CursorDown)
-            listView.Move(1);
+            Move(1);
         else if (key == Key.PageUp)
-            listView.Move(-listView.ContentHeight);
+            Move(-listView.ContentHeight);
         else if (key == Key.PageDown)
-            listView.Move(listView.ContentHeight);
+            Move(listView.ContentHeight);
         else if (key == Key.CursorRight && IsTree)
             ShowTreeAt(tree.Expand(listView.CurrentIndex));
         else if (key == Key.CursorLeft && IsTree)
@@ -152,8 +154,17 @@ class FileBrowseDlg
         return true;
     }
 
-    // A click on a row does what Enter does on it, and the wheel scrolls the list. The dialog has the
-    // mouse, so the coordinates are the dialog's, its border included.
+    // Moves the cursor, past the headings above the tree
+    void Move(int move)
+    {
+        if (IsTree)
+            ShowTreeAt(tree.Step(listView.CurrentIndex, move));
+        else
+            listView.Move(move);
+    }
+
+    // A click on a row does what Enter does on it, a heading aside, and the wheel scrolls the list.
+    // The dialog has the mouse, so the coordinates are the dialog's, its border included.
     bool OnMouse(MouseEvent ev)
     {
         var listRow = ev.Y - 1 - ListY;
@@ -161,27 +172,26 @@ class FileBrowseDlg
 
         if (ev.Flags.HasFlag(MouseFlags.LeftButtonClicked) && isInList)
         {
-            if (listView.FirstIndex + listRow >= listView.TotalCount)
-                return true; // Below the last row
+            var index = listView.FirstIndex + listRow;
+            if (index >= listView.TotalCount || IsTree && tree.Rows[index].IsHeading)
+                return true; // Below the last row, or no row to pick
             listView.SetIndexAtViewY(listRow);
             Activate();
             return true;
         }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) || ev.Flags.HasFlag(MouseFlags.WheeledUp))
         {
-            listView.Scroll(1);
-            return true;
-        }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            listView.Scroll(-1);
+            // The rows scrolled take the cursor along at the edge, which can put it on a heading
+            listView.Scroll(ev.Flags.HasFlag(MouseFlags.WheeledDown) ? 1 : -1);
+            if (IsTree && tree.Rows.ElementAtOrDefault(listView.CurrentIndex)?.IsHeading == true)
+                listView.SetCurrentIndex(tree.Step(listView.CurrentIndex, 0));
             return true;
         }
 
         return false;
     }
 
-    // Picks the file the cursor is on, or opens or closes the folder
+    // Picks the file the cursor is on, or opens or closes the folder; a heading has no path
     void Activate()
     {
         var index = listView.CurrentIndex;
