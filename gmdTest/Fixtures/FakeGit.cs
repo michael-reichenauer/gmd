@@ -134,15 +134,25 @@ class FakeGit : IGit
         return Task.FromResult<Result<bool>>(true);
     }
 
+    // Origin has no value: the record of it is removed, as git's fetch does then
     public Task<Result> FetchValueAsync(string key, string wd)
     {
         ValueCalls.Add($"fetch {key}");
         if (!RemoteValues.TryGetValue(key, out var value))
+        {
+            OriginValues.Remove(key);
             return Task.FromResult<Result>(new Error($"fatal: couldn't find remote ref {key}"));
+        }
 
         OriginValues[key] = value;
         return Task.FromResult(Result.Ok);
     }
+
+    // The commits origin has, of those the metadata is about, which is all it may push
+    public HashSet<string> IdsOnOrigin { get; } = [];
+
+    public Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd) =>
+        Task.FromResult<Result<IReadOnlySet<string>>>(ids.Where(IdsOnOrigin.Contains).ToHashSet());
 
     // The rest of IGit is not reachable from the pipeline the tests drive
     public Result<string> RootPath(string path) => throw new NotSupportedException();

@@ -205,6 +205,34 @@ public class KeyValueServiceTest
         Assert.AreEqual($"fetch origin +{KeyRef}:{OriginRef}", cmd.Calls[0].Args);
     }
 
+    // Origin has none, e.g. it was deleted there: the record of it goes too, so that a push is leased
+    // on origin having none, rather than on a value it no longer has, which was refused every time
+    [TestMethod]
+    public async Task TestFetchOfNoValueRemovesTheRecord()
+    {
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.StartsWith("fetch")
+                    ? new CmdResult("git fetch", 128, "", $"fatal: couldn't find remote ref {KeyRef}")
+                    : FakeCmd.Ok("")
+        );
+
+        AssertError(await new KeyValueService(cmd).FetchValueAsync("data", wd), "Still says there is none");
+
+        Assert.AreEqual($"update-ref -d {OriginRef}", cmd.Calls[1].Args);
+    }
+
+    // ... but not when the fetch failed for another reason, which says nothing of origin's value
+    [TestMethod]
+    public async Task TestAFailedFetchKeepsTheRecord()
+    {
+        var cmd = new FakeCmd((_, _, _) => FakeCmd.Fail("fatal: unable to access"));
+
+        AssertError(await new KeyValueService(cmd).FetchValueAsync("data", wd));
+
+        Assert.AreEqual(1, cmd.Calls.Count);
+    }
+
     [TestMethod]
     public async Task TestGetOriginValue()
     {

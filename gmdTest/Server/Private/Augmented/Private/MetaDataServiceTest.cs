@@ -185,17 +185,112 @@ public class MetaDataServiceTest
         Assert.AreEqual(0, git.ValueCalls.Count);
     }
 
+    // Only the values of the commits origin has are pushed, the choices and what the reflog witnessed
+    // alike: one of a commit origin has not is no use to anyone else, and names a branch this clone
+    // has to itself
     [TestMethod]
-    public async Task TestPushSendsTheValueWhenSyncIsEnabled()
+    public async Task TestPushSendsOnlyTheValuesOfCommitsOriginHas()
     {
         EnableSync();
-        Local = Json(("abc123", "*dev"));
+        var local = new MetaData();
+        local.SetCommitBranch("abc123", "dev");
+        local.SetCommitBranch("def456", "my-experiment");
+        local.SetWitnessed("aaa111", "feature");
+        local.SetWitnessed("bbb222", "my-experiment");
+        Local = JsonSerializer.Serialize(local);
+        git.IdsOnOrigin.UnionWith(["abc123", "aaa111"]);
 
         AssertOk(await service.PushMetaDataAsync(Path));
 
         var pushed = MetaData.Parse(git.RemoteValues[Key]);
-        Assert.IsTrue(pushed.TryGetCommitBranch("abc123", out var name, out _));
-        Assert.AreEqual("dev", name);
+        CollectionAssert.AreEqual(new[] { "abc123" }, pushed.CommitBranchById.Keys.ToArray());
+        CollectionAssert.AreEqual(new[] { "aaa111" }, pushed.WitnessedById.Keys.ToArray());
+        Assert.AreEqual(git.RemoteValues[Key], git.OriginValues[Key], "Recorded as origin's");
+    }
+
+    // The values of a commit come along once it is pushed, at the next push of the metadata
+    [TestMethod]
+    public async Task TestAValueIsPushedOnceItsCommitIsOnOrigin()
+    {
+        EnableSync();
+        Local = Json(("abc123", "*dev"), ("def456", "*feature"));
+        git.IdsOnOrigin.Add("abc123");
+        AssertOk(await service.PushMetaDataAsync(Path));
+
+        git.IdsOnOrigin.Add("def456");
+        AssertOk(await service.PushMetaDataAsync(Path));
+
+        var pushed = MetaData.Parse(git.RemoteValues[Key]);
+        CollectionAssert.AreEquivalent(new[] { "abc123", "def456" }, pushed.CommitBranchById.Keys.ToArray());
+    }
+
+    // What is pushed is origin's value with the values added: those origin has of commits not known
+    // here, e.g. older than this clone, or pushed by another, are kept on it
+    [TestMethod]
+    public async Task TestPushKeepsOriginsValues()
+    {
+        EnableSync();
+        git.RemoteValues[Key] = Json(("old111", "*release"));
+        git.OriginValues[Key] = git.RemoteValues[Key];
+        Local = Json(("abc123", "*dev"));
+        git.IdsOnOrigin.Add("abc123");
+
+        AssertOk(await service.PushMetaDataAsync(Path));
+
+        var pushed = MetaData.Parse(git.RemoteValues[Key]);
+        CollectionAssert.AreEquivalent(new[] { "old111", "abc123" }, pushed.CommitBranchById.Keys.ToArray());
+    }
+
+    // Nothing is pushed when origin has every value here of a commit it has, so a push of a branch
+    // does not push the metadata again each time
+    [TestMethod]
+    public async Task TestPushWithNothingNewPushesNothing()
+    {
+        EnableSync();
+        git.RemoteValues[Key] = Json(("abc123", "*dev"));
+        git.OriginValues[Key] = git.RemoteValues[Key];
+        Local = Json(("abc123", "*dev"), ("def456", "*feature"));
+        git.IdsOnOrigin.Add("abc123");
+
+        AssertOk(await service.PushMetaDataAsync(Path));
+
+        CollectionAssert.DoesNotContain(git.ValueCalls, "push data");
+    }
+
+    // Another clone pushed since the last fetch here: the push is refused, origin's is fetched and
+    // merged, and the merge is pushed, with the other clone's value kept
+    [TestMethod]
+    public async Task TestAPushRefusedIsMergedAndPushedAgain()
+    {
+        EnableSync();
+        git.RemoteValues[Key] = Json(("def456", "*feature"));
+        Local = Json(("abc123", "*dev"));
+        git.IdsOnOrigin.UnionWith(["abc123", "def456"]);
+
+        AssertOk(await service.PushMetaDataAsync(Path));
+
+        CollectionAssert.AreEqual(
+            new[] { "push data", "fetch data", "push data" },
+            git.ValueCalls.Where(c => c.StartsWith("push") || c.StartsWith("fetch")).ToArray()
+        );
+        var pushed = MetaData.Parse(git.RemoteValues[Key]);
+        CollectionAssert.AreEquivalent(new[] { "abc123", "def456" }, pushed.CommitBranchById.Keys.ToArray());
+    }
+
+    // The value was deleted on origin, e.g. by someone who turned sharing off: the fetch removes the
+    // record of it, so a push is leased on origin having none, rather than refused for good
+    [TestMethod]
+    public async Task TestAValueDeletedOnOriginIsPushedAgain()
+    {
+        EnableSync();
+        git.OriginValues[Key] = Json(("abc123", "*dev"));
+        Local = Json(("abc123", "*dev"));
+        git.IdsOnOrigin.Add("abc123");
+
+        AssertOk(await service.FetchMetaDataAsync(Path));
+        AssertOk(await service.PushMetaDataAsync(Path));
+
+        Assert.IsTrue(MetaData.Parse(git.RemoteValues[Key]).TryGetCommitBranch("abc123", out _, out _));
     }
 
     // Nobody has pushed choices yet, so there is nothing to fetch. Not an error, it is the normal

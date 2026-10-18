@@ -6,7 +6,8 @@ namespace gmdTest.Server.Private.Augmented.Private;
 // The branch choices shared through origin, over two real clones of one: a value changed in one
 // clone and pushed is taken over by the other's fetch, and a value changed here and not pushed yet
 // survives a fetch. Git updates a ref to a blob on a fetch without asking whether it is a fast
-// forward, so a fetch into the local value lost that change, and the merge took origin's.
+// forward, so a fetch into the local value lost that change, and the merge took origin's. Only the
+// values of commits origin has are pushed, so the choices are of the three commits pushed.
 //
 // The tests are in their own category, so they can be excluded when only the fast tests are
 // wanted:  scripts/test --filter "TestCategory!=Integration"
@@ -17,12 +18,17 @@ public class MetaDataServiceIntegrationTest
     TempRepo repo = null!;
     string other = "";
     MetaDataService service = null!;
+    string c1 = "";
+    string c2 = "";
+    string c3 = "";
 
     [TestInitialize]
     public async Task Init()
     {
         repo = await TempRepo.CreateAsync();
-        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        c1 = await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        c2 = await repo.CommitFileAsync("b.txt", "b\n", "Second");
+        c3 = await repo.CommitFileAsync("c.txt", "c\n", "Third");
         await repo.AddOriginAsync();
         await repo.GitAsync("push -q -u origin main");
 
@@ -39,15 +45,18 @@ public class MetaDataServiceIntegrationTest
     [TestCleanup]
     public void Cleanup() => repo.Dispose();
 
-    async Task SetAsync(string path, string branch, string sid = "abc123") =>
-        AssertOk(await service.UpdateMetaDataAsync(path, m => m.SetCommitBranch(sid, branch)));
+    async Task SetAsync(string path, string branch, string? id = null) =>
+        AssertOk(await service.UpdateMetaDataAsync(path, m => m.SetCommitBranch(id ?? c1, branch)));
 
-    async Task<string> GetAsync(string path)
+    async Task<string> GetAsync(string path, string? id = null)
     {
         var metaData = AssertOk(await service.GetMetaDataAsync(path));
-        Assert.IsTrue(metaData.TryGetCommitBranch("abc123", out var branch, out _));
+        Assert.IsTrue(metaData.TryGetCommitBranch(id ?? c1, out var branch, out _));
         return branch;
     }
+
+    Task<string> OriginValueAsync() =>
+        repo.GitAsync($"-C \"{repo.Path}-origin\" cat-file -p refs/gmd-metadata-key-value/data");
 
     // A gmd before kept the metadata in the repository, under the ref it is shared through, which is
     // read until the first write moves it into the file in the git dir, and deletes the ref
@@ -55,13 +64,13 @@ public class MetaDataServiceIntegrationTest
     public async Task TestTheFirstWriteMovesTheMetaDataOutOfTheRepository()
     {
         var valuePath = System.IO.Path.Join(repo.Path, ".git", "value.json");
-        File.WriteAllText(valuePath, """{ "CommitBranchBySid": { "abc123": "*dev" } }""");
+        File.WriteAllText(valuePath, $$"""{ "CommitBranchBySid": { "{{c1}}": "*dev" } }""");
         var id = (await repo.GitAsync($"hash-object -w \"{valuePath}\"")).Trim();
         File.Delete(valuePath);
         await repo.GitAsync($"update-ref refs/gmd-metadata-key-value/data {id}");
         Assert.AreEqual("dev", await GetAsync(repo.Path), "Read from the ref");
 
-        await SetAsync(repo.Path, "main", "def456");
+        await SetAsync(repo.Path, "main", c2);
 
         Assert.AreEqual("dev", await GetAsync(repo.Path), "Read from the file");
         Assert.AreEqual("", await repo.GitAsync("for-each-ref refs/gmd-metadata-key-value"), "The ref is gone");
@@ -105,17 +114,54 @@ public class MetaDataServiceIntegrationTest
         await SetAsync(repo.Path, "dev");
         AssertOk(await service.PushMetaDataAsync(repo.Path));
         AssertOk(await service.FetchMetaDataAsync(other));
-        await SetAsync(other, "feature", "def456");
+        await SetAsync(other, "feature", c2);
         AssertOk(await service.PushMetaDataAsync(other));
 
-        await SetAsync(repo.Path, "fix", "aaa111");
+        await SetAsync(repo.Path, "fix", c3);
         AssertOk(await service.PushMetaDataAsync(repo.Path));
 
-        var origin = await repo.GitAsync($"-C \"{repo.Path}-origin\" cat-file -p refs/gmd-metadata-key-value/data");
-        StringAssert.Contains(origin, "def456", "The other clone's choice is still on origin");
-        StringAssert.Contains(origin, "aaa111", "and this one's was pushed");
-        var here = AssertOk(await service.GetMetaDataAsync(repo.Path));
-        Assert.IsTrue(here.TryGetCommitBranch("def456", out var branch, out _));
-        Assert.AreEqual("feature", branch, "Merged here");
+        var origin = await OriginValueAsync();
+        StringAssert.Contains(origin, c2, "The other clone's choice is still on origin");
+        StringAssert.Contains(origin, c3, "and this one's was pushed");
+        Assert.AreEqual("feature", await GetAsync(repo.Path, c2), "Merged here");
+    }
+
+    // The value of a commit origin has not is kept here, and pushed once the commit is, with nothing of
+    // it in the push before: not the branch's name, nor the commit's id
+    [TestMethod]
+    public async Task TestAValueOfACommitNotPushedIsPushedWithIt()
+    {
+        var c4 = await repo.CommitFileAsync("d.txt", "d\n", "Not pushed");
+        await repo.GitAsync("branch my-experiment");
+        await SetAsync(repo.Path, "dev");
+        await SetAsync(repo.Path, "my-experiment", c4);
+
+        AssertOk(await service.PushMetaDataAsync(repo.Path));
+        var origin = await OriginValueAsync();
+        StringAssert.Contains(origin, c1);
+        Assert.IsFalse(origin.Contains(c4) || origin.Contains("my-experiment"), origin);
+
+        await repo.GitAsync("push -q origin main");
+        AssertOk(await service.PushMetaDataAsync(repo.Path));
+        StringAssert.Contains(await OriginValueAsync(), c4);
+    }
+
+    // A value deleted on origin, as the README says to stop sharing, is pushed again by a clone that
+    // still shares: its record of origin's goes with the fetch, rather than every push being refused
+    // for a lease on a value origin no longer has
+    [TestMethod]
+    public async Task TestAValueDeletedOnOriginIsPushedAgainByAnotherClone()
+    {
+        await SetAsync(repo.Path, "dev");
+        AssertOk(await service.PushMetaDataAsync(repo.Path));
+        await repo.GitAsync("push -q origin :refs/gmd-metadata-key-value/data");
+
+        AssertOk(await service.FetchMetaDataAsync(repo.Path));
+        await SetAsync(repo.Path, "main", c2);
+        AssertOk(await service.PushMetaDataAsync(repo.Path));
+
+        var origin = await OriginValueAsync();
+        StringAssert.Contains(origin, c1);
+        StringAssert.Contains(origin, c2);
     }
 }

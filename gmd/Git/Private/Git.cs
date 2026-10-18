@@ -85,6 +85,9 @@ internal class Git : IGit
     public Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd) =>
         logService.GetExistingCommitIdsAsync(ids, wd);
 
+    public Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd) =>
+        logService.GetIdsOnOriginAsync(ids, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd) =>
         logService.GetIdsChangingFilesAsync(pathText, maxCount, wd);
 

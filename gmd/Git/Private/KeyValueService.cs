@@ -69,9 +69,18 @@ class KeyValueService : IKeyValueService
 
     // Into the record of origin's rather than over the repository's own value: a fetch over it lost a
     // change made here that origin did not have yet (git updates a ref to a blob without asking
-    // whether it is a fast forward)
-    public async Task<Result> FetchValueAsync(string key, string wd) =>
-        await cmd.RunAsync("git", $"fetch origin +{KeyRef(key)}:{OriginRef(key)}", wd, true, true);
+    // whether it is a fast forward). When origin has none, e.g. it was deleted there, the record goes
+    // too: a push leased on a value origin no longer has was refused, every time.
+    public async Task<Result> FetchValueAsync(string key, string wd)
+    {
+        var fetched = await cmd.RunAsync("git", $"fetch origin +{KeyRef(key)}:{OriginRef(key)}", wd, true, true);
+        if (fetched is CmdError e && e.ErrorOutput.Contains("couldn't find remote ref"))
+        {
+            if (await cmd.RunAsync("git", $"update-ref -d {OriginRef(key)}", wd, true, true) is Error deleteError)
+                return deleteError;
+        }
+        return fetched is Error fetchError ? fetchError : Result.Ok;
+    }
 
     // The value in the git database, by a temp file, and its object id
     async Task<Result<string>> StoreAsync(string value, string wd)

@@ -26,6 +26,9 @@ interface IGit
 
     // The ones of the ids that are commits git still has
     Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
+
+    // The ones of the ids that are commits origin has, as last fetched or pushed
+    Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd);
     Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
 

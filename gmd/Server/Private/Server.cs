@@ -421,16 +421,18 @@ class Server : IServer
     public Task<Result> RenameBranchAsync(string oldName, string newName, string wd) =>
         Paused(() => branchWriteService.RenameBranchAsync(oldName, newName, wd));
 
+    // The metadata is pushed after the branch, since only the values of the commits origin has are,
+    // and so those of the commits just pushed go with it. In the background, as it is best effort, and
+    // a push of the branch is not kept waiting for a second one.
     public async Task<Result> PushBranchAsync(string name, string wd)
     {
         using (fileMonitor.Pause())
         using (Timing.Start($"Pushed {name}"))
         {
-            var metadataTask = augmentedService.PushMetaDataAsync(wd);
-            var pushTask = git.PushBranchAsync(name, wd);
-
-            await Task.WhenAll(metadataTask, pushTask);
-            return pushTask.Result;
+            var pushed = await git.PushBranchAsync(name, wd);
+            if (pushed is Success)
+                augmentedService.PushMetaDataAsync(wd).RunInBackground();
+            return pushed;
         }
     }
 
