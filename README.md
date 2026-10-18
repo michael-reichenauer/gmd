@@ -49,9 +49,12 @@ Gmd leaves the history as it is and lets you choose what to look at. A developer
 Showing or hiding a branch is instant and can be undone at any time, with `Backspace`. It works like
 a squash merge that you can take back, and it never touches the history.
 
-Here is a small repository with five branches, and a sixth merged and deleted, as
-`git log --graph --oneline --decorate --all` shows it:
+Here is a small repository with five branches, and a sixth merged and deleted, as git's own log
+draws it:
 
+```bash
+git log --graph --oneline --decorate --all
+```
 ![git log --graph of the repository: the six branches drawn as one tangle of lines, crossing and merging, each commit in the order of its date whichever branch it is on](gmd/doc/GitLog.gif)
 
 And here as gmd first shows it, while you work on `feature/login`: your branch and `main`, each in
