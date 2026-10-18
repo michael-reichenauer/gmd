@@ -153,11 +153,29 @@ sealed class TmuxSession : IDisposable
                 break;
 
             Send("Down");
-            WaitUntil(() => CaptureColors() != screen, $"the menu cursor to move on towards '{text}'");
-            WaitForStable();
+            WaitForMenuMove(screen, text);
         }
 
         Assert.Fail($"The menu item '{text}' was not reached in {maxMoves} moves\n{Diagnostics(Capture())}");
+    }
+
+    // Polls until the screen differs from the one before the key and has then held for a poll. A
+    // shorter wait than WaitForStable's, since a move of a menu's cursor is a redraw of a few rows
+    // with no git command behind it, and a walk down a long menu is many of them.
+    void WaitForMenuMove(string before, string text)
+    {
+        var clock = Stopwatch.StartNew();
+        var previous = before;
+        while (clock.ElapsedMilliseconds < DefaultTimeoutMs)
+        {
+            Thread.Sleep(PollMs);
+            var screen = CaptureColors();
+            if (screen != before && screen == previous)
+                return;
+            previous = screen;
+        }
+
+        Assert.Fail($"Timed out waiting for the menu cursor to move on towards '{text}'\n{Diagnostics(Capture())}");
     }
 
     // Polls until a condition holds, e.g. on the colors of a capture, which WaitFor cannot look for
