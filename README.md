@@ -188,8 +188,9 @@ once. Gmd keeps that readable rather than letting it flood the log:
   the terminal instead (OSC 52), if the terminal supports it, and a link it has no browser to open
   in is copied the same way.
 - **Keeps itself up to date** with a built-in update check and a one-click update.
-- **Shared branch structure** (off by default, turned on per repository): the branch choices you
-  make by hand can be pushed with the repository, so everyone sees the same graph.
+- **Shared branch structure** (off by default, turned on per repository): which branch each commit
+  is on, as you set it by hand and as your reflog says, can be shared through origin with others
+  using gmd, for the commits origin has, so that you all see the same graph.
 
 ## Getting Started
 
@@ -336,17 +337,43 @@ update check off, update automatically, or allow preview releases, which are bui
 
 ## What Gmd Stores and Sends
 
+In your home folder:
+
 - `~/.gmdconfig`: your settings and recent repositories.
-- `.gmdconfig` in each repository's `.git` folder: which branches are shown, their colors and
-  their order.
-- `refs/gmd-metadata-key-value/data` in a repository: the branches you set by hand, and what your
-  reflog says about where commits were made, kept for when the reflog has expired. It is pushed
-  to origin only when the shared branch structure is turned on.
-- `~/gmd.log`: a log of what gmd does, started afresh each time it runs.
+- `~/gmd.log`: a log of what gmd does, started afresh each time it runs (and moved to
+  `gmd.log.2.log` if it grows large).
+- The library that colors code, written out of the gmd executable into a `gmd` folder of your local
+  app data, e.g. `~/.local/share/gmd` on Linux.
+
+In each repository's `.git` folder, files that git never sends anywhere:
+
+- `.gmdconfig`: which branches are shown, their colors and their order, the repository's settings,
+  and what **Undo** and **Restore Deleted Branch** need.
+- `gmd-metadata.json`: which branch a commit is on, where git alone cannot tell: the branches you
+  set by hand, and what your reflog said, kept after git has expired the reflog. Only commit ids and
+  branch names. An older gmd kept it in the repository as `refs/gmd-metadata-key-value/data`, which
+  gmd moves into this file at its first change.
+
+And two refs of gmd's own in each repository, which git pushes only when told to, e.g. by
+`git push --mirror`:
+
+- `refs/gmd/discarded`: the changes you discarded, as commits, for **Restore Discarded Changes**,
+  kept as git keeps what is lost, for about 30 days. Being commits, they are in `git log --all`, and
+  in tools that draw every ref.
+- `refs/gmdtags/origin/*`: the tags origin had at the last fetch, so that a tag deleted on origin is
+  told apart from one never pushed.
 
 Over the network, gmd runs git's own fetches and pushes to origin (a fetch every five minutes, to
 keep the ▼ counts current), and asks GitHub for the latest release every hour, which **Config ...**
-turns off. Nothing else is sent: there is no telemetry.
+turns off. With the shared branch structure on, it shares the branch metadata through origin too,
+as below. Nothing else is sent: there is no telemetry.
+
+The **shared branch structure** is off unless you turn it on for a repository, in **Config ...**,
+which first says what it shares. The entries of `gmd-metadata.json` for the commits origin has are
+then pushed to origin after a branch, as `refs/gmd-metadata-key-value/data`, and fetched with the
+fetches, so that others using gmd who share it see the same branches. The entries for commits not
+pushed stay on your machine. `refs/gmd-metadata-key-value-origin/data` is gmd's record of origin's,
+and `git push origin :refs/gmd-metadata-key-value/data` removes it from origin.
 
 ## Problems and Feedback
 

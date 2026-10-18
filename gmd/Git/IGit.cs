@@ -26,6 +26,9 @@ interface IGit
 
     // The ones of the ids that are commits git still has
     Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
+
+    // The ones of the ids that are commits origin has, as last fetched or pushed
+    Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd);
     Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
 
@@ -188,9 +191,9 @@ interface IGit
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
     Task<Result<string>> GetValueAsync(string key, string wd);
-    Task<Result> SetValueAsync(string key, string value, string wd);
+    Task<Result> DeleteValueAsync(string key, string wd);
     Task<Result<string>> GetOriginValueAsync(string key, string wd);
-    Task<Result<bool>> PushValueAsync(string key, string wd);
+    Task<Result<bool>> PushValueAsync(string key, string value, string wd);
     Task<Result> FetchValueAsync(string key, string wd);
     Task<Result> StashAsync(string message, string wd);
     Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd);

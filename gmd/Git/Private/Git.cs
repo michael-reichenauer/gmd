@@ -85,6 +85,9 @@ internal class Git : IGit
     public Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd) =>
         logService.GetExistingCommitIdsAsync(ids, wd);
 
+    public Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd) =>
+        logService.GetIdsOnOriginAsync(ids, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd) =>
         logService.GetIdsChangingFilesAsync(pathText, maxCount, wd);
 
@@ -314,13 +317,13 @@ internal class Git : IGit
 
     public Task<Result<string>> GetValueAsync(string key, string wd) => keyValueService.GetValueAsync(key, wd);
 
-    public Task<Result> SetValueAsync(string key, string value, string wd) =>
-        keyValueService.SetValueAsync(key, value, wd);
+    public Task<Result> DeleteValueAsync(string key, string wd) => keyValueService.DeleteValueAsync(key, wd);
 
     public Task<Result<string>> GetOriginValueAsync(string key, string wd) =>
         keyValueService.GetOriginValueAsync(key, wd);
 
-    public Task<Result<bool>> PushValueAsync(string key, string wd) => keyValueService.PushValueAsync(key, wd);
+    public Task<Result<bool>> PushValueAsync(string key, string value, string wd) =>
+        keyValueService.PushValueAsync(key, value, wd);
 
     public Task<Result> FetchValueAsync(string key, string wd) => keyValueService.FetchValueAsync(key, wd);
 

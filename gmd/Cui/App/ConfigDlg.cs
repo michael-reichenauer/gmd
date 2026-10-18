@@ -33,12 +33,7 @@ class ConfigDlg : IConfigDlg
 
         // Repo specific config
         dlg.AddLabel(1, 0, $"Repo '{repoPath}':");
-        var isSyncMetaData = dlg.AddCheckBox(
-            1,
-            1,
-            "Push/Sync branch structure metadata to server",
-            repoConf.SyncMetaData
-        );
+        var isSyncMetaData = dlg.AddCheckBox(1, 1, ShareCheckBoxText, repoConf.SyncMetaData);
         dlg.AddLabel(1, 3, "Integration branches, besides develop and dev:");
         var integrationBranches = dlg.AddTextField(1, 5, width - 4, string.Join(", ", repoConf.IntegrationBranches));
 
@@ -72,6 +67,18 @@ class ConfigDlg : IConfigDlg
         if (!dlg.ShowOkCancel())
             return false;
 
+        // Sharing pushes to origin, so what it pushes is said before it is turned on, and that what was
+        // pushed stays there when it is turned off
+        var isSharing = isSyncMetaData.Checked;
+        if (isSharing && !repoConf.SyncMetaData)
+        {
+            isSharing = UI.InfoMessage(ShareTitle, ShareText, 1, "Share", "Cancel") == 0;
+        }
+        else if (!isSharing && repoConf.SyncMetaData)
+        {
+            UI.InfoMessage(ShareTitle, StopSharingText);
+        }
+
         // Update repo config
         var names = ParseNames(integrationBranches.Text);
         var isNamesChanged = !names.SequenceEqual(repoConf.IntegrationBranches);
@@ -79,7 +86,7 @@ class ConfigDlg : IConfigDlg
             repoPath,
             c =>
             {
-                c.SyncMetaData = isSyncMetaData.Checked;
+                c.SyncMetaData = isSharing;
                 c.IntegrationBranches = names;
             }
         );
@@ -101,6 +108,25 @@ class ConfigDlg : IConfigDlg
         updater.CheckUpdateAvailableAsync().RunInBackground();
         return isNamesChanged;
     }
+
+    internal const string ShareCheckBoxText = "Share the branch structure with others using gmd";
+    const string ShareTitle = "Share Branch Structure";
+
+    internal const string ShareText = """
+        Gmd then pushes to origin which branch each commit is on, as you set it
+        by hand and as your reflog says, for the commits origin has, and fetches
+        what others who share it pushed, so that you see the same branches.
+
+        That is commit ids and branch names alone, kept on origin in the ref
+        refs/gmd-metadata-key-value/data, beside its branches and tags.
+        """;
+
+    internal const string StopSharingText = """
+        What was pushed stays on origin, for the others who share it. This
+        removes it, until one of them pushes it again:
+
+        git push origin :refs/gmd-metadata-key-value/data
+        """;
 
     // Saying why the box is greyed out when a package manager installed gmd
     internal static string AutoUpdateText(PackageManager? manager) =>

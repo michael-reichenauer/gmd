@@ -31,6 +31,52 @@ public class ConfigDlgTest
         Assert.IsTrue(gmd.IsRunning);
     }
 
+    // Sharing the branch structure pushes to origin, so turning it on says what is pushed first, and
+    // Cancel, the default, leaves it off; Share turns it on; and turning it off says that what was
+    // pushed stays on origin, and how it is removed
+    [TestMethod]
+    public async Task TestTurningSharingOnAndOffSaysWhatItMeans()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        ToggleSharing(gmd, "◙ Share the branch structure");
+        StringAssert.Contains(gmd.WaitFor("Share Branch Structure"), "refs/gmd-metadata-key-value/data");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Share Branch Structure");
+        Assert.IsFalse(IsSharing(repo), "Cancel is the default");
+
+        ToggleSharing(gmd, "◙ Share the branch structure");
+        gmd.WaitFor("Share Branch Structure");
+        gmd.Send("M-s");
+        gmd.WaitUntilGone("Share Branch Structure");
+        Assert.IsTrue(IsSharing(repo));
+
+        ToggleSharing(gmd, "□ Share the branch structure");
+        StringAssert.Contains(
+            gmd.WaitFor("What was pushed stays on origin"),
+            "git push origin :refs/gmd-metadata-key-value/data"
+        );
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("What was pushed stays on origin");
+        Assert.IsFalse(IsSharing(repo));
+    }
+
+    // Opens the Config dialog, clicks the box, and presses OK, the default button
+    static void ToggleSharing(TmuxSession gmd, string toggled)
+    {
+        OpenConfig(gmd);
+        var (x, y) = TmuxSession.PositionOf(gmd.WaitFor("Share the branch structure"), "Share the branch structure");
+        gmd.Click(x, y);
+        gmd.WaitFor(toggled);
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("General:");
+    }
+
+    static bool IsSharing(TempRepo repo) =>
+        File.ReadAllText(Path.Join(repo.Path, ".git", ".gmdconfig")).Contains("\"SyncMetaData\": true");
+
     // Config is the fourth item from the end of the repo menu: Config, Help, About and Quit
     static void OpenConfig(TmuxSession gmd)
     {

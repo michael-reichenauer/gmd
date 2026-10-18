@@ -61,7 +61,7 @@ public class AugmentedServiceIntegrationTest
         await repo.GitAsync("checkout main");
         await repo.CommitFileAsync("main.txt", "main\n", "Main work");
 
-        var metaDataService = new MetaDataService(repo.Git, new FakeRepoConfig());
+        var metaDataService = new MetaDataService(repo.Git, new FakeRepoConfig(), new MetaDataFile());
         var service = RepoBuilder.NewAugmentedService(repo.Git, metaDataService);
         var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
 

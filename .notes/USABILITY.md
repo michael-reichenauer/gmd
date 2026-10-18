@@ -661,11 +661,13 @@ Both are reworked, see proposal D.1.
 - **What happens when gmd crashes?** It logs the exception and exits without a word
   (`ExceptionHandling.cs:60-110`, where the dialog for it is commented out). The About box has no
   link to the project, and nothing says how to report a problem or where the log is.
-- **What does gmd write, and what does it send?** `.gmdconfig` in each repository's git folder;
-  `refs/gmd-metadata-key-value/data` in every repository with a reflog, pushed only when the shared
-  branch structure is on; `~/.gmdconfig` and `~/gmd.log`; a request to GitHub's releases API every
-  hour unless that is turned off; and the tags of Add Tag, above. There is no telemetry. People ask
-  this before they run a tool on their work, and the README should answer it.
+- **What does gmd write, and what does it send?** `.gmdconfig` and `gmd-metadata.json` in each
+  repository's git folder; the refs `refs/gmd/discarded` and `refs/gmdtags/origin/*`; with the
+  shared branch structure on, `refs/gmd-metadata-key-value/data` on origin, of the commits origin has;
+  `~/.gmdconfig` and `~/gmd.log`; a request to GitHub's releases API every hour unless that is turned
+  off; and the tags of Add Tag, above. There is no telemetry. People ask this before they run a tool
+  on their work, and the README answers it, in "What Gmd Stores and Sends" (complete since
+  2026-10-18, when the metadata moved out of the repository into the file).
 - **Can others contribute?** Building needs a preview .NET 11 SDK, for the C# 15 unions, until .NET
   11 is released (`docs/UPGRADING.md`).
 - **Can it be found?** "gmd" is hard to search for. A tagline, the repository's GitHub topics and the

@@ -16,6 +16,7 @@ internal interface ILogService
         string wd
     );
     Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
+    Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd);
 }
 
 internal class LogService : ILogService
@@ -131,6 +132,42 @@ internal class LogService : ILogService
             );
         }
         return existing;
+    }
+
+    // The ones of the ids that are commits origin has, as far as this repository knows: commits one of
+    // origin's remote branches reaches, as last fetched or pushed. '<ids> --not --remotes=origin' lists
+    // each id no remote branch reaches, with what else it reaches that they do not, i.e. the work not
+    // pushed, so the output is small; with no remote branch at all it would be the whole history, so
+    // then none is on origin, and git is not asked. An id git does not have is on origin as little.
+    public async Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd)
+    {
+        if (ids.Count == 0)
+            return new HashSet<string>();
+        var remoteRefs = await cmd.RunAsync(
+            "git",
+            "for-each-ref --count=1 --format=%(refname) refs/remotes/origin/",
+            wd
+        );
+        if (remoteRefs is not string remoteRef)
+            return remoteRefs.Error;
+        if (remoteRef.Trim() == "")
+            return new HashSet<string>();
+
+        var existing = await GetExistingCommitIdsAsync(ids, wd);
+        if (existing is not IReadOnlySet<string> existingIds)
+            return existing.Error;
+        HashSet<string> onOrigin = [.. existingIds];
+        foreach (var chunk in existingIds.Chunk(IdsPerCall))
+        {
+            var args = $"rev-list {string.Join(' ', chunk)} --not --remotes=origin";
+            var result = await cmd.RunAsync("git", args, wd);
+            if (result is not string output)
+                return result.Error;
+            onOrigin.ExceptWith(
+                output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            );
+        }
+        return onOrigin;
     }
 
     public async Task<Result<IReadOnlyList<Commit>>> GetStashListAsync(string wd)

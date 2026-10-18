@@ -53,7 +53,9 @@ public class InferenceDumpTest
         var branches = AssertOk(await git.GetBranchesAsync(RepoPath));
         var tags = AssertOk(await git.GetTagsAsync(RepoPath));
         var stashes = AssertOk(await git.GetStashesAsync(RepoPath));
-        var metaData = AssertOk(await new MetaDataService(git, new FakeRepoConfig()).GetMetaDataAsync(RepoPath));
+        var metaData = AssertOk(
+            await new MetaDataService(git, new FakeRepoConfig(), new MetaDataFile()).GetMetaDataAsync(RepoPath)
+        );
 
         return new GitRepo(
             DateTime.UtcNow,

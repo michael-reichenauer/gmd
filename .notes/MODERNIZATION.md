@@ -750,10 +750,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
     'v1_release' is a trunk of its own, and 'prepare-release' a feature.
 - Left open by the review before merging to dev (2026-09-26):
   - Every reflog fact that decided between branches is kept in the metadata for good, never pruned,
-    so the metadata grows with the user's own commits, and opening a repo with a reflog now writes
-    `refs/gmd-metadata-key-value/data` into it (on a read-only checkout, a failed write logged on
-    every read). Keeping facts only in repos that already use the metadata, or pruning the ones for
-    commits no branch still passes, is to decide.
+    so the metadata grows with the user's own commits. Pruning the ones for commits no branch still
+    passes is to decide. *Half done 2026-10-18:* the other half, that opening a repo with a reflog
+    wrote `refs/gmd-metadata-key-value/data` into the repository, is gone: the metadata is kept in
+    `.git/gmd-metadata.json`, the ref is read until the first write moves it there, and with the
+    shared branch structure on, only the entries of commits origin has are pushed, after a branch
+    push. A ref is listed by `for-each-ref` and every tool that lists refs, and a `push --mirror`
+    sends it; and the reflog facts named local branches never pushed, which went to origin with
+    every push. (On a read-only checkout the file write fails as the ref's did, logged.)
   - `ReflogWitness.BranchOrNull` rejects a name with `@`, which is a valid branch name, while a
     detached checkout of `origin/dev` counts as being on dev and a checkout of a tag as a branch.
   - A fast-forward read for the first time after the fast-forwarded branch's creation entry expired
