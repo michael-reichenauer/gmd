@@ -16,8 +16,7 @@ public class BlameViewTest
     public async Task TestBlameFile()
     {
         using var repo = await E2eRepo.CreateAsync();
-        // Two commits over one file, so the blame has two runs of two lines each. It has to be
-        // alpha.txt: the file picker opens on the first file of the tree and OpenBlameOf takes it.
+        // Two commits over one file, so the blame has two runs of two lines each
         var t = TempRepo.BaseTime;
         await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\nthree\nfour\n", "Add lines", t.AddMinutes(7));
         await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\nCHANGED\nFOUR\n", "Change lines", t.AddMinutes(8));
@@ -338,6 +337,8 @@ public class BlameViewTest
         gmd.WaitFor("'Test User' is not in alpha.txt");
     }
 
+    // The file is picked by typing its name, which finds it wherever the picker opens, on the first
+    // file the commit changed
     static void OpenBlameOf(TmuxSession gmd, string path)
     {
         gmd.Send("m");
@@ -349,7 +350,9 @@ public class BlameViewTest
         gmd.Send("Up");
         gmd.WaitForStable();
         gmd.Send("Enter");
-        gmd.WaitFor(path);
+        gmd.WaitFor("Find:");
+        gmd.SendText(path);
+        gmd.WaitFor($"Find: {path}");
         gmd.Send("Enter");
     }
 }

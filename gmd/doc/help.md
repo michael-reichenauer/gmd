@@ -747,8 +747,20 @@ whitespace again. **Diff File**
 in the menu opens an uncommitted file in the diff tool git is configured
 with (`git difftool`).
 
-**Blame File ...** in the commit menu picks a file and shows which commit
-last changed each of its lines. Consecutive lines from the same commit are
+**Full File History ...** and **Blame File ...** in the commit menu pick
+the file in the same dialog. First come the files the commit changed, under
+**Changed in commit** (on the uncommitted row, **Uncommitted changes**),
+each with its letter (`M`, `A`, ...), and the cursor on the first of them.
+Below them, under **All files**, are all the files of the commit, or on the
+uncommitted row of its branch, as a tree with every folder closed, where a
+changed file has its letter too and a folder holding one a `•`. `→` and
+`←` open and close a folder, and `←` on a file goes up to its folder.
+Typing lists the files whose path has every word typed, in any case and in
+any order, the names that start with the first word first, and clearing it
+goes back to the tree. `Enter` or a click picks the file, or opens or
+closes a folder, and `Esc` closes the dialog.
+
+**Blame File ...** shows which commit last changed each line of the file. Consecutive lines from the same commit are
 bracketed together with `┌ │ └` (`╺` for a run of a single line) and that
 commit is named once per run rather than on every line, which is what makes
 this readable where the console `git blame` is not. The bracket and the

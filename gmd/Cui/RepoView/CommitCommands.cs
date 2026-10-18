@@ -957,19 +957,12 @@ class CommitCommands : ICommitCommands
     public void ShowFileHistory() =>
         Do(async repo =>
         {
-            var commit = repo.RowCommit;
-            // The files to pick from are the ones the reference has, while the history then shown
-            // for the picked one is its full history, so the title names where the list came from
-            var (reference, title) = commit.IsUncommitted
-                ? (commit.BranchName, $"Select File of Branch {commit.BranchName}")
-                : (commit.Id, $"Select File of Commit {commit.Id.Sid()}");
-
-            var filesResult = await server.GetFilePathsAsync(reference, repo.Path);
-            if (filesResult is not IReadOnlyList<string> files)
-                return new Error($"Failed to get files", filesResult.Error);
-
-            var browser = new FileBrowseDlg();
-            if (browser.Show(files, title) is not string path)
+            // The files to pick from are the ones the row's commit has, while the history then shown
+            // for the picked one is its full history, hence 'Full'
+            var pickResult = await PickFileAsync(repo, "Full File History", "history");
+            if (pickResult is not string path)
+                return pickResult.Error;
+            if (path == "")
                 return Result.Ok;
 
             var source = new DiffSource(n => server.GetFileDiffAsync(path, n, repo.Path));
@@ -985,18 +978,10 @@ class CommitCommands : ICommitCommands
         Do(async repo =>
         {
             var commit = repo.RowCommit;
-            // The uncommitted row has no tree of its own, so its branch supplies the file list. It
-            // then blames the working tree, so the uncommitted lines are part of the answer.
-            var (reference, title) = commit.IsUncommitted
-                ? (commit.BranchName, $"Blame File of Branch {commit.BranchName}")
-                : (commit.Id, $"Blame File of Commit {commit.Id.Sid()}");
-
-            var filesResult = await server.GetFilePathsAsync(reference, repo.Path);
-            if (filesResult is not IReadOnlyList<string> files)
-                return new Error($"Failed to get files", filesResult.Error);
-
-            var browser = new FileBrowseDlg();
-            if (browser.Show(files, title) is not string path)
+            var pickResult = await PickFileAsync(repo, "Blame File", "blame");
+            if (pickResult is not string path)
+                return pickResult.Error;
+            if (path == "")
                 return Result.Ok;
 
             // Git blames a binary file as text, which arrives as mojibake. Only checked when the
@@ -1008,6 +993,7 @@ class CommitCommands : ICommitCommands
                 return new Error($"Cannot blame a binary file:\n{path}");
             }
 
+            // The uncommitted row blames the working tree, so the uncommitted lines are part of the answer
             var blameReference = commit.IsUncommitted ? "" : commit.Id;
             var blameResult = await server.GetBlameAsync(path, blameReference, repo.Path);
             if (blameResult is not Server.Blame blame)
@@ -1016,6 +1002,59 @@ class CommitCommands : ICommitCommands
             UI.Post(() => blameView.Show(blame, repo.Repo)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
+
+    // A file of the row's commit, picked in the file browser, or "" when it was closed with none
+    // picked. The uncommitted row has no tree of its own, so its branch supplies the files, and the
+    // uncommitted changes are the ones listed first. Reading what a commit changed is only for the marks,
+    // so a failure to is no reason not to offer its files.
+    async Task<Result<string>> PickFileAsync(IViewRepo repo, string title, string action)
+    {
+        var commit = repo.RowCommit;
+        var (reference, about, changedHeading) = commit.IsUncommitted
+            ? (commit.BranchName, $"branch {commit.BranchName}", "Uncommitted changes")
+            : (commit.Id, $"commit {commit.Id.Sid()}", $"Changed in commit {commit.Id.Sid()}");
+
+        var filesTask = server.GetFilePathsAsync(reference, repo.Path);
+        var changes = commit.IsUncommitted
+            ? UncommittedChanges(repo.Repo.Status)
+            : await server.GetChangedFilesAsync(commit.Id, repo.Path) switch
+            {
+                IReadOnlyList<ChangedFile> files => files
+                    .DistinctBy(f => f.Path)
+                    .ToDictionary(f => f.Path, f => f.Kind),
+                Error e => LoggedNone(e),
+            };
+
+        var filesResult = await filesTask;
+        if (filesResult is not IReadOnlyList<string> paths)
+            return new Error($"Failed to get files", filesResult.Error);
+
+        return new FileBrowseDlg().Show(title, paths, changes, changedHeading, about, action) is string path
+            ? path
+            : "";
+
+        static Dictionary<string, char> LoggedNone(Error e)
+        {
+            Log.Warn($"Failed to read the changed files: {e.AllMessages()}");
+            return [];
+        }
+    }
+
+    // The files changed in the working tree that its branch has, with the letter the commit dialog
+    // gives them; a new file is not one of the branch's, nor is a renamed file's new path
+    static Dictionary<string, char> UncommittedChanges(Server.Status status)
+    {
+        Dictionary<string, char> changes = [];
+        foreach (var path in status.ModifiedFiles)
+            changes[path] = 'M';
+        foreach (var path in status.DeletedFiles)
+            changes[path] = 'D';
+        foreach (var path in status.RenamedSourceFiles)
+            changes[path] = 'R'; // Its old path, the one the branch has
+        foreach (var path in status.ConflictsFiles)
+            changes[path] = 'C';
+        return changes;
+    }
 
     void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 
