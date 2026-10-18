@@ -39,7 +39,10 @@ class CloneDlg : ICloneDlg
             () =>
             {
                 FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (browseDlg.Show(recentParentFolders) is not string folder || folder.Trim() == "")
+                if (
+                    browseDlg.Show("Folder to Clone Into", "choose", recentParentFolders) is not string folder
+                    || folder.Trim() == ""
+                )
                     return;
                 parent = folder.Trim();
                 UpdatePath(parent, uri.Text, isBrowsed: true);

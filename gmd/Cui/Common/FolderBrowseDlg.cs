@@ -1,89 +1,77 @@
-using Terminal.Gui.ViewBase;
-using Terminal.Gui.Views;
+using Terminal.Gui.Input;
 
 namespace gmd.Cui.Common;
 
-public class FolderBrowseDlg
+// Picks a folder: a repository to open (Browse in the repo menu, Open a folder on the start page), or
+// the folder Clone, Init and Create Worktree put theirs in. Laid out as the file browser is
+// (FileBrowseDlg): a field to type in over the list, and a status line with the keys. With nothing
+// typed, the list is the tree of folders from the folders given, home and the root of the file system
+// (FolderTree); once something is typed, the folders FolderFinder lists for it, the folders listed so
+// far that have the words in their path, or the folders in the folder of a path typed. Clearing it
+// goes back to the tree as it was. The field has the keyboard, so the dialog takes the keys that move
+// in the list before the field sees them, and ← → too while nothing is typed, which open and close the
+// folders of the tree, and → at the end of the text, which goes into the folder found, as its path.
+// Enter or a click on a name picks the folder, and a click on a folder's ▸ or ▾ opens or closes it.
+// The rows are drawn by FolderBrowseRows.
+class FolderBrowseDlg
 {
-    string selectedPath = "";
-    UIDialog? dlg;
+    const int MaxWidth = 90;
+    const int MaxHeight = 34;
+    const int ListY = 2; // Below the text field and the line under it
 
-    // Starting from the folders given, the first of them opened, see Roots
-    internal Result<string> Show(IReadOnlyList<string> folders)
+    readonly IFolderReader reader = new FolderReader();
+    readonly string home = Files.HomePath;
+
+    UIDialog dlg = null!;
+    UITextField findField = null!;
+    ContentView listView = null!;
+    UILabel statusLabel = null!;
+    FolderTree tree = null!;
+    IReadOnlyList<string> found = [];
+    IReadOnlyList<string> words = [];
+    string foundText = "";
+    string foundIn = ""; // The folder of a path typed, or "" for words found among the folders listed
+    string foundName = ""; // The start of a name typed after that folder
+    int treeIndex; // Where the cursor was in the tree when typing started
+    string action = "";
+    int statusWidth;
+    Result<string> picked = new Error("No folder picked");
+
+    // The title, e.g. 'Open Repo', what picking a folder does, e.g. 'open', and the folders to start
+    // from, the most likely first, see Roots
+    internal Result<string> Show(string title, string action, IReadOnlyList<string> folders)
     {
-        const int width = 50;
-        const int height = 20;
-
-        var dlg = this.dlg = new UIDialog("Select Folder", width, height);
-        var folderView = new TreeView<FileSystemInfo>()
-        {
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = Dim.Fill() - 2,
-        };
-
-        folderView.Style.ShowBranchLines = true;
-        folderView.Style.ExpandableSymbol = new System.Text.Rune('+');
-        folderView.Style.CollapseableSymbol = null;
-        folderView.MultiSelect = false;
-        folderView.Accepted += (_, _) => ItemSelected(folderView.SelectedObject);
-        SetCustomColors(folderView);
-
-        dlg.Add(folderView);
-        dlg.AddLine(0, height - 4, width - 2);
-        dlg.AddDlgCancel();
-
-        dlg.Show(
-            folderView,
-            () =>
-            {
-                SetupFileTree(folderView, folders);
-                folderView.GoToFirst();
-                if (folders.Any())
-                {
-                    folderView.Expand();
-                }
-            }
-        );
-
-        if (selectedPath == "")
-            return new Error();
-
-        return selectedPath;
-    }
-
-    // Enter or a double click on a folder picks it, and closes the dialog
-    void ItemSelected(FileSystemInfo? item)
-    {
-        if (item is DirectoryInfo dir)
-        {
-            selectedPath = dir.FullName ?? "";
-        }
-
-        dlg?.Close();
-    }
-
-    static void SetCustomColors(TreeView<FileSystemInfo> treeView)
-    {
-        treeView.ColorGetter = m => m is DirectoryInfo ? ColorSchemes.Label : null;
-    }
-
-    void SetupFileTree(TreeView<FileSystemInfo> treeView, IReadOnlyList<string> folders)
-    {
-        treeView.TreeBuilder = new DelegateTreeBuilder<FileSystemInfo>(GetChildren, HasChildren);
-        treeView.AspectGetter = GetName;
-
+        this.action = action;
         var drives = OperatingSystem.IsWindows()
             ? DriveInfo.GetDrives().Select(d => d.RootDirectory.FullName).ToList()
             : ["/"];
-        var roots = Roots(folders, Files.HomePath, drives)
-            .Where(Directory.Exists)
-            .Select(f => GetDirInfo(f))
-            .Where(f => f != null)
-            .Select(f => f!);
+        tree = new FolderTree(Roots(folders, home, drives).Where(Directory.Exists).ToList(), home, reader);
 
-        treeView.AddObjects(roots);
+        // As large as the screen allows, since the tree grows as folders are opened
+        var width = Math.Min(MaxWidth, UI.ScreenSize.Width - 4);
+        var height = Math.Min(MaxHeight, UI.ScreenSize.Height - 4);
+        statusWidth = width - 4;
+
+        dlg = new UIDialog(title, width, height, OnKey);
+        dlg.RegisterMouseHandler(OnMouse);
+
+        dlg.AddLabel(1, 0, "Find:");
+        findField = dlg.AddInputField(7, 0, width - 11);
+        dlg.AddLine(0, 1, width - 2);
+        var listHeight = height - ListY - 3;
+        listView = dlg.AddContentView(0, ListY, width - 2, listHeight, OnGetContent);
+        // Its size now rather than once the dialog is laid out, so that the cursor can be scrolled to
+        listView.Frame = new System.Drawing.Rectangle(0, ListY, width - 2, listHeight);
+        listView.IsShowCursor = false;
+        listView.IsScrollMode = false;
+        listView.CurrentIndexChange += UpdateStatus;
+        statusLabel = dlg.AddLabel(1, height - 3);
+
+        findField.TextChanged += (_, _) => Update();
+        ShowTreeAt(0);
+
+        dlg.Show(findField);
+        return picked;
     }
 
     // The folders the tree starts from: the ones given, most likely first, then home and the roots of
@@ -104,63 +92,202 @@ public class FolderBrowseDlg
         return roots;
     }
 
-    static DirectoryInfo? GetDirInfo(string path)
+    bool IsTree => foundText == "";
+
+    // Called for every change of the text: a text as it was must not move the cursor
+    void Update()
     {
-        try
+        var text = findField.Text;
+        if (text == foundText)
+            return;
+
+        if (foundText == "")
+            treeIndex = listView.CurrentIndex; // Leaving the tree, to come back to it as it was
+        foundText = text;
+        if (text == "")
         {
-            return new DirectoryInfo(path);
+            ShowTreeAt(treeIndex);
+            return;
         }
-        catch (SystemException)
+
+        if (FolderFinder.IsPath(text))
         {
-            // Access violation or other error getting the file list for directory
-            return null;
+            var (folder, name) = FolderFinder.Split(text, home);
+            foundIn = folder;
+            foundName = name;
+            found = FolderFinder.InFolder(folder, name, tree.FoldersIn(folder));
+            words = name == "" ? [] : [name];
         }
+        else
+        {
+            foundIn = "";
+            found = FolderFinder.Find(tree.Listed, text, home);
+            words = FileFinder.Words(text);
+        }
+
+        listView.SetTotalCount(Math.Max(1, found.Count));
+        listView.MoveToTop();
+        listView.SetNeedsDraw();
+        UpdateStatus();
     }
 
-    bool HasChildren(FileSystemInfo item)
+    // The cursor on the row, scrolled to only when out of sight, so that opening a folder does not
+    // move the rows under the cursor
+    void ShowTreeAt(int index)
     {
-        try
-        {
-            return item is DirectoryInfo di && di.EnumerateDirectories().Any();
-        }
-        catch (SystemException)
-        {
-            // Access violation or other error getting the file list for directory
+        index = Math.Clamp(index, 0, Math.Max(0, tree.Rows.Count - 1));
+        listView.SetTotalCount(tree.Rows.Count);
+        listView.ScrollToShowIndex(index, 1);
+        listView.SetCurrentIndex(index);
+        listView.SetNeedsDraw();
+        UpdateStatus();
+    }
+
+    // The folder the cursor is on in the tree, or what was found and how many, and the keys
+    void UpdateStatus()
+    {
+        var keys = new TextBuilder();
+        if (IsTree)
+            keys.Cyan("↑↓").Dark(" select  ").Cyan("←→").Dark(" folders  ");
+        else if (found.Count > 0)
+            keys.Cyan("↑↓").Dark(" select  ").Cyan("→").Dark(" into  ");
+        if (IsTree || found.Count > 0)
+            keys.Cyan("Enter").Dark($" {action}");
+
+        // The folder itself is listed first when nothing is typed after its path, and is not in it
+        var about =
+            IsTree ? Shown(tree.Rows.ElementAtOrDefault(listView.CurrentIndex)?.Path ?? "")
+            : foundIn != ""
+                ? $"{Folders(found.Count - (foundName == "" && found.Count > 0 ? 1 : 0))} in {Shown(foundIn)}"
+            : $"{found.Count} of {Folders(tree.Listed.Count)}";
+        var aboutWidth = Math.Max(0, statusWidth - keys.Length - 3);
+        statusLabel.Text = Text.Dark($"{CutStart(about, aboutWidth)}   ").Add(keys);
+    }
+
+    bool OnKey(Key key)
+    {
+        if (key == Key.Enter)
+            Pick(listView.CurrentIndex);
+        else if (key == Key.CursorUp)
+            listView.Move(-1);
+        else if (key == Key.CursorDown)
+            listView.Move(1);
+        else if (key == Key.PageUp)
+            listView.Move(-listView.ContentHeight);
+        else if (key == Key.PageDown)
+            listView.Move(listView.ContentHeight);
+        else if (key == Key.CursorRight && IsTree)
+            ShowTreeAt(tree.Expand(listView.CurrentIndex));
+        else if (key == Key.CursorLeft && IsTree)
+            ShowTreeAt(tree.Collapse(listView.CurrentIndex));
+        else if (key == Key.CursorRight && findField.CursorPosition == findField.RawText.Length && found.Count > 0)
+            Into(listView.CurrentIndex);
+        else
             return false;
-        }
+        return true;
     }
 
-    private IEnumerable<FileSystemInfo> GetChildren(FileSystemInfo item)
+    // A click on a name does what Enter does, one on a folder's marker opens or closes it, and the
+    // wheel scrolls the list. The dialog has the mouse, so the coordinates are the dialog's, its border
+    // included.
+    bool OnMouse(MouseEvent ev)
     {
-        // If it is a directory it's children are all contained files and dirs
-        if (item is DirectoryInfo directoryInfo)
+        var listRow = ev.Y - 1 - ListY;
+        var listX = ev.X - 1;
+        var isInList = listRow >= 0 && listRow < listView.ViewHeight && listX >= 0 && listX < listView.ViewWidth;
+
+        if (ev.Flags.HasFlag(MouseFlags.LeftButtonClicked) && isInList)
         {
-            try
+            var index = listView.FirstIndex + listRow;
+            if (index >= (IsTree ? tree.Rows.Count : found.Count))
+                return true; // Below the last row
+            listView.SetIndexAtViewY(listRow);
+            if (IsTree && FolderBrowseRows.IsOnMarker(tree.Rows[index], listX))
             {
-                return directoryInfo.EnumerateDirectories().Where(f => f is not null).OrderBy(f => f.Name);
+                tree.Toggle(index);
+                ShowTreeAt(index);
             }
-            catch (SystemException)
+            else
             {
-                // Access violation or other error getting the file list for directory
-                return [];
+                Pick(index);
             }
+            return true;
+        }
+        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) || ev.Flags.HasFlag(MouseFlags.WheeledUp))
+        {
+            listView.Scroll(ev.Flags.HasFlag(MouseFlags.WheeledDown) ? 1 : -1);
+            return true;
         }
 
-        return [];
-        ;
+        return false;
     }
 
-    private string GetName(FileSystemInfo item)
+    void Pick(int index)
     {
-        if (item is DirectoryInfo d)
+        if (PathAt(index) is not string path)
+            return; // Nothing found, so there is nothing to pick; Esc goes back
+
+        picked = path;
+        dlg.Close();
+    }
+
+    // Goes into the folder found, typing its path, so the list is the folders in it
+    void Into(int index)
+    {
+        if (PathAt(index) is not string path)
+            return;
+
+        var shown = Shown(path);
+        var separator = Path.DirectorySeparatorChar;
+        findField.Text = shown.EndsWith(separator) ? shown : shown + separator;
+        findField.CursorPosition = findField.RawText.Length;
+    }
+
+    string? PathAt(int index) =>
+        IsTree ? tree.Rows.ElementAtOrDefault(index)?.Path
+        : index >= 0 && index < found.Count ? found[index]
+        : null;
+
+    // A path as the rows show it, with home as '~', and with no separator at its end but the root's
+    string Shown(string path) => Files.ShortHomePath(Path.TrimEndingDirectorySeparator(path), home);
+
+    static string Folders(int count) => count == 1 ? "1 folder" : $"{count} folders";
+
+    static string CutStart(string text, int width) =>
+        text.Length <= width || width < 2 ? text : "…" + text[(text.Length - (width - 1))..];
+
+    (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
+    {
+        if (IsTree)
         {
-            return d.Name;
-        }
-        if (item is FileInfo f)
-        {
-            return f.Name;
+            var treeRows = tree
+                .Rows.Skip(firstIndex)
+                .Take(count)
+                .Select((r, i) => Highlighted(FolderBrowseRows.TreeRow(r, width), i + firstIndex == currentIndex));
+            return (treeRows, tree.Rows.Count);
         }
 
-        return item.ToString();
+        if (found.Count == 0)
+            return ([Text.Dark($"  {NoneFound()}")], 1);
+
+        var foundRows = found
+            .Skip(firstIndex)
+            .Take(count)
+            .Select(
+                (p, i) =>
+                    Highlighted(
+                        FolderBrowseRows.FoundRow(Shown(p), tree.IsRepo(p), words, width),
+                        i + firstIndex == currentIndex
+                    )
+            );
+        return (foundRows, found.Count);
     }
+
+    // Why nothing is listed, and for words, where else to look
+    string NoneFound() =>
+        foundIn == "" ? "No folder listed so far has that in its path; a path, as ~/code, looks in a folder"
+        : tree.FoldersIn(foundIn) == null ? $"{Shown(foundIn)} is no folder that can be read"
+        : $"No folder in {Shown(foundIn)} has that in its name";
+
+    static Text Highlighted(Text row, bool isCurrent) => isCurrent ? row.ToHighlight() : row;
 }

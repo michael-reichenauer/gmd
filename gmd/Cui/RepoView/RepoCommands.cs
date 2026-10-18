@@ -116,7 +116,7 @@ class RepoCommands : IRepoCommands
         Do(async repo =>
         {
             var browser = new FolderBrowseDlg();
-            if (browser.Show(config.RecentParentFolders()) is not string path)
+            if (browser.Show("Open Repo", "open", config.RecentParentFolders()) is not string path)
                 return Result.Ok;
 
             if (await repoView.ShowRepoAsync(path) is Error e)

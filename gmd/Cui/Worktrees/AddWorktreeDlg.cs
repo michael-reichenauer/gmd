@@ -115,7 +115,10 @@ class AddWorktreeDlg : IAddWorktreeDlg
 
         void Browse()
         {
-            if (new FolderBrowseDlg().Show([mainRoot]) is not string folder || folder == "")
+            if (
+                new FolderBrowseDlg().Show("Folder to Create Worktree In", "choose", [mainRoot]) is not string folder
+                || folder == ""
+            )
                 return;
             browsedParent = folder.Trim();
             UpdatePath();

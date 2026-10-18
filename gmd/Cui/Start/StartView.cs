@@ -329,7 +329,7 @@ class StartView : IStartView
     void OpenFolder()
     {
         var browser = new FolderBrowseDlg();
-        var result = browser.Show(Folders());
+        var result = browser.Show("Open Repo", "open", Folders());
         view.SetFocus();
         if (result is string path)
             Open(path);
