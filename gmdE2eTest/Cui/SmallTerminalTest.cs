@@ -74,18 +74,13 @@ public class SmallTerminalTest
         using var gmd = TmuxSession.StartGmd(repo, Width, Height);
         gmd.WaitFor("Initial");
 
-        // As in LostWorkDlgTest: Undo is three moves down, and the item one into it
+        // As in LostWorkDlgTest
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 3; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Undo");
         gmd.Send("Right");
         gmd.WaitFor("Recover Lost Commits");
-        gmd.Send("Down");
-        gmd.WaitForStable();
+        gmd.SelectMenuItem("Recover Lost Commits ...");
         gmd.Send("Enter");
 
         var dialog = gmd.WaitFor("Lost work");

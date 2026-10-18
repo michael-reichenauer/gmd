@@ -937,23 +937,13 @@ public class DiffViewTest
         gmd.WaitForLogTimes("Showed ", shown + 1);
         gmd.WaitForStable();
 
-        // The commit menu starts on 'Amend ...', and 'Undo' is three moves down, past 'Commit Diff'
-        // and 'Mark for Diff'; in it, on 'Undo Commit', main's last change, as DeletedBranchesDlgTest
-        // counts, the item is three moves down, past the two Recover and Restore before it
+        // From the Undo sub menu of the commit menu
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 3; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Undo");
         gmd.Send("Right");
         gmd.WaitFor("Restore Discarded Changes ...");
-        for (var i = 0; i < 3; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Restore Discarded Changes ...");
         gmd.Send("Enter");
         StringAssert.Contains(gmd.WaitFor("Time              Discarded"), "All changes");
         gmd.Send("r");
@@ -1124,9 +1114,7 @@ public class DiffViewTest
     }
 
     // Any two commits, wherever they are: Mark for Diff on one, and Diff with it in the menu of the
-    // other, which diffs the older to the newer. In the menu of 'Add beta', which opens on 'Amend ...'
-    // of the last commit, Mark for Diff is two moves down, past its own Amend and Squash, which are
-    // disabled, and Commit Diff; in the menu of 'Add delta', Diff with is one further.
+    // other, which diffs the older to the newer
     [TestMethod]
     public async Task TestADiffOfAnyTwoCommits()
     {
@@ -1139,7 +1127,7 @@ public class DiffViewTest
             gmd.Send("Down");
             gmd.WaitForStable();
         }
-        PickCommitMenuItem(gmd, 2, "Mark for Diff");
+        PickCommitMenuItem(gmd, "Mark for Diff");
         Assert.AreEqual(
             $"Marked {beta} for a diff (±): Diff with {beta} in the menu of another commit diffs the two",
             ScreenText.LastLine(gmd.WaitFor($"Marked {beta}"))
@@ -1147,7 +1135,7 @@ public class DiffViewTest
 
         gmd.Send("Home");
         gmd.WaitForStable();
-        PickCommitMenuItem(gmd, 3, $"Diff with {beta}");
+        PickCommitMenuItem(gmd, $"Diff with {beta}");
 
         var diff = gmd.WaitFor($"Diff {beta} to 17d85ba8");
         StringAssert.Contains(diff, "A delta.txt");
@@ -1156,7 +1144,7 @@ public class DiffViewTest
 
     // The commit marked is marked '±' at the start of its row, which the menu of any other commit
     // only names, and its own menu has Unmark for Diff where Mark for Diff was, which takes the mark
-    // away. Moves counted as in TestADiffOfAnyTwoCommits.
+    // away.
     [TestMethod]
     public async Task TestTheCommitMarkedForADiffIsMarkedInTheLogUntilUnmarked()
     {
@@ -1169,26 +1157,22 @@ public class DiffViewTest
             gmd.Send("Down");
             gmd.WaitForStable();
         }
-        PickCommitMenuItem(gmd, 2, "Mark for Diff");
+        PickCommitMenuItem(gmd, "Mark for Diff");
         var log = ScreenText.Rows(gmd.WaitFor($"Marked {beta}"), repo.Path, 2, 5);
         StringAssert.Contains(log, "┣╯±  Add beta");
         Assert.AreEqual(1, log.Count(c => c == '±'), "On its row alone");
 
-        PickCommitMenuItem(gmd, 2, "Unmark for Diff");
+        PickCommitMenuItem(gmd, "Unmark for Diff");
         var unmarked = gmd.WaitFor($"Unmarked {beta}");
         Assert.AreEqual($"Unmarked {beta} for a diff", ScreenText.LastLine(unmarked));
         StringAssert.Contains(ScreenText.Rows(unmarked, repo.Path, 2, 5), "┣╯   Add beta");
     }
 
-    static void PickCommitMenuItem(TmuxSession gmd, int moves, string item)
+    static void PickCommitMenuItem(TmuxSession gmd, string item)
     {
         gmd.Send("m");
         gmd.WaitFor(item);
-        for (int i = 0; i < moves; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem(item);
         gmd.Send("Enter");
     }
 

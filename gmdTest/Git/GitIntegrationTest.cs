@@ -1961,7 +1961,10 @@ public class GitIntegrationTest
         var status = Value(await repo.Git.GetStatusAsync(repo.Path));
         CollectionAssert.AreEqual(new[] { "Ärende.md" }, status.ModifiedFiles);
         CollectionAssert.AreEqual(new[] { "nöw.txt" }, status.AddedFiles);
-        CollectionAssert.AreEqual(new[] { "nöw.txt" }, Value(await repo.Git.GetFilesToCleanAsync(repo.Path)).ToArray());
+        Directory.CreateDirectory(Path.Join(repo.Path, ".git", "info"));
+        File.AppendAllText(Path.Join(repo.Path, ".git", "info", "exclude"), "*.log\n");
+        repo.WriteFile("lög.log", "ignored\n");
+        CollectionAssert.AreEqual(new[] { "lög.log" }, Value(await repo.Git.GetIgnoredFilesAsync(repo.Path)).ToArray());
 
         Ok(await repo.Git.CommitFilesAsync("Second", false, status.ModifiedFiles, repo.Path));
         Ok(await repo.Git.UndoUncommittedFileAsync(status.AddedFiles[0], repo.Path));
@@ -2304,9 +2307,9 @@ public class GitIntegrationTest
 
     // Unwraps a result, failing the test with the git error if the command failed
     // The dry run is read by git's own words ("Would remove ..."), so this is the canary for them: an
-    // ignored file, an ignored folder named once, an untracked file, and the tracked ones left out
+    // ignored file and an ignored folder named once, and the untracked and tracked ones left out
     [TestMethod]
-    public async Task TestTheFilesToCleanAreTheIgnoredAndUntrackedOnes()
+    public async Task TestTheIgnoredFilesAreTheIgnoredFileAndFolder()
     {
         using var repo = await TempRepo.CreateAsync();
         await repo.CommitFileAsync(".gitignore", ".env\nbin/\n", "Ignore");
@@ -2315,9 +2318,9 @@ public class GitIntegrationTest
         File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
         File.WriteAllText(Path.Join(repo.Path, "notes.txt"), "untracked\n");
 
-        var files = Value(await repo.Git.GetFilesToCleanAsync(repo.Path));
+        var files = Value(await repo.Git.GetIgnoredFilesAsync(repo.Path));
 
-        CollectionAssert.AreEquivalent(new[] { ".env", "bin/", "notes.txt" }, files.ToArray());
+        CollectionAssert.AreEquivalent(new[] { ".env", "bin/" }, files.ToArray());
     }
 
     // A commit of some files only, as the commit dialog's checklist makes it: the ticked files are

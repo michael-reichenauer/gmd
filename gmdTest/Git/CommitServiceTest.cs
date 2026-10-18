@@ -247,18 +247,16 @@ public class CommitServiceTest
         CollectionAssert.AreEqual(new[] { "reset --hard", "clean -fxd" }, ArgsOf(cmd));
     }
 
-    // What the clean would delete is git's dry run of the same clean, a folder once rather than its files
+    // The ignored files are git's dry run of a clean of them alone, a folder once rather than its files
     [TestMethod]
-    public async Task TestTheFilesToCleanAreTheDryRunOfTheClean()
+    public async Task TestTheIgnoredFilesAreTheDryRunOfACleanOfThem()
     {
-        var cmd = new FakeCmd(
-            "Would remove .env\nWould remove bin/\nWould remove notes.txt\nWould remove \"n\\303\\266w.txt\"\n"
-        );
+        var cmd = new FakeCmd("Would remove .env\nWould remove bin/\nWould remove \"n\\303\\266w.log\"\n");
 
-        var files = AssertOk(await new CommitService(cmd).GetFilesToCleanAsync(wd));
+        var files = AssertOk(await new CommitService(cmd).GetIgnoredFilesAsync(wd));
 
-        CollectionAssert.AreEqual(new[] { ".env", "bin/", "notes.txt", "nöw.txt" }, files.ToArray());
-        CollectionAssert.AreEqual(new[] { "clean -n -x -d" }, ArgsOf(cmd));
+        CollectionAssert.AreEqual(new[] { ".env", "bin/", "nöw.log" }, files.ToArray());
+        CollectionAssert.AreEqual(new[] { "clean -n -X -d" }, ArgsOf(cmd));
     }
 
     [TestMethod]

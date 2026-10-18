@@ -995,8 +995,10 @@ class CommitCommands : ICommitCommands
         Do(async repo =>
         {
             // The files to pick from are the ones the row's commit has, while the history then shown
-            // for the picked one is its full history, hence 'Full'
-            var pickResult = await PickFileAsync(repo, "Full File History", "history");
+            // for the picked one is every commit that changed it, opened at the row's commit as the
+            // blame's ⇧l opens it at the line's, or at the newest when that one did not change it
+            var commit = repo.RowCommit;
+            var pickResult = await PickFileAsync(repo, "File History", "history");
             if (pickResult is not string path)
                 return pickResult.Error;
             if (path == "")
@@ -1007,7 +1009,8 @@ class CommitCommands : ICommitCommands
             if (diffsResult is not CommitDiff[] diffs)
                 return new Error($"Failed to show file history", diffsResult.Error);
 
-            UI.Post(() => diffView.Show(diffs, source, repo.Repo)); // Outside Do, see ShowDiff
+            var atCommitId = commit.IsUncommitted ? "" : commit.Id;
+            UI.Post(() => diffView.Show(diffs, source, repo.Repo, atCommitId: atCommitId)); // Outside Do, see ShowDiff
             return Result.Ok;
         });
 

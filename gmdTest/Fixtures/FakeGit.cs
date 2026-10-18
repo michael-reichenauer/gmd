@@ -375,7 +375,7 @@ class FakeGit : IGit
 
     public Task<Result> CleanWorkingFolderAsync(string wd) => throw new NotSupportedException();
 
-    public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => throw new NotSupportedException();
+    public Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd) => throw new NotSupportedException();
 
     public Task<Result> AutosquashAsync(string baseId, string wd) => throw new NotSupportedException();
 

@@ -160,7 +160,7 @@ interface IServer
     // changes left as they are; refused when the file has changed since the lines were shown
     Task<Result> DiscardLinesAsync(string path, IReadOnlyList<ChosenLine> lines, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
-    Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd);
     Task<Result> UndoCommitAsync(string id, int parent, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);

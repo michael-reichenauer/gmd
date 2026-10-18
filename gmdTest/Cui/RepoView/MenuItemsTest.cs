@@ -7,12 +7,12 @@ using GitOp = gmd.Git.GitOperation;
 
 namespace gmdTest.Cui.RepoView;
 
-// What the branch and repo menus offer, and which of it is greyed out. The item builders are on
+// What the commit, branch and repo menus offer, and which of it is greyed out. The item builders are on
 // the interfaces and read only the shown repo, so they can be asserted as a list without a driver.
 //
 // Worth pinning because Menu.OnCursorDown skips a disabled item: what is greyed decides how many
-// key presses reach an item, which is why the end-to-end menu tests have to count their moves
-// against the fixture rather than against the source.
+// key presses reach an item, which is why the end-to-end tests walk a menu to an item by its name
+// (TmuxSession.SelectMenuItem) rather than by a count of moves.
 [TestClass]
 public class MenuItemsTest
 {
@@ -25,24 +25,97 @@ public class MenuItemsTest
             Merge dev into main  [e]
             Merge main into dev  [⇧e]
             Rebase onto >  (disabled)
-            Hide Branch  [h]
             Pull  [u]  (disabled)
             Push  [p]
+            ---
             Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...
             Undo Last Change  (disabled)
+            ---
             Diff Branch to >  [d]
-            Change Branch Color  [g]
-            Open in Browser  (disabled)
+            Open Branch in Browser  (disabled)
             Create Pull Request in Browser  (disabled)
             ---
+            Hide Branch  [h]
+            Change Branch Color  [g]
             Show Branch >  [⇧→]
-            Set Commit Branch Manually ...
+            ---
             Repo Menu >  [⇧m]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("dev"))
+        );
+    }
+
+    // The commit menu, grouped by what its items do: write commits, look at this one, take it to a
+    // branch, and the sub menus of the rest. On main's last commit, a merge not pushed, with nothing
+    // to commit.
+    [TestMethod]
+    public async Task TestTheCommitMenuIsGroupedByWhatItsItemsDo()
+    {
+        var view = await ViewOf(Fixture());
+
+        Assert.AreEqual(
+            """
+            Commit ...  [c]  (disabled)
+            Amend ...  [a]
+            Squash ...  (disabled)
+            Reorder >  (disabled)
+            Move to New Branch ...  (disabled)
+            ---
+            Commit Details  [Enter]
+            Commit Diff  [d]
+            Mark for Diff
+            File History ...
+            Blame File ...
+            ---
+            Create Branch from Commit ...  [b]
+            Switch to Commit  (disabled)
+            Merge Commit into main
+            Cherry Pick into main
+            Set Commit Branch Manually ...
+            ---
+            Undo >
+            Stash >
+            Tag >
+            Copy >  [Ctrl-C]
+            Open Commit in Browser
+            ---
+            Branches >
+            Repo Menu >  [⇧m]
+            """,
+            Items(CommitMenuOf(view).GetCommitMenuItems(view.Repo.ViewCommits[0].Id))
+        );
+    }
+
+    // Its Undo: the branch's last change, then the undos of commits, the discards of uncommitted
+    // changes, and what brings back what was thrown away
+    [TestMethod]
+    public async Task TestTheUndoSubMenuIsGroupedByWhatItTakesBack()
+    {
+        var view = await ViewOf(Fixture());
+        var items = CommitMenuOf(view).GetCommitMenuItems(view.Repo.ViewCommits[0].Id);
+
+        Assert.AreEqual(
+            """
+            Undo Last Change
+            ---
+            Revert Commit
+            Drop c3000000
+            Uncommit Last Commit
+            Uncommit c3000000 and Newer
+            Reset Branch to c3000000 ...
+            ---
+            Discard Changes in a File
+            Discard Changes in Binary Files
+            Discard All Changes ...
+            ---
+            Recover Lost Commits ...
+            Restore Deleted Branch ...
+            Restore Discarded Changes ...
+            """,
+            Outline(items.OfType<SubMenu>().First(m => m.Text == "Undo").Children)
         );
     }
 
@@ -57,21 +130,23 @@ public class MenuItemsTest
             Merge into main >  [e]  (disabled)
             Merge main into >  [⇧e]  (disabled)
             Rebase onto >  (disabled)
-            Hide Branch  [h]  (disabled)
             Pull  [u]  (disabled)
             Push  [p]
+            ---
             Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...  (disabled)
             Delete Branch ...  (disabled)
             Undo Last Change  (disabled)
+            ---
             Diff Branch to >  [d]  (disabled)
-            Change Branch Color  [g]  (disabled)
-            Open in Browser
+            Open Branch in Browser
             Create Pull Request in Browser  (disabled)
             ---
+            Hide Branch  [h]  (disabled)
+            Change Branch Color  [g]  (disabled)
             Show Branch >  [⇧→]
-            Set Commit Branch Manually ...
+            ---
             Repo Menu >  [⇧m]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main"))
@@ -99,21 +174,23 @@ public class MenuItemsTest
             Merge dev into main  [e]
             Merge main into dev  [⇧e]  (disabled)
             Rebase onto >  (disabled)
-            Hide Branch  [h]
             Pull  [u]  (disabled)
             Push  [p]
+            ---
             Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...  (disabled)
             Undo Last Change  (disabled)
+            ---
             Diff Branch to >  [d]
-            Change Branch Color  [g]
-            Open in Browser  (disabled)
+            Open Branch in Browser  (disabled)
             Create Pull Request in Browser  (disabled)
             ---
+            Hide Branch  [h]
+            Change Branch Color  [g]
             Show Branch >  [⇧→]
-            Set Commit Branch Manually ...
+            ---
             Repo Menu >  [⇧m]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture().Worktree("/home/me/repo-dev", "dev"))).GetBranchMenuItems("dev"))
@@ -162,8 +239,8 @@ public class MenuItemsTest
     {
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
-        Assert.AreEqual(14, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(7, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(13, EnabledCount(menu.GetBranchMenuItems("dev")));
+        Assert.AreEqual(6, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]
@@ -562,8 +639,6 @@ public class MenuItemsTest
             S Switch to Branch
             e Merge dev into main
             E Merge main into dev
-            h Hide Branch
-            H Hide Branch
             u Pull  (says why)
             U Pull  (says why)
             p Push
@@ -572,6 +647,8 @@ public class MenuItemsTest
             B Create Branch ...
             d Diff Branch to
             D Diff Branch to
+            h Hide Branch
+            H Hide Branch
             g Change Branch Color
             G Change Branch Color
             M Repo Menu
@@ -657,6 +734,11 @@ public class MenuItemsTest
             })
         );
 
+    // The texts alone, and '---' for a separator, for the items whose greying out reads commands the
+    // menus here are made without
+    static string Outline(IEnumerable<MenuItem> items) =>
+        string.Join("\n", items.Select(i => i is MenuSeparator ? "---" : i.Text));
+
     static string KeyName(Terminal.Gui.Input.Key key) => key.AsRune.ToString();
 
     // The reason a greyed out item gives, which it only has to while it is greyed out
@@ -684,6 +766,13 @@ public class MenuItemsTest
     {
         var commands = Commands(view);
         return new BranchMenu(RepoMenuOf(view, commands), view, commands);
+    }
+
+    static ICommitMenu CommitMenuOf(FakeViewRepo view)
+    {
+        var commands = Commands(view);
+        var repoMenu = RepoMenuOf(view, commands);
+        return new CommitMenu(repoMenu, new BranchMenu(repoMenu, view, commands), view, commands, new DiffMark());
     }
 
     static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) => RepoMenuOf(view, Commands(view), config);

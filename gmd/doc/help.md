@@ -505,13 +505,14 @@ throw changes away ask first, and what they throw away gmd keeps, for
   changes, and **Discard Changes**, `git reset --keep`, takes the files back
   to the commit too, which git refuses rather than overwrite an uncommitted
   change. Undo takes it back, and Recover Lost Commits finds the commits.
-- **Discard All Changes**: `git reset --hard` and `git clean -fd`
-- **Discard All Changes and Ignored Files**: `git reset --hard` and
-  `git clean -fxd`, i.e. the folder as a fresh clone of the last commit
-  has it, to check that nothing left over makes a build or a test pass.
-  The files git ignores go too, also those kept on purpose, such as a
-  .env file of secrets, so the question lists everything it deletes.
-  Restore Discarded Changes brings back the rest, but not those.
+- **Discard All Changes ...**: `git reset --hard` and `git clean -fd`. When
+  there are files git ignores, the question lists them and offers
+  **Discard and Delete Ignored** too, `git clean -fxd`, i.e. the folder as a
+  fresh clone of the last commit has it, to check that nothing left over
+  makes a build or a test pass. Those go also when kept on purpose, such as
+  a .env file of secrets, and Restore Discarded Changes brings back the
+  changes but not them. With no uncommitted changes, it asks to delete just
+  the ignored files.
 
 
 ## More Commands
@@ -642,14 +643,14 @@ throw changes away ask first, and what they throw away gmd keeps, for
   the remote as well, by pushing the new name and then deleting the old
   remote branch. Note that deleting it affects everyone: other clones lose
   track of the branch and a pull request made from the old name is closed.
-- **Open in Browser** (branch menu):
+- **Open Branch in Browser** (branch menu):
   Opens the branch on the site hosting the remote (GitHub, GitLab,
   Bitbucket, Azure DevOps or Gitea), and **Create Pull Request in Browser**
   the page for a pull request into the branch it was made from. The commit
   menu has **Open Commit in Browser**, and the repo menu **Open Repository
   in Browser**. `$BROWSER` is used when it is set, and with no browser to
   open, e.g. over ssh, the link is copied instead.
-- **Set Commit Branch Manually ...** (branch menu):
+- **Set Commit Branch Manually ...** (commit menu):
   Sets the branch of a commit where gmd guessed wrong or could not decide
   (see [How Gmd Picks a Commit's Branch](#how-gmd-picks-a-commits-branch)).
 
@@ -760,7 +761,7 @@ whitespace again. **Diff File**
 in the menu opens an uncommitted file in the diff tool git is configured
 with (`git difftool`).
 
-**Full File History ...** and **Blame File ...** in the commit menu pick
+**File History ...** and **Blame File ...** in the commit menu pick
 the file in the same dialog. First come the files the commit changed, under
 **Changed in commit** (on the uncommitted row, **Uncommitted changes**),
 each with its letter (`M`, `A`, ...), and the cursor on the first of them.
@@ -772,6 +773,9 @@ Typing lists the files whose path has every word typed, in any case and in
 any order, the names that start with the first word first, and clearing it
 goes back to the tree. `Enter` or a click picks the file, or opens or
 closes a folder, and `Esc` closes the dialog.
+
+**File History ...** shows every commit that changed the file, opened at the
+commit the menu is for when it is one of them, the newer ones above it.
 
 **Blame File ...** shows which commit last changed each line of the file.
 Consecutive lines from the same commit are bracketed together with `┌ │ └`
@@ -1013,7 +1017,7 @@ keep a column of its own:
   the repo menu.
 
 When it cannot decide, the branch is drawn white and its tip is labeled
-`(~ambiguous)`. **Set Commit Branch Manually ...** in the branch menu sets
+`(~ambiguous)`. **Set Commit Branch Manually ...** in the commit menu sets
 the right branch for a commit, which is then marked `Φ`. **Ambiguous** in
 the Show Branch menu lists the ambiguous branches.
 

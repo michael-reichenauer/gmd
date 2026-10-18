@@ -136,6 +136,48 @@ sealed class TmuxSession : IDisposable
     // wait for the change itself, with WaitFor or WaitUntil.
     public string WaitForStable(int timeoutMs = DefaultTimeoutMs) => Poll(_ => true, "the screen to settle", timeoutMs);
 
+    // Moves the cursor of the open menu down to the item with the text, a key at a time, the item the
+    // cursor is on read off the screen. Rather than a count of key presses: the menu skips what is
+    // greyed out, so a count depends on the fixture, and changes whenever an item above it is added
+    // or moved. Each key is waited for to move the cursor, not just for a stable screen, which a key
+    // not yet acted on leaves too, and the next one would then move past the item.
+    public void SelectMenuItem(string text, int maxMoves = 30)
+    {
+        WaitForStable();
+        for (var moves = 0; ; moves++)
+        {
+            var screen = CaptureColors();
+            if (ScreenText.IsMenuItemCurrent(screen, text))
+                return;
+            if (moves == maxMoves)
+                break;
+
+            Send("Down");
+            WaitForMenuMove(screen, text);
+        }
+
+        Assert.Fail($"The menu item '{text}' was not reached in {maxMoves} moves\n{Diagnostics(Capture())}");
+    }
+
+    // Polls until the screen differs from the one before the key and has then held for a poll. A
+    // shorter wait than WaitForStable's, since a move of a menu's cursor is a redraw of a few rows
+    // with no git command behind it, and a walk down a long menu is many of them.
+    void WaitForMenuMove(string before, string text)
+    {
+        var clock = Stopwatch.StartNew();
+        var previous = before;
+        while (clock.ElapsedMilliseconds < DefaultTimeoutMs)
+        {
+            Thread.Sleep(PollMs);
+            var screen = CaptureColors();
+            if (screen != before && screen == previous)
+                return;
+            previous = screen;
+        }
+
+        Assert.Fail($"Timed out waiting for the menu cursor to move on towards '{text}'\n{Diagnostics(Capture())}");
+    }
+
     // Polls until a condition holds, e.g. on the colors of a capture, which WaitFor cannot look for
     public void WaitUntil(Func<bool> isDone, string what, int timeoutMs = DefaultTimeoutMs)
     {

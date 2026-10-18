@@ -187,7 +187,29 @@ public class BranchTest
         gmd.Send("d");
 
         var screen = gmd.WaitFor("delta.txt");
-        Assert.IsFalse(screen.Contains("Diff Branch to"), "Not the branch's diff menu");
+        Assert.IsFalse(screen.Contains("╭ Diff main to"), "Not the branch's diff menu");
+    }
+
+    // 'd' on a highlighted branch, with no rows selected, picks the branch to diff it to from a menu
+    // whose title the pick completes, 'Diff main to' and then dev, as the diff is then titled
+    [TestMethod]
+    public async Task TestDiffAHighlightedBranchToAnother()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left"); // Hoovers main
+        gmd.WaitForStable();
+        gmd.Send("Enter"); // Shows dev
+        gmd.WaitFor("More dev work");
+
+        gmd.Send("d");
+        StringAssert.Contains(gmd.WaitFor("╭ Diff main to"), "dev");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Diff 'main' to 'dev'");
     }
 
     // Renaming is menu only, so this is also the one test that drives a menu item all the way to
@@ -215,14 +237,7 @@ public class BranchTest
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
 
-        // Down to 'Rename Branch ...', which is seven moves and not nine, since 'Rebase and push
-        // onto' and 'Pull' are disabled here and are skipped over. One key at a time: a menu
-        // redraw drops the keys sent behind it, so a single Send of seven would arrive as three.
-        for (var i = 0; i < 7; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Rename Branch ...");
         gmd.Send("Enter");
 
         // The name is filled in and the cursor is at its end, so the rename is a matter of editing
@@ -269,9 +284,8 @@ public class BranchTest
         Assert.AreEqual("main", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "Renaming does not check out");
     }
 
-    // Deleting a branch, which is one item below the rename above and so one move further down. The
-    // dialog's default is Cancel, so Enter on the item and Enter again leaves the branch where it is,
-    // and OK is a Left away.
+    // Deleting a branch. The dialog's default is Cancel, so Enter on the item and Enter again leaves
+    // the branch where it is, and OK is a Left away.
     [TestMethod]
     public async Task TestDeleteBranch()
     {
@@ -326,16 +340,12 @@ public class BranchTest
         );
     }
 
-    // 'Delete Branch ...' in the menu of dev, hoovered, eight moves down
+    // 'Delete Branch ...' in the menu of dev, hoovered
     static void OpenDeleteBranch(TmuxSession gmd)
     {
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
-        for (var i = 0; i < 8; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Delete Branch ...");
         gmd.Send("Enter");
         gmd.WaitFor("Delete Local");
     }
@@ -823,9 +833,7 @@ public class BranchTest
     }
 
     // A commit made on main by mistake, 'Add zeta', not pushed yet, moved to a new branch, which is
-    // checked out and published, main going back to origin's. In the commit menu of the top row the
-    // item is seven moves from 'Amend ...', where it opens, past 'Commit Diff', 'Mark for Diff',
-    // 'Undo', 'Stash', 'Tag' and 'Create Branch from Commit ...'.
+    // checked out and published, main going back to origin's, from the commit menu of the top row
     [TestMethod]
     public async Task TestMoveACommitMadeOnMainToANewBranch()
     {
@@ -837,11 +845,7 @@ public class BranchTest
 
         gmd.Send("m");
         gmd.WaitFor("Move to New Branch ...");
-        for (var i = 0; i < 7; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Move to New Branch ...");
         gmd.Send("Enter");
         StringAssert.Contains(gmd.WaitFor("Move 1 commit of 'main' to a new branch:"), "'main' goes back to 17d85ba8");
         gmd.SendText("fix");

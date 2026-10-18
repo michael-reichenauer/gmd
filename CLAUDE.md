@@ -764,9 +764,11 @@ Seven traps worth knowing before adding one:
   arrived as three, and a miscounted menu runs the wrong command. Same "never send a key into a
   screen that has not settled" rule, and it applies even though no git command is running. It is not
   only menus: in the log view, ten `Down`s sent in one call moved the cursor five rows.
-- **Count menu moves against the *fixture*, not the menu source.** `OnCursorDown` skips disabled
-  items, so the same item is a different number of moves in a repo with a remote than in one
-  without. `BranchTest.TestRenameBranch` is five moves for that reason.
+- **Walk a menu to an item by its name, `gmd.SelectMenuItem("Undo")`, not by a count of moves.**
+  `OnCursorDown` skips disabled items, so the same item is a different number of moves in a repo
+  with a remote than in one without, and a count breaks whenever an item above it is added or
+  moved. `SelectMenuItem` sends one `Down` at a time, waits for each to move the cursor, and stops
+  on the item drawn highlighted, in any palette. Wait for the menu first (`WaitFor` an item of it).
 
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.

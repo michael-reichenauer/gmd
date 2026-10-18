@@ -159,7 +159,7 @@ interface IGit
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
-    Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd);
 
     // Folds the 'amend!' and 'fixup!' commits into the commits they name, rebasing the commits after
     // the base, or all of them for ""

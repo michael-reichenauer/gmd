@@ -457,7 +457,7 @@ class BlameView : IBlameView
         contentView.SetNeedsDraw();
     }
 
-    // Every commit that changed the file, as Full File History in the commit menu shows it, at the
+    // Every commit that changed the file, as File History in the commit menu shows it, at the
     // commit of the current line: how a change the blame names sits among the ones around it, where
     // l is the history of the lines alone. A line not committed yet has no commit there, so it is
     // shown from the newest.
@@ -660,7 +660,7 @@ class BlameView : IBlameView
                     () => c != null
                 )
                 .Item(HistoryName(), "l", () => ShowLineHistory(), () => c != null)
-                .Item("Full File History", "⇧l", () => ShowFileHistory(), () => c != null)
+                .Item("File History", "⇧l", () => ShowFileHistory(), () => c != null)
                 .Item(
                     hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()})" : "Blame Previous Version",
                     "p",

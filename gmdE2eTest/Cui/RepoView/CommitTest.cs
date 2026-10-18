@@ -502,10 +502,7 @@ public class CommitTest
     }
 
     // A pushed commit of a branch of one's own is dropped as one not pushed is, and its question has
-    // Drop and Push too, which replaces the branch on origin, Cancel still the default. The menu opens
-    // on 'Amend ...', the last commit's, and Undo is four moves down, past this commit's own Amend,
-    // 'Commit Diff' and 'Mark for Diff'; in it Drop is four past 'Recover Lost Commits ...', where it
-    // opens, the last change, a commit on origin, being no change to undo.
+    // Drop and Push too, which replaces the branch on origin, Cancel still the default.
     [TestMethod]
     public async Task TestDropAPushedCommitAndPushIt()
     {
@@ -523,12 +520,8 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor($"Amend {sid} ...");
-        OpenSubMenu(gmd, 4, "Recover Lost Commits");
-        for (int i = 0; i < 4; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        OpenSubMenu(gmd, "Undo", "Recover Lost Commits");
+        gmd.SelectMenuItem($"Drop {sid}");
         gmd.Send("Enter");
         StringAssert.Contains(
             gmd.WaitFor("Drop the commit from 'feature'?"),
@@ -551,9 +544,7 @@ public class CommitTest
     }
 
     // A commit moved past the next one up the branch, from the Reorder sub menu, whose items name the
-    // commit it is moved past, and Undo's last change. Reorder is nine moves from 'Amend ...', where
-    // the menu opens, past this commit's own Amend, 'Commit Diff', 'Mark for Diff', 'Undo', 'Stash',
-    // 'Tag', 'Create Branch from Commit ...' and 'Move to New Branch ...'.
+    // commit it is moved past, and Undo's last change
     [TestMethod]
     public async Task TestMoveACommitAboveTheNextOne()
     {
@@ -566,7 +557,7 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor($"Amend {sid} ...");
-        OpenSubMenu(gmd, 9, "Move Above 'Add three'");
+        OpenSubMenu(gmd, "Reorder", "Move Above 'Add three'");
         StringAssert.Contains(gmd.WaitForStable(), "Move Below 'Add one'");
         gmd.Send("Enter");
 
@@ -580,7 +571,7 @@ public class CommitTest
     // Commits of another branch selected with Shift-Down, here main's two, are picked as they were
     // made, with no dialog, and the item counts them. Main has 'Add eta' on top of 'Add gamma', so the
     // rows are eta, gamma and dev's 'Work on dev', where the cursor starts: two up, and two Shift-Down,
-    // the first of which starts the selection on eta. The item is eight moves down, as for one commit.
+    // the first of which starts the selection on eta.
     [TestMethod]
     public async Task TestCherryPickTwoCommitsFromAnotherBranch()
     {
@@ -601,11 +592,7 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Cherry Pick 2 Commits into dev");
-        for (var i = 0; i < 8; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Cherry Pick 2 Commits into dev");
         gmd.Send("Enter");
 
         Assert.AreEqual(
@@ -616,10 +603,7 @@ public class CommitTest
     }
 
     // The current branch reset to an older commit, keeping what the commits after it changed as
-    // uncommitted changes, after a question with Cancel the default. In the Undo sub menu of 'Add
-    // two' the item is eight moves from 'Undo Commit', where it opens, past 'Recover Lost Commits',
-    // 'Restore Deleted Branch', 'Restore Discarded Changes', 'Revert Commit', 'Drop', 'Uncommit Last
-    // Commit' and 'Uncommit ... and Newer'.
+    // uncommitted changes, after a question with Cancel the default, from the Undo sub menu of 'Add two'
     [TestMethod]
     public async Task TestResetTheBranchToACommitKeepingTheChanges()
     {
@@ -632,12 +616,8 @@ public class CommitTest
 
         gmd.Send("m");
         gmd.WaitFor($"Amend {sid} ...");
-        OpenSubMenu(gmd, 4, "Recover Lost Commits");
-        for (int i = 0; i < 8; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        OpenSubMenu(gmd, "Undo", "Recover Lost Commits");
+        gmd.SelectMenuItem($"Reset Branch to {sid} ...");
         gmd.Send("Enter");
         StringAssert.Contains(gmd.WaitFor($"Reset 'main' to {sid}?"), "The commit after it leaves the branch.");
         gmd.Send("Left"); // From Cancel, the default, past Discard Changes to Keep Changes
@@ -656,13 +636,6 @@ public class CommitTest
 
     // Uncommitting the last commit, i.e. 'git reset HEAD~1', which puts its changes back into the
     // working tree. Reached through the commit menu's Undo sub menu.
-    //
-    // On a clean tree the menu opens with the cursor on 'Amend ...' — 'Commit ...' is disabled, and
-    // Menu.Show starts on the first item that is not — so 'Undo' is three moves away, past 'Commit
-    // Diff' and 'Mark for Diff'. In it the cursor starts on 'Undo Commit', the last change of the branch, and 'Discard
-    // Changes in a File' is disabled, and so is 'Drop 17d85ba8', since the tag v1.0 is on the commit,
-    // so 'Uncommit Last Commit' is five moves down, past 'Recover Lost Commits ...', 'Restore Deleted
-    // Branch ...', 'Restore Discarded Changes ...' and 'Revert Commit'.
     [TestMethod]
     public async Task TestUncommitTheLastCommit()
     {
@@ -670,20 +643,8 @@ public class CommitTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
 
-        gmd.Send("m");
-        gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 3; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
-        gmd.Send("Right");
-        gmd.WaitFor("Uncommit");
-        for (var i = 0; i < 5; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        OpenCommitSubMenu(gmd, "Undo", "Uncommit");
+        gmd.SelectMenuItem("Uncommit Last Commit");
         gmd.Send("Enter");
 
         // The commit is gone and what it added is back in the working tree as an untracked file
@@ -694,9 +655,7 @@ public class CommitTest
 
     // Undo of the branch's last change, named after it, and Undo again, which redoes it. The undo of
     // a commit leaves its changes in the working tree, as Uncommit does; the redo commits them back.
-    // 'Undo' is three moves from 'Amend ...', where the menu opens, past 'Commit Diff' and 'Mark for
-    // Diff'. The second time, on the uncommitted row, 'Commit ...' is enabled and 'Mark for Diff' is
-    // not, so it is three again.
+    // The sub menu opens on it, its first item.
     [TestMethod]
     public async Task TestUndoTheLastCommitAndRedoIt()
     {
@@ -704,15 +663,7 @@ public class CommitTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
 
-        gmd.Send("m");
-        gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 3; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
-        gmd.Send("Right");
-        gmd.WaitFor("Undo Commit 'Add delta'");
+        OpenCommitSubMenu(gmd, "Undo", "Undo Commit 'Add delta'");
         gmd.Send("Enter");
 
         var screen = gmd.WaitFor("Undid the commit 'Add delta' on 'main'");
@@ -721,15 +672,7 @@ public class CommitTest
         Assert.AreEqual("?? delta.txt", (await repo.GitAsync("status --porcelain")).TrimEnd());
 
         gmd.WaitFor("uncommitted");
-        gmd.Send("m");
-        gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 3; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
-        gmd.Send("Right");
-        gmd.WaitFor("Redo Commit 'Add delta'");
+        OpenCommitSubMenu(gmd, "Undo", "Redo Commit 'Add delta'");
         gmd.Send("Enter");
 
         gmd.WaitFor("Redid the commit 'Add delta' on 'main'");
@@ -767,9 +710,7 @@ public class CommitTest
     }
 
     // Dropping a commit asks first, with No the default, then takes it and its changes out of the
-    // branch, and it is Undo's last change, which brings it back. Undo is four moves from where the
-    // menu opens, past this commit's own Amend, 'Commit Diff' and 'Mark for Diff'; Drop is five into it, past 'Recover
-    // Lost Commits ...', 'Restore Deleted Branch ...', 'Restore Discarded Changes ...' and 'Revert Commit'.
+    // branch, and it is Undo's last change, which brings it back
     [TestMethod]
     public async Task TestDropACommitAndUndoIt()
     {
@@ -784,12 +725,8 @@ public class CommitTest
         {
             gmd.Send("m");
             gmd.WaitFor($"Amend {sid} ...");
-            OpenSubMenu(gmd, 4, "Recover Lost Commits");
-            for (int i = 0; i < 5; i++)
-            {
-                gmd.Send("Down");
-                gmd.WaitForStable();
-            }
+            OpenSubMenu(gmd, "Undo", "Recover Lost Commits");
+            gmd.SelectMenuItem($"Drop {sid}");
             gmd.Send("Enter");
             gmd.WaitFor("Drop the commit from 'main'?");
         }
@@ -814,7 +751,7 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        OpenSubMenu(gmd, 3, "Undo Drop 'Add two'");
+        OpenSubMenu(gmd, "Undo", "Undo Drop 'Add two'");
         gmd.Send("Enter");
 
         gmd.WaitFor("Undid the drop of 'Add two' on 'main'");
@@ -970,11 +907,6 @@ public class CommitTest
     // 'Up' first: the cursor opens on the current branch's tip, and cherry-pick is only offered for
     // a commit that is not on the current branch (rb != cb). One move up is 'Add gamma' on main,
     // and it is a move that lands there whether the cursor started on row 0 or row 1.
-    //
-    // Then eight moves down to it. The menu opens on 'Amend ...', of dev's last commit, which is not
-    // pushed — with nothing to commit, 'Commit ...' is disabled and Menu.Show starts on the first
-    // that is not — and the amend of 'Add gamma', which is not on dev, and 'Squash ...', with nothing
-    // selected, are disabled and skipped.
     [TestMethod]
     public async Task TestCherryPickACommitFromAnotherBranch()
     {
@@ -986,11 +918,7 @@ public class CommitTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Cherry Pick into dev");
-        for (var i = 0; i < 8; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Cherry Pick into dev");
         gmd.Send("Enter");
 
         // The dialog arrives filled in with the message of the commit being picked
@@ -1029,11 +957,6 @@ public class CommitTest
 
     // Stashing, i.e. the menu, the dialog behind it and what the log view says afterwards. The
     // 'ß' is drawn nowhere else, so this is the only cover WriteBlankOrStash has at any tier.
-    //
-    // Four moves down to 'Stash' rather than six: 'Squash ...' is disabled with nothing selected,
-    // and so is 'Mark for Diff' on the uncommitted row, and OnCursorDown skips them. With a clean
-    // tree it is four too, from 'Amend ...', 'Commit ...' being disabled and 'Mark for Diff' not —
-    // see TestStashPopBringsTheChangesBack.
     [TestMethod]
     public async Task TestStashPutsTheChangesAsideAndMarksTheCommit()
     {
@@ -1041,15 +964,7 @@ public class CommitTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("uncommitted");
 
-        gmd.Send("m");
-        gmd.WaitFor("Commit ...");
-        for (int i = 0; i < 4; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
-        gmd.Send("Right");
-        gmd.WaitFor("Stash Changes ...");
+        OpenCommitSubMenu(gmd, "Stash", "Stash Changes ...");
         gmd.Send("Enter");
         gmd.WaitFor("Stash Message");
         gmd.SendText("stashed work");
@@ -1075,9 +990,8 @@ public class CommitTest
         Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "The working tree is clean again");
     }
 
-    // And back again. Four moves, from 'Amend ...', where the menu opens on a clean tree. A clean
-    // tree disables 'Stash Changes' too, which is why 'Stash Pop' is where the cursor lands when
-    // the sub menu opens.
+    // And back again. A clean tree disables 'Stash Changes', which is why 'Stash Pop' is where the
+    // cursor lands when the sub menu opens.
     [TestMethod]
     public async Task TestStashPopBringsTheChangesBack()
     {
@@ -1085,15 +999,7 @@ public class CommitTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
 
-        gmd.Send("m");
-        gmd.WaitFor("Commit ...");
-        for (int i = 0; i < 4; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
-        gmd.Send("Right");
-        gmd.WaitFor("Stash Pop");
+        OpenCommitSubMenu(gmd, "Stash", "Stash Pop");
         gmd.Send("Right");
         gmd.WaitFor("stashed work");
         gmd.Send("Enter");
@@ -1119,7 +1025,7 @@ public class CommitTest
         using var repo = await E2eRepo.CreateWithStashAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
-        OpenCommitSubMenu(gmd, 4, "Stash Pop");
+        OpenCommitSubMenu(gmd, "Stash", "Stash Pop");
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Right");
@@ -1151,7 +1057,7 @@ public class CommitTest
         using var repo = await E2eRepo.CreateWithStashAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
-        OpenCommitSubMenu(gmd, 4, "Stash Pop");
+        OpenCommitSubMenu(gmd, "Stash", "Stash Pop");
         for (int i = 0; i < 3; i++)
         {
             gmd.Send("Down");
@@ -1175,7 +1081,7 @@ public class CommitTest
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
-        OpenCommitSubMenu(gmd, 5, "Add Tag");
+        OpenCommitSubMenu(gmd, "Tag", "Add Tag");
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Right");
@@ -1189,54 +1095,101 @@ public class CommitTest
         Assert.AreEqual("v1.0", await repo.GitAsync("tag"), "Still there");
     }
 
-    // Discarding all changes and the ignored files makes the folder as a fresh clone has it, which
-    // also deletes what git ignores on purpose, such as a .env file of secrets. So the question
-    // lists what would be deleted, git's dry run of the clean, and No is the default.
+    // Discard All Changes offers to delete the files git ignores too, the folder then as a fresh
+    // clone has it, which also deletes what git ignores on purpose, such as a .env file of secrets.
+    // So the question lists them, and Cancel is the default; Discard leaves them, and Discard and
+    // Delete Ignored, two to the left, deletes them with the changes.
     [TestMethod]
-    public async Task TestDiscardingTheIgnoredFilesListsThemAndAsksFirst()
+    public async Task TestDiscardAllChangesOffersToDeleteTheIgnoredFilesToo()
     {
-        using var repo = await E2eRepo.CreateAsync();
+        using var repo = await IgnoredFilesAsync();
+        repo.WriteFile("alpha.txt", "changed\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+
+        var question = OpenDiscardAll(gmd, "Discard and Delete Ignored");
+        StringAssert.Contains(question, "│  .env ");
+        StringAssert.Contains(question, "│  bin/ ");
+        StringAssert.Contains(question, "[ Discard ] [◦ Cancel ◦]│", "The buttons fit in the box");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Discard and Delete Ignored");
+        Assert.AreEqual(" M alpha.txt", (await repo.GitAsync("status --porcelain")).TrimEnd(), "Cancel, the default");
+
+        OpenDiscardAll(gmd, "Discard and Delete Ignored");
+        gmd.Send("Left"); // From Cancel to Discard
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("Discarded all changes:");
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".env")), "Discard leaves the ignored files");
+
+        repo.WriteFile("alpha.txt", "changed again\n");
+        gmd.WaitFor("uncommitted");
+        OpenDiscardAll(gmd, "Discard and Delete Ignored");
+        gmd.Send("Left"); // From Cancel past Discard to Discard and Delete Ignored
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("Discarded all changes and deleted the ignored files");
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".env")));
+        Assert.IsFalse(Directory.Exists(Path.Join(repo.Path, "bin")));
+    }
+
+    // With no uncommitted changes, deleting the ignored files is all it can do, and it asks that,
+    // listing them, with No the default
+    [TestMethod]
+    public async Task TestDiscardAllChangesWithNoChangesAsksToDeleteTheIgnoredFiles()
+    {
+        using var repo = await IgnoredFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Ignore secrets");
+
+        var question = OpenDiscardAll(gmd, "Delete the files git ignores");
+        StringAssert.Contains(question, "There are no uncommitted changes.");
+        StringAssert.Contains(question, "│  .env ");
+        StringAssert.Contains(question, "│  bin/ ");
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Delete the files git ignores");
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".env")), "No is the default, so nothing is deleted");
+    }
+
+    // The standard fixture with a .env file and a bin folder, which git ignores
+    static async Task<TempRepo> IgnoredFilesAsync()
+    {
+        var repo = await E2eRepo.CreateAsync();
         await repo.CommitFileAtAsync(".gitignore", ".env\nbin/\n", "Ignore secrets", TempRepo.BaseTime.AddMinutes(7));
         File.WriteAllText(Path.Join(repo.Path, ".env"), "TOKEN=secret\n");
         Directory.CreateDirectory(Path.Join(repo.Path, "bin"));
         File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
-        using var gmd = TmuxSession.StartGmd(repo);
-        gmd.WaitFor("Ignore secrets");
-
-        OpenCommitSubMenu(gmd, 3, "Recover Lost Commits");
-        gmd.Send("End");
-        gmd.WaitForStable();
-        gmd.Send("Enter");
-
-        var question = gmd.WaitFor("as a fresh clone");
-        StringAssert.Contains(question, "Discard All Changes and Ignored Files");
-        StringAssert.Contains(question, "  .env");
-        StringAssert.Contains(question, "  bin/");
-
-        gmd.Send("Enter");
-
-        gmd.WaitUntilGone("as a fresh clone");
-        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".env")), "No is the default, so nothing is deleted");
+        return repo;
     }
 
-    // Opens the commit menu of the current row and the sub menu 'moves' down from the first
-    // enabled item, one key per Send since a menu redraw drops what was sent behind it
-    static void OpenCommitSubMenu(TmuxSession gmd, int moves, string firstItem)
+    // Picks Discard All Changes ... in the Undo sub menu of the current row's commit menu, and waits
+    // for the question, by a text of it
+    static string OpenDiscardAll(TmuxSession gmd, string inQuestion)
+    {
+        OpenCommitSubMenu(gmd, "Undo", "Recover Lost Commits");
+        gmd.SelectMenuItem("Discard All Changes ...");
+        gmd.Send("Enter");
+        return gmd.WaitFor(inQuestion);
+    }
+
+    // Opens the commit menu of the current row and the sub menu in it, waiting for an item of it
+    static void OpenCommitSubMenu(TmuxSession gmd, string subMenu, string itemInIt)
     {
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        OpenSubMenu(gmd, moves, firstItem);
+        OpenSubMenu(gmd, subMenu, itemInIt);
     }
 
-    // The sub menu that many moves down the open menu
-    static void OpenSubMenu(TmuxSession gmd, int moves, string firstItem)
+    // The sub menu of the open menu, waiting for an item of it
+    static void OpenSubMenu(TmuxSession gmd, string subMenu, string itemInIt)
     {
-        for (int i = 0; i < moves; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem(subMenu);
         gmd.Send("Right");
-        gmd.WaitFor(firstItem);
+        gmd.WaitFor(itemInIt);
     }
 }

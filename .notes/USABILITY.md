@@ -1,10 +1,12 @@
 # Usability review
 
-Five reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
+Six reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
 its author's own use, so they look at it as someone new would.
 
-- **The file browser review (2026-10-18)**, first below, looks at the dialog Blame File and Full
-  File History pick their file in, which was a workaround.
+- **The menu review (2026-10-18)**, first below, looks at the order and names of the items of the
+  commit and branch menus and their sub menus.
+- **The file browser review (2026-10-18)** looks at the dialog Blame File and File History pick
+  their file in, which was a workaround.
 - **The rebase and squash review (2026-10-17)** looks at gmd for those who rebase,
   squash and squash merge rather than merge: what it does with a history rewritten here or on
   origin, and which rewrites of commits it could offer.
@@ -30,6 +32,52 @@ ask of any new feature:
 File references are as of each review. Close items here, or move them to `MODERNIZATION.md`, as
 they land. The usability review's safety findings (section 1, and Tier 1 of its proposals) are
 fixed, and most of Tiers 2 to 4; the product review's proposals are open.
+
+---
+
+## Menu review (2026-10-18)
+
+The commit and branch menus had grown an item at a time, each put where there was room, so related
+items were spread through them, under one line.
+
+### Findings
+
+1. **The commit menu was 22 items under one line**, the rewrites of commits at its top and in its
+   middle, Commit Details between Switch to Commit and Copy, the file items after Open Commit in
+   Browser.
+2. **Undo had Discard Changes in a File among the undos of commits**, away from the other discards.
+3. **Set Commit Branch Manually was in the branch menu**, where it set the branch of the cursor's
+   commit, which need not be on the branch the menu was for; under Branches in the commit menu, the
+   branch the menu was opened for had nothing to do with it.
+4. **The branch menu had Hide Branch between Rebase onto and Pull**, and Diff Branch to among the
+   items that make and remove branches.
+5. **Names that did not match**: Open in Browser in the branch menu beside Open Commit in Browser and
+   Open Repository in Browser; `<= (Move Branch left of x)` and `=> (Move right of y)`; Full File
+   History, though nothing beside it is a partial one; and the `d` menu of a highlighted branch
+   titled `Diff Branch to dev` for dev's own diff, naming the wrong end.
+
+### As done (2026-10-18)
+
+All five. The commit menu is four groups under lines of their own: writing commits, looking at
+this one, taking it to a branch, and the sub menus of the rest; Undo is the last change, the undos
+of commits, the discards and the recoveries. Set Commit Branch Manually is in the commit menu. The
+branch menu is moving its commits, making and removing branches, looking at it, and how it is shown.
+The names are Open Branch in Browser, Move Left of 'x', Move Right of 'y', File History, which now
+opens at the commit its menu is for as the blame's `⇧l` does, and `Diff dev to`. The end-to-end tests
+walk a menu by the name of an item (`TmuxSession.SelectMenuItem`), so an order change no longer
+breaks their counts of key presses.
+
+**Discard All Changes merged (2026-10-18).** Undo had Discard All Changes and Discard All Changes
+and Ignored Files, two items for one choice. Discard All Changes ... is now the one, whose question
+lists the files git ignores, when there are any, and offers **Discard and Delete Ignored** beside
+Discard, Cancel the default; with no uncommitted changes it asks to delete just those. The list is
+the ignored files alone (`git clean -n -X -d`), what nothing brings back, where the old question
+listed the untracked files too, which Restore Discarded Changes does.
+
+Open: **Remove Tag** beside Delete Branch, which git calls a delete for both, was left: Remove is the
+word of the whole tag feature (the Tags dialog's button, its question and its status message).
+**Merge Commit into main** and **Cherry Pick into main** are enabled on a pushed commit of main
+itself: the commit's branch is `origin/main`, which `rb != cb` takes for another branch than `main`.
 
 ---
 

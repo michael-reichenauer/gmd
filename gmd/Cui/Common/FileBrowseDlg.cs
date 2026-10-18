@@ -2,7 +2,7 @@ using Terminal.Gui.Input;
 
 namespace gmd.Cui.Common;
 
-// Picks a file of a commit, for Blame File and Full File History: the files the commit changed and
+// Picks a file of a commit, for Blame File and File History: the files the commit changed and
 // then all of them as a tree of folders to browse (FileTree), or once something is typed, the files
 // whose path has it (FileFinder), the files the commit changed marked with their letter wherever
 // they are. Clearing what was typed goes back to the tree as it was. The field has the keyboard, so

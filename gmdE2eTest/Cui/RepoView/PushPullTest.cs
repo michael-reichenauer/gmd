@@ -609,9 +609,7 @@ public class PushPullTest
     }
 
     // A force push on origin taken back from the branch menu: origin gets the old version again,
-    // after a question with No as the default. For 'main', the current branch, the menu starts on
-    // 'Hide Branch', the first item it can act on, and the item is three moves down, past 'Pull'
-    // and 'Push'.
+    // after a question with No as the default
     [TestMethod]
     public async Task TestRestoreOriginFromBeforeTheForcePush()
     {
@@ -624,12 +622,7 @@ public class PushPullTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Restore origin/main from before the Force Push");
-        // Two moves, Hide Branch being greyed out for main, which is always shown
-        for (var i = 0; i < 2; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Restore origin/main from before the Force Push ...");
         gmd.Send("Enter");
 
         StringAssert.Contains(gmd.WaitFor("Put 'origin/main' back"), "This is a force push too");
