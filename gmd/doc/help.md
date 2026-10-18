@@ -437,6 +437,10 @@ The ways back are under **Undo** in the commit menu (`m`). The items that
 throw changes away ask first, and what they throw away gmd keeps, for
 **Restore Discarded Changes**.
 
+- **Abort Merge**, or **Abort Rebase** and so on, comes first while a merge,
+  rebase, cherry pick or revert is in progress, conflicted or not committed
+  yet: it backs out of it, as in the repo menu (see *Continue, Skip or
+  Abort*).
 - **Undo** the last change of the current branch, named after it, e.g.
   **Undo Rebase** or **Undo Commit 'Fix'**: the branch goes back to where
   it was before, as git's reflog of the branch has it, whether the change
@@ -576,8 +580,8 @@ throw changes away ask first, and what they throw away gmd keeps, for
   into main** and `Shift-E` **Merge main into dev**. On the current branch
   itself they are **Merge into main** and **Merge main into**, each a list
   of the shown branches to pick the other one from. A merge opens the
-  commit dialog, and **Abort Merge** at the top of the repo menu backs out
-  of it.
+  commit dialog, and **Abort Merge** at the top of the repo menu, or of
+  **Undo** in the commit menu, backs out of it.
   Git can only merge into the branch that is checked out, so `Shift-E`
   switches to the target branch, merges, opens the commit dialog there,
   and switches back once the merge is committed. Cancelling the commit, or
@@ -946,7 +950,8 @@ resolved (`git add`); a rebase over several commits may then stop again on
 the next one, which is shown as the first stop was, with the files and the
 way on. **Skip This Commit** drops the commit it
 stopped on and carries on with the rest. **Abort** throws the whole
-operation away and puts the working folder back as it was.
+operation away and puts the working folder back as it was; it is also the
+first item of **Undo** in the commit menu, where one looks to back out.
 
 *Continue* is offered for whatever a commit does not finish, and only a
 rebase or an `am` has commits to skip, so those items appear only where

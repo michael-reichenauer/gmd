@@ -119,6 +119,31 @@ public class MenuItemsTest
         );
     }
 
+    // An operation git stopped part way through is backed out of first in Undo too, where one looks
+    // to back out, as at the top of the repo menu: a merge with conflicts, or one with none whose
+    // commit was not made, and a rebase
+    [TestMethod]
+    [DataRow(1, GitOp.Merge, true, "Abort Merge")]
+    [DataRow(0, GitOp.Merge, true, "Abort Merge")]
+    [DataRow(1, GitOp.Rebase, false, "Abort Rebase")]
+    public async Task TestAStoppedOperationIsAbortedFirstInUndo(
+        int conflicted,
+        GitOp operation,
+        bool isFinishedByCommit,
+        string abort
+    )
+    {
+        var view = await ViewOf(
+            Fixture().WithStatus(conflicted: conflicted, operation: operation, isFinishedByCommit: isFinishedByCommit)
+        );
+        var items = CommitMenuOf(view).GetCommitMenuItems(view.Repo.ViewCommits[0].Id);
+
+        StringAssert.StartsWith(
+            Outline(items.OfType<SubMenu>().First(m => m.Text == "Undo").Children),
+            $"{abort}\n---\nUndo Last Change"
+        );
+    }
+
     // The current branch cannot be switched to, merged with itself, renamed or deleted, and 'main'
     // is what the branch structure is worked out from, so its color is not the user's to change
     [TestMethod]

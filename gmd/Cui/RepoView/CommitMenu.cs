@@ -175,10 +175,25 @@ class CommitMenu : ICommitMenu
         var whyNotUncommit = CommitRewrite.WhyNotUncommit(repo.Repo, repo.RowCommit);
         var whyNotReset = CommitRewrite.WhyNotResetTo(repo.Repo, repo.RowCommit);
 
+        // An operation git stopped part way through, e.g. a merge, is backed out of first, as at the
+        // top of the repo menu, since Undo is where one looks to back out. Discard All Changes below
+        // ends a merge only because its reset drops it, and leaves a rebase going.
+        var abortItems =
+            repo.Repo.Status.Operation == GitOperation.None
+                ? Menu.Items
+                : Menu
+                    .Items.Item(
+                        $"Abort {commands.RepoCmds.OperationName()}",
+                        "",
+                        () => commands.RepoCmds.AbortOperation()
+                    )
+                    .Separator();
+
         // The last change first, then the undos of commits, the discards of uncommitted changes, and
         // last what brings back what those and others threw away
         return Menu
-            .Items.Item(
+            .Items.Items(abortItems)
+            .Item(
                 BranchUndo.Label(step),
                 "",
                 () => commands.UndoCmds.UndoLastChange(current.Name),
