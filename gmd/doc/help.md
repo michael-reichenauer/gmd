@@ -693,7 +693,8 @@ Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
 other: the changes from the older of the two to the newer.
 
 In a view narrower than 110 columns, the diff is in one column instead,
-each change's removed lines above its added ones, as git writes them, and
+each change's removed lines above its added ones, as git writes them, each
+with a `-` or a `+` where side by side has the bar, and
 a conflict's two sides one after the other, each named. `v` switches
 between the two, for the diff it is pressed in.
 

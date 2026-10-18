@@ -1076,7 +1076,8 @@ public class DiffRowServiceTest
 
     // In one column, the layout of a narrow view, a change's removed lines are above its added ones,
     // as git writes them, the unchanged line before them once, and the words that differ marked as
-    // side by side
+    // side by side. A removed line has a '-' where side by side has the bar, and an added one a '+',
+    // since no side tells them apart, and the red and the green alone do not to every eye.
 
     static DiffRows OneColumnOf(FileDiff file) =>
         new DiffRowService().ToDiffRows([CommitDiffOf(file)], new Dictionary<string, int>(), [], isOneColumn: true);
@@ -1101,9 +1102,9 @@ public class DiffRowServiceTest
         Assert.AreEqual(
             """
                 1 one
-            ▌   2 the quick fox
-            ▌   3 gone
-            ▌   2 the slow fox
+            -   2 the quick fox
+            -   3 gone
+            +   2 the slow fox
                 3 four
             """,
             DiffText.BodyOf(rows)
