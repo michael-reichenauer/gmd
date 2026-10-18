@@ -14,7 +14,7 @@ namespace gmd.Cui.Common;
 // TextView is obsolete in Terminal.Gui 2.5, superseded by tui-cs/Editor's EditorView, a package of its
 // own: see the port in .notes/MODERNIZATION.md
 #pragma warning disable CS0618
-class UITextView : TextView
+class UITextView : TextView, IPasteTarget
 #pragma warning restore CS0618
 {
     // The spelling of the line being drawn, by reference: OnDrawNormalColor is called once per cell
@@ -68,6 +68,14 @@ class UITextView : TextView
     // The misspelled words drawn red, i.e. all but the one being typed
     internal int MisspelledCount =>
         MisspelledLines().Select((spans, row) => spans.Count(s => !(row == CurrentRow && IsBeingTyped(s)))).Sum();
+
+    // Through the view's own paste, its line ends made one kind, as Ctrl-V does
+    public void PasteText(string text)
+    {
+        var sanitized = OnSanitizingPaste(text);
+        if (sanitized != "")
+            OnPaste(sanitized);
+    }
 
     protected override bool OnKeyDown(Key key)
     {

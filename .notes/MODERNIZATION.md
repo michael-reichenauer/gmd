@@ -1033,6 +1033,16 @@ Add new open issues and findings here as work lands; keep them short and drop th
     for a view that does not use it, crashed gmd (2026-10-18). It closes in a post now, leaving the
     focus where it went (`ConfigDlgTest`). The resolver's typing box does the same, unharmed, since
     the sides it gives the focus to are where Tab takes it anyway.
+  - *A paste went nowhere, or as keys*: Terminal.Gui turns on bracketed paste and gives a paste to
+    the view it recorded as focused, but a runnable made modal records its `Focused`, the direct
+    subview, not the `MostFocused` (`Runnable.RaiseIsModalChangedEvent`; its popovers record
+    `MostFocused`): in a gmd dialog, the inside of its frame, which takes no text, so a paste into a
+    dialog's first field was dropped until a key moved the focus (2026-10-18). gmd takes the paste
+    (`IApplication.Paste`) and puts it into the input at the end of the focus chain of the view on
+    top (`UI.Paste`, `IPasteTarget`, through the input's own sanitizing and paste), and drops it
+    elsewhere (`PasteTest`). Without the markers a paste is keys: a message of two lines into the
+    commit dialog committed its first line at once, and the rest went to the log as keys. A bug worth
+    reporting, with the others.
   - *An await on the main loop resumes up to 40 ms later*: 2.x sleeps a fixed time between
     iterations (`ApplicationMainLoop.Iteration`, `Task.Delay(...).Wait()`), and `MainLoopQueue` runs
     as one starts; 1.x woke the loop as work was posted. The updater's download went back to the main
