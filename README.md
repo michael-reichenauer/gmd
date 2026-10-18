@@ -106,7 +106,8 @@ than pulled back to its old version.
 Known limits:
 
 - Only the remote named `origin` is supported.
-- The colors assume a dark terminal: on a light theme gmd is drawn on black.
+- A terminal without 24-bit color, e.g. macOS Terminal before macOS 26, needs **Colors** set to `16`
+  in **Config ...**: gmd draws in colors of its own, dark or light by the terminal's background.
 - The log reads the latest 50,000 commits.
 - A password, a passphrase or whether to trust a host is asked in a dialog, but only for a command
   you ran. The fetch gmd runs in the background never asks: when it needs a login, it says so, and
@@ -231,8 +232,7 @@ browser to open, e.g. over ssh, gmd copies the link instead.
 ## Installation
 
 Gmd is one self-contained executable, so you don't need to install .NET. It does need `git` on
-the `PATH`, and a terminal with a dark theme and a font with box-drawing characters, which most
-have. Every release on the [releases page](https://github.com/michael-reichenauer/gmd/releases)
+the `PATH`, and a terminal with a font with box-drawing characters, which most have. Every release on the [releases page](https://github.com/michael-reichenauer/gmd/releases)
 has these files:
 
 | Platform              | File                                                      |
@@ -361,7 +361,7 @@ scripts and the conventions.
 
 ## Third-party components
 
-- [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) (MIT) is the console UI toolkit.
+- [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) (MIT) is the console UI toolkit.
 - [Autofac](https://github.com/autofac/Autofac) (MIT) handles dependency injection.
 - [DiffPlex](https://github.com/mmanela/diffplex) (Apache 2.0) highlights the characters that
   changed within a line of the diff.
