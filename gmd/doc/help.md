@@ -505,13 +505,14 @@ throw changes away ask first, and what they throw away gmd keeps, for
   changes, and **Discard Changes**, `git reset --keep`, takes the files back
   to the commit too, which git refuses rather than overwrite an uncommitted
   change. Undo takes it back, and Recover Lost Commits finds the commits.
-- **Discard All Changes**: `git reset --hard` and `git clean -fd`
-- **Discard All Changes and Ignored Files**: `git reset --hard` and
-  `git clean -fxd`, i.e. the folder as a fresh clone of the last commit
-  has it, to check that nothing left over makes a build or a test pass.
-  The files git ignores go too, also those kept on purpose, such as a
-  .env file of secrets, so the question lists everything it deletes.
-  Restore Discarded Changes brings back the rest, but not those.
+- **Discard All Changes ...**: `git reset --hard` and `git clean -fd`. When
+  there are files git ignores, the question lists them and offers
+  **Discard and Delete Ignored** too, `git clean -fxd`, i.e. the folder as a
+  fresh clone of the last commit has it, to check that nothing left over
+  makes a build or a test pass. Those go also when kept on purpose, such as
+  a .env file of secrets, and Restore Discarded Changes brings back the
+  changes but not them. With no uncommitted changes, it asks to delete just
+  the ignored files.
 
 
 ## More Commands

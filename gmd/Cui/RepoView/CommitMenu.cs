@@ -233,16 +233,10 @@ class CommitMenu : ICommitMenu
                 () => binaryPaths.Any(),
                 () => "There are no uncommitted binary files"
             )
-            .Item(
-                "Discard All Changes",
-                "",
-                () => commands.RepoCmds.UndoAllUncommittedChanged(),
-                () => cmds.CanUndoUncommitted(),
-                () => "There are no uncommitted changes to undo"
-            )
-            // The same and the ignored files too, i.e. the folder as a fresh clone would have it.
-            // Enabled with no changes as well, since deleting what git ignores is reason enough.
-            .Item("Discard All Changes and Ignored Files", "", () => commands.RepoCmds.CleanWorkingFolder())
+            // The question offers to delete the files git ignores too, the folder then as a fresh
+            // clone has it. Enabled with no changes as well, since deleting those is reason enough,
+            // and which there are is read only once it is picked.
+            .Item("Discard All Changes ...", "", () => commands.RepoCmds.DiscardAllChanges())
             .Separator()
             // The work no branch has any more, which the reflogs still know of
             .Item("Recover Lost Commits ...", "", () => commands.UndoCmds.RecoverLostCommits())

@@ -67,6 +67,13 @@ opens at the commit its menu is for as the blame's `⇧l` does, and `Diff dev to
 walk a menu by the name of an item (`TmuxSession.SelectMenuItem`), so an order change no longer
 breaks their counts of key presses.
 
+**Discard All Changes merged (2026-10-18).** Undo had Discard All Changes and Discard All Changes
+and Ignored Files, two items for one choice. Discard All Changes ... is now the one, whose question
+lists the files git ignores, when there are any, and offers **Discard and Delete Ignored** beside
+Discard, Cancel the default; with no uncommitted changes it asks to delete just those. The list is
+the ignored files alone (`git clean -n -X -d`), what nothing brings back, where the old question
+listed the untracked files too, which Restore Discarded Changes does.
+
 Open: **Remove Tag** beside Delete Branch, which git calls a delete for both, was left: Remove is the
 word of the whole tag feature (the Tags dialog's button, its question and its status message).
 **Merge Commit into main** and **Cherry Pick into main** are enabled on a pushed commit of main

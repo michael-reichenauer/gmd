@@ -109,8 +109,7 @@ public class MenuItemsTest
             ---
             Discard Changes in a File
             Discard Changes in Binary Files
-            Discard All Changes
-            Discard All Changes and Ignored Files
+            Discard All Changes ...
             ---
             Recover Lost Commits ...
             Restore Deleted Branch ...

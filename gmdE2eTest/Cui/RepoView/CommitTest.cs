@@ -1095,33 +1095,86 @@ public class CommitTest
         Assert.AreEqual("v1.0", await repo.GitAsync("tag"), "Still there");
     }
 
-    // Discarding all changes and the ignored files makes the folder as a fresh clone has it, which
-    // also deletes what git ignores on purpose, such as a .env file of secrets. So the question
-    // lists what would be deleted, git's dry run of the clean, and No is the default.
+    // Discard All Changes offers to delete the files git ignores too, the folder then as a fresh
+    // clone has it, which also deletes what git ignores on purpose, such as a .env file of secrets.
+    // So the question lists them, and Cancel is the default; Discard leaves them, and Discard and
+    // Delete Ignored, two to the left, deletes them with the changes.
     [TestMethod]
-    public async Task TestDiscardingTheIgnoredFilesListsThemAndAsksFirst()
+    public async Task TestDiscardAllChangesOffersToDeleteTheIgnoredFilesToo()
     {
-        using var repo = await E2eRepo.CreateAsync();
+        using var repo = await IgnoredFilesAsync();
+        repo.WriteFile("alpha.txt", "changed\n");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("uncommitted");
+
+        var question = OpenDiscardAll(gmd, "Discard and Delete Ignored");
+        StringAssert.Contains(question, "│  .env ");
+        StringAssert.Contains(question, "│  bin/ ");
+        StringAssert.Contains(question, "[ Discard ] [◦ Cancel ◦]│", "The buttons fit in the box");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Discard and Delete Ignored");
+        Assert.AreEqual(" M alpha.txt", (await repo.GitAsync("status --porcelain")).TrimEnd(), "Cancel, the default");
+
+        OpenDiscardAll(gmd, "Discard and Delete Ignored");
+        gmd.Send("Left"); // From Cancel to Discard
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("Discarded all changes:");
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".env")), "Discard leaves the ignored files");
+
+        repo.WriteFile("alpha.txt", "changed again\n");
+        gmd.WaitFor("uncommitted");
+        OpenDiscardAll(gmd, "Discard and Delete Ignored");
+        gmd.Send("Left"); // From Cancel past Discard to Discard and Delete Ignored
+        gmd.WaitForStable();
+        gmd.Send("Left");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("Discarded all changes and deleted the ignored files");
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".env")));
+        Assert.IsFalse(Directory.Exists(Path.Join(repo.Path, "bin")));
+    }
+
+    // With no uncommitted changes, deleting the ignored files is all it can do, and it asks that,
+    // listing them, with No the default
+    [TestMethod]
+    public async Task TestDiscardAllChangesWithNoChangesAsksToDeleteTheIgnoredFiles()
+    {
+        using var repo = await IgnoredFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Ignore secrets");
+
+        var question = OpenDiscardAll(gmd, "Delete the files git ignores");
+        StringAssert.Contains(question, "There are no uncommitted changes.");
+        StringAssert.Contains(question, "│  .env ");
+        StringAssert.Contains(question, "│  bin/ ");
+        gmd.Send("Enter");
+
+        gmd.WaitUntilGone("Delete the files git ignores");
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".env")), "No is the default, so nothing is deleted");
+    }
+
+    // The standard fixture with a .env file and a bin folder, which git ignores
+    static async Task<TempRepo> IgnoredFilesAsync()
+    {
+        var repo = await E2eRepo.CreateAsync();
         await repo.CommitFileAtAsync(".gitignore", ".env\nbin/\n", "Ignore secrets", TempRepo.BaseTime.AddMinutes(7));
         File.WriteAllText(Path.Join(repo.Path, ".env"), "TOKEN=secret\n");
         Directory.CreateDirectory(Path.Join(repo.Path, "bin"));
         File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
-        using var gmd = TmuxSession.StartGmd(repo);
-        gmd.WaitFor("Ignore secrets");
+        return repo;
+    }
 
+    // Picks Discard All Changes ... in the Undo sub menu of the current row's commit menu, and waits
+    // for the question, by a text of it
+    static string OpenDiscardAll(TmuxSession gmd, string inQuestion)
+    {
         OpenCommitSubMenu(gmd, "Undo", "Recover Lost Commits");
-        gmd.SelectMenuItem("Discard All Changes and Ignored Files");
+        gmd.SelectMenuItem("Discard All Changes ...");
         gmd.Send("Enter");
-
-        var question = gmd.WaitFor("as a fresh clone");
-        StringAssert.Contains(question, "Discard All Changes and Ignored Files");
-        StringAssert.Contains(question, "  .env");
-        StringAssert.Contains(question, "  bin/");
-
-        gmd.Send("Enter");
-
-        gmd.WaitUntilGone("as a fresh clone");
-        Assert.IsTrue(File.Exists(Path.Join(repo.Path, ".env")), "No is the default, so nothing is deleted");
+        return gmd.WaitFor(inQuestion);
     }
 
     // Opens the commit menu of the current row and the sub menu in it, waiting for an item of it

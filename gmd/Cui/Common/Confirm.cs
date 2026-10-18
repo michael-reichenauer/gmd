@@ -17,6 +17,15 @@ enum ResetChoice
     DiscardChanges,
 }
 
+// What the question before Discard All Changes was answered with: the uncommitted changes discarded,
+// or the files git ignores deleted too
+enum DiscardChoice
+{
+    Cancel,
+    Changes,
+    ChangesAndIgnored,
+}
+
 // What the question before a rewrite of commits, a drop or a rebase, was answered with
 enum RewriteChoice
 {
@@ -35,18 +44,63 @@ static class Confirm
     internal static string Discarded(string what) =>
         $"Discarded {what}: Restore Discarded Changes in the Undo menu brings it back";
 
-    internal static bool UndoAllUncommitted() =>
-        Ask(
-            "Discard All Changes",
-            """
-            Discard all uncommitted changes?
+    const string UndoAllQuestion = """
+        Discard all uncommitted changes?
 
-            Every changed file is reset to the last commit,
-            and every new file is deleted.
-            Restore Discarded Changes, in the Undo menu,
-            brings them back.
-            """
+        Every changed file is reset to the last commit,
+        and every new file is deleted.
+        Restore Discarded Changes, in the Undo menu,
+        brings them back.
+        """;
+
+    internal static bool UndoAllUncommitted() => Ask("Discard All Changes", UndoAllQuestion);
+
+    // Discard All Changes in the Undo menu, which offers to delete the files git ignores too, when
+    // there are any: the folder then as a fresh clone of the last commit has it, so that no leftover
+    // file can make a build or a test pass that would fail elsewhere. Those are also files a user
+    // may mean to keep, e.g. a .env file of secrets, and the ones least in view, and nothing brings
+    // them back, so the question lists them rather than only naming the kinds. With no uncommitted
+    // changes, deleting them is all there is to ask about.
+    internal static DiscardChoice DiscardAll(bool isChanges, IReadOnlyList<string> ignored)
+    {
+        if (ignored.Count == 0)
+            return UndoAllUncommitted() ? DiscardChoice.Changes : DiscardChoice.Cancel;
+
+        var listed = ignored.Take(MaxListedPaths).Select(p => $"  {p}");
+        string[] more = ignored.Count > MaxListedPaths ? [$"  ... and {ignored.Count - MaxListedPaths} more"] : [];
+        var paths = string.Join("\n", listed.Concat(more));
+
+        if (!isChanges)
+            return Ask(
+                "Delete Ignored Files",
+                "There are no uncommitted changes. Delete the files git ignores,\n"
+                    + "as a fresh clone of the last commit has the folder?\n\n"
+                    + paths
+                    + "\n\nThey may be meant to stay: secrets such as .env files, local\n"
+                    + "settings, dependencies, build output. Nothing brings them back."
+            )
+                ? DiscardChoice.ChangesAndIgnored
+                : DiscardChoice.Cancel;
+
+        var choice = UI.InfoMessage(
+            "Discard All Changes",
+            UndoAllQuestion
+                + "\n\nThe files git ignores are kept: secrets such as\n"
+                + ".env files, local settings, dependencies, build\n"
+                + "output. Discard and Delete Ignored deletes them\n"
+                + "too, as a fresh clone has the folder, and nothing\n"
+                + "brings them back:\n\n"
+                + paths,
+            2,
+            ["Discard and Delete _Ignored", "_Discard", "Cancel"]
         );
+        return choice switch
+        {
+            0 => DiscardChoice.ChangesAndIgnored,
+            1 => DiscardChoice.Changes,
+            _ => DiscardChoice.Cancel,
+        };
+    }
 
     internal static bool UndoFile(string path, bool isNew) =>
         isNew
@@ -96,32 +150,6 @@ static class Confirm
             $"Discard the changes to {Files(paths.Count)}?\n\n"
                 + string.Join("\n", listed.Concat(more))
                 + $"\n\nNew files are deleted, the others reset to the last commit.\n{WayBack}"
-        );
-    }
-
-    // The folder as a fresh clone would have it, which is what this is for: no leftover file that
-    // git ignores can then make a build or a test pass that would fail elsewhere. The ignored files
-    // are also the ones a user may mean to keep, e.g. a .env file of secrets, and the ones least in
-    // view, so the question lists what goes rather than only naming the kinds.
-    internal static bool CleanWorkingFolder(IReadOnlyList<string> toDelete)
-    {
-        var listed = toDelete.Take(MaxListedPaths).Select(p => $"  {p}");
-        string[] more = toDelete.Count > MaxListedPaths ? [$"  ... and {toDelete.Count - MaxListedPaths} more"] : [];
-        var deleted =
-            toDelete.Count == 0
-                ? "There is no such file here now."
-                : "These are deleted:\n\n" + string.Join("\n", listed.Concat(more));
-
-        return Ask(
-            "Discard All Changes and Ignored Files",
-            "Make the working folder as a fresh clone of the last commit?\n\n"
-                + "Every uncommitted change is undone, and every file git does\n"
-                + "not track is deleted, the files it ignores too: secrets such\n"
-                + "as .env files, local settings, dependencies, build output.\n\n"
-                + deleted
-                + "\n\nThe changes and the new files can be brought back with Restore\n"
-                + "Discarded Changes, in the Undo menu, but none of the ignored\n"
-                + "files, which git never had."
         );
     }
 

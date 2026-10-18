@@ -649,7 +649,7 @@ class Server : IServer
             discarded.DiscardAsync("All changes, not the ignored files", () => git.CleanWorkingFolderAsync(wd), wd)
         );
 
-    public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => git.GetFilesToCleanAsync(wd);
+    public Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd) => git.GetIgnoredFilesAsync(wd);
 
     public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) =>
         Paused(() => git.UndoCommitAsync(id, parentIndex, wd));
