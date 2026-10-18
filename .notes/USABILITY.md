@@ -1116,6 +1116,10 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    to finish` in yellow), a click on it opening Resolve Conflicts / Continue / Skip / Abort,
    `Shift-M` for the repo menu (hinted as `M abort…` while an operation lasts), and a
    `ConflictError` from git reported by `RepoCommands.ShowConflicts`.
+   *And in Undo (2026-10-18):* the user, wanting out of a merge, looked under Undo in the commit
+   menu, found no Abort, and took Discard All Changes, which ends a merge only because its
+   `reset --hard` drops `MERGE_HEAD`, and leaves a rebase going. Abort heads Undo now while an
+   operation lasts, the repo menu's command under the same name.
 5. **A disabled item says why** when chosen, or in the hint line. *Done (2026-09-25):* a click on a
    greyed out item, or its key, puts the reason on the status line (`MenuItem.WhyNot`, `Why`), for
    the branch, commit, repo, push and pull menus. The Amend item is enabled as the `a` key is.

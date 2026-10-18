@@ -126,6 +126,33 @@ public class OperationTest
         StringAssert.Contains(gmd.WaitFor("Repo Menu"), "Abort Merge");
     }
 
+    // Undo in the commit menu aborts it too, as its first item, since Undo is where one looks to back
+    // out; it asks first, No being the default, and after it the merge is gone and the working folder
+    // is as it was
+    [TestMethod]
+    public async Task TestUndoAbortsTheMerge()
+    {
+        using var repo = await E2eRepo.CreateWithConflictAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Merging: 1 conflict");
+
+        gmd.Send("m");
+        gmd.WaitFor("Commit ...");
+        gmd.SelectMenuItem("Undo");
+        gmd.Send("Right");
+        gmd.WaitFor("Abort Merge");
+        gmd.SelectMenuItem("Abort Merge");
+        gmd.Send("Enter");
+        gmd.WaitFor("Do you want to abort the merge?");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        StringAssert.Contains(gmd.WaitUntilGone("Merging:"), "Change it on main");
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".git", "MERGE_HEAD")), "The merge is aborted");
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"), "and the working folder is as it was");
+    }
+
     // 'dev' is not shown at first, so it is found and shown by name
     static void ShowDev(TmuxSession gmd)
     {
