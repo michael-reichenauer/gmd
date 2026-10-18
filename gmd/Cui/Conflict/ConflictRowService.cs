@@ -17,14 +17,16 @@ interface IConflictRowService
 }
 
 // The file as it will be saved, as rows, and the rows of each conflict's lines in it: where they
-// start, and where they end, the row after them
+// start, and where they end, the row after them. Code is the line of the file each row is, as drawn
+// after its gutter, null for a row that is none, which its code is colored as (ConflictSyntax).
 record ConflictResult(
     IReadOnlyList<Text> Rows,
     IReadOnlyDictionary<int, int> Starts,
-    IReadOnlyDictionary<int, int> Ends
+    IReadOnlyDictionary<int, int> Ends,
+    IReadOnlyList<string?> Code
 )
 {
-    public static readonly ConflictResult None = new([], new Dictionary<int, int>(), new Dictionary<int, int>());
+    public static readonly ConflictResult None = new([], new Dictionary<int, int>(), new Dictionary<int, int>(), []);
 
     // The rows of the result at a place in the file, where the cursor is above: a conflict's lines,
     // or its one row while undecided, and a line of the text between conflicts, the same line, which
@@ -71,11 +73,12 @@ class ConflictRowService : IConflictRowService
         {
             if (segment.Hunk == null)
             {
-                segment.Lines.ForEach(l =>
-                    rows.Add(
-                        ConflictRow.Span(Gutter(" ", Color.Dark, ours++).White(Shown(l)), gutterWidth: GutterWidth)
-                    )
-                );
+                foreach (var l in segment.Lines)
+                {
+                    var line = new PaneLine(CodeVersion.Ours, ours++);
+                    var text = Gutter(" ", Color.Dark, line.LineNbr).White(Shown(l));
+                    rows.Add(ConflictRow.Span(text, gutterWidth: GutterWidth, line: line));
+                }
                 theirs += segment.Lines.Count;
                 continue;
             }
@@ -148,22 +151,24 @@ class ConflictRowService : IConflictRowService
 
         // Each side as what it did to the common ancestor, which is what says why they conflict, when
         // the ancestor is known; else as it is, in the side's color
-        var sides = new List<IReadOnlyList<Text>>
+        var sides = new List<IReadOnlyList<(Text Text, PaneLine Line)>>
         {
-            SideTexts(hunk.Ours, hunk.Base, hasAncestor, oursStart, Color.Yellow, OursWords),
-            SideTexts(hunk.Theirs, hunk.Base, hasAncestor, theirsStart, Color.Cyan, TheirsWords),
+            SideTexts(hunk.Ours, hunk.Base, hasAncestor, oursStart, Color.Yellow, OursWords, CodeVersion.Ours),
+            SideTexts(hunk.Theirs, hunk.Base, hasAncestor, theirsStart, Color.Cyan, TheirsWords, CodeVersion.Theirs),
         };
         if (isShowBase)
             sides.Insert(
                 1,
-                hunk.Base.Select(l => (Text)Text.Black(new string(' ', GutterWidth)).Dark(Shown(l))).ToList()
+                hunk.Base.Select(l => ((Text)Text.Black(new string(' ', GutterWidth)).Dark(Shown(l)), PaneLine.None))
+                    .ToList()
             );
 
         var height = sides.Max(s => s.Count);
         for (int i = 0; i < height; i++)
         {
-            var panes = sides.Select(s => i < s.Count ? s[i] : Text.Empty).ToList();
-            rows.Add(new ConflictRow(panes, ConflictRowMode.Panes, hunk.Index, GutterWidth: GutterWidth));
+            var panes = sides.Select(s => i < s.Count ? s[i].Text : Text.Empty).ToList();
+            var lines = sides.Select(s => i < s.Count ? s[i].Line : PaneLine.None).ToList();
+            rows.Add(new ConflictRow(panes, ConflictRowMode.Panes, hunk.Index, GutterWidth: GutterWidth, Lines: lines));
         }
     }
 
@@ -174,30 +179,39 @@ class ConflictRowService : IConflictRowService
     // The lines of a side, each with its gutter: as its change against the ancestor, '+' a line it
     // added, '~' a line it changed, its words marked, '-' a line of the ancestor's it removed, dark,
     // and a line it kept dark too, so that what it did stands out; or with no ancestor known, as they
-    // are, in the side's color
-    static IReadOnlyList<Text> SideTexts(
+    // are, in the side's color. Each with the line of the side's version of the file it is, but for a
+    // line the side removed.
+    static IReadOnlyList<(Text Text, PaneLine Line)> SideTexts(
         IReadOnlyList<FileLine> side,
         IReadOnlyList<FileLine> ancestor,
         bool hasAncestor,
         int start,
         Color color,
-        Color words
+        Color words,
+        CodeVersion version
     )
     {
         if (!hasAncestor)
-            return side.Select((l, i) => (Text)Gutter(" ", color, start + i).Color(color, Shown(l))).ToList();
+            return side.Select(
+                    (l, i) =>
+                        ((Text)Gutter(" ", color, start + i).Color(color, Shown(l)), new PaneLine(version, start + i))
+                )
+                .ToList();
 
         return SideChanges
             .Of(ancestor, side)
             .Select(l =>
-                (Text)(
-                    l.Kind switch
-                    {
-                        SideLineKind.Added => Gutter("+", color, start + l.SideIndex).White(Shown(l.Text)),
-                        SideLineKind.Changed => Gutter("~", color, start + l.SideIndex).Add(Words(l.Words, words)),
-                        SideLineKind.Removed => Text.Red("-").Dark($"{"", 4} ").Dark(Shown(l.Text)),
-                        _ => Gutter(" ", color, start + l.SideIndex).Dark(Shown(l.Text)),
-                    }
+                (
+                    (Text)(
+                        l.Kind switch
+                        {
+                            SideLineKind.Added => Gutter("+", color, start + l.SideIndex).White(Shown(l.Text)),
+                            SideLineKind.Changed => Gutter("~", color, start + l.SideIndex).Add(Words(l.Words, words)),
+                            SideLineKind.Removed => Text.Red("-").Dark($"{"", 4} ").Dark(Shown(l.Text)),
+                            _ => Gutter(" ", color, start + l.SideIndex).Dark(Shown(l.Text)),
+                        }
+                    ),
+                    l.Kind == SideLineKind.Removed ? PaneLine.None : new PaneLine(version, start + l.SideIndex)
                 )
             )
             .ToList();
@@ -312,32 +326,44 @@ class ConflictRowService : IConflictRowService
     )
     {
         List<Text> rows = [];
+        List<string?> code = [];
         Dictionary<int, int> starts = [];
         Dictionary<int, int> ends = [];
         var nbr = 1;
+        void AddLine(TextBuilder gutter, FileLine line)
+        {
+            rows.Add(gutter.White(Shown(line)));
+            code.Add(Shown(line));
+        }
+        void AddNoLine(Text row)
+        {
+            rows.Add(row);
+            code.Add(null);
+        }
+
         foreach (var segment in file.Segments)
         {
             if (segment.Hunk is not ConflictHunk hunk)
             {
-                segment.Lines.ForEach(l => rows.Add(Gutter(" ", Color.Dark, nbr++).White(Shown(l))));
+                segment.Lines.ForEach(l => AddLine(Gutter(" ", Color.Dark, nbr++), l));
                 continue;
             }
 
             starts[hunk.Index] = rows.Count;
             var choice = resolution.ChoiceOf(hunk.Index);
             if (choice == HunkChoice.None)
-                rows.Add(Undecided(hunk, names, canCombine?.Invoke(hunk) ?? false));
+                AddNoLine(Undecided(hunk, names, canCombine?.Invoke(hunk) ?? false));
             else
             {
                 var lines = ResultLines(hunk, choice, resolution);
                 if (lines.Count == 0)
-                    rows.Add(Text.Color(Color.Magenta, "▌").Dark("      nothing, the region is removed"));
-                lines.ForEach(l => rows.Add(Gutter("▌", l.Color, nbr++).White(Shown(l.Line))));
+                    AddNoLine(Text.Color(Color.Magenta, "▌").Dark("      nothing, the region is removed"));
+                lines.ForEach(l => AddLine(Gutter("▌", l.Color, nbr++), l.Line));
             }
             ends[hunk.Index] = rows.Count;
         }
 
-        return new ConflictResult(rows, starts, ends);
+        return new ConflictResult(rows, starts, ends, code);
     }
 
     // The lines a decision takes, each with the color of where it came from

@@ -9,22 +9,46 @@ enum ConflictRowMode
     SpanAll, // One text across the whole width, e.g. a file header
 }
 
+// Which version of the file a line of a pane is a line of, each side being a version of the whole
+// file, the text between the conflicts and its lines of each
+enum CodeVersion
+{
+    None,
+    Ours,
+    Theirs,
+}
+
+// A line of a pane as a line of a version of the file, by its number there, as its gutter numbers it,
+// which its code is colored as (ConflictSyntax)
+readonly record struct PaneLine(CodeVersion Version, int LineNbr)
+{
+    public static readonly PaneLine None = new(CodeVersion.None, 0);
+}
+
 // A drawn row of the resolver.
 //
 // HunkIndex is which conflict the row belongs to, or -1 for the stable text between them, which is
 // what the cursor is turned into a conflict number with and what next/previous conflict move by.
 // GutterWidth is how much of the start of each pane is its gutter, a mark and a line number, which
-// stays where it is while the rest scrolls sideways, 0 for a row of no lines.
+// stays where it is while the rest scrolls sideways, 0 for a row of no lines. Lines is the line of
+// the file each pane is, for a row of lines.
 record ConflictRow(
     IReadOnlyList<Text> Panes,
     ConflictRowMode Mode,
     int HunkIndex,
     bool IsHunkHeader = false,
-    int GutterWidth = 0
+    int GutterWidth = 0,
+    IReadOnlyList<PaneLine>? Lines = null
 )
 {
-    public static ConflictRow Span(Text text, int hunkIndex = -1, int gutterWidth = 0) =>
-        new ConflictRow([text], ConflictRowMode.SpanAll, hunkIndex, GutterWidth: gutterWidth);
+    public static ConflictRow Span(Text text, int hunkIndex = -1, int gutterWidth = 0, PaneLine? line = null) =>
+        new ConflictRow(
+            [text],
+            ConflictRowMode.SpanAll,
+            hunkIndex,
+            GutterWidth: gutterWidth,
+            Lines: line is PaneLine l ? [l] : null
+        );
 
     public static ConflictRow Header(Text text, int hunkIndex) =>
         new ConflictRow([text], ConflictRowMode.SpanAll, hunkIndex, IsHunkHeader: true);

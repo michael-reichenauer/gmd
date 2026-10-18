@@ -295,16 +295,21 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   a diff blames the file at the cursor's commit and line, through `IDiffBlame` (`Diff/` cannot name
   `Blame/`, which is above it), and `⇧l` in the blame shows the file's history at the line's commit;
   each is a modal view on top of the other, which `Esc` closes back to it. `BlameSyntax` colors the
-  code with the diff's grammars, the whole file from its top rather than hunk by hunk, under the
-  same `ColorCode` setting; both draw the spans with `Text.WithCode`, which leaves text in any color
-  but white alone, so an uncommitted line stays bright yellow.
+  code with the diff's grammars, the whole file from its top rather than hunk by hunk
+  (`Cui/Common/CodeLines`), under the same `ColorCode` setting; both draw the spans with
+  `Text.WithCode`, which leaves text in any color but white alone, so an uncommitted line stays
+  bright yellow.
 - **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
   per hunk; it never builds file text, the decisions go back down to be applied. `SideChanges` is a
   side as its change against the common ancestor, which the resolver reads as the file opens, and
   `ConflictCombine` both sides' changes in one where they touch other words, taken as text written
   by hand. The result pane below is the file as it will be saved, which goes along with the cursor:
   `ConflictResult.RangeOf` is where the cursor's line or conflict is in it. `e` types a conflict in
-  the result pane, a `UITextView` laid over its rows, which `ConflictTyping` places. `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
+  the result pane, a `UITextView` laid over its rows, which `ConflictTyping` places. `ConflictSyntax`
+  colors the code as the blame does (`CodeLines`), each side as its version of the whole file, a
+  pane's line found by the number its gutter shows (`ConflictRow.Lines`), and the result as it will be
+  saved, which keeps the colors of its lines above the first that changed as it is made anew with
+  each decision and key typed (`ConflictResult.Code`). `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
   the operation, one after the other, from the conflict box, the repo menu and the diff's Enter, and
   asks to commit or continue once none is left, which the caller does; how a file's view ended
   (`ConflictOutcome`) says where it goes next, and `ConflictFileList` is the list of files beside it.
@@ -817,7 +822,7 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
-  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `DiffSyntax`, `BlameSyntax`, `CodeScopes`, `BranchFinder`, `FileTree`, `FileFinder`, `FileBrowseRows`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
+  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `DiffSyntax`, `BlameSyntax`, `ConflictSyntax`, `CodeLines`, `CodeScopes`, `BranchFinder`, `FileTree`, `FileFinder`, `FileBrowseRows`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
   `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `MergedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output

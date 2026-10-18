@@ -675,9 +675,9 @@ words that differ are marked. The code is in the colors of its language, as
 VS Code's Dark+ and Light+ themes color it, known by the file's extension, for
 some fifty languages. Each part of a file is colored from where it starts, so
 one that starts inside a comment of many lines is colored as code until the
-comment ends. **Color the code in diffs and blame by its language** in
-**Config ...** turns it off, here and in the blame, and the `16` colors have
-none to spare for it. The cursor is the line number drawn reversed.
+comment ends. **Color the code by its language** in **Config ...** turns it
+off, here, in the blame and in the conflict resolver, and the `16` colors
+have none to spare for it. The cursor is the line number drawn reversed.
 A line whose line end alone changed, e.g. from LF to CRLF, has a `␍` on the
 side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
@@ -849,7 +849,10 @@ the version both started from, the common ancestor, which is what says why
 they conflict: `+` a line it added, `~` a line it changed, with the words
 it changed marked in its color, `-` a line of the ancestor's it removed, in
 dark, and the lines it kept in dark too. A line is numbered as its side has
-it, and the text between conflicts as the left side has it.
+it, and the text between conflicts as the left side has it. The code is in
+the colors of its language, as in the diff, each side as its version of the
+whole file has it, but for the dark lines and the words a side changed,
+which keep their colors; the result below is colored too.
 
 A pane below, **Result**, shows the file as it will be saved, as your
 decisions so far make it: each decided conflict's lines with a bar in the
