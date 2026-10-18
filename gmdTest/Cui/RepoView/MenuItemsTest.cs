@@ -25,20 +25,23 @@ public class MenuItemsTest
             Merge dev into main  [e]
             Merge main into dev  [⇧e]
             Rebase onto >  (disabled)
-            Hide Branch  [h]
             Pull  [u]  (disabled)
             Push  [p]
+            ---
             Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...
             Undo Last Change  (disabled)
+            ---
             Diff Branch to >  [d]
-            Change Branch Color  [g]
-            Open in Browser  (disabled)
+            Open Branch in Browser  (disabled)
             Create Pull Request in Browser  (disabled)
             ---
+            Hide Branch  [h]
+            Change Branch Color  [g]
             Show Branch >  [⇧→]
+            ---
             Repo Menu >  [⇧m]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("dev"))
@@ -128,20 +131,23 @@ public class MenuItemsTest
             Merge into main >  [e]  (disabled)
             Merge main into >  [⇧e]  (disabled)
             Rebase onto >  (disabled)
-            Hide Branch  [h]  (disabled)
             Pull  [u]  (disabled)
             Push  [p]
+            ---
             Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...  (disabled)
             Delete Branch ...  (disabled)
             Undo Last Change  (disabled)
+            ---
             Diff Branch to >  [d]  (disabled)
-            Change Branch Color  [g]  (disabled)
-            Open in Browser
+            Open Branch in Browser
             Create Pull Request in Browser  (disabled)
             ---
+            Hide Branch  [h]  (disabled)
+            Change Branch Color  [g]  (disabled)
             Show Branch >  [⇧→]
+            ---
             Repo Menu >  [⇧m]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture())).GetBranchMenuItems("main"))
@@ -169,20 +175,23 @@ public class MenuItemsTest
             Merge dev into main  [e]
             Merge main into dev  [⇧e]  (disabled)
             Rebase onto >  (disabled)
-            Hide Branch  [h]
             Pull  [u]  (disabled)
             Push  [p]
+            ---
             Create Branch ...  [b]
             Create Worktree ...
             Rename Branch ...
             Delete Branch ...  (disabled)
             Undo Last Change  (disabled)
+            ---
             Diff Branch to >  [d]
-            Change Branch Color  [g]
-            Open in Browser  (disabled)
+            Open Branch in Browser  (disabled)
             Create Pull Request in Browser  (disabled)
             ---
+            Hide Branch  [h]
+            Change Branch Color  [g]
             Show Branch >  [⇧→]
+            ---
             Repo Menu >  [⇧m]
             """,
             Items(BranchMenuOf(await ViewOf(Fixture().Worktree("/home/me/repo-dev", "dev"))).GetBranchMenuItems("dev"))
@@ -631,8 +640,6 @@ public class MenuItemsTest
             S Switch to Branch
             e Merge dev into main
             E Merge main into dev
-            h Hide Branch
-            H Hide Branch
             u Pull  (says why)
             U Pull  (says why)
             p Push
@@ -641,6 +648,8 @@ public class MenuItemsTest
             B Create Branch ...
             d Diff Branch to
             D Diff Branch to
+            h Hide Branch
+            H Hide Branch
             g Change Branch Color
             G Change Branch Color
             M Repo Menu

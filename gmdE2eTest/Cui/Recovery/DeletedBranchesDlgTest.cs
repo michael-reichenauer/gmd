@@ -18,7 +18,7 @@ public class DeletedBranchesDlgTest
         {
             gmd.WaitFor("Initial");
             ShowAndHooverDev(gmd, "Merge branch");
-            DeleteHooveredBranch(gmd, 8);
+            DeleteHooveredBranch(gmd);
 
             var screen = gmd.WaitFor("Deleted 'dev'");
             Assert.AreEqual(
@@ -87,7 +87,7 @@ public class DeletedBranchesDlgTest
             gmd.Send("Down");
             gmd.WaitForStable();
             ShowAndHooverDev(gmd, "Merge branch");
-            DeleteHooveredBranch(gmd, 7);
+            DeleteHooveredBranch(gmd);
 
             var screen = gmd.WaitFor("Deleted 'dev' here and on origin");
             Assert.AreEqual(
@@ -140,18 +140,13 @@ public class DeletedBranchesDlgTest
         gmd.WaitForStable();
     }
 
-    // Down the branch menu to 'Delete Branch ...', which is a different number of moves with origin,
-    // where more items are enabled, and OK in the delete dialog, whose boxes are on for each side.
-    // Cancel is its default, so OK is a Left away.
-    static void DeleteHooveredBranch(TmuxSession gmd, int moves)
+    // 'Delete Branch ...' in the branch menu, and OK in the delete dialog, whose boxes are on for
+    // each side. Cancel is its default, so OK is a Left away.
+    static void DeleteHooveredBranch(TmuxSession gmd)
     {
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
-        for (var i = 0; i < moves; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Delete Branch ...");
         gmd.Send("Enter");
         gmd.WaitFor("Delete Local");
         gmd.Send("Left"); // From Cancel, the default, to OK

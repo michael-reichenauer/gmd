@@ -218,11 +218,7 @@ public class WorktreeTest
 
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
-        for (var i = 0; i < 6; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Create Worktree ...");
         gmd.Send("Enter");
         gmd.WaitFor("Existing branch");
 
@@ -305,8 +301,7 @@ public class WorktreeTest
     }
 
     // Shows dev and opens its Create Worktree: down to the merge commit, left to hoover main, Enter
-    // to show dev, right to hoover it, and down the branch menu past the disabled 'Rebase and Push
-    // onto' and 'Pull'
+    // to show dev, right to hoover it, and the item in its branch menu
     static string OpenCreateWorktreeOfDev(TmuxSession gmd)
     {
         gmd.Send("Down");
@@ -320,11 +315,7 @@ public class WorktreeTest
 
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
-        for (var i = 0; i < 6; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Create Worktree ...");
         gmd.Send("Enter");
 
         return gmd.WaitFor("Create Worktree");

@@ -642,7 +642,7 @@ throw changes away ask first, and what they throw away gmd keeps, for
   the remote as well, by pushing the new name and then deleting the old
   remote branch. Note that deleting it affects everyone: other clones lose
   track of the branch and a pull request made from the old name is closed.
-- **Open in Browser** (branch menu):
+- **Open Branch in Browser** (branch menu):
   Opens the branch on the site hosting the remote (GitHub, GitLab,
   Bitbucket, Azure DevOps or Gitea), and **Create Pull Request in Browser**
   the page for a pull request into the branch it was made from. The commit
