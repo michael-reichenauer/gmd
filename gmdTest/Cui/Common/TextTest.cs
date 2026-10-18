@@ -32,6 +32,19 @@ public class TextTest
         Assert.AreNotEqual(Color.White, marked.ToHighlight().Fragments[0].Color, "The rest is highlighted");
     }
 
+    // Code keeps its colors on the cursor's row, but selected it is the selection's text, as its colors
+    // are made for the background, not for the selection's
+    [TestMethod]
+    public void TestCodeSelectedIsTheSelectionsText()
+    {
+        var keyword = new Color(ColorName.CodeKeyword, ColorName.Background);
+        var code = Text.Color(keyword, "int").White(" x").ToText();
+
+        Assert.AreEqual(new Color(ColorName.CodeKeyword, ColorName.Dark), code.ToHighlight().Fragments[0].Color);
+        Assert.AreEqual(new Color(ColorName.Black, ColorName.White), code.ToSelect().Fragments[0].Color);
+        Assert.AreEqual(new Color(ColorName.Black, ColorName.White), code.ToTextBuilder().Select().Fragments[0].Color);
+    }
+
     // No search, or none of it in the text, leaves the text as it is
     [TestMethod]
     public void TestATextWithNoMatchIsLeftAsItIs()

@@ -45,6 +45,20 @@ enum ColorName
     Branch10,
     Branch11,
     Branch12,
+
+    // The parts of code in a diff, in the colors of its language, see SyntaxScopes
+    CodeKeyword,
+    CodeControl,
+    CodeString,
+    CodeEscape,
+    CodeComment,
+    CodeNumber,
+    CodeType,
+    CodeFunction,
+    CodeVariable,
+    CodeConstant,
+    CodeTag,
+    CodeAttribute,
 }
 
 // A foreground and a background color, by name, drawn in the RGB of the palette in use when drawn
@@ -170,6 +184,24 @@ sealed class Palette
         return background is TgColor bg && !bg.IsDarkColor() ? Light : Dark;
     }
 
+    // The code colors, as VS Code's Dark+ and Light+ themes have them; before the palettes, which are
+    // made of them as the class is initialized, in the order of the fields
+    static readonly (ColorName Name, int Dark, int Light)[] CodeColors =
+    [
+        (ColorName.CodeKeyword, 0x569CD6, 0x0000FF),
+        (ColorName.CodeControl, 0xC586C0, 0xAF00DB),
+        (ColorName.CodeString, 0xCE9178, 0xA31515),
+        (ColorName.CodeEscape, 0xD7BA7D, 0xEE0000),
+        (ColorName.CodeComment, 0x6A9955, 0x008000),
+        (ColorName.CodeNumber, 0xB5CEA8, 0x098658),
+        (ColorName.CodeType, 0x4EC9B0, 0x267F99),
+        (ColorName.CodeFunction, 0xDCDCAA, 0x795E26),
+        (ColorName.CodeVariable, 0x9CDCFE, 0x001080),
+        (ColorName.CodeConstant, 0x4FC1FF, 0x0070C1),
+        (ColorName.CodeTag, 0x569CD6, 0x800000),
+        (ColorName.CodeAttribute, 0x9CDCFE, 0xE50000),
+    ];
+
     public static readonly Palette Sixteen = new(
         "16",
         isSixteen: true,
@@ -195,7 +227,8 @@ sealed class Palette
             onRemoved: TgColor.White,
             addedBg: TgColor.BrightGreen,
             onAdded: TgColor.Black,
-            branches: [TgColor.Blue, TgColor.Green, TgColor.Cyan, TgColor.Red, TgColor.Yellow]
+            branches: [TgColor.Blue, TgColor.Green, TgColor.Cyan, TgColor.Red, TgColor.Yellow],
+            code: CodeStyle.None
         )
     );
 
@@ -238,7 +271,8 @@ sealed class Palette
                 Rgb(0xA1887F), // brown
                 Rgb(0x7986CB), // indigo
                 Rgb(0xFF8A65), // coral
-            ]
+            ],
+            code: CodeStyle.Dark
         )
     );
 
@@ -281,9 +315,18 @@ sealed class Palette
                 Rgb(0x6D4C41), // brown
                 Rgb(0x3949AB), // indigo
                 Rgb(0xD84315), // coral
-            ]
+            ],
+            code: CodeStyle.Light
         )
     );
+
+    // Which of the code colors a palette has
+    enum CodeStyle
+    {
+        None,
+        Dark,
+        Light,
+    }
 
     static TgColor Rgb(int rgb) => new((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
 
@@ -308,7 +351,8 @@ sealed class Palette
         TgColor onRemoved,
         TgColor addedBg,
         TgColor onAdded,
-        IReadOnlyList<TgColor> branches
+        IReadOnlyList<TgColor> branches,
+        CodeStyle code
     )
     {
         var colors = new Dictionary<ColorName, TgColor>
@@ -337,6 +381,17 @@ sealed class Palette
         // A palette of fewer branch colors repeats them, so every name has an RGB
         for (int i = 0; i < 12; i++)
             colors[ColorName.Branch1 + i] = branches[i % branches.Count];
+        // Code in the colors of VS Code's Dark+ or Light+; the 16 colors draw no code in colors
+        // (DiffSyntax), so it is the text's white there
+        foreach (var (name, onDark, onLight) in CodeColors)
+        {
+            colors[name] = code switch
+            {
+                CodeStyle.Dark => Rgb(onDark),
+                CodeStyle.Light => Rgb(onLight),
+                _ => white,
+            };
+        }
         return colors;
     }
 }

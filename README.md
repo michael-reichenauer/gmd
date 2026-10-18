@@ -141,9 +141,9 @@ once. Gmd keeps that readable rather than letting it flood the log:
   own or deleted branches or find one by typing part of its name, and see markers where hidden
   branches merge in or branch out, and a count of the hidden branches with something new since
   you last looked, new branches included.
-- **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches. The
-  context shown around the changes can be widened for one file at a time, up to the whole file,
-  and the changes of whitespace alone can be hidden.
+- **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches, with the
+  code in the colors of its language. The context shown around the changes can be widened for one
+  file at a time, up to the whole file, and the changes of whitespace alone can be hidden.
 - **Blame** that groups lines by the commit that last changed them and shades each commit by its
   age. You can step back to the version before a commit to get past a reformat or a rename, or see
   every commit that changed the lines you select.
@@ -365,6 +365,11 @@ scripts and the conventions.
 - [Autofac](https://github.com/autofac/Autofac) (MIT) handles dependency injection.
 - [DiffPlex](https://github.com/mmanela/diffplex) (Apache 2.0) highlights the characters that
   changed within a line of the diff.
+- [TextMateSharp](https://github.com/danipen/TextMateSharp) (MIT), with the TextMate grammars of
+  VS Code, colors the code in a diff by its language. Their regular expressions are run by
+  [Oniguruma](https://github.com/kkos/oniguruma) (BSD 2-clause) through
+  [Onigwrap](https://github.com/aikawayataro/Onigwrap) (MIT), a native library embedded in the
+  executable (see `gmd/doc/licenses/libonigwrap.license`).
 - [WeCantSpell.Hunspell](https://github.com/aarondandy/WeCantSpell.Hunspell) (MPL 2.0 / LGPL / GPL
   tri-license, used under MPL 2.0) is the managed Hunspell port that spell checks commit messages.
 - The [SCOWL](http://wordlist.aspell.net) en_US Hunspell dictionary (MIT/BSD, see

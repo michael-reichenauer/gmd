@@ -26,7 +26,7 @@ class ConfigDlg : IConfigDlg
     public bool Show(string repoPath)
     {
         int width = 60;
-        int height = 24;
+        int height = 26;
 
         var repoConf = repoConfig.Get(repoPath);
         var dlg = new UIDialog("Config", width, height);
@@ -63,6 +63,7 @@ class ConfigDlg : IConfigDlg
         var colors = dlg.AddComboTextField(10, 16, 10, 5, () => Palette.Settings, config.Colors);
         dlg.AddLabel(1, 18, Text.Dark("auto picks dark or light by the terminal's background,"));
         dlg.AddLabel(1, 19, Text.Dark("16 is the 16 colors of the terminal's theme"));
+        var isColorCode = dlg.AddCheckBox(1, 21, "Color the code in diffs by its language", config.ColorCode);
         dlg.Validate(
             () => Palette.Settings.Contains(colors.Text),
             $"Colors is one of {string.Join(", ", Palette.Settings)}"
@@ -92,6 +93,7 @@ class ConfigDlg : IConfigDlg
             c.SpellCheck = isSpellCheck.Checked;
             c.ShowKeyHints = isShowKeyHints.Checked;
             c.Colors = colors.Text;
+            c.ColorCode = isColorCode.Checked;
         });
         UI.UsePalette(colors.Text);
 
