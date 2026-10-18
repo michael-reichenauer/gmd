@@ -2,7 +2,7 @@ using gmdE2eTest.Fixtures;
 
 namespace gmdE2eTest.Cui.Common;
 
-// The file browser, which Blame File and Full File History pick their file in: the files of the
+// The file browser, which Blame File and File History pick their file in: the files of the
 // row's commit as a tree, opened at the file the commit changed, the arrow keys opening and closing
 // its folders, and typing to find a file instead. What the tree and the finder list, and in what
 // order, is FileTreeTest's and FileFinderTest's.
@@ -65,7 +65,7 @@ public class FileBrowseDlgTest
         using var repo = await CreateRepoAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Add main");
-        OpenFromCommitMenu(gmd, "Full File History");
+        OpenFromCommitMenu(gmd, "File History");
         gmd.WaitFor("Enter history");
 
         gmd.Send("Down");
@@ -80,7 +80,7 @@ public class FileBrowseDlgTest
         var closed = gmd.WaitUntilGone("│ │   main.c");
         Assert.AreEqual(
             """
-                           ╭ Full File History ─────────────────────────────────────────────────────────────────────╮
+                           ╭ File History ──────────────────────────────────────────────────────────────────────────╮
                            │ Find:                                                                                ] │
                            │────────────────────────────────────────────────────────────────────────────────────────│
                            │ Changed in commit 7b9d57d6 ──────────────────────────────────────────────────────────  │
@@ -109,7 +109,7 @@ public class FileBrowseDlgTest
         StringAssert.Contains(history, "Add gamma", "The history of gamma.txt");
     }
 
-    // Opens the item of the commit menu, the last two of which are Blame File and Full File History:
+    // Opens the item of the commit menu, the last two of which are Blame File and File History:
     // 'End' and 'Up' are the steadier walk there than counting down past the items it skips
     static void OpenFromCommitMenu(TmuxSession gmd, string item)
     {
@@ -121,7 +121,7 @@ public class FileBrowseDlgTest
         gmd.WaitForStable();
         gmd.Send("Up");
         gmd.WaitForStable();
-        if (item == "Full File History")
+        if (item == "File History")
         {
             gmd.Send("Up");
             gmd.WaitForStable();

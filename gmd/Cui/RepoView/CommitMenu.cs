@@ -128,9 +128,11 @@ class CommitMenu : ICommitMenu
                 () => WebCommands.CanOpenCommit(repo.Repo, c),
                 () => WebCommands.WhyNoOpenCommit(repo.Repo, c)
             )
-            // Belongs with the commit items: the files offered are the ones this commit has, even
-            // though the history then shown for the chosen one is its full history, hence 'Full'
-            .Item("Full File History ...", "", () => cmds.ShowFileHistory())
+            // Belongs with the commit items: the files offered are the ones this commit has, though the
+            // history then shown for the chosen one is every commit that changed it. It was named
+            // 'Full File History', for that, but nothing beside it is a partial one: the history of
+            // lines is the blame's, which names it 'History of Line 12'.
+            .Item("File History ...", "", () => cmds.ShowFileHistory())
             // The same file list, answering the other question: not how the file changed over
             // time, but which commit each line of it as it stands came from
             .Item("Blame File ...", "", () => cmds.BlameFile())

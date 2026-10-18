@@ -760,7 +760,7 @@ whitespace again. **Diff File**
 in the menu opens an uncommitted file in the diff tool git is configured
 with (`git difftool`).
 
-**Full File History ...** and **Blame File ...** in the commit menu pick
+**File History ...** and **Blame File ...** in the commit menu pick
 the file in the same dialog. First come the files the commit changed, under
 **Changed in commit** (on the uncommitted row, **Uncommitted changes**),
 each with its letter (`M`, `A`, ...), and the cursor on the first of them.

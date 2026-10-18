@@ -621,7 +621,7 @@ public class LogViewTest
                     │Commit Details                 Enter  │
                     │Copy                          Ctrl-C >│
                     │Open Commit in Browser                │
-                    │Full File History ...                 │
+                    │File History ...                      │
                     │Blame File ...                        │
                     │──────────────────────────────────────│
                     │Branches                             >│
@@ -678,7 +678,7 @@ public class LogViewTest
         Assert.AreEqual(
             """
                      │Open Commit in Browser                │
-                     │Full File History ...                 │
+                     │File History ...                      │
                      │Blame File ...                        │
                      │──────────────────────────────────────│╭ Branches ───────────────────╮
                      │Branches                             >││●   main                    >│
@@ -707,7 +707,7 @@ public class LogViewTest
                      │Commit Details                 Enter  │                               │Merge dev into main             e  │
                      │Copy                          Ctrl-C >│                               │Merge main into dev            ⇧e  │
                      │Open Commit in Browser                │                               │Rebase onto                       >│
-                     │Full File History ...                 │                               │Hide Branch                     h  │
+                     │File History ...                      │                               │Hide Branch                     h  │
                      │Blame File ...                        │                               │Pull                            u  │
                      │──────────────────────────────────────│╭ Branches ───────────────────╮│Push                            p  │
                      │Branches                             >││●   main                    >││Create Branch ...               b  │

@@ -995,8 +995,8 @@ class CommitCommands : ICommitCommands
         Do(async repo =>
         {
             // The files to pick from are the ones the row's commit has, while the history then shown
-            // for the picked one is its full history, hence 'Full'
-            var pickResult = await PickFileAsync(repo, "Full File History", "history");
+            // for the picked one is every commit that changed it
+            var pickResult = await PickFileAsync(repo, "File History", "history");
             if (pickResult is not string path)
                 return pickResult.Error;
             if (path == "")
