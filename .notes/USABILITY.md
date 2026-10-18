@@ -68,6 +68,15 @@ or a click picks a file or opens and closes a folder, `→` / `←` open, close 
 are the menu items', and the status line says what the files are (`617 files of commit 1be33bd1`)
 and what Enter does where the cursor is.
 
+**Blame and file history linked (2026-10-18).** The two were reached only from the commit menu,
+sharing the file browser, and the blame led to the history of its lines (`l`) and a commit's diff
+(`d`) but nothing led from a diff to a blame. Merging them into one view, a commit list beside the
+diff or the blame of the selected commit as Fork and SourceTree have it, was weighed and left: it
+needs the width gmd lacks below 150 columns, and gives up reading a file history as one diff. They
+are linked both ways instead: `b` in any diff blames the file at the cursor's commit and line (a
+removed line in the version before), and `⇧l` in the blame shows the file's history at the line's
+commit, each on top of the other, `Esc` going back.
+
 Open: **the folder browser** (`FolderBrowseDlg`: Init, Clone, Add Worktree and opening a repository,
 from the start page or the repo menu) is the same kind of workaround over `TreeView` and looks as
 the file browser did; it lists the file system lazily, so it would share the rows rather than

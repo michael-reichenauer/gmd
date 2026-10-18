@@ -12,7 +12,9 @@ namespace gmd.Cui.Blame;
 
 interface IBlameView
 {
-    void Show(Server.Blame blame, Repo repo);
+    // With the cursor on the line numbered lineNbr, as when a diff blames the line it is on, or at the
+    // top of the file for 0
+    void Show(Server.Blame blame, Repo repo, int lineNbr = 0);
 }
 
 // Shows which commit last changed each line of a file. Consecutive lines of the same commit are
@@ -90,7 +92,7 @@ class BlameView : IBlameView
             ? blameRows.Rows[contentView.CurrentIndex]
             : null;
 
-    public void Show(Server.Blame blame, Repo repo)
+    public void Show(Server.Blame blame, Repo repo, int lineNbr = 0)
     {
         this.blame = blame;
         this.blameRows = blameRowService.ToBlameRows(blame);
@@ -154,6 +156,13 @@ class BlameView : IBlameView
         contentView.CurrentIndexChange += OnCurrentIndexChange;
 
         SetHeader();
+        var lineIndex = lineNbr > 0 ? blameRows.Rows.FindIndexBy(r => r.LineNbr == lineNbr) : -1;
+        if (lineIndex > 0)
+            contentView.WhenSized(() =>
+            {
+                contentView.SetTotalCount(blameRows.Rows.Count);
+                contentView.ShowCurrentIndex(lineIndex);
+            });
         contentView.SetNeedsDraw();
         using (Menu.SayingWhyNotOn(status))
             UI.RunDialog(blameView);
@@ -186,7 +195,8 @@ class BlameView : IBlameView
         view.RegisterLetterHandler(Key.M, () => ShowMainMenu());
         view.RegisterLetterHandler(Key.G, CycleDetails); // The gutter
         view.RegisterLetterHandler(Key.D, ShowLineCommitDiff);
-        view.RegisterLetterHandler(Key.L, ShowLineHistory);
+        view.RegisterKeyHandler(Key.L, ShowLineHistory);
+        view.RegisterKeyHandler(Key.L.WithShift, ShowFileHistory);
         view.RegisterLetterHandler(Key.P, BlamePrevious);
         view.RegisterKeyHandler(Key.Backspace, Back);
         // The line's commit id and message, as 'i' and Shift-I copy a commit's in the log view, so
@@ -243,7 +253,7 @@ class BlameView : IBlameView
     {
         var text = Text.Dark("Blame  ").White(blame.Path);
         if (blame.Reference != "")
-            text.Dark("  @").Cyan(blame.Reference.Sid());
+            text.Dark("  @").Cyan(BlameRowService.ReferenceText(blame.Reference));
         text.Dark($"   {Count(blameRows.Rows.Count, "line")}, {Count(blame.CommitById.Count, "commit")}");
         if (backStack.Count > 0)
             text.Dark("   ").Yellow($"{backStack.Count} back");
@@ -371,7 +381,10 @@ class BlameView : IBlameView
         if (row == null)
             return;
 
-        var source = DiffSource.Single(n => server.GetCommitDiffAsync(row.Commit.Id, n, repo.Path));
+        var source = DiffSource.Single(n => server.GetCommitDiffAsync(row.Commit.Id, n, repo.Path)) with
+        {
+            Sides = row.Commit.IsUncommitted ? DiffSides.Uncommitted : null,
+        };
         Server.CommitDiff[] diffs;
         using (progress.Show())
         {
@@ -384,7 +397,7 @@ class BlameView : IBlameView
             diffs = loaded;
         }
 
-        diffView.Show(diffs, source, repo.Path);
+        diffView.Show(diffs, source, repo);
         contentView.SetNeedsDraw();
     }
 
@@ -440,7 +453,35 @@ class BlameView : IBlameView
             diffs = loaded;
         }
 
-        diffView.Show(diffs, source, repo.Path);
+        diffView.Show(diffs, source, repo);
+        contentView.SetNeedsDraw();
+    }
+
+    // Every commit that changed the file, as Full File History in the commit menu shows it, at the
+    // commit of the current line: how a change the blame names sits among the ones around it, where
+    // l is the history of the lines alone. A line not committed yet has no commit there, so it is
+    // shown from the newest.
+    async void ShowFileHistory()
+    {
+        var row = CurrentRow;
+        if (row == null)
+            return;
+
+        var path = blame.Path;
+        var source = new DiffSource(n => server.GetFileDiffAsync(path, n, repo.Path));
+        Server.CommitDiff[] diffs;
+        using (progress.Show())
+        {
+            var diffsResult = await source.Reload(DiffContext.Default);
+            if (diffsResult is not Server.CommitDiff[] loaded)
+            {
+                UI.ErrorMessage($"Failed to get the history of {path}\n{diffsResult.Error.AllMessages()}");
+                return;
+            }
+            diffs = loaded;
+        }
+
+        diffView.Show(diffs, source, repo, atCommitId: row.Commit.IsUncommitted ? "" : row.Commit.Id);
         contentView.SetNeedsDraw();
     }
 
@@ -619,6 +660,7 @@ class BlameView : IBlameView
                     () => c != null
                 )
                 .Item(HistoryName(), "l", () => ShowLineHistory(), () => c != null)
+                .Item("Full File History", "⇧l", () => ShowFileHistory(), () => c != null)
                 .Item(
                     hasPrevious ? $"Blame Previous Version ({c!.PreviousId.Sid()})" : "Blame Previous Version",
                     "p",

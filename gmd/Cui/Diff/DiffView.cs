@@ -22,8 +22,15 @@ interface IDiffView
     // diffs is what source read at the default context. conflicts is what git reports as unmerged,
     // read by the caller — only the uncommitted diff can have any. Passed in rather than read here
     // so it is awaited off the main loop: a Terminal.Gui SynchronizationContext posts an await's
-    // continuation to that loop, so blocking it deadlocks.
-    DiffResult Show(CommitDiff[] diffs, DiffSource source, string repoPath, ConflictState? conflicts = null);
+    // continuation to that loop, so blocking it deadlocks. repo is the repo shown, which a blame of
+    // a line (b) shows the commits of. atCommitId is the commit a file history is opened at.
+    DiffResult Show(
+        CommitDiff[] diffs,
+        DiffSource source,
+        Repo repo,
+        ConflictState? conflicts = null,
+        string atCommitId = ""
+    );
 }
 
 class DiffView : IDiffView
@@ -37,6 +44,7 @@ class DiffView : IDiffView
     readonly IConflictWorkspace conflictWorkspace;
     readonly Config config;
     readonly LeftOutLines leftOut;
+    readonly IDiffBlame diffBlame;
 
     // The left-out lines of each file not found in the diff since it was read again, which stop a
     // commit until found again or put back (LeftOutLines.Refind)
@@ -56,6 +64,7 @@ class DiffView : IDiffView
     readonly Dictionary<string, int> fileContext = [];
     readonly IHelpPage helpPage;
     int rowStartX = 0;
+    Repo repo = null!;
     string repoPath = "";
     bool isFocusLeft = true;
     bool isCommitTriggered = false;
@@ -118,10 +127,12 @@ class DiffView : IDiffView
         IHelpPage helpPage,
         Config config,
         LeftOutLines leftOut,
-        ICodeGrammars grammars
+        ICodeGrammars grammars,
+        IDiffBlame diffBlame
     )
     {
         this.grammars = grammars;
+        this.diffBlame = diffBlame;
         this.helpPage = helpPage;
         this.config = config;
         this.leftOut = leftOut;
@@ -132,12 +143,19 @@ class DiffView : IDiffView
         this.conflictWorkspace = conflictWorkspace;
     }
 
-    public DiffResult Show(CommitDiff[] diffs, DiffSource source, string repoPath, ConflictState? conflicts = null)
+    public DiffResult Show(
+        CommitDiff[] diffs,
+        DiffSource source,
+        Repo repo,
+        ConflictState? conflicts = null,
+        string atCommitId = ""
+    )
     {
         this.diffs = diffs;
         this.source = source;
         this.rowStartX = 0;
-        this.repoPath = repoPath;
+        this.repo = repo;
+        this.repoPath = repo.Path;
         this.isFocusLeft = true;
         this.isCommitTriggered = false;
         this.isContinueTriggered = false;
@@ -213,7 +231,8 @@ class DiffView : IDiffView
                     isOneColumn,
                     listWidth > 0,
                     IsListHidden,
-                    IsOnHunkSeparator
+                    IsOnHunkSeparator,
+                    BlameTarget() is BlameAt
                 ),
             () => status.Current
         );
@@ -223,6 +242,12 @@ class DiffView : IDiffView
         contentView.CurrentIndexChange += FollowCursorInList;
         RegisterShortcuts(contentView);
 
+        if (atCommitId != "")
+            contentView.WhenSized(() =>
+            {
+                contentView.SetTotalCount(diffRows.Count);
+                ScrollToCommit(atCommitId);
+            });
         contentView.SetNeedsDraw();
         using (Menu.SayingWhyNotOn(status))
             UI.RunDialog(diffView);
@@ -279,6 +304,7 @@ class DiffView : IDiffView
         view.RegisterKeyHandler(Key.N, () => StepMatch(1));
         view.RegisterKeyHandler(Key.N.WithShift, () => StepMatch(-1));
         view.RegisterLetterHandler(Key.W, ToggleWhitespace);
+        view.RegisterLetterHandler(Key.B, BlameLine);
         view.RegisterLetterHandler(Key.V, ToggleLayout);
         view.RegisterLetterHandler(Key.H, ToggleHidden);
         view.RegisterLetterHandler(Key.L, ToggleList);
@@ -388,6 +414,7 @@ class DiffView : IDiffView
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
                 .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
                 .Item(HiddenItemText(), "h", ToggleHidden, () => CurrentAnchor().FilePath != "", () => NoFile)
+                .Item(BlameItemText(), "b", BlameLine, () => BlameTarget() is BlameAt, WhyNotBlame)
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected && !isOneColumn)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected && !isOneColumn)
                 .Item("Close", "Esc", () => UI.Shutdown())
@@ -395,6 +422,29 @@ class DiffView : IDiffView
     }
 
     const string NoSearch = "No search to go on with: search with f first";
+
+    // What b blames where the cursor is, see DiffBlameTarget
+    Result<BlameAt> BlameTarget() => DiffBlameTarget.Of(diffRows, diffs, source.Sides, contentView.CurrentIndex);
+
+    string WhyNotBlame() => BlameTarget() is Error e ? e.Message : "";
+
+    string BlameItemText() =>
+        BlameTarget() is BlameAt at ? $"Blame {Path.GetFileName(at.Path)} at Line {at.LineNbr}" : "Blame File";
+
+    // Blames the file the cursor is in, in the version the cursor's line is of, with the cursor on it,
+    // and comes back to the diff once the blame is closed
+    async void BlameLine()
+    {
+        var targetResult = BlameTarget();
+        if (targetResult is not BlameAt at)
+        {
+            status.Notice(targetResult.Error.Message);
+            return;
+        }
+
+        await diffBlame.BlameAsync(repo, at);
+        contentView.SetNeedsDraw();
+    }
 
     // Asks for a text and goes to where it is, from the cursor down, and n and Shift-N then go on
     // from wherever the cursor is, as RowSearch steps

@@ -731,6 +731,13 @@ two columns sideways, their line numbers staying where they are, and pick
 which one a selection copies from, `Ctrl-C`
 copies the selected lines, and `Esc` or `q` closes the view.
 
+`b` blames the file the cursor is in, in the commit the diff is of, with
+the cursor on the line it was on in the diff: who wrote the code around a
+change. A line the commit removed is blamed in the version before it, and
+the uncommitted changes in the working tree. In a file history each line is
+blamed in its own commit, so `b` on a line of an old commit shows the whole
+file as it was then. `Esc` comes back to the diff.
+
 `f` or `/` searches the lines for a text, as it is typed and in any case,
 and puts the cursor on the first line with it from the cursor down, on the
 side it is on, scrolled sideways to it where it is further right. Every
@@ -777,7 +784,10 @@ diff of the current line's commit, or for a line not committed yet the
 uncommitted changes, to read (they are committed and discarded from the
 log), `l` the history of the lines selected with `Shift-↑↓`, or of the
 current one: every commit that changed them, with the diff of those lines
-alone (and no more context, which git does not give it), `p` blames the version before it (so a
+alone (and no more context, which git does not give it), `Shift-L` the full
+history of the file, every commit that changed it, at the commit of the
+current line, to see that change among the ones around it (`b` there blames
+the file again, as it was in the commit the cursor is in), `p` blames the version before it (so a
 reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column

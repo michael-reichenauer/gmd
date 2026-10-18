@@ -138,6 +138,36 @@ public class BlameViewTest
         StringAssert.Contains(line, "\u001b[38;2;106;153;85m// so far", "The comment green");
     }
 
+    // ⇧l shows every commit that changed the file, scrolled to the commit of the cursor's line: here
+    // line 2's, 'Change two', below the newer 'Change one'. The lines added before it are many, so
+    // that the history is longer than the screen and there is something to scroll. Esc comes back to
+    // the blame.
+    [TestMethod]
+    public async Task TestShiftLShowsTheFileHistoryAtTheLinesCommit()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        var rest = string.Concat(Enumerable.Range(3, 60).Select(i => $"line {i}\n"));
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\n" + rest, "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "one\nTWO\n" + rest, "Change two", t.AddMinutes(8));
+        await repo.CommitFileAtAsync("alpha.txt", "ONE\nTWO\n" + rest, "Change one", t.AddMinutes(9));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change one");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("TWO");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("L");
+
+        var history = gmd.WaitUntilGone("Blame  alpha.txt");
+        StringAssert.Contains(ScreenText.Rows(history, repo.Path, 0, 2), "Change two", "At the line's commit");
+        Assert.IsFalse(ScreenText.Rows(history, repo.Path, 0, 2).Contains("Change one"), "Scrolled past the newer one");
+
+        gmd.Send("Escape");
+        gmd.WaitFor("Blame  alpha.txt");
+    }
+
     // Both cases open the menu, as in the diff view
     [TestMethod]
     [DataRow("m")]
@@ -203,7 +233,7 @@ public class BlameViewTest
         var hints = ScreenText.LastLine(gmd.WaitFor("p previous")).TrimStart('─', ' ');
         StringAssert.StartsWith(
             hints,
-            "m menu  Esc close  Enter details  d diff  l line history  p previous  f search  i copy id ─"
+            "m menu  Esc close  Enter details  d diff  l line history  ⇧l file history  p previous  f search ─"
         );
         StringAssert.EndsWith(hints, "? help");
 

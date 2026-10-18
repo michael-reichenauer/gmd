@@ -65,6 +65,34 @@ class ContentView : View
         remove => scroll.CurrentIndexChange -= value;
     }
 
+    // What to do once the view has its height, see WhenSized
+    Action? whenSized;
+
+    // Does something with the rows once the view has its height, at once if it has it: a view shown
+    // at a row, e.g. the blame opened at a line, has none until it is laid out, and scrolled before
+    // then it scrolls as if no row were in sight, which left the row out of sight. A view whose rows
+    // come from its callback is told their count first (SetTotalCount), for the same reason.
+    internal void WhenSized(Action action)
+    {
+        if (ContentHeight > 0)
+        {
+            action();
+            return;
+        }
+        whenSized = action;
+    }
+
+    // Laid out, before it is drawn, so the rows are drawn as the action leaves them
+    protected override void OnViewportChanged(DrawEventArgs e)
+    {
+        base.OnViewportChanged(e);
+        if (whenSized == null || ContentHeight <= 0)
+            return;
+        var action = whenSized;
+        whenSized = null;
+        action();
+    }
+
     // Whether the view has the focus as drawn, where two views share the keys and Tab moves between
     // them: the log and its commit details, and the blame and its. A view on its own leaves it on.
     public bool IsFocus { get; set; } = true;

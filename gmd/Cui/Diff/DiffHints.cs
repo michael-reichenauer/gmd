@@ -14,6 +14,7 @@ static class DiffHints
     // switches from, where ← and → only scroll, hasList whether the list of files Tab moves to is
     // beside the diff, and isListHidden whether it would be but for l having hidden it.
     // isOnHunkSeparator is the cursor on the '⋯' between two hunks, where Enter shows more context.
+    // canBlame is whether b blames the file the cursor is in (DiffBlameTarget).
     public static IReadOnlyList<KeyHint> For(
         bool canCommit,
         bool hasContext,
@@ -24,7 +25,8 @@ static class DiffHints
         bool isOneColumn = false,
         bool hasList = false,
         bool isListHidden = false,
-        bool isOnHunkSeparator = false
+        bool isOnHunkSeparator = false,
+        bool canBlame = false
     )
     {
         List<KeyHint> hints = [KeyHintLine.Menu, new("Esc", "close")];
@@ -47,6 +49,8 @@ static class DiffHints
         if (hasSearch)
             hints.Add(new("n", "next match"));
         hints.Add(new("f", "search"));
+        if (canBlame)
+            hints.Add(new("b", "blame"));
         if (canCommit)
             hints.Add(new("u", "discard"));
         hints.Add(new("w", isWhitespaceHidden ? "show whitespace" : "hide whitespace"));

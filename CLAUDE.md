@@ -219,7 +219,9 @@ Key types and flow:
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
   drawing through a `GetContentCallback`, so a large repo is never materialized as text. Such a
   view learns how many rows there are only as it draws, so whoever makes its rows anew calls
-  `SetTotalCount` before putting the cursor on one, or it is scrolled to within the old count. `TopRow`
+  `SetTotalCount` before putting the cursor on one, or it is scrolled to within the old count. A view
+  opened at a row has no height to scroll by until it is laid out, so it puts the cursor there with
+  `WhenSized`, which waits for that. `TopRow`
   draws a row above them from the first one shown, in the same draw (the diff's breadcrumb): a view
   of its own beside it would be redrawn only on the next key. Where it is
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
@@ -278,15 +280,19 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
   It holds how to read the diff again (`DiffReload`), and what the view may do with it: step the
   context (not a line history, `git log -L`), and commit and discard (the log's uncommitted diff
-  alone, not blame's). What a diff is read with is `Git.DiffOptions`, the context and whether
+  alone, not blame's), and, for a diff of no commit, what its two sides are (`Sides`), which `b`
+  blames a line in (`DiffBlameTarget`). What a diff is read with is `Git.DiffOptions`, the context and whether
   whitespace is left out (`w`); git then leaves out a file of whitespace changes alone, which
   `DiffWhitespace` puts back, listed with no lines.
 - **`Cui/Blame/`** — `BlameRowService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
-  math, and steps detail down as the terminal narrows. `BlameSyntax` colors the code with the diff's
-  grammars, the whole file from its top rather than hunk by hunk, under the same `ColorCode` setting;
-  both draw the spans with `Text.WithCode`, which leaves text in any color but white alone, so an
-  uncommitted line stays bright yellow.
+  math, and steps detail down as the terminal narrows. The diff and the blame open each other: `b` in
+  a diff blames the file at the cursor's commit and line, through `IDiffBlame` (`Diff/` cannot name
+  `Blame/`, which is above it), and `⇧l` in the blame shows the file's history at the line's commit;
+  each is a modal view on top of the other, which `Esc` closes back to it. `BlameSyntax` colors the
+  code with the diff's grammars, the whole file from its top rather than hunk by hunk, under the
+  same `ColorCode` setting; both draw the spans with `Text.WithCode`, which leaves text in any color
+  but white alone, so an uncommitted line stays bright yellow.
 - **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
   per hunk; it never builds file text, the decisions go back down to be applied. `SideChanges` is a
   side as its change against the common ancestor, which the resolver reads as the file opens, and
