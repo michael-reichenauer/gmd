@@ -43,11 +43,14 @@ class UIComboTextField : UITextField
         listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
         listView.RegisterKeyHandler(Key.Enter, () => SelectItem(listView.CurrentIndex));
         listView.RegisterMouseHandler(MouseFlags.LeftButtonClicked, (x, y) => SelectItem(y + listView.FirstIndex));
-        // Tabbing away from the open list would otherwise leave it lying on the dialog
+        // Tabbing away from the open list, or an arrow key it has no use for, which Terminal.Gui 2.x
+        // moves the focus with, would otherwise leave it lying on the dialog. Closed once that change
+        // of the focus is done, and the focus left where it went: changed within it, as it was, 2.x
+        // threw, and gmd crashed.
         listView.HasFocusChanged += (_, e) =>
         {
             if (!e.NewValue)
-                CloseListView();
+                UI.Post(() => CloseListView(isFocusBack: false));
         };
 
         // The frame around the list, its top joining the field's underline
@@ -118,7 +121,8 @@ class UIComboTextField : UITextField
             ItemSelected?.Invoke();
     }
 
-    void CloseListView()
+    // Closes the list, and gives the field the focus back, unless the focus went elsewhere
+    void CloseListView(bool isFocusBack = true)
     {
         if (!isShowList || SuperView is not View dlg)
             return;
@@ -127,7 +131,8 @@ class UIComboTextField : UITextField
         dlg.Remove(listView);
         dlg.Remove(border);
 
-        SetFocus();
+        if (isFocusBack)
+            SetFocus();
         dlg.SetNeedsDraw();
     }
 

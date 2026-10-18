@@ -1026,6 +1026,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
     dialog is at X -2, Y 0. *Ctrl-A, -C, -X, -V, -Z and -Y* are the edit keys of both text inputs,
     where 1.x's TextView had Emacs keys. *An emoji is drawn as itself*, two columns.
   - *Idle CPU about 3% of a core* (the input thread polls every 20 ms): not fixable from gmd.
+  - *A change of the focus made as the focus changes throws*: "FocusChanging was not cancelled and
+    the HasFocus value did not change", when the view 2.x was moving the focus to does not have it
+    after. The open list of a combo field (the Colors of the Config dialog) closed as it lost the
+    focus and gave it back to its field, and Tab, or an arrow key, which 2.x binds to moving the focus
+    for a view that does not use it, crashed gmd (2026-10-18). It closes in a post now, leaving the
+    focus where it went (`ConfigDlgTest`). The resolver's typing box does the same, unharmed, since
+    the sides it gives the focus to are where Tab takes it anyway.
   - *An await on the main loop resumes up to 40 ms later*: 2.x sleeps a fixed time between
     iterations (`ApplicationMainLoop.Iteration`, `Task.Delay(...).Wait()`), and `MainLoopQueue` runs
     as one starts; 1.x woke the loop as work was posted. The updater's download went back to the main
