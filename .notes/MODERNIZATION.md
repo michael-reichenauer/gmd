@@ -1058,10 +1058,16 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - *`TextView` is obsolete in 2.5*, "superseded by tui-cs/Editor's EditorView", a package of its own.
     `UITextView` (the commit message, the resolver's typing) is built on it, with spell checking in its
     `OnDrawNormalColor`; a later 2.x may drop it, and then the port is to EditorView.
+  - *A view of no height is drawn*, which 1.x left out. The commit details, hidden by Enter at a
+    height of 0 with their rows still in them, asked for rows to draw, got none, moved to the end and
+    asked again, without end: the second Enter hung gmd at full CPU (2026-10-18, found by the demo,
+    the only thing that hid them). `ContentView.GetContentRows` stops when there is no room for a
+    row (`LogViewTest.TestEnterHidesTheDetails`). A draw that loops until it has rows has to
+    allow for none.
 
   Merged into dev on 2026-10-17 for pre-releases, tried by the user on Linux, Windows and macOS. The
   setting `Colors` is in the Config dialog, and help.md and the README describe the colors; the demo
-  and the README's pictures are the user's to re-record (`scripts/demo`). Left: real terminals
+  and the README's pictures were re-recorded on 2.5 on 2026-10-18. Left: real terminals
   beyond those (iTerm2, Terminal.app, Ghostty), and the upstream issues (a reminder on 2026-10-24).
 
   **Syntax colors in the diff (2026-10-18)**, branch `mr/syntax-colors`. TextMateSharp is called
