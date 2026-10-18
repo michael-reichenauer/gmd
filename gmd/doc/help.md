@@ -649,7 +649,7 @@ throw changes away ask first, and what they throw away gmd keeps, for
   menu has **Open Commit in Browser**, and the repo menu **Open Repository
   in Browser**. `$BROWSER` is used when it is set, and with no browser to
   open, e.g. over ssh, the link is copied instead.
-- **Set Commit Branch Manually ...** (branch menu):
+- **Set Commit Branch Manually ...** (commit menu):
   Sets the branch of a commit where gmd guessed wrong or could not decide
   (see [How Gmd Picks a Commit's Branch](#how-gmd-picks-a-commits-branch)).
 
@@ -1016,7 +1016,7 @@ keep a column of its own:
   the repo menu.
 
 When it cannot decide, the branch is drawn white and its tip is labeled
-`(~ambiguous)`. **Set Commit Branch Manually ...** in the branch menu sets
+`(~ambiguous)`. **Set Commit Branch Manually ...** in the commit menu sets
 the right branch for a commit, which is then marked `Φ`. **Ambiguous** in
 the Show Branch menu lists the ambiguous branches.
 

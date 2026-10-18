@@ -173,7 +173,6 @@ class BranchMenu : IBranchMenu
 
     public IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false)
     {
-        var c = repo.RowCommit;
         var b = repo.Repo.BranchByName[branchName];
         var cb = repo.Repo.CurrentBranch();
         var isStatusOK = repo.Repo.Status.IsOk;
@@ -345,19 +344,12 @@ class BranchMenu : IBranchMenu
                 () => WebCommands.WhyNoNewPullRequest(repo.Repo, branchName)
             )
             .Items(GetMoveBranchItems(branchName))
-            .Separator()
+            .Separator(!isLimited)
             // The limited menu is the one under a branch in the Branches sub menu of the commit menu,
             // which already offers these at its root, and the repo menu beside it. Pull All and Push
             // All are not here: they are no command of one branch, and the repo menu, the ▲ and ▼
             // menus and Shift-U and Shift-P all have them.
             .Items(!isLimited, [ShowBranchSubMenu()])
-            .Item(
-                "Set Commit Branch Manually ...",
-                "",
-                () => cmds.SetBranchManuallyAsync(),
-                () => !c.IsUncommitted,
-                () => "The uncommitted changes have no branch to set: move to a commit first"
-            )
             .SubMenu(!isLimited, "Repo Menu", "⇧m", repoMenu.GetRepoMenuItems());
     }
 

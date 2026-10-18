@@ -30,7 +30,7 @@ public class DeletedBranchesDlgTest
         // A later run of gmd has the record too. The time is when it was deleted, i.e. now.
         using var again = TmuxSession.StartGmd(repo);
         again.WaitFor("Initial");
-        OpenRestoreDeletedBranch(again, 3);
+        OpenRestoreDeletedBranch(again);
 
         // The deleted branch is still drawn, gray, since it was shown, and the list has the one row
         ScreenText.AssertEqual(
@@ -99,7 +99,7 @@ public class DeletedBranchesDlgTest
 
         using var again = TmuxSession.StartGmd(repo);
         again.WaitFor("Initial");
-        OpenRestoreDeletedBranch(again, 3);
+        OpenRestoreDeletedBranch(again);
         again.WaitFor("and pushes 'origin/dev' back");
         again.Send("Enter");
 
@@ -160,25 +160,15 @@ public class DeletedBranchesDlgTest
         gmd.WaitUntilGone("Delete Local");
     }
 
-    // Undo is the given number of moves down the commit menu, three where it opens on 'Amend ...',
-    // i.e. the last commit is not pushed, past 'Commit Diff' and 'Mark for Diff', and in it the cursor starts on 'Undo Commit', main's last change,
-    // so the item is two moves down, past 'Recover Lost Commits ...'
-    static void OpenRestoreDeletedBranch(TmuxSession gmd, int movesToUndo)
+    // From the Undo sub menu of the commit menu
+    static void OpenRestoreDeletedBranch(TmuxSession gmd)
     {
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (var i = 0; i < movesToUndo; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Undo");
         gmd.Send("Right");
         gmd.WaitFor("Restore Deleted Branch");
-        for (var i = 0; i < 2; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Restore Deleted Branch ...");
         gmd.Send("Enter");
     }
 }

@@ -8,8 +8,7 @@ namespace gmdE2eTest.Cui.Recovery;
 [TestClass]
 public class LostWorkDlgTest
 {
-    // The commit menu opens on 'Amend ...', the last commit not being pushed, so Undo is three moves
-    // down, past 'Commit Diff' and 'Mark for Diff'. In it the cursor starts on 'Undo Uncommit', the reset, so the item is one move down.
+    // From the Undo sub menu of the commit menu
     [TestMethod]
     public async Task TestRecoverACommitAResetLeftBehind()
     {
@@ -21,15 +20,10 @@ public class LostWorkDlgTest
 
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        for (var i = 0; i < 3; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Undo");
         gmd.Send("Right");
         gmd.WaitFor("Recover Lost Commits");
-        gmd.Send("Down");
-        gmd.WaitForStable();
+        gmd.SelectMenuItem("Recover Lost Commits ...");
         gmd.Send("Enter");
 
         // One line of work, the commit the reset left, on the branch it was made on; the line below

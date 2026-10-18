@@ -823,9 +823,7 @@ public class BranchTest
     }
 
     // A commit made on main by mistake, 'Add zeta', not pushed yet, moved to a new branch, which is
-    // checked out and published, main going back to origin's. In the commit menu of the top row the
-    // item is seven moves from 'Amend ...', where it opens, past 'Commit Diff', 'Mark for Diff',
-    // 'Undo', 'Stash', 'Tag' and 'Create Branch from Commit ...'.
+    // checked out and published, main going back to origin's, from the commit menu of the top row
     [TestMethod]
     public async Task TestMoveACommitMadeOnMainToANewBranch()
     {
@@ -837,11 +835,7 @@ public class BranchTest
 
         gmd.Send("m");
         gmd.WaitFor("Move to New Branch ...");
-        for (var i = 0; i < 7; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Move to New Branch ...");
         gmd.Send("Enter");
         StringAssert.Contains(gmd.WaitFor("Move 1 commit of 'main' to a new branch:"), "'main' goes back to 17d85ba8");
         gmd.SendText("fix");
