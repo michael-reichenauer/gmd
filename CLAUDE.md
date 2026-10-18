@@ -509,7 +509,10 @@ Terminal.Gui has a single main loop thread. Marshal back with `UI.Post(...)`
 context, run as each iteration of the main loop starts, a dialog's too: Terminal.Gui 2.5's own runs
 posted work as a timer, holding the lock of the timers meanwhile, so a dialog opened after an await
 made every thread that posted wait until it closed. Post always queues; 2.x's `Invoke` runs the
-action at once on the main loop. And 2.x marks every view drawn once a draw is done, so a view that
+action at once on the main loop. 2.x sleeps between iterations, up to 40 ms at its 25 a second, and
+cannot be woken, so each await on the main loop resumes that much later: nothing for a command's few,
+but a loop of awaits that never touches the UI awaits with `ConfigureAwait(false)`, or it crawls (the
+updater's download, a read per 16 KB, took five minutes for 130 MB). And 2.x marks every view drawn once a draw is done, so a view that
 changes another while it is drawn (a label it fills in, the key-hint line it is followed by) posts
 that change, or it is never drawn.
 

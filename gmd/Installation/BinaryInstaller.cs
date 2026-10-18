@@ -194,20 +194,26 @@ class BinaryInstaller : IBinaryInstaller
             // The client's timeout, 100 seconds, is how long it may take to get the headers. It is not
             // a limit on reading what follows them, which reading the whole of it at once had been,
             // so a download slower than 100 MB in 100 seconds, about 8 Mbit/s, always failed.
-            using var response = await http.Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancel);
+            //
+            // Not back on the main loop it was started from after every await (ConfigureAwait), where
+            // what is posted runs at most 25 times a second (Terminal.Gui 2.x): a read per 16 KB that
+            // came made a binary of 130 MB take five minutes.
+            using var response = await http
+                .Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancel)
+                .ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            await using var source = await response.Content.ReadAsStreamAsync(cancel);
+            await using var source = await response.Content.ReadAsStreamAsync(cancel).ConfigureAwait(false);
             await using var target = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             var buffer = new byte[81920];
             long size = 0;
             while (true)
             {
                 stalled.CancelAfter(stallTimeout); // Moved on by every read, i.e. the time since the last
-                var count = await source.ReadAsync(buffer, stalled.Token);
+                var count = await source.ReadAsync(buffer, stalled.Token).ConfigureAwait(false);
                 if (count == 0)
                     break;
-                await target.WriteAsync(buffer.AsMemory(0, count), cancel);
+                await target.WriteAsync(buffer.AsMemory(0, count), cancel).ConfigureAwait(false);
                 size += count;
             }
 

@@ -1026,6 +1026,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
     dialog is at X -2, Y 0. *Ctrl-A, -C, -X, -V, -Z and -Y* are the edit keys of both text inputs,
     where 1.x's TextView had Emacs keys. *An emoji is drawn as itself*, two columns.
   - *Idle CPU about 3% of a core* (the input thread polls every 20 ms): not fixable from gmd.
+  - *An await on the main loop resumes up to 40 ms later*: 2.x sleeps a fixed time between
+    iterations (`ApplicationMainLoop.Iteration`, `Task.Delay(...).Wait()`), and `MainLoopQueue` runs
+    as one starts; 1.x woke the loop as work was posted. The updater's download went back to the main
+    loop after every read, one 16 KB read per iteration, 400 KB/s, so 130 MB took five and a half
+    minutes and looked hung (2026-10-18; `ConfigureAwait(false)` in `DownloadAsync` now). Making the
+    loop go round every millisecond for 100 ms after posted work (`Application.MaximumIterationsPerSecond`
+    set from the `Iteration` event, read right after it) kept idle CPU at 3.3% but opening a diff
+    took the same 70 to 100 ms, so it was left out: only a loop of awaits suffers, and none other is.
   - *`TextView` is obsolete in 2.5*, "superseded by tui-cs/Editor's EditorView", a package of its own.
     `UITextView` (the commit message, the resolver's typing) is built on it, with spell checking in its
     `OnDrawNormalColor`; a later 2.x may drop it, and then the port is to EditorView.
