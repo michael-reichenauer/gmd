@@ -1031,13 +1031,13 @@ public class DiffRowServiceTest
 
         Assert.AreEqual("▌   1 one", DiffText.BodyOf(RowsOf(added)));
         Assert.AreEqual(
-            "      A conflict of the whole file: Enter resolves it",
+            "      A conflict of the whole file: Enter asks how to resolve it",
             DiffText.BodyOf(
                 new DiffRowService().ToDiffRows([CommitDiffOf(added)], new Dictionary<string, int>(), ["a.txt"])
             )
         );
         Assert.AreEqual(
-            "      2 conflicts: Enter resolves them",
+            "      2 conflicts: Enter opens the resolver",
             DiffText.BodyOf(
                 new DiffRowService().ToDiffRows([CommitDiffOf(marked)], new Dictionary<string, int>(), ["b.txt"])
             )

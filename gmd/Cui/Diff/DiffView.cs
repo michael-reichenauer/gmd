@@ -1133,7 +1133,7 @@ class DiffView : IDiffView
         : anchor.FilePath == "" ? NoFile
         : IsWhitespaceOnly(anchor) ? "Its changes are whitespace alone, which is hidden: w shows them"
         : hiddenFiles.Contains(anchor.FilePath) ? HiddenText(anchor.FilePath)
-        : IsInConflict(anchor.FilePath) ? $"{anchor.FilePath} is in conflict: Enter resolves it"
+        : IsInConflict(anchor.FilePath) ? $"{anchor.FilePath} is in conflict: Enter opens it in the resolver"
         : step > 0 ? "The whole file is shown"
         : "The least context is shown";
 

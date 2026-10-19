@@ -362,10 +362,9 @@ public class ConflictViewTest
         await repo.CommitFileAtAsync("file.txt", "one\ntwo\n", "Change the file", TempRepo.BaseTime.AddMinutes(2));
         await repo.GitAllowFailAsync("merge dev");
         using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
-        gmd.WaitFor("CONFLICTS");
-        gmd.Send("d");
         // Git's diff has nothing to show of a file one side deleted, so the diff lists no file, and
         // Enter offers the conflicts to resolve
+        ShowTheDiffOfTheConflicts(gmd);
         gmd.WaitFor("Enter resolve");
         gmd.Send("Enter");
         gmd.WaitFor("Resolve Conflicts");
@@ -437,12 +436,7 @@ public class ConflictViewTest
         var merged = string.Join("\n", Enumerable.Range(1, 80).Select(i => $"line {i} merged by hand")) + "\n";
         await File.WriteAllTextAsync(Path.Join(repo.Path, "long.txt"), merged);
         using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
-        gmd.WaitFor("CONFLICTS");
-        gmd.Send("d");
-        gmd.WaitFor("Enter resolve");
-        gmd.Send("Enter");
-        gmd.WaitFor("Resolve Conflicts");
-        gmd.Send("Enter");
+        OpenTheResolver(gmd);
 
         StringAssert.Contains(gmd.WaitFor("Mark Resolved"), "no conflict markers left in it");
         for (var i = 0; i < 3; i++) // From Cancel, the default, to Mark Resolved
@@ -569,12 +563,7 @@ public class ConflictViewTest
     {
         using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
         using var gmd = TmuxSession.StartGmd(repo);
-        gmd.WaitFor("CONFLICTS");
-        gmd.Send("d");
-        gmd.WaitFor("C Pricing.cs");
-        gmd.Send("Enter");
-        gmd.WaitFor("Resolve Conflicts");
-        gmd.Send("Enter");
+        OpenTheResolver(gmd);
         StringAssert.Contains(
             gmd.WaitFor("─── Conflict 1"),
             "Conflict 1 is not decided: 1 main, 2 dev, c combine both"
@@ -732,6 +721,31 @@ public class ConflictViewTest
         Assert.IsTrue(headers.All(h => h.StartsWith("Resolve conflicts: Merge")), string.Join("\n", headers));
         StringAssert.Contains(screen, "common ancestor", "Still shown");
         Assert.AreEqual("Shipping.cs is resolved, 1 file left", ScreenText.LastLine(gmd.WaitFor("is resolved")));
+    }
+
+    // d on the uncommitted row with files in conflict asks whether to resolve them, the default, or to
+    // show the diff: it showed the diff, where Enter on a file resolved it, while its hint said
+    // 'd resolve'. Esc is neither, and Ctrl-D is the diff without the question.
+    [TestMethod]
+    public async Task TestDiffOnTheConflictsAsksToResolveThem()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("CONFLICTS");
+
+        gmd.Send("d");
+        var screen = gmd.WaitFor("Show Diff");
+        StringAssert.Contains(screen, "Conflicts in 2 Files");
+        StringAssert.Contains(screen, "The merge stopped on conflicts in:");
+        StringAssert.Contains(screen, "[◦ Resolve Conflicts ◦] [ Show Diff ]", "Resolve, the default");
+
+        gmd.Send("Escape");
+        screen = gmd.WaitUntilGone("Show Diff");
+        Assert.IsFalse(screen.Contains("Quit gmd?") || screen.Contains("─── Conflict"), "Neither:\n" + screen);
+
+        gmd.Send("C-d");
+        screen = gmd.WaitFor("2 conflicts: Enter opens the resolver");
+        Assert.IsFalse(screen.Contains("Show Diff"), "Not asked");
     }
 
     // A file resolved, selected in the list, is shown as it was saved: the file shown before stayed, as
@@ -978,7 +992,7 @@ public class ConflictViewTest
     {
         using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
         using var gmd = TmuxSession.StartGmd(TempHome.Create(colors: "dark"), repo.Path);
-        OpenTheResolver(gmd, "Pricing.cs");
+        OpenTheResolver(gmd);
         var rows = gmd.WaitFor("─── Conflict 1").Split('\n');
         var colors = gmd.CaptureColors().Split('\n');
         string ColorsOf(int row) => colors[row];
@@ -1003,7 +1017,7 @@ public class ConflictViewTest
     {
         using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
         using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
-        OpenTheResolver(gmd, "Pricing.cs");
+        OpenTheResolver(gmd);
         gmd.WaitFor("─── Conflict 1");
 
         gmd.Send("e");
@@ -1090,13 +1104,26 @@ public class ConflictViewTest
         );
     }
 
-    static void OpenTheResolver(TmuxSession gmd, string file = "long.txt")
+    // As a user reaches it: d on the uncommitted row, which asks whether to resolve the conflicts,
+    // Resolve Conflicts the default, or to show the diff
+    static void OpenTheResolver(TmuxSession gmd)
     {
         gmd.WaitFor("CONFLICTS");
         gmd.Send("d");
-        gmd.WaitFor($"C {file}");
+        gmd.WaitFor("Show Diff");
         gmd.Send("Enter");
-        gmd.WaitFor("Resolve Conflicts");
+    }
+
+    // The diff of the uncommitted changes, d's Show Diff, where Enter on a conflicted file resolves it
+    internal static void ShowTheDiffOfTheConflicts(TmuxSession gmd)
+    {
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        gmd.WaitFor("Show Diff");
+        // From Resolve Conflicts, the default, which '◦' marks, the focus drawn by its color alone
+        var before = gmd.CaptureColors();
+        gmd.Send("Right");
+        gmd.WaitUntil(() => gmd.CaptureColors() != before, "the focus to move to Show Diff");
         gmd.Send("Enter");
     }
 }

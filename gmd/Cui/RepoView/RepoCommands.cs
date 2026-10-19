@@ -28,6 +28,7 @@ interface IRepoCommands
     void AbortOperation();
     void ShowConflicts();
     void ResolveConflicts();
+    void ResolveOrDiff();
     void ContinueOperation();
     void SkipOperationCommit();
 
@@ -334,6 +335,28 @@ class RepoCommands : IRepoCommands
             ContinueOperation();
         else
             Refresh();
+    }
+
+    // 'd' on the uncommitted row with files in conflict: resolve them, the default, or show the diff
+    // of the uncommitted changes. It showed the diff, where Enter on a file resolved it, while its
+    // hint said 'd resolve'. Ctrl-D and the commit menu's Commit Diff show the diff without asking.
+    public void ResolveOrDiff()
+    {
+        var s = context.ViewRepo.Repo.Status;
+        var what = s.IsMerging
+            ? $"The {OperationName().ToLower()} stopped on conflicts in:"
+            : "There are conflicts in:";
+        var choice = UI.InfoMessage(
+            $"Conflicts in {Count(s.Conflicted, "File")}",
+            $"{what}\n\n{FileList(s.ConflictsFiles)}",
+            0,
+            ["Resolve Conflicts", "Show Diff"]
+        );
+        // Esc (-1) is neither
+        if (choice == 0)
+            ResolveConflicts();
+        else if (choice == 1)
+            context.CommitCmds.ShowUncommittedDiff();
     }
 
     static string UnresolvedText(IReadOnlyList<string> paths, string action) =>

@@ -746,8 +746,8 @@ Within the diff: `r` re-reads it from git, `u`
 discards uncommitted changes (the change the cursor is on, the lines
 selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `x` leaves the change the
 cursor is on, or the lines selected, out of the next commit, or puts them
-back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` resolves
-a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
+back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` opens
+a conflicted file in the resolver, `m` or a right-click opens the menu, `←` `→` scroll the
 two columns sideways, their line numbers staying where they are, and pick
 which one a selection copies from (a mouse's sideways wheel, or `Shift` and
 the wheel, scrolls them a few columns a turn), `Ctrl-C`
@@ -853,8 +853,11 @@ on with a rebase. **Later** leaves it for the commit (`c`) or the repo
 menu. Conflicts with nothing in progress, e.g. of a stash popped, have
 nothing to finish, and no box asks.
 
-The diff of the uncommitted changes (`d` on the `©` row) shows a conflicted
-file as one row saying how many conflicts it has, since its sides are in
+`d` on the `©` row, while files are in conflict, asks whether to resolve
+them, **Resolve Conflicts**, the default, or to show the diff of the
+uncommitted changes, **Show Diff**; `Ctrl-D` shows the diff without asking.
+The diff shows a conflicted file as one row saying how many conflicts it
+has, e.g. `2 conflicts: Enter opens the resolver`, since its sides are in
 the resolver, where `Enter` on it opens it. With the cursor elsewhere,
 `Enter` offers the list of the conflicted files, which is also under
 **Resolve Conflicts** in the diff menu. **Run External Merge Tool** in the

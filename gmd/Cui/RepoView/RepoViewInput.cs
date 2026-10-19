@@ -185,6 +185,11 @@ class RepoViewInput
             Menus.ShowDiffBranchToMenu(hoover.ColumnIndex + 2, MenuY(hoover.RowIndex), hoover.BranchName);
             return;
         }
+        if (LogKeys.IsResolve(Repo, hoover, commitsView.Selection))
+        {
+            Cmd.ResolveOrDiff();
+            return;
+        }
 
         CommitCmds.ShowCurrentRowDiff();
     }

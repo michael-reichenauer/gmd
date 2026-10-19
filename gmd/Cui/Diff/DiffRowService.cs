@@ -411,8 +411,9 @@ class DiffRowService : IDiffRowService
         }
     }
 
-    // What a file in conflict has, and the key that resolves it, e.g. '2 conflicts: Enter resolves
-    // them'; one with no markers, e.g. deleted on one side, is a conflict of the whole file
+    // What a file in conflict has, and the key that resolves it, e.g. '2 conflicts: Enter opens the
+    // resolver', which said 'Enter resolves them', not that it opens a view of its own; one with no
+    // markers, e.g. deleted on one side, is a conflict of the whole file, which is asked about instead
     static Text UnmergedText(FileDiff fd)
     {
         var count = fd.SectionDiffs.SelectMany(s => s.LineDiffs).Count(l => l.DiffMode == DiffMode.DiffConflictStart);
@@ -422,7 +423,9 @@ class DiffRowService : IDiffRowService
             1 => "1 conflict",
             _ => $"{count} conflicts",
         };
-        return Text.Dark("      ").Yellow(what).Dark($": Enter resolves {(count > 1 ? "them" : "it")}");
+        return Text.Dark("      ")
+            .Yellow(what)
+            .Dark(count == 0 ? ": Enter asks how to resolve it" : ": Enter opens the resolver");
     }
 
     // Add a file section diff (the actual diff lines for a sub section of a file)
