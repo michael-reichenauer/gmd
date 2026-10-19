@@ -314,8 +314,10 @@ public enum ConflictKind
 
 // The two sides of an operation stopped on conflicts, as far as git knows them: the branch HEAD is on,
 // "" when it is on none, as during a rebase, and the subject of each side's commit, "" for the other
-// side where git keeps no ref to it, e.g. a cherry pick with --no-commit or an 'am'
-public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject);
+// side where git keeps no ref to it, e.g. a cherry pick with --no-commit or an 'am'. TheirsName is
+// what git calls the other side in the conflict markers it writes, e.g. 'dev' or '1a2b3c4', which
+// 'git checkout --merge' writes as 'theirs' instead.
+public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject, string TheirsName = "");
 
 public record ConflictedFile(string Path, ConflictKind Kind)
 {

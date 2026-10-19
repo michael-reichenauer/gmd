@@ -503,8 +503,7 @@ public class DiffViewTest
     {
         using var repo = await E2eRepo.CreateWithConflictAsync();
         using var gmd = TmuxSession.StartGmd(repo, width: 160);
-        gmd.WaitFor("CONFLICTS");
-        gmd.Send("d");
+        Conflict.ConflictViewTest.ShowTheDiffOfTheConflicts(gmd);
 
         var screen = ScreenText.Of(gmd.WaitFor("C long.txt"), repo.Path).Split('\n');
         StringAssert.StartsWith(screen[0], "Files 1               │ Uncommitted changes ───");
@@ -514,7 +513,7 @@ public class DiffViewTest
                                     1 file changed  1 conflicted  +1
 
                                     ▌ C long.txt  +1
-                                          1 conflict: Enter resolves it
+                                          1 conflict: Enter opens the resolver
             """,
             string.Join("\n", screen.Skip(3).Take(4).Select(l => l.TrimEnd('─', ' ')))
         );

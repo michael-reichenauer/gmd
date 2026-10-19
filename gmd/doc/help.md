@@ -746,8 +746,8 @@ Within the diff: `r` re-reads it from git, `u`
 discards uncommitted changes (the change the cursor is on, the lines
 selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `x` leaves the change the
 cursor is on, or the lines selected, out of the next commit, or puts them
-back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` resolves
-a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
+back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` opens
+a conflicted file in the resolver, `m` or a right-click opens the menu, `←` `→` scroll the
 two columns sideways, their line numbers staying where they are, and pick
 which one a selection copies from (a mouse's sideways wheel, or `Shift` and
 the wheel, scrolls them a few columns a turn), `Ctrl-C`
@@ -834,22 +834,30 @@ Conflicts, Continue, Skip and Abort.
 
 The files are resolved one after the other. Saving a file with every
 conflict decided marks it resolved and opens the next one still conflicted,
-and `}` and `{` go to the next or previous one without saving, asking first
-if there are decisions to keep. The header says which file it is, e.g.
-`file 1 of 3`, and a terminal at least 150 columns wide lists the files at
-the left, the resolved ones ticked; `Tab` moves into the list, where `↑`
-`↓` and `Enter` open another, and `l` hides it and shows it again, as in the
-diff, which the files after keep. A file with no text to merge, such as one a
-side deleted, or a binary file, asks its question as its turn comes (see
-below), and Cancel passes it over until the resolver is opened again. Once
+and `}` and `{` go to the next or previous one without saving: the
+decisions made in a file are kept while the resolver is open, there as they
+were left when you go back to it. A terminal at least 150 columns wide lists
+the files at the left, the resolved ones ticked, and how far each file with
+decisions is; `Tab` moves into the list, where `↑` `↓` show the file they
+select, as in the diff, a resolved one as it was saved, and `Enter` or `Tab`
+goes back to it, and `l` hides it and shows it again, which the files after
+keep. **Unresolve This File**, under `a`, puts the conflicts of a file back,
+a resolved one's too, to resolve it again. Without the list, the
+header says which file it is, e.g. `file 1 of 3`. A file with no text to
+merge, such as one a side deleted, or a binary file, asks its question as
+its turn comes (see below), or when `Enter` is pressed on it in the list,
+and Cancel passes it over until the resolver is opened again. Once
 no conflict is left, a box asks whether to finish: **Commit** opens the
 commit dialog for a merge, a cherry pick or a revert, and **Continue** goes
 on with a rebase. **Later** leaves it for the commit (`c`) or the repo
 menu. Conflicts with nothing in progress, e.g. of a stash popped, have
 nothing to finish, and no box asks.
 
-The diff of the uncommitted changes (`d` on the `©` row) shows a conflicted
-file as one row saying how many conflicts it has, since its sides are in
+`d` on the `©` row, while files are in conflict, asks whether to resolve
+them, **Resolve Conflicts**, the default, or to show the diff of the
+uncommitted changes, **Show Diff**; `Ctrl-D` shows the diff without asking.
+The diff shows a conflicted file as one row saying how many conflicts it
+has, e.g. `2 conflicts: Enter opens the resolver`, since its sides are in
 the resolver, where `Enter` on it opens it. With the cursor elsewhere,
 `Enter` offers the list of the conflicted files, which is also under
 **Resolve Conflicts** in the diff menu. **Run External Merge Tool** in the
@@ -859,8 +867,9 @@ diff menu opens a file in the tool git is configured with instead
 The two sides are shown beside each other, titled by name rather than
 "ours" and "theirs", since during a rebase those two mean the opposite of
 what you would expect: the branch HEAD is on, e.g. `main (HEAD)`, and the
-branch merged in, or during a rebase the commit being applied, each with
-the subject of its commit, which says what it was doing. Each side is shown as what it did to
+branch merged in, or during a rebase the commit being applied. A side named
+by a commit, as during a rebase, has the subject of its commit beside it,
+which says what it was doing. Each side is shown as what it did to
 the version both started from, the common ancestor, which is what says why
 they conflict: `+` a line it added, `~` a line it changed, with the words
 it changed marked in its color, `-` a line of the ancestor's it removed, in
@@ -880,7 +889,9 @@ the pane. Its line numbers are the saved file's. `Shift-↑` `↓` or the mouse
 wheel over it scroll it on its own, until the cursor moves again.
 
 The whole file is shown, not just its conflicts, since the text around a
-conflict is what tells you what it is part of. The view opens on the first
+conflict is what tells you what it is part of. A conflict starts with a
+magenta line saying its number and what it is decided as, and ends with a
+gray one, where its sides do. The view opens on the first
 conflict rather than at the top of the file, and `]` and `[` move to the
 next and previous one from wherever the cursor is.
 
@@ -904,11 +915,10 @@ next and previous one from wherever the cursor is.
 | Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 
-Nothing is written until `s`, so closing without saving leaves the file as
-it was, and closing or going to another file with decisions unsaved asks
-first. A file saved with
-conflicts still undecided keeps their markers, and is marked resolved once
-none is left.
+Nothing is written until `s`, so closing without saving leaves the files as
+they were, and closing with decisions unsaved, in any of the files, asks
+first: **Save and Close** saves them all. A file saved with conflicts still
+undecided keeps their markers, and is marked resolved once none is left.
 
 `b` shows the version both sides started from in a pane of its own,
 between them, and `0` resolves the conflict *to* it, the answer when

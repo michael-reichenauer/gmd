@@ -27,11 +27,17 @@ public class WheelTest
         Assert.AreEqual(sideways, Wheel.Sideways(flags), turn);
     }
 
-    // Why Wheel is there: a test for the vertical wheel is true for the sideways one too
+    // Why Wheel is there: a test for the vertical wheel is true for the sideways one too, which has
+    // its flags with Ctrl. Of a turn as parsed, rather than of the flags' values, which the analyzer
+    // takes for a test always true (MSTEST0032), and which pinned the same thing.
     [TestMethod]
-    public void TestSidewaysWheelHasTheFlagsOfTheVerticalWithCtrl()
+    [DataRow(66, MouseFlags.WheeledUp, "Left")]
+    [DataRow(67, MouseFlags.WheeledDown, "Right")]
+    public void TestSidewaysWheelHasTheFlagsOfTheVerticalWithCtrl(int button, MouseFlags vertical, string turn)
     {
-        Assert.AreEqual(MouseFlags.Ctrl | MouseFlags.WheeledUp, MouseFlags.WheeledLeft);
-        Assert.AreEqual(MouseFlags.Ctrl | MouseFlags.WheeledDown, MouseFlags.WheeledRight);
+        var flags = new AnsiMouseParser().ProcessMouseInput($"\u001b[<{button};10;5M")!.Flags;
+
+        Assert.IsTrue(flags.HasFlag(vertical), turn);
+        Assert.IsTrue(flags.HasFlag(MouseFlags.Ctrl), turn);
     }
 }

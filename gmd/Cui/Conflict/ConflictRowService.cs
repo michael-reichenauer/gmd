@@ -170,6 +170,10 @@ class ConflictRowService : IConflictRowService
             var lines = sides.Select(s => i < s.Count ? s[i].Line : PaneLine.None).ToList();
             rows.Add(new ConflictRow(panes, ConflictRowMode.Panes, hunk.Index, GutterWidth: GutterWidth, Lines: lines));
         }
+
+        // Where it ends, which only the line between the sides stopping said, easily missed where the
+        // text after it is much like it
+        rows.Add(ConflictRow.End(hunk.Index));
     }
 
     // The words a side changed, on the side's own color
@@ -273,6 +277,17 @@ class ConflictRowService : IConflictRowService
             return row.IsHunkHeader && span.Length + 1 < width
                 ? span.ToTextBuilder().BrightMagenta(" " + new string('─', width - span.Length - 1))
                 : span;
+        }
+
+        // The end of a conflict, in the gray of the lines between its panes, which it joins: the
+        // bottom of the box the sides are in, under the header that is its top
+        if (row.IsHunkEnd)
+        {
+            var rule = new TextBuilder();
+            for (int p = 0; p < columns.PaneCount; p++)
+                rule.Dark((p > 0 ? "┴" : "") + new string('─', columns.Pane));
+            var width = Math.Max(columns.Width, columns.TotalWidth);
+            return rule.Length < width ? rule.Dark(new string('─', width - rule.Length)) : rule;
         }
 
         // The rows are built once, from what the user asked for, but the widths are worked out per
@@ -412,18 +427,21 @@ class ConflictRowService : IConflictRowService
     // 'Resolve  src/Foo.cs   conflict 2 of 5   ·  3 still to resolve'
     public Text ToHeader(ConflictFile file, ConflictResolution resolution, int currentHunk, GitOperation operation)
     {
-        var text = Text.Dark($"{OperationName(operation)}  ").White(file.Path);
+        var text = Text.Dark($"{Title(operation)}  ").White(file.Path);
 
         if (resolution.HunkCount > 0)
             text.Dark("   conflict ").Cyan($"{currentHunk + 1}").Dark($" of {resolution.HunkCount}");
 
         var left = resolution.UnresolvedCount;
-        text.Dark("   ").Add(left == 0 ? Text.Green("all resolved") : Text.Red($"{left} still to resolve"));
+        // A file with none, resolved, looked at in the list of files
+        var done = resolution.HunkCount == 0 ? "resolved" : "all resolved";
+        text.Dark("   ").Add(left == 0 ? Text.Green(done) : Text.Red($"{left} still to resolve"));
 
         return text;
     }
 
-    // The operation, as gmd names it elsewhere, or with none in progress what the view does
-    static string OperationName(GitOperation operation) =>
-        operation == GitOperation.None ? "Resolve" : OperationText.Name(operation);
+    // What the view does, and the operation it does it for, as gmd names it elsewhere: the operation
+    // alone, e.g. 'Merge', read as if the view were the merge rather than the resolver of its conflicts
+    static string Title(GitOperation operation) =>
+        operation == GitOperation.None ? "Resolve conflicts" : $"Resolve conflicts: {OperationText.Name(operation)}";
 }

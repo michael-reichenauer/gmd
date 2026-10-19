@@ -85,7 +85,7 @@ static class ScreenText
     // other than the menu's left border beside it, which is how a menu highlights it in any palette.
     // An item is written right after that border and is matched whole, followed by its padding, its
     // sub menu marker or the border, so that 'Undo' is not the 'Undo Commit ...' of a sub menu open
-    // beside it.
+    // beside it. The widest item has a single space of padding before the border.
     public static bool IsMenuItemCurrent(string escapedCapture, string text)
     {
         var background = "";
@@ -95,7 +95,12 @@ static class ScreenText
             for (var at = line.IndexOf($"│{text}"); at != -1; at = line.IndexOf($"│{text}", at + 1))
             {
                 var rest = line[(at + 1 + text.Length)..];
-                var isWhole = rest == "" || rest.StartsWith("  ") || rest.StartsWith(" >") || rest.StartsWith('│');
+                var isWhole =
+                    rest == ""
+                    || rest.StartsWith("  ")
+                    || rest.StartsWith(" >")
+                    || rest.StartsWith(" │")
+                    || rest.StartsWith('│');
                 if (isWhole && backgrounds[at + 1] != backgrounds[at])
                     return true;
             }

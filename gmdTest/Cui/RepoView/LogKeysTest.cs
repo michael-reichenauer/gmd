@@ -2,6 +2,7 @@ using gmd.Cui.Common;
 using gmd.Cui.RepoView;
 using gmdTest.Fixtures;
 using gmdTest.Server.Private.Augmented.Private;
+using GitOp = gmd.Git.GitOperation;
 
 namespace gmdTest.Cui.RepoView;
 
@@ -141,6 +142,21 @@ public class LogKeysTest
             new KeyAction("diff"),
             LogKeys.Diff(view, HooverOn(view, "dev", "d1"), new Selection(0, 1, 0, 2, 1))
         );
+    }
+
+    // 'd' on the uncommitted row with files in conflict asks whether to resolve them or to show the
+    // diff, and is hinted as resolving; rows selected, or a branch highlighted, are diffed as ever
+    [TestMethod]
+    public async Task TestDiffOnTheConflictsAsksToResolveThem()
+    {
+        var view = await ViewOf(Branches().WithStatus(conflicted: 2, operation: GitOp.Merge, isFinishedByCommit: true));
+        view.CurrentIndex = 0; // The uncommitted row
+
+        Assert.IsTrue(LogKeys.IsResolve(view, new Hoover(), NoSelection));
+        Assert.AreEqual(new KeyAction("resolve"), LogKeys.Diff(view, new Hoover(), NoSelection));
+        Assert.IsFalse(LogKeys.IsResolve(view, new Hoover(), new Selection(0, 1, 0, 2, 1)), "Rows selected");
+        view.CurrentIndex = view.Repo.CommitById[RepoBuilder.Sha("c2")].ViewIndex;
+        Assert.IsFalse(LogKeys.IsResolve(view, new Hoover(), NoSelection), "Another row");
     }
 
     // 'h' hides the highlighted branch, or the row's, but never the main branch, which is always

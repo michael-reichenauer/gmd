@@ -255,4 +255,43 @@ public class ConflictResolutionTest
         var written = gmd.Git.Private.ConflictParser.ToLines(resolution.ToResolutions()[0].ManualText);
         CollectionAssert.AreEqual(new[] { "y = a + c;", "" }, written.Select(l => l.Text).ToArray());
     }
+
+    // The decisions carry over to the file read again, as the resolver goes back to it, where it has
+    // the same conflicts; the ancestor, read only where it can be, may have come or gone
+    [TestMethod]
+    public void TestTheDecisionsAreForTheSameFileReadAgain()
+    {
+        var resolution = new ConflictResolution(FileWith(2));
+        resolution.Set(0, HunkChoice.Ours);
+        resolution.Set(1, HunkChoice.Manual, "typed");
+        var withBase = FileWith(2) with { HasBase = true };
+
+        var again = resolution.For(withBase);
+
+        Assert.IsNotNull(again);
+        Assert.AreSame(withBase, again.File);
+        Assert.AreEqual(HunkChoice.Ours, again.ChoiceOf(0));
+        Assert.AreEqual("typed", again.ManualTextOf(1));
+        Assert.IsTrue(again.IsFullyResolved);
+    }
+
+    // Changed on disk, the decisions would be applied by number to other conflicts, so they are not
+    [TestMethod]
+    public void TestTheDecisionsAreNotForAFileThatChanged()
+    {
+        var resolution = new ConflictResolution(FileWith(2));
+        resolution.Set(0, HunkChoice.Ours);
+        var file = FileWith(2);
+        var hunk = file.Hunks[1] with { Theirs = Lines("changed") };
+        var changed = file with { Segments = [.. file.Segments.Take(3), new ConflictSegment([], hunk)] };
+        var textBetween = file with
+        {
+            Segments = [new ConflictSegment(Lines("edited"), null), .. file.Segments.Skip(1)],
+        };
+
+        Assert.IsNull(resolution.For(FileWith(1)), "A conflict fewer");
+        Assert.IsNull(resolution.For(changed), "A side changed");
+        Assert.IsNull(resolution.For(textBetween), "The text between them changed");
+        Assert.IsNull(resolution.For(FileWith(2) with { Path = "other.txt" }), "Another file");
+    }
 }

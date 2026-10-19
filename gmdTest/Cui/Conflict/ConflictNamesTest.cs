@@ -3,8 +3,8 @@ using gmd.Server;
 
 namespace gmdTest.Cui.Conflict;
 
-// What the resolver calls the two sides: HEAD by the branch it is on, each side with the subject of
-// its commit, and a rebase's commit by its id, its subject from the marker
+// What the resolver calls the two sides: HEAD by the branch it is on, and a rebase's commit by its
+// id, its subject from the marker; a side named by a commit has its subject, one named by a branch not
 [TestClass]
 public class ConflictNamesTest
 {
@@ -24,8 +24,21 @@ public class ConflictNamesTest
         var names = ConflictNames.Of(FileLabelled("HEAD", "dev"), new ConflictSides("main", "Main work", "Dev work"));
 
         Assert.AreEqual(("main", "dev"), (names.Ours, names.Theirs));
-        Assert.AreEqual("main (HEAD) · Main work", names.OursTitle.ToString());
-        Assert.AreEqual("dev · Dev work", names.TheirsTitle.ToString());
+        Assert.AreEqual("main (HEAD)", names.OursTitle.ToString(), "Its name says enough");
+        Assert.AreEqual("dev", names.TheirsTitle.ToString());
+    }
+
+    // A commit merged by its id is named by it, which says nothing of what it did, as its subject does
+    [TestMethod]
+    public void TestACommitMergedByItsIdHasItsSubject()
+    {
+        var names = ConflictNames.Of(
+            FileLabelled("HEAD", "1a2b3c4d"),
+            new ConflictSides("main", "Main work", "Dev work")
+        );
+
+        Assert.AreEqual("main (HEAD)", names.OursTitle.ToString());
+        Assert.AreEqual("1a2b3c4d · Dev work", names.TheirsTitle.ToString());
     }
 
     // During a rebase HEAD is on no branch, and the commit applied is named by git as 'id (subject)'
@@ -54,6 +67,30 @@ public class ConflictNamesTest
 
         Assert.AreEqual(("main", "parent of 1a2b3c4"), (names.Ours, names.Theirs));
         Assert.AreEqual("parent of 1a2b3c4 · Dev work", names.TheirsTitle.ToString());
+    }
+
+    // A file's conflicts put back (Unresolve) are labelled 'ours' and 'theirs' by git, which are named
+    // as the operation's own markers name them: during a rebase they mean the opposite of what is
+    // expected
+    [TestMethod]
+    [DataRow("main", "Main work", "dev", "main (HEAD)", "dev")]
+    [DataRow("", "Main work", "1a2b3c4", "HEAD · Main work", "1a2b3c4 · Dev work")]
+    [DataRow("main", "Main work", "parent of 1a2b3c4", "main (HEAD)", "parent of 1a2b3c4 · Dev work")]
+    [DataRow("main", "Main work", "", "main (HEAD)", "theirs")]
+    public void TestConflictsPutBackAreNamedAsTheOperationNamesThem(
+        string oursBranch,
+        string oursSubject,
+        string theirsName,
+        string oursTitle,
+        string theirsTitle
+    )
+    {
+        var names = ConflictNames.Of(
+            FileLabelled("ours", "theirs"),
+            new ConflictSides(oursBranch, oursSubject, "Dev work", theirsName)
+        );
+
+        Assert.AreEqual((oursTitle, theirsTitle), (names.OursTitle.ToString(), names.TheirsTitle.ToString()));
     }
 
     // With nothing known of the sides, the names git wrote, as they were

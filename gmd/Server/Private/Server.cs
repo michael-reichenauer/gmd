@@ -526,13 +526,15 @@ class Server : IServer
         string wd
     )
     {
-        var fileResult = await git.GetConflictFileAsync(path, GitConverter.ToGitConflictKind(kind), wd);
+        // Not back on the caller's main loop between the two, see ConflictService.GetConflictFileAsync
+        var fileResult = await git.GetConflictFileAsync(path, GitConverter.ToGitConflictKind(kind), wd)
+            .ConfigureAwait(false);
         if (fileResult is not Git.ConflictFile file)
             return fileResult.Error;
 
         if (isWithBase)
         {
-            var withBase = await git.WithBaseAsync(file, wd);
+            var withBase = await git.WithBaseAsync(file, wd).ConfigureAwait(false);
             if (withBase is not Git.ConflictFile fileWithBase)
                 return withBase.Error;
             file = fileWithBase;

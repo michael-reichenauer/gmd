@@ -9,18 +9,30 @@ using Runnable = Terminal.Gui.Views.Runnable;
 namespace gmd.Cui.Conflict;
 
 // How the resolver of a file ended, which the workspace goes on from (ConflictWorkspace): closed,
-// leaving the conflicts that are left; gone to another file, Path; done with the file, resolved or
+// leaving the conflicts that are left; gone to another file, Path; another file looked at in the
+// list, Path, which is opened only where it has text to merge; done with the file, resolved or
 // decided whole, e.g. a side taken for all of it; or, for a file with no text to merge, its question
 // cancelled, the file passed over for now
 enum ConflictEnd
 {
     Closed,
     GoTo,
+    Look,
     Done,
     Skipped,
 }
 
 record ConflictOutcome(ConflictEnd End, string Path = "");
+
+// What the resolver goes on to once a file ended (ConflictWorkspace): the next file to open in it,
+// with the list of the files as it is now; none, when the resolver closes; or, for a file looked at
+// that is not opened, the file open staying so, and Stay why
+record ConflictNext(ConflictFile? File, ConflictFileList List, string Stay = "")
+{
+    public static readonly ConflictNext Close = new(null, ConflictFileList.None);
+
+    public static ConflictNext StayOn(string why) => new(null, ConflictFileList.None, why);
+}
 
 interface IConflictView
 {
@@ -29,18 +41,21 @@ interface IConflictView
     // loop on a Task here would deadlock rather than merely stall. Whatever it writes is on disk by
     // the time it returns. sides are what git knows of the two sides, which name them
     // (ConflictNames), and files the workspace's conflicted files, listed beside the resolver on a
-    // wide terminal, which } { and the list go to another of.
-    ConflictOutcome Show(
+    // wide terminal, which } { and the list go to another of. next is what it goes on to once a
+    // file ended as it did: another file, opened in the same view, or none, when it closes.
+    void Show(
         ConflictFile file,
         ConflictSides sides,
         GitOperation operation,
         string repoPath,
-        ConflictFileList files
+        ConflictFileList files,
+        Func<ConflictOutcome, Task<ConflictNext>> next
     );
 
     // For a file with no text to merge, which is resolved whole: asks how, and gives what does it,
     // null where the question was cancelled. Given rather than run, so that the workspace waits for
-    // git before it reads what is left.
+    // git before it reads what is left. Asked over the resolver where a file before it was resolved
+    // in it, so it leaves the file shown there as it is.
     Func<Task<Result>>? AskWholeFile(ConflictFile file, string repoPath);
 }
 
@@ -95,8 +110,12 @@ class ConflictView : IConflictView
     // The rows of the result at the cursor, which the result pane marks
     (int Start, int End) resultAtCursor;
 
-    // How the view ended, which Show returns
-    ConflictOutcome outcome = new(ConflictEnd.Closed);
+    // What the view goes on to once a file ended, see Show, and whether it is on its way there
+    Func<ConflictOutcome, Task<ConflictNext>> next = _ => Task.FromResult(ConflictNext.Close);
+    bool isGoingOn;
+
+    // The decisions not saved of the files left, for going back to them
+    readonly ConflictDecisions decisions = new();
 
     // The text of a conflict being typed by hand in the result pane, null when none is: the view it is
     // typed in, which conflict, what it started as and where that came from, which the pane's title
@@ -154,36 +173,30 @@ class ConflictView : IConflictView
         }
     }
 
-    public ConflictOutcome Show(
+    public void Show(
         ConflictFile file,
         ConflictSides sides,
         GitOperation operation,
         string repoPath,
-        ConflictFileList files
+        ConflictFileList files,
+        Func<ConflictOutcome, Task<ConflictNext>> next
     )
     {
-        this.file = file;
-        this.files = files;
-        this.outcome = new(ConflictEnd.Closed);
-        this.isListFocus = false;
-        this.listSelected = Math.Max(0, files.IndexOfOpen);
-        this.sides = sides;
-        this.names = ConflictNames.Of(file, sides);
-        this.combinations.Clear();
-        this.status = new StatusLine();
-        this.operation = operation;
-        this.repoPath = repoPath;
-        this.rowStartX = 0;
-        this.isShowBase = false;
-        this.isMovedToFirstHunk = false;
-        this.resultAtCursor = (0, 0);
-        this.rows = new ConflictRows();
-        this.resolution = new ConflictResolution(file);
-
         // A file with nothing to merge as text is a whole file choice, not a three pane view: a
         // three pane view with nothing in it reads as gmd being broken. The workspace asks it.
         if (file.IsBinary || file.Hunks.Count == 0)
-            return outcome;
+            return;
+
+        this.next = next;
+        this.isGoingOn = false;
+        this.decisions.Clear();
+        this.files = files;
+        this.isListFocus = false;
+        this.sides = sides;
+        this.status = new StatusLine();
+        this.operation = operation;
+        this.repoPath = repoPath;
+        this.isShowBase = false;
 
         Runnable view = new Runnable()
         {
@@ -251,23 +264,114 @@ class ConflictView : IConflictView
         view.Add(hintBar);
         hintBar.FollowStatus(status, config.ShowKeyHints, view);
         RegisterShortcuts(contentView);
+        // Those of the list still move its selection while a file it selected is read, see End
+        contentView.KeysWhileHeld = new HashSet<Key>([
+            Key.CursorUp,
+            Key.CursorDown,
+            Key.PageUp,
+            Key.PageDown,
+            Key.Home,
+            Key.End,
+        ]);
 
         // The result pane follows the cursor, so walking the file walks through the decisions
         contentView.CurrentIndexChange += OnCurrentIndexChange;
 
-        SetRows();
+        Open(file, files);
         UI.RunDialog(view);
-
         // What closes the view waits for git first, so what it changed is on disk by now
-        return outcome;
     }
 
-    // Ends the view, with how, for the workspace to go on from
+    // Opens a file in the view, as the view opens and as it goes on to another one: on its first
+    // conflict, at the start of its lines, with the common ancestor shown if it was and the file has
+    // one, and the decisions not saved it was left with. Looked at in the list, the list keeps the keys
+    // and its selection, which may have moved on meanwhile (End).
+    void Open(ConflictFile file, ConflictFileList files, bool isLook = false)
+    {
+        this.file = file;
+        this.files = files;
+        // A file resolved has no conflict to read the sides' names from, which are those of the
+        // files before it, in the legend of the result
+        this.names = file.Hunks.Count > 0 ? ConflictNames.Of(file, sides) : names;
+        this.combinations.Clear();
+        this.rowStartX = 0;
+        this.isShowBase = isShowBase && (file.HasBase || file.Hunks.Any(h => h.HasBase));
+        this.resultAtCursor = (0, 0);
+        this.rows = new ConflictRows();
+        this.resolution = decisions.Take(file, out var isLost);
+        if (isLost)
+            status.Notice($"The decisions made in {file.Path} are gone: it has changed on disk since");
+        if (!isLook)
+        {
+            listSelected = Math.Max(0, files.IndexOfOpen);
+            // The keys back with the file, gone to from the list, as each file's own view had them
+            if (isListFocus)
+                ToggleListFocus();
+        }
+
+        // Before the view is laid out, as it opens, it has no height to scroll by until it is drawn
+        // (MoveToFirstHunkOnce); once it is, it is moved there at once rather than drawn first where
+        // the file before was
+        isMovedToFirstHunk = contentView.ViewHeight > 0;
+        SetRows();
+        if (isMovedToFirstHunk)
+            GotoRow(Math.Max(0, rows.IndexOfHunk(0))); // A file resolved has none, and is opened at its top
+        listView.ScrollToShowIndex(listSelected + 1, 1);
+    }
+
+    // Ends the file, with how, and goes on to the file the workspace says, in this view, or closes it
+    // where there is none. Each file used to have a view of its own, closed and another opened, which
+    // showed the log between them while git read what was left and the next file. The keys and the
+    // mouse are held meanwhile, as the log dropped them then: they would act on the file being left.
+    // The list's arrows are not: its selection moves on, and once the file is read the one it is on
+    // by then is looked at, rather than every one the arrows passed.
     void End(ConflictOutcome how)
     {
-        outcome = how;
-        UI.Shutdown();
+        if (isGoingOn)
+            return;
+
+        EndTyping(); // Laid over the result pane, which the next file has a result of its own in
+        isGoingOn = true;
+        contentView.IsInputHeld = listView.IsInputHeld = true;
+        var path = file.Path;
+        var wasResolved = files.Resolved.Contains(path);
+        var isLook = how.End == ConflictEnd.Look;
+        // Kept for going back to the file, unless done with it: saved, decided whole, closed, or read
+        // again as git left it
+        if (how.End is ConflictEnd.GoTo or ConflictEnd.Look && how.Path != path)
+            decisions.Keep(resolution);
+        else
+            decisions.Forget(path);
+
+        UI.RunInBackground(async () =>
+        {
+            var to = await next(how);
+            isGoingOn = false;
+            contentView.IsInputHeld = listView.IsInputHeld = false;
+            if (to.File is ConflictFile nextFile)
+            {
+                Open(nextFile, to.List, isLook);
+                // Which the list ticks, but it may be hidden, and the header names the next file now
+                if (!wasResolved && to.List.Resolved.Contains(path))
+                    status.Info($"{path} is resolved, {FilesText(to.List.LeftCount)} left");
+            }
+            else if (to.Stay != "")
+            {
+                decisions.Forget(path); // Still open
+                status.Notice(to.Stay);
+            }
+            else
+            {
+                UI.Shutdown();
+                return;
+            }
+
+            if (isLook && isListFocus && files.Files[listSelected].Path != how.Path)
+                LookAtSelected();
+        });
     }
+
+    static string FilesText(int count) => count == 1 ? "1 file" : $"{count} files";
 
     void RegisterShortcuts(ContentView view)
     {
@@ -284,13 +388,17 @@ class ConflictView : IConflictView
         );
 
         // The next and the previous file still conflicted, as the diff's } and { go to a file, and the
-        // list of them, which Tab moves the keys to and back; there up and down select a file, and
-        // Enter goes to it
+        // list of them, which Tab moves the keys to and back; there the arrows show the file they
+        // select at once, as the diff's list does, and Enter goes back to it
         view.RegisterKeyHandler((Key)125, () => GoToFile(files.NextOpen(1))); // '}'
         view.RegisterKeyHandler((Key)123, () => GoToFile(files.NextOpen(-1))); // '{'
         view.RegisterKeyHandler(Key.Tab, ToggleListFocus);
         view.RegisterKeyHandler(Key.CursorUp, () => MoveInList(-1));
         view.RegisterKeyHandler(Key.CursorDown, () => MoveInList(1));
+        view.RegisterKeyHandler(Key.PageUp, () => MoveInList(-ListPage));
+        view.RegisterKeyHandler(Key.PageDown, () => MoveInList(ListPage));
+        view.RegisterKeyHandler(Key.Home, () => MoveInList(-files.Files.Count));
+        view.RegisterKeyHandler(Key.End, () => MoveInList(files.Files.Count));
         view.RegisterKeyHandler(
             Key.Enter,
             () =>
@@ -368,10 +476,11 @@ class ConflictView : IConflictView
         listView.SetNeedsDraw(); // How far the file is
     }
 
+    // Which file of the workspace it is, unless the list beside it says, by the file marked in it
     void SetHeader()
     {
         var text = rowService.ToHeader(file, resolution, CurrentHunk, operation).ToTextBuilder();
-        if (files.Files.Count > 1)
+        if (files.Files.Count > 1 && listWidth == 0)
             text.Dark($"   file {files.IndexOfOpen + 1} of {files.Files.Count}");
         header.Text = text;
         // The Text setter sizes the label from the text it replaces, so a longer header is clipped
@@ -470,22 +579,18 @@ class ConflictView : IConflictView
     // A row of the result at the cursor, which is marked as the cursor's row above is
     bool IsAtCursor(int row) => row >= resultAtCursor.Start && row < resultAtCursor.End;
 
-    // Goes to another file of the workspace, asking first about decisions not saved, as closing does
+    // Goes to another file of the workspace, keeping the decisions not saved in this one for coming
+    // back to it (ConflictDecisions)
     void GoToFile(string path)
     {
         // A click on the list while typing is done typing, as a click on the sides is: the list takes
         // no focus, so the text view was never left, and the file was gone from with what was typed
-        // thrown away unasked
+        // thrown away. The text is the conflict's decision, kept with the file's others.
         EndTyping();
 
         if (path == "")
         {
             status.Notice("No other file has conflicts left");
-            return;
-        }
-        if (files.Resolved.Contains(path))
-        {
-            status.Notice($"{path} is resolved");
             return;
         }
         if (path == file.Path)
@@ -494,28 +599,9 @@ class ConflictView : IConflictView
                 ToggleListFocus();
             return;
         }
-        if (!resolution.IsChanged)
-        {
-            End(new(ConflictEnd.GoTo, path));
-            return;
-        }
 
-        var choice = UI.InfoMessage(
-            "Unsaved Decisions",
-            $"{resolution.HunkCount - resolution.UnresolvedCount} of {resolution.HunkCount} conflicts of "
-                + $"{file.Path} have been decided but not saved.\n\nNothing has been written to it yet.",
-            0,
-            ["Stay", "Save and Go", "Discard and Go"]
-        );
-        // Esc (-1) backs out of the question, i.e. stays
-        if (choice is 0 or -1)
-            return;
-        if (choice == 1)
-        {
-            Save(new(ConflictEnd.GoTo, path));
-            return;
-        }
-        End(new(ConflictEnd.GoTo, path));
+        // Shown as it was saved, as the list's arrows show it, since there is nothing left to resolve
+        End(new(files.Resolved.Contains(path) ? ConflictEnd.Look : ConflictEnd.GoTo, path));
     }
 
     // Shows or hides the list of files, l. Remembered for the files and the resolvers after, as the
@@ -585,6 +671,7 @@ class ConflictView : IConflictView
 
         LayOutTyping();
         FollowCursorInResult();
+        SetHeader(); // Which file it is, with the list gone
         top.SetNeedsDraw();
     }
 
@@ -605,8 +692,8 @@ class ConflictView : IConflictView
         contentView.SetNeedsDraw();
     }
 
-    // Selects the file above or below in the list, while it has the keys, true then; with the file
-    // having them the key is left to it
+    // Selects the file above or below in the list, and shows it, while the list has the keys, true
+    // then; with the file having them the key is left to it
     bool MoveInList(int step)
     {
         if (!isListFocus)
@@ -615,7 +702,23 @@ class ConflictView : IConflictView
         listSelected = Math.Clamp(listSelected + step, 0, files.Files.Count - 1);
         listView.ScrollToShowIndex(listSelected + 1, 1);
         listView.SetNeedsDraw();
+        LookAtSelected();
         return true;
+    }
+
+    int ListPage => Math.Max(1, listView.ContentHeight - 2);
+
+    // The file selected in the list, shown at once, as the diff's list shows the file it selects, with
+    // the decisions of the one left kept: it was shown only once Enter was pressed. A file resolved is
+    // shown as it was saved, and one with no text to merge left for Enter, see ConflictWorkspace. While
+    // another is being read, the one selected by then is looked at once it is (End).
+    void LookAtSelected()
+    {
+        var path = files.Files[listSelected].Path;
+        if (isGoingOn || path == file.Path)
+            return;
+
+        End(new(ConflictEnd.Look, path));
     }
 
     // The list's title is its first row, the files after it
@@ -626,12 +729,19 @@ class ConflictView : IConflictView
             GoToFile(files.Files[index].Path);
     }
 
+    // How far each file is: the open one, and those left with decisions not saved, which are kept
     (IEnumerable<Text> rows, int total) OnGetListContent(int firstRow, int rowCount, int _, int contentWidth)
     {
-        var progress = $"{resolution.HunkCount - resolution.UnresolvedCount} of {resolution.HunkCount}";
+        Dictionary<string, string> progress = [];
+        foreach (var kept in decisions.Kept.Append(resolution).Where(r => r.HunkCount > 0))
+            progress[kept.File.Path] = Decided(kept);
         var rows = files.Rows(contentWidth, listSelected, isListFocus, progress);
         return (rows.Skip(firstRow).Take(rowCount), rows.Count);
     }
+
+    // How many of the conflicts of a file are decided, e.g. '1 of 2'
+    static string Decided(ConflictResolution resolution) =>
+        $"{resolution.HunkCount - resolution.UnresolvedCount} of {resolution.HunkCount}";
 
     // The pane's title, its border, in the color of the conflicts' own: the file as it will be saved,
     // by its name, its path being on the header above, or what is typed in it, and the colors of
@@ -642,7 +752,9 @@ class ConflictView : IConflictView
             typingView != null
                 ? Text.BrightMagenta("─── Typing ")
                     .Dark($"conflict {typingHunk + 1} by hand, {typingFrom}, Esc when done ")
-                : Text.BrightMagenta("─── Result: ").White(Path.GetFileName(file.Path)).Dark(" as it will be saved ");
+                : Text.BrightMagenta("─── Result: ")
+                    .White(Path.GetFileName(file.Path))
+                    .Dark(resolution.HunkCount == 0 ? " as it was saved " : " as it will be saved ");
         var legend = Text.Dark(" ")
             .Yellow("▌")
             .Dark($"{names.Ours.Max(20)} ")
@@ -677,10 +789,22 @@ class ConflictView : IConflictView
         return index >= 0 && index < file.Hunks.Count ? file.Hunks[index] : null;
     }
 
+    // The conflict a key decides, the one at the cursor, or none in a file resolved, looked at in the
+    // list, which is said rather than nothing done
+    ConflictHunk? HunkToDecide()
+    {
+        if (CurrentHunkOrNull() is ConflictHunk hunk)
+            return hunk;
+
+        status.Notice(WhyResolved);
+        return null;
+    }
+
+    string WhyResolved => $"{file.Path} is resolved: Unresolve This File (a) puts its conflicts back";
+
     void Choose(HunkChoice choice)
     {
-        var hunk = CurrentHunkOrNull();
-        if (hunk == null)
+        if (HunkToDecide() is not ConflictHunk hunk)
             return;
 
         resolution.Set(hunk.Index, choice);
@@ -706,8 +830,7 @@ class ConflictView : IConflictView
     // conflict's decision.
     void EditCurrentHunk()
     {
-        var hunk = CurrentHunkOrNull();
-        if (hunk == null || typingView != null)
+        if (typingView != null || HunkToDecide() is not ConflictHunk hunk)
             return;
 
         typingHunk = hunk.Index;
@@ -826,8 +949,7 @@ class ConflictView : IConflictView
     // other changed. Never taken by itself, only offered: the result shows it, and u takes it back.
     void Combine()
     {
-        var hunk = CurrentHunkOrNull();
-        if (hunk == null)
+        if (HunkToDecide() is not ConflictHunk hunk)
             return;
 
         if (CombinationOf(hunk) is not IReadOnlyList<CombinedLine> combined)
@@ -878,8 +1000,7 @@ class ConflictView : IConflictView
     // user cannot see is one they cannot check.
     void ChooseBase()
     {
-        var hunk = CurrentHunkOrNull();
-        if (hunk == null)
+        if (HunkToDecide() is not ConflictHunk hunk)
             return;
 
         WithBase(() =>
@@ -974,10 +1095,16 @@ class ConflictView : IConflictView
     // and the rest have moved up to fill the numbers. The decisions are held by conflict number, so
     // the view is re-read rather than kept — without that a second save was refused with "the file
     // has changed on disk" and the only way on was to close the resolver and open it again.
-    //
-    // after is how the view ends once saved, e.g. gone to another file; with none, a file with
-    // conflicts left goes on being resolved, and one with none is done.
-    void Save(ConflictOutcome? after = null) =>
+    void Save()
+    {
+        // Nothing to save in a file resolved, looked at in the list, and saving it again would mark it
+        // resolved again, as it is
+        if (resolution.HunkCount == 0)
+        {
+            status.Notice(WhyResolved);
+            return;
+        }
+
         UI.RunInBackground(async () =>
         {
             using (progress.Show())
@@ -998,7 +1125,7 @@ class ConflictView : IConflictView
             var left = resolution.UnresolvedCount;
             if (left == 0)
             {
-                End(after ?? new(ConflictEnd.Done));
+                End(new(ConflictEnd.Done));
                 return;
             }
 
@@ -1008,14 +1135,9 @@ class ConflictView : IConflictView
                     + "It is marked resolved once none is left."
             );
 
-            if (after != null)
-            {
-                End(after);
-                return;
-            }
-
             await ReloadAsync();
         });
+    }
 
     // Reads the file back off disk and starts again from what it holds now, which is what makes a
     // partly saved file go on being resolvable. The decisions are not carried over: the ones that
@@ -1063,10 +1185,11 @@ class ConflictView : IConflictView
     // Nothing is written until Save, so closing is what throws decisions away — which is asked
     // about whenever there are any, including when every conflict has been decided. That last case
     // used to close without a word, and it is the most likely moment to press Esc: the file looks
-    // finished on screen, and all of it was lost.
+    // finished on screen, and all of it was lost. The decisions of the files left are asked about
+    // too, which are kept for going back to them (ConflictDecisions).
     void Close()
     {
-        if (resolution.IsChanged)
+        if (decisions.Unsaved(resolution).Count > 0)
         {
             AskAboutUnsavedDecisions();
             return;
@@ -1082,10 +1205,15 @@ class ConflictView : IConflictView
 
     void AskAboutUnsavedDecisions()
     {
+        var unsaved = decisions.Unsaved(resolution);
         var choice = UI.InfoMessage(
             "Unsaved Decisions",
-            $"{resolution.HunkCount - resolution.UnresolvedCount} of {resolution.HunkCount} conflicts "
-                + "have been decided but not saved.\n\nNothing has been written to the file yet.",
+            unsaved is [var only] && only == resolution
+                ? $"{Decided(only)} conflicts have been decided but not saved.\n\n"
+                    + "Nothing has been written to the file yet."
+                : "Conflicts have been decided but not saved in:\n\n"
+                    + string.Join('\n', unsaved.Select(r => $"  {r.File.Path}  {Decided(r)}"))
+                    + $"\n\nNothing has been written to {(unsaved.Count == 1 ? "it" : "them")} yet.",
             0,
             ["Stay", "Save and Close", "Discard and Close"]
         );
@@ -1094,12 +1222,36 @@ class ConflictView : IConflictView
             return;
         if (choice == 1)
         {
-            Save(new(ConflictEnd.Closed));
+            SaveAndClose(unsaved);
             return;
         }
 
         End(new(ConflictEnd.Closed));
     }
+
+    // Writes the decisions of each file, as s does the open one's, which is last, and closes. One that
+    // fails is said, and the resolver stays open, with the decisions not written yet.
+    void SaveAndClose(IReadOnlyList<ConflictResolution> unsaved) =>
+        UI.RunInBackground(async () =>
+        {
+            using (progress.Show())
+            {
+                foreach (var decided in unsaved)
+                {
+                    var path = decided.File.Path;
+                    var resolutions = decided.ToResolutions();
+                    var saved = await server.ResolveConflictFileAsync(path, decided.File.Kind, resolutions, repoPath);
+                    if (saved is Error e)
+                    {
+                        UI.ErrorMessage($"Failed to resolve {path}\n{e.AllMessages()}");
+                        return;
+                    }
+                    decisions.Forget(path);
+                }
+            }
+
+            End(new(ConflictEnd.Closed));
+        });
 
     bool ConfirmLeaveUnresolved() =>
         UI.InfoMessage(
@@ -1116,21 +1268,19 @@ class ConflictView : IConflictView
     // say is that it is gone.
     public Func<Task<Result>>? AskWholeFile(ConflictFile file, string repoPath)
     {
-        this.file = file;
-        this.repoPath = repoPath;
         if (!file.HasOurs && !file.HasTheirs)
-            return AskGone();
+            return AskGone(file, repoPath);
         else if (file.HasOurs != file.HasTheirs)
-            return AskKeepOrDelete();
+            return AskKeepOrDelete(file, repoPath);
         else
-            return AskSide();
+            return AskSide(file, repoPath);
     }
 
     // Both sides exist, so the question is which one to take. A binary file is the usual case.
-    Func<Task<Result>>? AskSide()
+    Func<Task<Result>>? AskSide(ConflictFile file, string repoPath)
     {
         if (!file.IsBinary)
-            return AskHandResolved();
+            return AskHandResolved(file, repoPath);
 
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -1150,7 +1300,7 @@ class ConflictView : IConflictView
     // A text file both sides changed with no markers left in it has been resolved by hand, outside
     // gmd, but not marked so. It is marked resolved as it is, or one side is taken after all: the two
     // sides were all that was offered, and either threw the hand merge away.
-    Func<Task<Result>>? AskHandResolved()
+    Func<Task<Result>>? AskHandResolved(ConflictFile file, string repoPath)
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -1170,11 +1320,11 @@ class ConflictView : IConflictView
     }
 
     // Only one side has the file, so it is kept as that side left it, or the deletion is accepted
-    Func<Task<Result>>? AskKeepOrDelete()
+    Func<Task<Result>>? AskKeepOrDelete(ConflictFile file, string repoPath)
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
-            DeleteQuestion(),
+            DeleteQuestion(file),
             2,
             ["Keep the File", "Delete It", "Cancel"]
         );
@@ -1189,7 +1339,7 @@ class ConflictView : IConflictView
 
     // Neither side has it. There is no version to keep, so 'keep' is not offered — it would run the
     // command that records the deletion, i.e. do the opposite of what it says.
-    Func<Task<Result>>? AskGone()
+    Func<Task<Result>>? AskGone(ConflictFile file, string repoPath)
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -1204,7 +1354,7 @@ class ConflictView : IConflictView
     }
 
     // Which side did what, since 'ours' and 'theirs' is exactly the wrong way round to say it here
-    string DeleteQuestion() =>
+    static string DeleteQuestion(ConflictFile file) =>
         file.Kind switch
         {
             ConflictKind.DeletedByThem => $"{file.Path} was changed here but deleted on the other side.",
@@ -1306,6 +1456,7 @@ class ConflictView : IConflictView
         Menu
             .Items.Item(file.HasOurs, $"Use {names.Ours} for the Whole File", "", () => UseWholeFile(true))
             .Item(file.HasTheirs, $"Use {names.Theirs} for the Whole File", "", () => UseWholeFile(false))
-            .Separator()
+            // Neither side in a file resolved, whose menu is Unresolve alone
+            .Separator(file.HasOurs || file.HasTheirs)
             .Item("Unresolve This File", "", Unresolve);
 }

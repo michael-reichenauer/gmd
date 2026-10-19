@@ -425,6 +425,11 @@ that does not fight the diff's colors, light themes.
   in the bar and the repo menu, where it was, rather than a button next to the finish. The diff draws
   an unmerged file as its header and one row, "2 conflicts: Enter resolves them". Left out: the
   other changed files in the list, which the diff shows.
+  *Since (2026-10-19):* one view for all the files, so the log no longer shows between them; the
+  header starts `Resolve conflicts: Merge`, with `file 1 of 3` only while the list is hidden; the
+  list's arrows show the file they select at once, as the diff's list does; and the decisions not
+  saved are kept per file for the session (`ConflictDecisions`) rather than asked about at each file
+  left, closing asking about all of them, Save and Close saving them all.
 - [x] 7. Typing in the result (7), after the probe. *Done (2026-10-16):* the probe passed (see
   `MODERNIZATION.md`, Terminal.Gui), so `e` types the conflict in the result pane rather than a box
   over the sides: a `UITextView` laid over the conflict's rows, the file's lines above and after it,

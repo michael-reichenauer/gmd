@@ -1024,7 +1024,7 @@ public class GitIntegrationTest
     }
 
     // The sides of a stopped merge: the branch HEAD is on and its subject, and the subject of the
-    // branch merged in, from MERGE_HEAD
+    // branch merged in, from MERGE_HEAD, and its name, from the merge's message
     [TestMethod]
     public async Task TestTheSidesOfAStoppedMerge()
     {
@@ -1032,24 +1032,45 @@ public class GitIntegrationTest
         await repo.Git.MergeBranchAsync("dev", repo.Path);
 
         Assert.AreEqual(
-            new ConflictSides("main", "Main work", "Dev work"),
+            new ConflictSides("main", "Main work", "Dev work", "dev"),
             Value(await repo.Git.GetConflictSidesAsync(repo.Path))
         );
     }
 
     // During a rebase HEAD is on no branch, and the other side is the commit being applied, from
-    // REBASE_HEAD
+    // REBASE_HEAD, named by its short id, as git names it in the markers
     [TestMethod]
     public async Task TestTheSidesOfAStoppedRebase()
     {
-        await TwoBranchesThatConflictAsync();
+        var d1 = await TwoBranchesThatConflictAsync();
         Ok(await repo.Git.CheckoutAsync("dev", repo.Path));
         await repo.GitAllowFailAsync("rebase main");
 
+        var shortId = (await repo.GitAsync($"rev-parse --short {d1}")).Trim();
         Assert.AreEqual(
-            new ConflictSides("", "Main work", "Dev work"),
+            new ConflictSides("", "Main work", "Dev work", shortId),
             Value(await repo.Git.GetConflictSidesAsync(repo.Path))
         );
+    }
+
+    // A file's conflicts put back, Unresolve, are labelled 'ours' and 'theirs' rather than as the merge
+    // labelled them, which is why the sides carry the name git gave the other side
+    [TestMethod]
+    public async Task TestConflictsPutBackAreLabelledOursAndTheirs()
+    {
+        await TwoBranchesThatConflictAsync();
+        await repo.Git.MergeBranchAsync("dev", repo.Path);
+        var merged = Value(await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothModified, repo.Path));
+        Ok(await repo.Git.MarkResolvedAsync("file.txt", repo.Path));
+
+        Ok(await repo.Git.UnresolveAsync("file.txt", repo.Path));
+
+        var hunk = Value(await repo.Git.GetConflictFileAsync("file.txt", ConflictKind.BothModified, repo.Path)).Hunks[
+            0
+        ];
+        Assert.AreEqual(("HEAD", "dev"), (merged.Hunks[0].OursLabel, merged.Hunks[0].TheirsLabel), "As merged");
+        Assert.AreEqual(("ours", "theirs"), (hunk.OursLabel, hunk.TheirsLabel), "As put back");
+        Assert.AreEqual("dev", Value(await repo.Git.GetConflictSidesAsync(repo.Path)).TheirsName);
     }
 
     // A REBASE_HEAD left behind, as git leaves it after a rebase that stopped and was continued,

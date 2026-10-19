@@ -23,7 +23,7 @@ public class ConflictViewTest
         // and the result of it in the pane below
         ScreenText.AssertEqual(
             """
-            Merge  long.txt   conflict 1 of 1   1 still to resolve
+            Resolve conflicts: Merge  long.txt   conflict 1 of 1   1 still to resolve
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
                35 line 35
                36 line 36
@@ -31,9 +31,10 @@ public class ConflictViewTest
                38 line 38
                39 line 39
             ─── Conflict 1 ── unresolved ──────────────────────────────────────────────────────────────────────────────────────────
-            main (HEAD) · Change it on main                            │dev · Change it on dev
+            main (HEAD)                                                │dev
             ~  40 line 40 on main                                      │~  40 line 40 on dev
-               41 line 41
+            ───────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────
+               41 line 41                                                                                                          ┃
                42 line 42                                                                                                          ┃
                43 line 43                                                                                                          ┃
                44 line 44                                                                                                          ┃
@@ -41,13 +42,12 @@ public class ConflictViewTest
                46 line 46                                                                                                          ┃
                47 line 47                                                                                                          ┃
                48 line 48                                                                                                          ┃
-               49 line 49                                                                                                          ┃
+               49 line 49
                50 line 50
                51 line 51
                52 line 52
                53 line 53
                54 line 54
-               55 line 55
             ─── Result: long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
                36 line 36
                37 line 37
@@ -142,7 +142,7 @@ public class ConflictViewTest
         // what the conflict resolves to: the line as it was before either side touched it
         ScreenText.AssertEqual(
             """
-            Merge  long.txt   conflict 1 of 1   all resolved
+            Resolve conflicts: Merge  long.txt   conflict 1 of 1   all resolved
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
                35 line 35
                36 line 36
@@ -150,9 +150,10 @@ public class ConflictViewTest
                38 line 38
                39 line 39
             ─── Conflict 1 ── using the common ancestor ───────────────────────────────────────────────────────────────────────────
-            main (HEAD) · Change it on main        │common ancestor                        │dev · Change it on dev
+            main (HEAD)                            │common ancestor                        │dev
             ~  40 line 40 on main                  │      line 40                          │~  40 line 40 on dev
-               41 line 41
+            ───────────────────────────────────────┴───────────────────────────────────────┴───────────────────────────────────────
+               41 line 41                                                                                                          ┃
                42 line 42                                                                                                          ┃
                43 line 43                                                                                                          ┃
                44 line 44                                                                                                          ┃
@@ -160,13 +161,12 @@ public class ConflictViewTest
                46 line 46                                                                                                          ┃
                47 line 47                                                                                                          ┃
                48 line 48                                                                                                          ┃
-               49 line 49                                                                                                          ┃
+               49 line 49
                50 line 50
                51 line 51
                52 line 52
                53 line 53
                54 line 54
-               55 line 55
             ─── Result: long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
                36 line 36
                37 line 37
@@ -189,7 +189,7 @@ public class ConflictViewTest
 
         // And saving it writes the ancestor's line back into the file
         gmd.Send("S");
-        gmd.WaitUntilGone("─── Conflict 1");
+        gmd.WaitFor("Conflicts Resolved"); // Asked over the resolver, once the file is saved
 
         var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
         StringAssert.Contains(text, "line 39\nline 40\nline 41", "Both sides' changes are undone");
@@ -323,7 +323,7 @@ public class ConflictViewTest
         gmd.Send("2");
         gmd.WaitFor("all resolved");
         gmd.Send("S");
-        gmd.WaitUntilGone("─── Conflict 1");
+        gmd.WaitFor("Conflicts Resolved"); // Asked over the resolver, once the file is saved
 
         var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
         Assert.IsFalse(text.Contains("<<<<<<<"), "No markers are left in it");
@@ -362,10 +362,9 @@ public class ConflictViewTest
         await repo.CommitFileAtAsync("file.txt", "one\ntwo\n", "Change the file", TempRepo.BaseTime.AddMinutes(2));
         await repo.GitAllowFailAsync("merge dev");
         using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
-        gmd.WaitFor("CONFLICTS");
-        gmd.Send("d");
         // Git's diff has nothing to show of a file one side deleted, so the diff lists no file, and
         // Enter offers the conflicts to resolve
+        ShowTheDiffOfTheConflicts(gmd);
         gmd.WaitFor("Enter resolve");
         gmd.Send("Enter");
         gmd.WaitFor("Resolve Conflicts");
@@ -437,12 +436,7 @@ public class ConflictViewTest
         var merged = string.Join("\n", Enumerable.Range(1, 80).Select(i => $"line {i} merged by hand")) + "\n";
         await File.WriteAllTextAsync(Path.Join(repo.Path, "long.txt"), merged);
         using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
-        gmd.WaitFor("CONFLICTS");
-        gmd.Send("d");
-        gmd.WaitFor("Enter resolve");
-        gmd.Send("Enter");
-        gmd.WaitFor("Resolve Conflicts");
-        gmd.Send("Enter");
+        OpenTheResolver(gmd);
 
         StringAssert.Contains(gmd.WaitFor("Mark Resolved"), "no conflict markers left in it");
         for (var i = 0; i < 3; i++) // From Cancel, the default, to Mark Resolved
@@ -505,8 +499,8 @@ public class ConflictViewTest
         Assert.AreEqual("▌  54 line 60 on main, 1 of 12", rows[0], "Its lines, as many as there is room for");
         Assert.AreEqual((10, 4), (rows.Count, first), "From a third of the way down");
 
-        // Into the text after it, the same line, numbered as the file will be
-        for (int i = 0; i < 16; i++)
+        // Into the text after it, past the rule it ends with, the same line, numbered as the file will be
+        for (int i = 0; i < 17; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -569,12 +563,7 @@ public class ConflictViewTest
     {
         using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
         using var gmd = TmuxSession.StartGmd(repo);
-        gmd.WaitFor("CONFLICTS");
-        gmd.Send("d");
-        gmd.WaitFor("C Pricing.cs");
-        gmd.Send("Enter");
-        gmd.WaitFor("Resolve Conflicts");
-        gmd.Send("Enter");
+        OpenTheResolver(gmd);
         StringAssert.Contains(
             gmd.WaitFor("─── Conflict 1"),
             "Conflict 1 is not decided: 1 main, 2 dev, c combine both"
@@ -590,7 +579,7 @@ public class ConflictViewTest
         gmd.Send("c");
         gmd.WaitFor("all resolved");
         gmd.Send("s");
-        gmd.WaitUntilGone("all resolved");
+        gmd.WaitFor("Conflicts Resolved"); // Asked over the resolver, once the file is saved
 
         Assert.AreEqual(
             """
@@ -649,9 +638,10 @@ public class ConflictViewTest
         var screen = gmd.WaitFor("─── Conflict 1");
         Assert.AreEqual(
             """
-            Merge  Pricing.cs   conflict 1 of 2   2 still to resolve   file 1 of 2
+            Resolve conflicts: Merge  Pricing.cs   conflict 1 of 2   2 still to resolve
             """,
-            ScreenText.Rows(screen, repo.Path, 0, 1)
+            ScreenText.Rows(screen, repo.Path, 0, 1),
+            "Which file of the two it is, the list says"
         );
         Assert.AreEqual(
             """
@@ -664,14 +654,14 @@ public class ConflictViewTest
 
         // } goes to the other file, the one main and dev each set a cost in
         gmd.Send("}");
-        screen = gmd.WaitFor("file 2 of 2");
+        screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
         StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "Merge  Shipping.cs   conflict 1 of 1");
         gmd.Send("1"); // main's cost
         gmd.WaitForStable();
 
         // Saved, it is ticked, and the one still conflicted opens
         gmd.Send("s");
-        screen = gmd.WaitFor("file 1 of 2");
+        screen = gmd.WaitFor("Pricing.cs   conflict 1 of 2");
         Assert.AreEqual(
             """
             Conflicts 1 left         │
@@ -697,19 +687,123 @@ public class ConflictViewTest
         Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has them resolved");
     }
 
-    // A click on another file in the list while typing is done typing, and what was typed a decision
-    // not saved, which going to the other file asks about. The list takes no focus, so the text view
-    // was never left, and the file was gone from with the text thrown away unasked.
+    // The resolver goes on to the next file in the same view: each file had a view of its own, closed
+    // and another opened, which showed the log between them while git read the next one. So the
+    // common ancestor stays shown, and the line at the bottom says the file saved is resolved, since
+    // the header names the next one now.
     [TestMethod]
-    public async Task TestAClickOnTheListWhileTypingAsksAboutTheText()
+    public async Task TestTheResolverGoesOnToTheNextFileInTheSameView()
     {
         using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
         using var gmd = TmuxSession.StartGmd(repo, width: 160);
-        var bar = gmd.WaitFor("Merging: 2 conflicts");
-        var (x, y) = TmuxSession.PositionOf(bar, "Merging: 2 conflicts");
-        gmd.Click(x + 2, y);
-        gmd.WaitFor("Resolve Conflicts");
+        OpenTheResolverFromTheBar(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("b");
+        gmd.WaitFor("common ancestor");
+
+        gmd.Send("}");
+        var screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        StringAssert.Contains(screen, "common ancestor", "Still shown");
+        gmd.Send("1");
+        gmd.WaitFor("all resolved");
+
+        // Every screen from the save until the next file is shown is the resolver's
+        List<string> headers = [];
+        gmd.Send("s");
+        screen = gmd.WaitForMoving(
+            s =>
+            {
+                headers.Add(s.Split('\n')[0]);
+                return s.Contains("Pricing.cs   conflict 1 of 2");
+            },
+            "the next file"
+        );
+        Assert.IsTrue(headers.All(h => h.StartsWith("Resolve conflicts: Merge")), string.Join("\n", headers));
+        StringAssert.Contains(screen, "common ancestor", "Still shown");
+        Assert.AreEqual("Shipping.cs is resolved, 1 file left", ScreenText.LastLine(gmd.WaitFor("is resolved")));
+    }
+
+    // d on the uncommitted row with files in conflict asks whether to resolve them, the default, or to
+    // show the diff: it showed the diff, where Enter on a file resolved it, while its hint said
+    // 'd resolve'. Esc is neither, and Ctrl-D is the diff without the question.
+    [TestMethod]
+    public async Task TestDiffOnTheConflictsAsksToResolveThem()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("CONFLICTS");
+
+        gmd.Send("d");
+        var screen = gmd.WaitFor("Show Diff");
+        StringAssert.Contains(screen, "Conflicts in 2 Files");
+        StringAssert.Contains(screen, "The merge stopped on conflicts in:");
+        StringAssert.Contains(screen, "[◦ Resolve Conflicts ◦] [ Show Diff ]", "Resolve, the default");
+
+        gmd.Send("Escape");
+        screen = gmd.WaitUntilGone("Show Diff");
+        Assert.IsFalse(screen.Contains("Quit gmd?") || screen.Contains("─── Conflict"), "Neither:\n" + screen);
+
+        gmd.Send("C-d");
+        screen = gmd.WaitFor("2 conflicts: Enter opens the resolver");
+        Assert.IsFalse(screen.Contains("Show Diff"), "Not asked");
+    }
+
+    // A file resolved, selected in the list, is shown as it was saved: the file shown before stayed, as
+    // if it were the one selected. A key that decides a conflict says it is resolved, and Unresolve
+    // This File puts its conflicts back, to resolve it again, the sides named by their branches still,
+    // though git labels them 'ours' and 'theirs' as it puts them back.
+    [TestMethod]
+    public async Task TestAFileResolvedIsShownAsItWasSaved()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        OpenTheResolverFromTheBar(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("}");
+        gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        gmd.Send("2"); // dev's cost
+        gmd.WaitFor("all resolved");
+        gmd.Send("s");
+        gmd.WaitFor("Pricing.cs   conflict 1 of 2");
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        var screen = gmd.WaitFor("Shipping.cs   resolved");
+        StringAssert.Contains(screen, "─── Result: Shipping.cs as it was saved");
+        StringAssert.Contains(screen, "decimal Cost() => 5m;", "As saved, dev's cost");
+        Assert.IsFalse(screen.Contains("─── Conflict"), "No conflict left in it");
+        gmd.Send("1");
+        Assert.AreEqual(
+            "Shipping.cs is resolved: Unresolve This File (a) puts its conflicts back",
+            ScreenText.LastLine(gmd.WaitFor("puts its conflicts back")).Trim('─', ' ')
+        );
+
+        gmd.Send("a");
+        gmd.WaitFor("Unresolve This File");
+        gmd.SelectMenuItem("Unresolve This File");
         gmd.Send("Enter");
+        gmd.WaitFor("Put the conflicts back into Shipping.cs?");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        StringAssert.Contains(ListOf(screen), "▌● Shipping.cs", "Conflicted again");
+        StringAssert.Contains(screen, "main (HEAD)", "Named as the merge named them, though git labels them");
+        Assert.IsFalse(screen.Contains("theirs"), "'ours' and 'theirs' when it puts them back:\n" + screen);
+        Assert.AreEqual("Pricing.cs\nShipping.cs", (await repo.GitAsync("diff --name-only --diff-filter=U")).Trim());
+    }
+
+    // A click on another file in the list while typing is done typing, and what was typed a decision
+    // of the file left, kept for going back to it. The list takes no focus, so the text view was never
+    // left, and the file was gone from with the text thrown away.
+    [TestMethod]
+    public async Task TestAClickOnTheListWhileTypingKeepsTheText()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        OpenTheResolverFromTheBar(gmd);
         gmd.WaitFor("─── Conflict 1");
 
         gmd.Send("e");
@@ -718,13 +812,68 @@ public class ConflictViewTest
         var screen = gmd.WaitFor("XYZ");
         var (fileX, fileY) = TmuxSession.PositionOf(screen, "Shipping.cs");
         gmd.Click(fileX + 1, fileY);
+        screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        StringAssert.Contains(ListOf(screen), " ● Pricing.cs  1 of 2", "Left with its decision");
 
-        StringAssert.Contains(gmd.WaitFor("Unsaved Decisions"), "1 of 2 conflicts of Pricing.cs have been decided");
-        gmd.Send("Enter"); // Stay, the default
-        screen = gmd.WaitUntilGone("Unsaved Decisions");
-        StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "Pricing.cs   conflict 1 of 2");
+        (fileX, fileY) = TmuxSession.PositionOf(screen, "Pricing.cs");
+        gmd.Click(fileX + 1, fileY);
+        screen = gmd.WaitFor("Pricing.cs   conflict 1 of 2");
         StringAssert.Contains(screen, "edited by hand", "The text typed is the conflict's decision");
         Assert.IsFalse(screen.Contains("Typing conflict 1"), "Done typing");
+    }
+
+    // In the list the arrows show the file they select at once, as the diff's list does, rather than
+    // once Enter is pressed, and the decisions of the file left are kept for going back to it, where
+    // going to another file asked about them. Closing asks about those of every file, and Save and
+    // Close saves them all.
+    [TestMethod]
+    public async Task TestTheListShowsTheFileItsArrowsSelect()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        OpenTheResolverFromTheBar(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("1");
+        gmd.WaitFor("1 still to resolve");
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        var screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        Assert.AreEqual(
+            """
+            Conflicts 2 left         │
+             ● Pricing.cs  1 of 2    │
+            ▌● Shipping.cs  0 of 1   │
+            """,
+            ListOf(screen),
+            "Pricing.cs left with its decision"
+        );
+        gmd.Send("2"); // dev's cost, the list still having the arrows
+        gmd.WaitFor("all resolved");
+
+        gmd.Send("Up");
+        StringAssert.Contains(
+            gmd.WaitFor("Pricing.cs   conflict 1 of 2"),
+            "1 still to resolve",
+            "Its decision as it was left"
+        );
+
+        gmd.Send("q");
+        StringAssert.Contains(
+            gmd.WaitFor("Unsaved Decisions"),
+            "Shipping.cs  1 of 1",
+            "The file left is asked about with the open one"
+        );
+        gmd.Send("Right"); // From Stay, the default, to Save and Close
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Merging: 1 conflict");
+        Assert.AreEqual("Pricing.cs", (await repo.GitAsync("diff --name-only --diff-filter=U")).Trim());
+        var pricing = await File.ReadAllTextAsync(Path.Join(repo.Path, "Pricing.cs"));
+        Assert.AreEqual(1, pricing.Split("<<<<<<<").Length - 1, "Its second conflict left");
+        StringAssert.Contains(await File.ReadAllTextAsync(Path.Join(repo.Path, "Shipping.cs")), "5m", "dev's cost");
     }
 
     // The last conflict of a rebase resolved, Continue, the default, goes on with it at once. The
@@ -843,7 +992,7 @@ public class ConflictViewTest
     {
         using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
         using var gmd = TmuxSession.StartGmd(TempHome.Create(colors: "dark"), repo.Path);
-        OpenTheResolver(gmd, "Pricing.cs");
+        OpenTheResolver(gmd);
         var rows = gmd.WaitFor("─── Conflict 1").Split('\n');
         var colors = gmd.CaptureColors().Split('\n');
         string ColorsOf(int row) => colors[row];
@@ -868,7 +1017,7 @@ public class ConflictViewTest
     {
         using var repo = await E2eRepo.CreateWithCombinableConflictsAsync();
         using var gmd = TmuxSession.StartGmd(repo, isKeyHints: true);
-        OpenTheResolver(gmd, "Pricing.cs");
+        OpenTheResolver(gmd);
         gmd.WaitFor("─── Conflict 1");
 
         gmd.Send("e");
@@ -955,13 +1104,26 @@ public class ConflictViewTest
         );
     }
 
-    static void OpenTheResolver(TmuxSession gmd, string file = "long.txt")
+    // As a user reaches it: d on the uncommitted row, which asks whether to resolve the conflicts,
+    // Resolve Conflicts the default, or to show the diff
+    static void OpenTheResolver(TmuxSession gmd)
     {
         gmd.WaitFor("CONFLICTS");
         gmd.Send("d");
-        gmd.WaitFor($"C {file}");
+        gmd.WaitFor("Show Diff");
         gmd.Send("Enter");
-        gmd.WaitFor("Resolve Conflicts");
+    }
+
+    // The diff of the uncommitted changes, d's Show Diff, where Enter on a conflicted file resolves it
+    internal static void ShowTheDiffOfTheConflicts(TmuxSession gmd)
+    {
+        gmd.WaitFor("CONFLICTS");
+        gmd.Send("d");
+        gmd.WaitFor("Show Diff");
+        // From Resolve Conflicts, the default, which '◦' marks, the focus drawn by its color alone
+        var before = gmd.CaptureColors();
+        gmd.Send("Right");
+        gmd.WaitUntil(() => gmd.CaptureColors() != before, "the focus to move to Show Diff");
         gmd.Send("Enter");
     }
 }

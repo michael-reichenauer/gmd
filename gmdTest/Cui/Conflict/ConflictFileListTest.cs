@@ -9,6 +9,9 @@ public class ConflictFileListTest
 {
     static HashSet<string> Passed(params string[] paths) => [.. paths];
 
+    static Dictionary<string, string> Progress(params (string Path, string How)[] files) =>
+        files.ToDictionary(f => f.Path, f => f.How);
+
     static ConflictFileList ListOf(string open, string[] resolved, params string[] paths) =>
         new(paths.Select(p => new ConflictedFile(p, ConflictKind.BothModified)).ToList(), resolved.ToHashSet(), open);
 
@@ -62,7 +65,9 @@ public class ConflictFileListTest
     {
         var list = ListOf("src/Pricing.cs", [], "src/Pricing.cs", "a.txt");
 
-        var rows = list.Rows(list.WidthFor(200) - 1, 0, false, "10 of 12").Select(r => r.ToString()).ToList();
+        var rows = list.Rows(list.WidthFor(200) - 1, 0, false, Progress(("src/Pricing.cs", "10 of 12")))
+            .Select(r => r.ToString())
+            .ToList();
 
         StringAssert.StartsWith(rows[1], "▌● src/Pricing.cs  10 of 12");
     }
@@ -96,7 +101,28 @@ public class ConflictFileListTest
              ✓ README.md                  │
              ● …long/folder/name/Order.cs │
             """,
-            string.Join("\n", list.Rows(31, 0, false, "1 of 2").Select(r => r.ToString()))
+            string.Join("\n", list.Rows(31, 0, false, Progress(("src/Pricing.cs", "1 of 2"))).Select(r => r.ToString()))
+        );
+    }
+
+    // A file left with decisions not saved says how far it is, as the open one does: they are kept
+    // for going back to it, and asked about as the resolver closes
+    [TestMethod]
+    public void TestAFileLeftWithDecisionsSaysHowFarItIs()
+    {
+        var list = ListOf("a.txt", [], "a.txt", "b.txt", "c.txt");
+
+        Assert.AreEqual(
+            """
+            Conflicts 3 left         │
+            ▌● a.txt  0 of 1         │
+             ● b.txt  1 of 2         │
+             ● c.txt                 │
+            """,
+            string.Join(
+                "\n",
+                list.Rows(26, 0, false, Progress(("a.txt", "0 of 1"), ("b.txt", "1 of 2"))).Select(r => r.ToString())
+            )
         );
     }
 }

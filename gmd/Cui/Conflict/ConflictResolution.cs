@@ -19,6 +19,9 @@ class ConflictResolution
         this.file = file;
     }
 
+    // The file the decisions are of, as it was read
+    public ConflictFile File => file;
+
     public int HunkCount => file.Hunks.Count;
     public int UnresolvedCount => file.Hunks.Count(h => ChoiceOf(h.Index) == HunkChoice.None);
     public bool IsFullyResolved => UnresolvedCount == 0;
@@ -57,13 +60,48 @@ class ConflictResolution
     // typed (ConflictView): the decision is made once the typing is done
     public ConflictResolution WithTyped(int hunkIndex, string text)
     {
-        var copy = new ConflictResolution(file);
-        choices.ToList().ForEach(c => copy.choices[c.Key] = c.Value);
-        manualTexts.ToList().ForEach(t => copy.manualTexts[t.Key] = t.Value);
-        combined.ToList().ForEach(c => copy.combined[c.Key] = c.Value);
+        var copy = CopyFor(file);
         copy.Set(hunkIndex, HunkChoice.Manual, text);
         return copy;
     }
+
+    // The decisions for the file read again, e.g. as the resolver goes back to it, null where it no
+    // longer has the conflicts they were made in, changed on disk meanwhile: they are held by number,
+    // so they would be applied to other conflicts. The text between the conflicts and the sides of
+    // each must be as they were; the ancestor need not, which is read where it can be.
+    public ConflictResolution? For(ConflictFile reread)
+    {
+        if (reread.Path != file.Path || reread.Segments.Count != file.Segments.Count)
+            return null;
+
+        var isSame = file
+            .Segments.Zip(reread.Segments)
+            .All(s =>
+                IsSame(s.First.Lines, s.Second.Lines)
+                && (s.First.Hunk, s.Second.Hunk) switch
+                {
+                    (null, null) => true,
+                    (ConflictHunk a, ConflictHunk b) => IsSame(a.Ours, b.Ours) && IsSame(a.Theirs, b.Theirs),
+                    _ => false,
+                }
+            );
+        if (!isSame)
+            return null;
+
+        return CopyFor(reread);
+    }
+
+    ConflictResolution CopyFor(ConflictFile of)
+    {
+        var copy = new ConflictResolution(of);
+        choices.ToList().ForEach(c => copy.choices[c.Key] = c.Value);
+        manualTexts.ToList().ForEach(t => copy.manualTexts[t.Key] = t.Value);
+        combined.ToList().ForEach(c => copy.combined[c.Key] = c.Value);
+        return copy;
+    }
+
+    static bool IsSame(IReadOnlyList<FileLine> a, IReadOnlyList<FileLine> b) =>
+        a.Select(l => l.Text).SequenceEqual(b.Select(l => l.Text));
 
     // The combination a conflict was decided with, null where it was not
     public IReadOnlyList<CombinedLine>? CombinedOf(int hunkIndex) => combined.GetValueOrDefault(hunkIndex);
