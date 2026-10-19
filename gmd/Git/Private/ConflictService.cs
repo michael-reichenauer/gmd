@@ -97,12 +97,16 @@ class ConflictService : IConflictService
     // Reads the working tree file and parses it. The working tree file rather than the index
     // stages, because it is the only artifact that holds the text *between* the conflicts, and it
     // is what git takes verbatim once the path is marked resolved — including any hand edits.
+    //
+    // This and WithBaseAsync await without the caller's context (ConfigureAwait(false)): a UI's main
+    // loop resumes each await on it a while later, up to 40 ms with Terminal.Gui, and a file with its
+    // ancestor is six git commands, read each time a resolver goes to another file.
     public async Task<Result<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd)
     {
         var fullPath = System.IO.Path.Join(wd, path);
 
         // Which sides exist decides what can be offered for the file, so it is read for every one
-        var stagesResult = await GetStagesAsync(path, wd);
+        var stagesResult = await GetStagesAsync(path, wd).ConfigureAwait(false);
         if (stagesResult is not IReadOnlyDictionary<int, string> stages)
             return stagesResult.Error;
 
@@ -184,7 +188,7 @@ class ConflictService : IConflictService
         if (file.Hunks.Count == 0 || file.Hunks.Any(h => h.HasBase))
             return file with { HasBase = true };
 
-        var stagesResult = await GetStagesAsync(file.Path, wd);
+        var stagesResult = await GetStagesAsync(file.Path, wd).ConfigureAwait(false);
         if (stagesResult is not IReadOnlyDictionary<int, string> stages)
             return stagesResult.Error;
 
@@ -200,7 +204,7 @@ class ConflictService : IConflictService
 
         try
         {
-            var mergedResult = await MergeWithBaseAsync(stages, baseSha, tempDir);
+            var mergedResult = await MergeWithBaseAsync(stages, baseSha, tempDir).ConfigureAwait(false);
             if (mergedResult is not string merged)
                 return mergedResult.Error;
 
@@ -239,7 +243,7 @@ class ConflictService : IConflictService
     // The blob of each stage of an unmerged path, keyed on stage number
     async Task<Result<IReadOnlyDictionary<int, string>>> GetStagesAsync(string path, string wd)
     {
-        var result = await cmd.RunAsync("git", $"ls-files -u {Spec(path)}", wd);
+        var result = await cmd.RunAsync("git", $"ls-files -u {Spec(path)}", wd).ConfigureAwait(false);
         if (result is not string output)
             return result.Error;
 
@@ -263,13 +267,13 @@ class ConflictService : IConflictService
         string tempDir
     )
     {
-        var baseResult = await UnpackAsync(baseSha, tempDir);
+        var baseResult = await UnpackAsync(baseSha, tempDir).ConfigureAwait(false);
         if (baseResult is not string baseFile)
             return baseResult.Error;
-        var oursResult = await UnpackAsync(stages[2], tempDir);
+        var oursResult = await UnpackAsync(stages[2], tempDir).ConfigureAwait(false);
         if (oursResult is not string oursFile)
             return oursResult.Error;
-        var theirsResult = await UnpackAsync(stages[3], tempDir);
+        var theirsResult = await UnpackAsync(stages[3], tempDir).ConfigureAwait(false);
         if (theirsResult is not string theirsFile)
             return theirsResult.Error;
 
@@ -282,7 +286,7 @@ class ConflictService : IConflictService
         // result is judged by what it produced rather than by the exit code.
         var args =
             $"merge-file --diff3 -L ours -L base -L theirs {Cmd.Quote(oursFile)} {Cmd.Quote(baseFile)} {Cmd.Quote(theirsFile)}";
-        await cmd.RunAsync("git", args, tempDir, skipLogError: true);
+        await cmd.RunAsync("git", args, tempDir, skipLogError: true).ConfigureAwait(false);
 
         var mergedPath = System.IO.Path.Join(tempDir, oursFile);
         var read = Result.Catch(() => File.ReadAllText(mergedPath));
@@ -295,7 +299,7 @@ class ConflictService : IConflictService
     // Writes the blob to a file in tempDir and returns its name, which git chooses
     async Task<Result<string>> UnpackAsync(string sha, string tempDir)
     {
-        var result = await cmd.RunAsync("git", $"unpack-file {sha}", tempDir);
+        var result = await cmd.RunAsync("git", $"unpack-file {sha}", tempDir).ConfigureAwait(false);
         if (result is not string name)
             return result.Error;
 
