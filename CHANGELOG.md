@@ -1,7 +1,38 @@
 # Change Log for Gmd
 --------------------
 
-151 releases:
+152 releases:
+
+## [v1.13.1450.1146] - 2026-10-19
+- Draw in colors of gmd's own, on Terminal.Gui 2.5: twelve branch colors, a dark or a light palette picked by the terminal's background, or the terminal's own 16 colors, set with Colors in the Config dialog
+- Color the code in the diff, the blame and the conflict resolver by its language, as VS Code's Dark+ and Light+ do, for some fifty languages; Config turns it off
+- Keep the color a branch is first drawn in, picked unlike its parent's and those of the branches beside it, so that showing, hiding, pushing or merging branches never changes it
+- Draw emoji in subjects as themselves
+- Amend, drop and squash commits already pushed, and push the branch with force along with it, asked first on main, develop or a release branch, or for someone else's commits
+- Push a branch with force when p asks, after a squash, an amend or a rebase of its pushed commits, made here or by an agent, rather than pull back the old version origin still has
+- Rebase and Push onto is Rebase onto, which asks whether to push with force too
+- Move commits made on the wrong branch, e.g. main, to a new one with Move to New Branch in the commit menu, and a commit above or below the one beside it with Reorder
+- Start a squash's message with the oldest commit's, the others listed below it, as GitHub writes a squash merge
+- Cherry pick the commits selected with Shift-↑↓ as they were made, authors kept, and take them back with one Undo
+- Reset the current branch to any commit, keeping the changes uncommitted or discarding them, from the commit menu's Undo
+- Offer Abort Merge, Abort Rebase and so on first in the commit menu's Undo while one is in progress
+- Mark a branch squash or rebase merged on origin with ✓, and delete the local branches merged into main, by a squash on origin too, with Delete Merged Branches in the repo menu
+- Tell a branch deleted on origin from one never pushed, so that p no longer publishes it again unasked
+- Resolve all the conflicted files of a merge, rebase or other operation in one view, the next file opening in it, the decisions not saved kept for each file until it closes; ↑ ↓ in its list of files show each at once, and Unresolve This File (a) puts a resolved file's conflicts back
+- Ask on d on the uncommitted row with conflicts whether to resolve them or show the diff; Ctrl-D shows the diff at once
+- Blame the file at the cursor's line and commit with b in a diff, and show the file's history at a blamed line's commit with Shift-L; Esc goes back
+- Pick the file of Blame File and File History in a new browser: the files the commit changed first, then all its files as a tree, typing finding a file by any part of its path
+- Pick the folder to open, clone into, init or put a worktree in with a browser like it, as large as the terminal, a typed path listing the folders in it as a shell completes one
+- Show more of the lines left out of a diff with Enter on its ⋯, as + does, and keep the cursor's line where it is on the screen as + and - change them
+- Mark removed and added lines with - and + in a diff in one column, and a file's header with a bright cyan line
+- Mark the commit marked for a diff with ± in the log, its row tinted, and take the mark away with Unmark for Diff; a diff of selected commits says how many in its title
+- Scroll the diff, the blame and the resolver sideways with a mouse's sideways wheel, or Shift and the wheel, which no longer scrolls the log and the lists up and down
+- Group the commit and branch menus by what their items do, and the Undo menu by the last change, undoing commits, discarding and bringing back; Set Commit Branch Manually is in the commit menu, Show Branch in the repo menu, and Full File History is File History
+- Make Discard All Changes one item, whose question lists the ignored files and offers to delete them too
+- Edit the commit message with Ctrl-A, Ctrl-C, Ctrl-X, Ctrl-V, Ctrl-Z and Ctrl-Y, as the subject
+- Keep the branches set by hand in .git/gmd-metadata.json rather than in a ref in the repository, moved there at the first change
+- Push only what is about commits origin has when the branch structure is shared, so the names of branches never pushed and work not pushed stay on your machine; Config says what sharing pushes before it is turned on
+- List in the README everything gmd stores and sends
 
 ## [v1.12.1448.496] - 2026-10-17
 - Draw the diff calmer: a bar beside each changed line, the words that differ marked rather than scattered letters, a row for each file, and a line with ⋯ on both sides where unchanged lines are left out between its parts, naming the function git finds a part in
