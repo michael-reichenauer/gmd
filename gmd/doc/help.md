@@ -143,11 +143,11 @@ another tool, or the one gmd or a worktree opens on. Hidden again, it stays
 hidden until it next becomes current.
 
 - `Shift-→` opens **Show Branch**: first the hidden branches that merge in
-  or branch out at the cursor's commit, then New (see ✦ below), Recent,
-  Active, My Active (where the last commit is yours), Active and Deleted,
-  and Ambiguous. The branch menus have the same list, as a submenu.
-- Typing in that menu, or in its sub menus, opens **Find Branch** with what
-  was typed. The list narrows as more of the name is typed, every word has
+  or branch out at the cursor's commit, then New (see ✦ below), Recent, // lkjlkj
+  Active, My Active (where the last commit is yours), Active and Deleted, // lkjlkj
+  and Ambiguous. The branch menus have the same list, as a submenu. // lkjlkjlkj
+- Typing in that menu, or in its sub menus, opens **Find Branch** with what // lkjlkjlkjlkj
+  was typed. The list narrows as more of the name is typed, every word has. //klj lkjlkj
   to be in it, and the names it starts a part of come first. `Enter` or a
   click shows the branch.
 - `Enter` on a highlighted branch where it has a `╮` or `╯` beside it, or a

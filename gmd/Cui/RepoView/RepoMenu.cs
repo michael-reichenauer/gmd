@@ -69,11 +69,11 @@ class RepoMenu : IRepoMenu
                 "Push All Branches",
                 "⇧p",
                 () => commands.PushPullCmds.PushAllBranches(),
-                () => BranchPushPullCommands.CanPush(repo.Repo),
-                () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push"
-            )
-            .Item("Search ...", "f", () => cmds.SearchFilterRepo())
-            .Item(
+                () => BranchPushPullCommands.CanPush(repo.Repo), // jjjklklj
+                () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push" // jklkjljkl
+            ) // kljjklkjllkj
+            .Item("Search ...", "f", () => cmds.SearchFilterRepo()) // kljkjlkjl
+            .Item( // klkllkj
                 "Next Match",
                 "n",
                 () => commands.BranchCmds.ShowSearchMatch(1),
@@ -88,11 +88,11 @@ class RepoMenu : IRepoMenu
                 () => NoSearch
             )
             .Item("Refresh", "r", () => cmds.RefreshAndFetch())
-            .Item("Worktrees ...", "w", () => commands.WorktreeCmds.ShowWorktrees())
+            .Item("Worktrees ...", "w", () => commands.WorktreeCmds.ShowWorktrees()) // kkkljlkj
             .Item("Delete Merged Branches ...", "", () => commands.CreateCmds.DeleteMergedBranches())
             .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
             .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
-            .Item("Config ...", "", () => ShowConfig())
+            .Item("Config ...", "", () => ShowConfig()) // jljkllkjlkj
             .Item("Help", "?, F1", () => cmds.ShowHelp())
             .Item("About", "", () => cmds.ShowAbout())
             .Item("Quit", "q, Esc", () => UI.Shutdown());

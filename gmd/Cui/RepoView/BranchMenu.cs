@@ -354,9 +354,9 @@ class BranchMenu : IBranchMenu
             )
             .Items(GetMoveBranchItems(branchName))
             // The limited menu is the one under a branch in the Branches sub menu of the commit menu,
-            // which already offers these at its root, and the repo menu beside it. Pull All and Push
-            // All are not here: they are no command of one branch, and the repo menu, the ▲ and ▼
-            // menus and Shift-U and Shift-P all have them.
+            // which lkasdjalskdfjasldk
+            // kllkjaslkasjdflkasdjf
+            // kalsdfkkksd
             .Items(!isLimited, [ShowBranchSubMenu()])
             .Separator(!isLimited)
             .SubMenu(!isLimited, "Repo Menu", "⇧m", repoMenu.GetRepoMenuItems());
@@ -636,13 +636,13 @@ class BranchMenu : IBranchMenu
         return GetShownBranchesSubMenus()
             .Concat(
                 Menu.Items.Separator()
-                    .Items([ShowBranchSubMenu()])
-                    .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
+                    .Items([ShowBranchSubMenu()]) // jksifksjdkf
+                    .Item("Hide All Branches", "", () => cmds.HideBranch("", true)) // jjkljlskjdjkl
                     .Item(
                         repo.ShownHistory.Last is ShownChange last ? $"Undo {last}" : "Undo Show or Hide",
                         "Backspace",
                         () => cmds.UndoShowOrHide(),
-                        () => repo.ShownHistory.Last != null,
+                        () => repo.ShownHistory.Last != null, // lksjdflsdkfj
                         () => "No branch has been shown or hidden to undo"
                     )
             );
@@ -660,7 +660,7 @@ class BranchMenu : IBranchMenu
                 Menu.SubMenu(
                     // Every branch here is shown, so the 'o' shown icon would carry no information
                     ToBranchMenuName(b, isNoShowIcon: true),
-                    "",
+                    "", // lksjdflaksjdfljk
                     GetBranchMenuItems(b.PrimaryName, true)
                 )
             );
