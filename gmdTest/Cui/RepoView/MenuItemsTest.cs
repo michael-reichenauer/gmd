@@ -40,7 +40,6 @@ public class MenuItemsTest
             ---
             Hide Branch  [h]
             Change Branch Color  [g]
-            Show Branch >  [⇧→]
             ---
             Repo Menu >  [⇧m]
             """,
@@ -170,7 +169,6 @@ public class MenuItemsTest
             ---
             Hide Branch  [h]  (disabled)
             Change Branch Color  [g]  (disabled)
-            Show Branch >  [⇧→]
             ---
             Repo Menu >  [⇧m]
             """,
@@ -214,7 +212,6 @@ public class MenuItemsTest
             ---
             Hide Branch  [h]
             Change Branch Color  [g]
-            Show Branch >  [⇧→]
             ---
             Repo Menu >  [⇧m]
             """,
@@ -245,8 +242,7 @@ public class MenuItemsTest
         StringAssert.Contains(items, "Merge main into >  [⇧e]  (disabled)");
     }
 
-    // The same menu shown from the Branches sub menu, which already offers these at its root, next
-    // to the repo menu
+    // The same menu shown from the Branches sub menu, which already has the repo menu next to it
     [TestMethod]
     public async Task TestTheLimitedBranchMenuDropsTheWaysOutOfIt()
     {
@@ -254,7 +250,7 @@ public class MenuItemsTest
 
         var dropped = Titles(menu.GetBranchMenuItems("dev")).Except(Titles(menu.GetBranchMenuItems("dev", true)));
 
-        CollectionAssert.AreEqual(new[] { "Show Branch", "Repo Menu" }, dropped.ToArray());
+        CollectionAssert.AreEqual(new[] { "Repo Menu" }, dropped.ToArray());
     }
 
     // The point of the class comment: the same menu is a different number of key presses away from
@@ -264,8 +260,8 @@ public class MenuItemsTest
     {
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
-        Assert.AreEqual(13, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(6, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(12, EnabledCount(menu.GetBranchMenuItems("dev")));
+        Assert.AreEqual(5, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]
@@ -456,6 +452,7 @@ public class MenuItemsTest
             """
             Pull All Branches  [⇧u]  (disabled)
             Push All Branches  [⇧p]  (disabled)
+            Show Branch >  [⇧→]
             Search ...  [f]
             Next Match  [n]  (disabled)
             Previous Match  [⇧n]  (disabled)
@@ -787,23 +784,35 @@ public class MenuItemsTest
     static async Task<FakeViewRepo> ViewOf(RepoBuilder builder, params string[] showBranches) =>
         new FakeViewRepo(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
 
-    static IBranchMenu BranchMenuOf(FakeViewRepo view)
-    {
-        var commands = Commands(view);
-        return new BranchMenu(RepoMenuOf(view, commands), view, commands);
-    }
+    static IBranchMenu BranchMenuOf(FakeViewRepo view) => MenusOf(view).Branch;
 
     static ICommitMenu CommitMenuOf(FakeViewRepo view)
     {
-        var commands = Commands(view);
-        var repoMenu = RepoMenuOf(view, commands);
-        return new CommitMenu(repoMenu, new BranchMenu(repoMenu, view, commands), view, commands, new DiffMark());
+        var (repoMenu, branchMenu, commands) = MenusOf(view);
+        return new CommitMenu(repoMenu, branchMenu, view, commands, new DiffMark());
     }
 
-    static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) => RepoMenuOf(view, Commands(view), config);
+    static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) => MenusOf(view, config).Repo;
 
-    static IRepoMenu RepoMenuOf(FakeViewRepo view, CommandContext commands, Config? config = null) =>
-        new RepoMenu(view, commands, config ?? new Config(), null!);
+    // The repo menu and the branch menu, which have each other's items, made as RepoViewMenus makes
+    // them
+    static (IRepoMenu Repo, IBranchMenu Branch, CommandContext Commands) MenusOf(
+        FakeViewRepo view,
+        Config? config = null
+    )
+    {
+        var commands = Commands(view);
+        IBranchMenu? branchMenu = null;
+        var repoMenu = new RepoMenu(
+            view,
+            commands,
+            config ?? new Config(),
+            null!,
+            () => branchMenu!.GetShowBranchSubMenu()
+        );
+        branchMenu = new BranchMenu(repoMenu, view, commands);
+        return (repoMenu, branchMenu, commands);
+    }
 
     // The command classes the menus are made with. Only RepoCommands' OperationName and
     // OperationSummary are called while the items are built, and both read nothing but the shown

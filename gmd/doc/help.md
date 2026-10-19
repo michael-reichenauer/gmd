@@ -148,7 +148,8 @@ hidden until it next becomes current.
 - `Shift-→` opens **Show Branch**: first the hidden branches that merge in
   or branch out at the cursor's commit, then New (see ✦ below), Recent,
   Active, My Active (where the last commit is yours), Active and Deleted,
-  and Ambiguous. The branch menus have the same list, as a submenu.
+  and Ambiguous. The repo menu (`Shift-M`) has the same list, as a
+  submenu beside Search, and so does Branches in the commit menu.
 - Typing in that menu, or in its sub menus, opens **Find Branch** with what
   was typed. The list narrows as more of the name is typed, every word has
   to be in it, and the names it starts a part of come first. `Enter` or a
