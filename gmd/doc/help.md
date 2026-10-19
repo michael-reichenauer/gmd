@@ -125,8 +125,11 @@ or a greyed out menu item did nothing, and in red when a fetch failed.
 
 Gmd draws in colors of its own: a dark palette, or a light one when the
 terminal's background is light, which gmd asks the terminal as it starts.
-Branches get twelve colors, picked by their names, and `g` changes the
-color of the highlighted one. **Colors** in **Config ...** in the repo menu
+Branches get twelve colors. A branch is given one the first time gmd sees
+it, by its name, unless its parent has that color or the branches started
+just before it from the same branch do, and it keeps that color from then
+on, whatever is shown, pushed or merged around it. `g` changes the color of
+the highlighted one. **Colors** in **Config ...** in the repo menu
 chooses: `auto` (dark or light by the terminal), `dark`, `light`, or `16`,
 the 16 colors of the terminal's own theme on black, with five branch colors,
 which is also what a terminal of 16 colors gets. A terminal without 24-bit

@@ -88,6 +88,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly Config config;
     readonly IUpdater updater;
     readonly IRepoConfigService repoConfig;
+    readonly IBranchColorService branchColors;
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
@@ -142,6 +143,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         Config config,
         IUpdater updater,
         IRepoConfigService repoConfig,
+        IBranchColorService branchColors,
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,
@@ -159,6 +161,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         this.config = config;
         this.updater = updater;
         this.repoConfig = repoConfig;
+        this.branchColors = branchColors;
         this.progress = progress;
         this.git = git;
         this.commitDetailsView = commitDetailsView;
@@ -783,6 +786,9 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         var names = repo.Repo.ViewBranches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoConfig.Set(serverRepo.Path, s => s.Branches = names);
+
+        // A new branch keeps the color it is drawn in now, and a branch gone is forgotten
+        branchColors.Remember(serverRepo);
     }
 
     // The shown branches are seen, and what is new on the hidden ones is counted against what was

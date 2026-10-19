@@ -695,9 +695,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
     character, and draws one outside the basic plane as `�`, one column. Left: strings measured in
     chars outside `Text` (`Max`, which is `gmd.Utils`', and the menu widths), so a menu item in CJK
     is cut short rather than drawn wider.
-  - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every
-    branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
-    the colors already. Not measured.
+  - *Done 2026-10-19:* `BranchColorService.GetColor` read the repo config (a `Directory.Exists`, a
+    hash) for every branch on every redraw of the log, i.e. every key, from
+    `RepoWriter.GetBranchTips`. The colors are picked once per repo snapshot now, see the branch
+    colors below.
   - *Done 2026-10-14:* the smaller ones, each with a test: the diff's right side numbered 3 low
     after conflict markers; the resolver's result not scrollable, its tabs not expanded, and `b`
     moving its cursor to another conflict; `g` on main silent; Merge silent with nothing to merge;
@@ -1109,6 +1110,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
     other 16-color entries already mean something (main, deleted, ahead, behind). Two of four
     shown branches often share one; `g` recolors by hand. Needs 256 or true color. Consider
     replacing red or green then too, for red-green color blindness.
+    *Done 2026-10-19, the sharing:* twelve with 2.x, and a branch's color is picked the first time
+    gmd sees it, unlike its parent's and its live siblings' (the least recently used of them), and
+    remembered in `.gmdconfig` (`BranchColorPicker`), the colors of the branches gone forgotten.
+    Remembered, since any rule over the branches that are there changes colors as they change: one
+    over the branches shown (who is drawn next to whom) whenever one is shown or hidden, and one over
+    the siblings whenever one goes, as a squash merged and deleted branch leaves the history. Keyed by
+    the name without `origin/`, as the hash of the primary name changed the color of a pushed branch.
   - *`NO_COLOR`.* Not read. Low value for gmd, whose graph tells branches apart by color alone;
     revisit if asked.
 - **Combined diffs (`diff --cc`)** are skipped with a warning. Relaxing the `@@ ` check alone is
