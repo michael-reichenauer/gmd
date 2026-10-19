@@ -862,8 +862,9 @@ diff menu opens a file in the tool git is configured with instead
 The two sides are shown beside each other, titled by name rather than
 "ours" and "theirs", since during a rebase those two mean the opposite of
 what you would expect: the branch HEAD is on, e.g. `main (HEAD)`, and the
-branch merged in, or during a rebase the commit being applied, each with
-the subject of its commit, which says what it was doing. Each side is shown as what it did to
+branch merged in, or during a rebase the commit being applied. A side named
+by a commit, as during a rebase, has the subject of its commit beside it,
+which says what it was doing. Each side is shown as what it did to
 the version both started from, the common ancestor, which is what says why
 they conflict: `+` a line it added, `~` a line it changed, with the words
 it changed marked in its color, `-` a line of the ancestor's it removed, in
