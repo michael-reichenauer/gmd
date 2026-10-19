@@ -46,8 +46,13 @@ public class OnigurumaLibraryTest
     [TestMethod]
     public void TestTheFolderIsTheUsersAlone()
     {
+        // Returned from too, though Inconclusive throws, for the platform analyzer to see that what
+        // follows is not run on Windows (CA1416)
         if (OperatingSystem.IsWindows())
+        {
             Assert.Inconclusive("Windows keeps the user's own folders the user's alone");
+            return;
+        }
 
         OnigurumaLibrary.Write([1, 2, 3], folder, "libonigwrap.so");
 
