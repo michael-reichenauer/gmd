@@ -1,9 +1,16 @@
 # Usability review
 
-Three reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
+Six reviews of gmd's user experience, each with ranked proposals. gmd grew one feature at a time for
 its author's own use, so they look at it as someone new would.
 
-- **The diff and resolver review (2026-10-16)**, first below, looks at the two views most of the
+- **The menu review (2026-10-18)**, first below, looks at the order and names of the items of the
+  commit and branch menus and their sub menus.
+- **The file browser review (2026-10-18)** looks at the dialog Blame File and File History pick
+  their file in, which was a workaround.
+- **The rebase and squash review (2026-10-17)** looks at gmd for those who rebase,
+  squash and squash merge rather than merge: what it does with a history rewritten here or on
+  origin, and which rewrites of commits it could offer.
+- **The diff and resolver review (2026-10-16)** looks at the two views most of the
   work is read in, how they look and how they are used, and at the way through a conflict.
 - **The product review (2026-10-07)** steps back from the keys: whether choosing which
   branches are shown is a sound idea, who besides its author can use gmd, which features are missing
@@ -25,6 +32,271 @@ ask of any new feature:
 File references are as of each review. Close items here, or move them to `MODERNIZATION.md`, as
 they land. The usability review's safety findings (section 1, and Tier 1 of its proposals) are
 fixed, and most of Tiers 2 to 4; the product review's proposals are open.
+
+---
+
+## Menu review (2026-10-18)
+
+The commit and branch menus had grown an item at a time, each put where there was room, so related
+items were spread through them, under one line.
+
+### Findings
+
+1. **The commit menu was 22 items under one line**, the rewrites of commits at its top and in its
+   middle, Commit Details between Switch to Commit and Copy, the file items after Open Commit in
+   Browser.
+2. **Undo had Discard Changes in a File among the undos of commits**, away from the other discards.
+3. **Set Commit Branch Manually was in the branch menu**, where it set the branch of the cursor's
+   commit, which need not be on the branch the menu was for; under Branches in the commit menu, the
+   branch the menu was opened for had nothing to do with it.
+4. **The branch menu had Hide Branch between Rebase onto and Pull**, and Diff Branch to among the
+   items that make and remove branches.
+5. **Names that did not match**: Open in Browser in the branch menu beside Open Commit in Browser and
+   Open Repository in Browser; `<= (Move Branch left of x)` and `=> (Move right of y)`; Full File
+   History, though nothing beside it is a partial one; and the `d` menu of a highlighted branch
+   titled `Diff Branch to dev` for dev's own diff, naming the wrong end.
+
+### As done (2026-10-18)
+
+All five. The commit menu is four groups under lines of their own: writing commits, looking at
+this one, taking it to a branch, and the sub menus of the rest; Undo is the last change, the undos
+of commits, the discards and the recoveries. Set Commit Branch Manually is in the commit menu. The
+branch menu is moving its commits, making and removing branches, looking at it, and how it is shown.
+The names are Open Branch in Browser, Move Left of 'x', Move Right of 'y', File History, which now
+opens at the commit its menu is for as the blame's `⇧l` does, and `Diff dev to`. The end-to-end tests
+walk a menu by the name of an item (`TmuxSession.SelectMenuItem`), so an order change no longer
+breaks their counts of key presses.
+
+**Discard All Changes merged (2026-10-18).** Undo had Discard All Changes and Discard All Changes
+and Ignored Files, two items for one choice. Discard All Changes ... is now the one, whose question
+lists the files git ignores, when there are any, and offers **Discard and Delete Ignored** beside
+Discard, Cancel the default; with no uncommitted changes it asks to delete just those. The list is
+the ignored files alone (`git clean -n -X -d`), what nothing brings back, where the old question
+listed the untracked files too, which Restore Discarded Changes does.
+
+Open: **Remove Tag** beside Delete Branch, which git calls a delete for both, was left: Remove is the
+word of the whole tag feature (the Tags dialog's button, its question and its status message).
+**Merge Commit into main** and **Cherry Pick into main** are enabled on a pushed commit of main
+itself: the commit's branch is `origin/main`, which `rb != cb` takes for another branch than `main`.
+
+---
+
+## File browser review (2026-10-18)
+
+Blame File and Full File History pick a file of the row's commit in `FileBrowseDlg`, written early
+as a workaround over Terminal.Gui's `TreeView`. Tried in the built binary in tmux, on a clone of gmd
+itself (617 files).
+
+### Findings
+
+1. **A fixed 50 by 20 box**, whatever the terminal, so deep paths were cut and a tree of a few
+   hundred files was a long walk through a small window.
+2. **No way to type a name.** The only way to a file was the arrows through its folders, in a repo
+   of thousands of files.
+3. **Enter on a folder did nothing**, and only `→` opened one, which nothing said: no key hints, and
+   a Cancel button but none to pick with.
+4. **It did not look like gmd**: `TreeView`'s own `├>` lines, an open folder with no marker at all,
+   folders and files in the same color, and its own highlight, on the name alone.
+5. **Nothing pointed at the likely file.** It opened on the first folder, though the file wanted is
+   most often one the commit changed.
+
+### As done (2026-10-18)
+
+All five: the dialog is now laid out as Find Branch is, a field to type in over a list and a status
+line with the keys, as large as the terminal allows (up to 90 by 34). With nothing typed
+(`FileTree`, drawn in gmd's own rows by `FileBrowseRows`), the files the commit changed come first
+under *Changed in commit 1be33bd1* (*Uncommitted changes* on that row), the cursor on the first, and
+then under *All files* the tree, every folder closed: `▸` / `▾`, dark guides, folders in the light
+blue of the key hints, a changed file's letter at the right and a `•` on a folder holding one. The
+first version opened the folders of the changed files instead, which the author could not tell the
+reason for: some folders open and others not, the `•` far off at the right edge. The arrows skip the
+two headings. Typing lists the files whose path has every word (`FileFinder`, ranked as
+`BranchFinder` is), the words marked in yellow; clearing it goes back to the tree as it was. Enter
+or a click picks a file or opens and closes a folder, `→` / `←` open, close and go up. The titles
+are the menu items', and the status line says what the files are (`617 files of commit 1be33bd1`)
+and what Enter does where the cursor is.
+
+**Blame and file history linked (2026-10-18).** The two were reached only from the commit menu,
+sharing the file browser, and the blame led to the history of its lines (`l`) and a commit's diff
+(`d`) but nothing led from a diff to a blame. Merging them into one view, a commit list beside the
+diff or the blame of the selected commit as Fork and SourceTree have it, was weighed and left: it
+needs the width gmd lacks below 150 columns, and gives up reading a file history as one diff. They
+are linked both ways instead: `b` in any diff blames the file at the cursor's commit and line (a
+removed line in the version before), and `⇧l` in the blame shows the file's history at the line's
+commit, each on top of the other, `Esc` going back.
+
+**The folder browser (2026-10-18)** (`FolderBrowseDlg`: Init, Clone, Create Worktree and opening a
+repository, from the start page or the repo menu) was the same kind of workaround over `TreeView`,
+and is now laid out as the file browser is, its rows drawn the same way (`FolderBrowseRows`, sharing
+`FileBrowseRows`' helpers), as large as the terminal allows, titled for what it picks for (*Open
+Repo*, *Folder to Clone Into*, ...) and its status line saying where the cursor is and what Enter
+does. The tree (`FolderTree`) starts from the folders given, home and `/`, each by its whole path
+(`~/code`), the first open, and reads a folder only as it is opened, since it is the disk and not a
+list of paths, so it shares the rows rather than `FileTree`; a folder listed is looked into only for
+its `.git`, which marks it `repo` at the right, where the file browser has a change's letter. A
+folder not read yet has `▸`, and loses it once read with nothing in it. Dot folders come last, not
+hidden, as `.worktrees` is wanted for Create Worktree. Typing (`FolderFinder`) cannot search the
+whole disk, so it does two things: a name finds among the folders listed so far, ranked as
+`FileFinder` ranks files, and a path (`~/...`, `/...`) lists the folders in the folder it names, as
+a shell completes one, the folder itself first when the path ends in a separator, so Enter picks it;
+`→` at the end of the text goes into the folder found, as its path. Enter or a click on a name
+picks, a click on `▸` / `▾` opens or closes. The Cancel button went, as the file browser has none:
+Esc closes it.
+
+---
+
+## Rebase and squash review (2026-10-17)
+
+gmd is made for merge workflows, but most people and agents work on branches, merged with a commit,
+squash merged or rebase merged, and gmd can still help while a branch lives. Made by trying each
+case in the built binary in tmux, on throwaway repositories with an origin, and a stand-in for
+GitHub's squash merge and rebase merge (a second clone that merges and deletes the branch there).
+
+### Findings
+
+1. **Three rules for rewriting pushed commits.** Squash allows them, with no warning and no push;
+   Amend (the last commit or an older one), Drop and Uncommit refuse them ("Only a commit not yet
+   pushed can be amended"); Rebase and Push onto allows them, asks, and force pushes with a lease,
+   but only when the rebase has no conflict: continued after one, nothing pushes
+   (`BranchWriteService.RebaseBranchAsync`).
+2. **After a squash of pushed commits gmd advised the wrong thing.** The top bar said `▼3, ▲1`, the
+   three old commits were drawn `▼` "to pull", and the key hints offered `u pull` and no push. `p`
+   said "has remote commits not yet pulled. Pull current remote branch first before pushing, or do
+   you want to force push? NOTE: be careful!". `u` asked *Pull Diverged Branch* with Merge the
+   default, which would have merged the old commits back beside the squash, every change twice, and
+   saved `pull.rebase=false`; Rebase would have replayed the squash onto them, empty, undoing it.
+   The same followed a conflicted Rebase and Push onto, and an agent's rewrite on the command line.
+   gmd told the mirror case, origin force pushed by someone (`RemoteRewrites`), and not this one.
+3. **The squash dialog.** The message joins the old ones with `-----` lines, which go into the commit
+   as they are; the range is written `4050decb...80daa352`, git's three dots being the symmetric
+   difference; the commit gets the user as author and the time now, where git's own squash keeps
+   the first commit's; and nothing says the commits are on origin. *Fixed (2026-10-17)*, but for
+   the author and time: the message is the oldest's with the newer subjects listed as '*' items, as
+   GitHub writes a squash merge, the item and the heading count the commits, and B's box says the
+   force push. The author's email is not read with the log, so the squash cannot keep the author.
+4. **A branch squash or rebase merged on origin looks never pushed.** Once a fetch prunes the remote
+   branch the pull request deleted, `git branch -vv` says `[origin/feature: gone]`, but the
+   augmentation clears the remote name (`Augmenter.AddAugBranches`), so `p` says "'feature' is not
+   on origin yet: Push in its branch menu publishes it", which would make the deleted branch again,
+   and Amend and Drop take its commits for not pushed. Nothing says its work is in main. The
+   worktree list says `unmerged` (a tip with no child, `RepoExtensions.HasUnmergedCommits`) and
+   Remove Worktree leaves *Delete branch* unticked, so every agent branch merged by a squash pull
+   request looks unsafe to delete.
+
+### Proposals, most value first
+
+- **A. Tell "rewritten here, origin has the old version"**, the mirror of RemoteRewrites, from the
+  branch's own reflog: it was where origin is now, and something moved it off that commit. The old
+  version drawn dark rather than `▼`, `p` a force push asked first, naming what it replaces, `u`
+  never merging it back. *Done (2026-10-17)*, see below.
+- **B. One rule for rewriting pushed commits.** Squash, Amend (a reword too), Drop and Rebase of a
+  pushed branch when it is the user's to rewrite: not main nor an integration branch
+  (`WellKnownBranches`), and the commits replaced on origin their own (author), else the question
+  names the others. The dialog says the commits are on origin and has a *Push with force when done*
+  box, ticked, as Add Tag's *Push to origin* is. The way back is there already: the lease, Undo,
+  Restore origin. Rebase and Push onto then becomes Rebase onto. Answers "reword an old pushed
+  commit". *Done (2026-10-17)*, see below.
+- **C. Branches merged on origin by a squash or a rebase.** Keep git's `gone`: "deleted on origin",
+  `p` asking before publishing it again. Tell merged: a rebase merge by patch id (`git cherry
+  origin/main <branch>`, every commit `-`), a squash merge by the branch's whole change as one patch
+  among main's commits since the merge base (tried: a `commit-tree` of the branch's tree on the merge
+  base, then `git cherry`, gives `-` for the squash). Only for the local branches whose remote branch
+  is gone, so a few git calls. Say it in the log and the worktree list, and offer *Delete Merged
+  Branches ...*, a ListDlg of the local branches merged any of the three ways, with their worktrees,
+  recorded for Restore Deleted Branch: what `gh poi` and `git-delete-squashed` are for. *Done
+  (2026-10-17)*, see below.
+- **D. Rebase.** `--update-refs`, so that a stack of branches (feature-b on feature-a, as agents
+  make) moves along, which gmd's branch hierarchy knows; it also lifts "another branch is on this
+  commit or after it" for Amend, Drop and Squash when that branch is local. `--autostash`, as Amend
+  of an older commit has, rather than refusing with changes.
+- **E. New commands.** Move commits to a new branch (committed on main by mistake: a branch at HEAD,
+  and `reset --keep` of main to origin's); reorder (Move Up and Move Down, an interactive rebase of a
+  todo gmd writes, which needs `GIT_SEQUENCE_EDITOR` per call, `Cmd` forcing it to `true`); squash
+  merge (`git merge --squash`, the commit dialog with the branch's subjects as a list, as GitHub
+  writes them, then the offer to delete the branch, which would look unmerged); and, open in the
+  product review already, a cherry pick of the selected commits and a reset of a branch to any
+  commit. Later, an absorb of the uncommitted changes into the commits that last touched the lines.
+  *Done (2026-10-17):* Move to New Branch ..., and Reorder (Move Above and Move Below, each naming
+  the commit passed), see below. A cherry pick of the selected commits, and a reset of the current
+  branch to any commit, too. Open: squash merge, absorb.
+
+### E, as done so far (2026-10-17)
+
+- *Move to New Branch ...* in the commit menu: the commit and the newer ones of the current branch,
+  not pushed, moved to a new branch made where they are and checked out (files and changes as they
+  are), published when ticked; the old branch goes back to the commit before them with git's own
+  'branch: Reset to' in its reflog, which Undo in its branch menu reads as a reset. The inference
+  draws the commits on the new branch, though the reflog says they were made on the old one.
+- *Reorder* in the commit menu, greyed out when neither way can be: the commit swapped with the
+  next one of the branch, or the one before it, by `rebase -i --autostash` with gmd's todo list, put
+  in place by a sequence editor that copies it (`cp`, through git's shell, also on Windows, where it
+  is not tried yet), set for that command over Cmd's `true`. On Amend's rules for the older of the
+  two; a conflict stops it as any rebase; recorded as StepKind.Move for Undo.
+- *Cherry Pick N Commits into x*: the range pick there was, but hidden, committed each picked commit
+  again as the user, losing its author, and lost the rest of the range on a conflict, since a pick
+  with `--no-commit` leaves git no sequence to continue. Now git's own `cherry-pick <ids>`, oldest
+  first, recorded for Undo as one change; refused for rows of no one line, of the current branch,
+  or with a merge among them. One commit is staged for the commit dialog as before.
+- *Reset Branch to <sha> ...* in the Undo sub menu: the current branch to any commit, Keep Changes
+  (`--mixed`) or Discard Changes (`--keep`), Cancel the default, the question counting the commits
+  that leave the branch and saying that origin keeps the pushed ones, which a pull brings back. Only
+  from where the repo has the branch (`ResetBranchAsync`). Left: a reset of pushed commits that is
+  meant to take them off origin too has no force push, the branch then being only behind.
+
+### A, as done (2026-10-17)
+
+- `LocalRewrites` (beside `RemoteRewrites`) finds them, for the branches that have diverged from
+  their remote branch only, with no git call: the branch's reflog has origin's tip as a place it
+  was, and the move that took it off (the first after it to a commit without that tip) names it,
+  gmd's own record of a squash, amend or drop first. `Repo.LocalRewrites`, and `Commit.IsReplaced` on
+  the old version in the view repo instead of `IsBehind`, and no `HasRemoteOnly`, so nothing offers
+  a pull.
+- `RewrittenHere` says it: once on the status line when found, e.g. right after a squash
+  (`ForcePushNotes`); the hint `p force push`; the question before the force push, naming the commits
+  it replaces; `u`, the branch menu's Pull and Rebase and Push onto saying why not; Push All leaving
+  the branch out. The force push is leased on origin's tip as shown.
+- Not told, and shown as diverged as before: commits pushed on top of the old version since, whose
+  tip the branch never was at; and a branch only behind, e.g. a reset back, which a pull brings back
+  as before. Rebase and Push onto of a branch rewritten here asks for the force push first, rather
+  than rebasing and pushing once.
+
+### B, as done (2026-10-17)
+
+- One rule in `CommitRewrite` for Amend (`a` and an older commit's), Drop and Squash, pushed or not:
+  the current branch's commits, origin's copy of it being no other branch on them; not while origin
+  has commits the branch has not (unless rewritten here already, when they are its old version), and
+  not a commit on another branch of origin, which the server asks git (`CheckRewritableAsync`,
+  origin/HEAD passed over). `PushedWarning` asks first, No the default, on a shared branch
+  (`Branch.IsShared`: main, integration, release) or of someone else's commits on origin, by author.
+- The push with the rewrite: a *Push to 'origin/x' with force when done* box in the amend and squash
+  dialogs (`ForcePush`), ticked unless the rewrite was asked about first; *Drop and Push* in Drop's
+  question; *Rebase onto*, renamed from Rebase and Push onto, asks *Rebase and Push*, *Rebase* or
+  Cancel. Leased on origin's tip as shown; a refused push leaves the branch rewritten here (A).
+- Found on the way: a squash of pushed and unpushed commits together was refused as "on different
+  branches", the two halves of a branch having different names.
+- Left: Undo of an amend pushed by force is refused, as for a pushed commit ("would come back with a
+  pull"), where Recover Lost Commits has the old one; Rebase onto of a branch rewritten here asks for
+  its force push first; Uncommit stays for commits not pushed.
+
+### C, as done (2026-10-17)
+
+- `Branch.GoneRemoteName` keeps the remote branch git reports gone. `p` says the branch was deleted
+  on origin, the details pane says so, and Push in its branch menu asks before making it again.
+- `MergedBranchService` tells which of those were squash or rebase merged (`git merge-tree
+  --write-tree`, git 2.38, into the branch it was made from and into main, as origin has them), for
+  the ones with a tip no child has, after the repo is shown, its answers kept for the session by
+  commit ids and put in every read at once (`Repo.MergedOnOrigin`). The tip is marked `✓`, the
+  details pane, `p` and the push question say where it went, the status line says it once, and the
+  worktree list and Remove Worktree count it merged (git deletes it forced).
+- *Delete Merged Branches ...* in the repo menu: the local branches with no branch on origin whose
+  work is in main or an integration branch, merged as git counts it (`git branch --merged`) or by
+  content on origin; not one with no commit of its own. Delete, or Delete All after a question, each
+  forced and recorded for Restore Deleted Branch; one checked out here or in a worktree is listed and
+  left. The branch menu's Delete Branch no longer asks for force for one merged on origin.
+- Left: a branch squash merged whose origin branch was not deleted is not told, nor one whose lines
+  main changed again since (the merge conflicts), nor one merged into another branch than its parent
+  or main; merged branches still on origin are not listed, since deleting them is deleting them for
+  everyone; and Delete Merged Branches does not remove the worktree of a branch with the branch.
 
 ---
 
@@ -153,6 +425,11 @@ that does not fight the diff's colors, light themes.
   in the bar and the repo menu, where it was, rather than a button next to the finish. The diff draws
   an unmerged file as its header and one row, "2 conflicts: Enter resolves them". Left out: the
   other changed files in the list, which the diff shows.
+  *Since (2026-10-19):* one view for all the files, so the log no longer shows between them; the
+  header starts `Resolve conflicts: Merge`, with `file 1 of 3` only while the list is hidden; the
+  list's arrows show the file they select at once, as the diff's list does; and the decisions not
+  saved are kept per file for the session (`ConflictDecisions`) rather than asked about at each file
+  left, closing asking about all of them, Save and Close saving them all.
 - [x] 7. Typing in the result (7), after the probe. *Done (2026-10-16):* the probe passed (see
   `MODERNIZATION.md`, Terminal.Gui), so `e` types the conflict in the result pane rather than a box
   over the sides: a `UITextView` laid over the conflict's rows, the file's lines above and after it,
@@ -402,11 +679,13 @@ Both are reworked, see proposal D.1.
 - **What happens when gmd crashes?** It logs the exception and exits without a word
   (`ExceptionHandling.cs:60-110`, where the dialog for it is commented out). The About box has no
   link to the project, and nothing says how to report a problem or where the log is.
-- **What does gmd write, and what does it send?** `.gmdconfig` in each repository's git folder;
-  `refs/gmd-metadata-key-value/data` in every repository with a reflog, pushed only when the shared
-  branch structure is on; `~/.gmdconfig` and `~/gmd.log`; a request to GitHub's releases API every
-  hour unless that is turned off; and the tags of Add Tag, above. There is no telemetry. People ask
-  this before they run a tool on their work, and the README should answer it.
+- **What does gmd write, and what does it send?** `.gmdconfig` and `gmd-metadata.json` in each
+  repository's git folder; the refs `refs/gmd/discarded` and `refs/gmdtags/origin/*`; with the
+  shared branch structure on, `refs/gmd-metadata-key-value/data` on origin, of the commits origin has;
+  `~/.gmdconfig` and `~/gmd.log`; a request to GitHub's releases API every hour unless that is turned
+  off; and the tags of Add Tag, above. There is no telemetry. People ask this before they run a tool
+  on their work, and the README answers it, in "What Gmd Stores and Sends" (complete since
+  2026-10-18, when the metadata moved out of the repository into the file).
 - **Can others contribute?** Building needs a preview .NET 11 SDK, for the C# 15 unions, until .NET
   11 is released (`docs/UPGRADING.md`).
 - **Can it be found?** "gmd" is hard to search for. A tagline, the repository's GitHub topics and the
@@ -536,9 +815,13 @@ Both are reworked, see proposal D.1.
    or a test pass, and its question lists what git's dry run says it deletes, so a `.env` meant to
    be kept is seen before Yes. The `5` key is gone, *Set Commit Branch Manually* stays in the
    branch menu. `g` stays, since automatic branch colors often collide and changing one is how two
-   branches are told apart; `<=` / `=>` never had keys. *And the search words (2026-10-07):* `*`
+   branches are told apart (fewer since 2026-10-19: a branch is given a color unlike its parent's and
+   its siblings', and keeps it); `<=` / `=>` never had keys. *And the search words (2026-10-07):* `*`
    and `$` are searched for as text now; *Ambiguous* in Show Branch lists the ambiguous branches,
-   and `Φ` in the graph marks a commit whose branch was set by hand.
+   and `Φ` in the graph marks a commit whose branch was set by hand. *And Show Branch
+   (2026-10-19):* in the repo menu beside Search, rather than at the bottom of every branch menu,
+   where it was the one item not about the branch the menu is of, and read as showing that branch;
+   `Shift-→` and Branches in the commit menu keep it.
 
 **D. Reach:**
 
@@ -855,6 +1138,10 @@ Each has a regression test, and `MODERNIZATION.md` records them under "Bugs fixe
    to finish` in yellow), a click on it opening Resolve Conflicts / Continue / Skip / Abort,
    `Shift-M` for the repo menu (hinted as `M abort…` while an operation lasts), and a
    `ConflictError` from git reported by `RepoCommands.ShowConflicts`.
+   *And in Undo (2026-10-18):* the user, wanting out of a merge, looked under Undo in the commit
+   menu, found no Abort, and took Discard All Changes, which ends a merge only because its
+   `reset --hard` drops `MERGE_HEAD`, and leaves a rebase going. Abort heads Undo now while an
+   operation lasts, the repo menu's command under the same name.
 5. **A disabled item says why** when chosen, or in the hint line. *Done (2026-09-25):* a click on a
    greyed out item, or its key, puts the reason on the status line (`MenuItem.WhyNot`, `Why`), for
    the branch, commit, repo, push and pull menus. The Amend item is enabled as the `a` key is.

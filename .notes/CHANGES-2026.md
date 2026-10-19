@@ -1,9 +1,10 @@
 # Gmd in 2026: an overview of the changes
 
 What changed in gmd this year, grouped by theme, the larger and the noticeable changes only. Work
-resumed on 2026-07-25, after nothing since 2025-11-22, and this overview covers up to 2026-10-14.
-All of it is released. The last release, 1.7 (2026-10-14), brought a review of every layer, which is
-listed on its own at the end, and installing with Homebrew.
+resumed on 2026-07-25, after nothing since 2025-11-22, and this overview covers up to 2026-10-17.
+All of it up to 1.12 (2026-10-17) is released. 1.7 (2026-10-14) brought a review of every layer and
+installing with Homebrew, and 1.12 the review of the diff and the resolver. The rebase and squash
+review after it is on `dev`, in previews; it and 1.7 are listed on their own at the end.
 
 The detailed records are elsewhere, and this file points to them rather than repeating them:
 
@@ -15,13 +16,13 @@ The detailed records are elsewhere, and this file points to them rather than rep
 
 **In numbers**
 
-| | Start of the year | 2026-10-14 |
+| | Start of the year | 2026-10-17 |
 | --- | --- | --- |
-| Version | 0.91 | 1.7 (1.0 released 2026-10-08) |
-| Releases from `main` this year | | 21 |
-| Commits this year (not counting merges) | | about 485 |
-| C# lines in `gmd/` | about 20,500 | about 40,900 |
-| Test methods | 2 | about 1,810 (about 1,590 in `gmdTest`, about 220 end to end) |
+| Version | 0.91 | 1.12 (1.0 released 2026-10-08) |
+| Releases from `main` this year | | 26 |
+| Commits this year (not counting merges) | | about 610 (about 590 released) |
+| C# lines in `gmd/` | about 20,500 | about 48,700 |
+| Test methods | 2 | about 2,120 (about 1,860 in `gmdTest`, about 260 end to end) |
 | .NET | 8 | 10 (built with the .NET 11 SDK for C# 15) |
 
 ---
@@ -40,10 +41,25 @@ The detailed records are elsewhere, and this file points to them rather than rep
 | 10-08 | **1.0** | Help on GitHub, force push leased on what was shown, a broken config no longer stops gmd; scripts moved into `scripts/` |
 | 10-13 | 1.5, 1.6 | **Start page** in place of the start menu; the update offer shown the same way everywhere |
 | 10-13 to 10-14 | **1.7** | **A review of every layer** (Common, Git, Utils, Server, Installation, Cui), cancelling an update, a safer squash, **Homebrew**, the hang at start on macOS fixed (see "1.7" at the end) |
+| 10-14 | 1.8 | Installing on Windows with one **PowerShell** command, and in a **dev container** with a feature of its own |
+| 10-15 | 1.9, 1.10 | The details pane with the commit's files and its parents' branches, the **Copy** menu (`Ctrl-C`), the latest 50,000 commits, a large repo's log read much faster, the branch inference faster and surer of deleted branches |
+| 10-16 | 1.11 | **Commit and discard part of a file**, Restore Discarded Changes, search in the diff and the blame, whitespace hidden in the diff |
+| 10-17 | **1.12** | **The diff and resolver review**: the diff drawn calmer, in one column on a narrow terminal, with a file list beside a wide one; the resolver goes through the files one after another, shows each side as its change, combines both, and shows the file as it will be saved |
+| 10-17 | on `dev` | **The rebase and squash review**: a branch rewritten after it was pushed is pushed with force rather than pulled back; branches squash merged on GitHub are told merged and cleaned up; pushed commits are rewritten on one rule; Reorder, Move to New Branch, cherry pick of a range, reset to any commit (see the end) |
 
 ---
 
 ## The larger new features
+
+**The diff and the resolver** (1.12, 2026-10-17), after a review of the two views most of the work
+is read in. The diff has a bar beside each changed line and marks the words that differ rather than
+scattered letters, names the function git finds each part in, and steps to the next change with `]`
+and `[` and file with `}` and `{`. It is one column on a terminal narrower than 110 columns (`v`
+switches), lists the files beside it on one of 150, and hides a generated file's lines with `h`.
+The resolver goes through the conflicted files one after the other and offers to commit or continue
+once none is left; it shows each side as what it changed in the common ancestor, named by its branch
+and subject, combines both where they changed other words (`c`), shows the whole file below as it
+will be saved, and lets a conflict be typed by hand (`e`).
 
 **Conflict resolution** (August and September). A merge, rebase, cherry pick, revert or `am` that stops on
 conflicts used to put git's output in a red error box. Now gmd says what stopped and which files,
@@ -80,11 +96,21 @@ coding agents, which work in worktrees and branches of their own.
   tracked, with origin's copy too if it was deleted there.
 - **Force push on origin**: gmd tells when someone rewrote a branch on origin, pulls it by moving
   the local commits onto the new version rather than merging the old one back in, and can put
-  origin back from before the force push.
+  origin back from before the force push. Its mirror came with the rebase and squash review: a
+  branch rewritten here after it was pushed (see the end).
+- **Restore Discarded Changes** (1.11): uncommitted changes were never in git's history, so a
+  discard of lines, a file or all changes, and a dropped stash, keep what they threw away as commits
+  on a ref of gmd's own, kept for about 30 days, and put back from the Undo menu.
 
-**Rewriting commits not pushed yet** (October). **Amend** and **Drop** of any commit not pushed yet,
-from its commit menu, done with git's own `rebase --autosquash` and recorded for Undo. Squash was
-rewritten in 1.7 (2026-10-14), see the end.
+**Rewriting commits** (October). **Amend** and **Drop** of any commit not pushed yet, from its commit
+menu, done with git's own `rebase --autosquash` and recorded for Undo (0.96). Squash was rewritten in
+1.7 (2026-10-14), see the end. On `dev`, commits on origin are rewritten too, on one rule, with the
+force push in the same step, and a commit can be moved past the next one (Reorder); see the end.
+
+**Committing part of a file** (1.11, 2026-10-16). In the diff of the uncommitted changes, `x` leaves
+the change the cursor is on, or the lines selected, out of the next commit, which takes the rest,
+done through a copy of the index so the real one and the working tree are never written; `u`
+discards a change or the selected lines the same way. Renamed and deleted files too.
 
 **The commit dialog** (September and October). Spell checking of the message, with suggestions, a
 dictionary of the user's own words, and a hint on the frame edge counting the misspelled words.
@@ -113,6 +139,10 @@ never asks. It says that a login is needed, and `r` fetches and asks.
 - **Find Branch**: typing in the Show Branch menu (`Shift-→`) narrows a list of branches by name.
 - **Diff any two commits**: Mark for Diff on one, then Diff with it on the other.
 - **Diff context** per file: `+` and `-` step from 6 lines to 15 and then to the whole file.
+- **Search in the diff and the blame** with `f` or `/`, and `n` and `Shift-N` (1.11), and the
+  changes of whitespace alone hidden with `w`.
+- **Copy** (`Ctrl-C`, 1.10) asks what to copy: of a commit its id, message, subject or link, of
+  the rows selected their ids, messages or range, oldest first, as `git cherry-pick` takes them.
 - **Open in Browser**: a branch, a commit, the repository, or a new pull request into the branch it
   was made from, on GitHub, GitLab, Bitbucket, Azure DevOps or Gitea. With no browser, as over ssh,
   the link is copied instead.
@@ -159,6 +189,9 @@ Most of this came from the usability review (2026-09-25) and the product review 
   tips, tags and graph are shown whole. The columns stay in place with Chinese, Japanese and emoji
   text.
 - Dates have the year in full, and the current row is highlighted across the graph too.
+- **The details pane** (1.10) gives the commit's message most of its room, lists the files it
+  changed with their lines added and deleted, and names the branch of a parent or child on another
+  one, so a merge says what it merged. Commit ids have eight characters, as `git log --oneline`.
 
 ---
 
@@ -220,6 +253,8 @@ before and after comparison over real repositories (`InferenceDumpTest`), not on
 **Installing**: with Homebrew on macOS and Linux, `brew install michael-reichenauer/tap/gmd` (1.7),
 from a tap that the release workflow writes the formula into at every release. Without it,
 `install.sh` downloads the binary for the OS and CPU and checks it against the release's checksums.
+On Windows, one PowerShell command installs gmd into a folder and a PATH of your own, with no admin
+rights, and a dev container gets it with the feature `ghcr.io/michael-reichenauer/gmd/gmd:1` (1.8).
 
 **The updater** was split into four classes and tested (from no tests to 49), in 1.7 apart from the
 last item. It now:
@@ -319,6 +354,40 @@ Released as v1.7.1445.1049, everything on `dev` since v1.6.1444.518: a review of
 
 ---
 
+## On `dev` (2026-10-17): the rebase and squash review
+
+gmd is made for merge workflows, but most people and agents work on branches merged by a squash or
+a rebase on GitHub, or rebase their own. The review tried each case in the built binary, on
+repositories with an origin and a stand-in for GitHub's squash merge, and found gmd advising the
+wrong thing at the worst moment. Its findings and proposals are in `.notes/USABILITY.md`.
+
+- **Rewritten here, after it was pushed**: a squash, amend or rebase of pushed commits, in gmd or by
+  an agent, left the branch looking diverged: `▼3, ▲1`, the old commits drawn to pull, `p` advising a
+  pull first, and `u` offering Merge as the default, which would have put every change in twice.
+  The branch's reflog tells it apart now: the old version is drawn dark, nothing is to pull, and
+  `p` pushes with force, naming what it replaces, leased on origin as shown.
+- **Deleted on origin, and merged there by a squash or a rebase**: a branch whose pull request
+  GitHub merged and deleted looked never pushed, and `p` would have made it again. It is said to be
+  deleted on origin now, and one merged by a squash or a rebase, which git counts unmerged, is told
+  by content (`git merge-tree`, after the repo is shown, kept for the session) and marked `✓`, and
+  the worktree list counts it merged. **Delete Merged Branches** lists the local branches merged
+  into main, either way, and deletes them, each restorable.
+- **One rule for rewriting commits**: Squash allowed pushed commits with no word, while Amend and
+  Drop refused them, so a pushed commit's message could not be fixed. Now all of them, and Rebase
+  onto, rewrite pushed commits too: not while origin has commits the branch has not, asked first on
+  main, develop or a release branch or of someone else's commits, with a box or a button to push
+  with force in the same step. Rebase and Push onto is Rebase onto, the push asked.
+- **New commands**: **Reorder** (Move Above and Move Below, each naming the commit passed), **Move to
+  New Branch** for commits made on the wrong branch, a **cherry pick of the selected commits** as
+  they were made, authors kept, undone in one step, and **Reset Branch to** any commit, keeping or
+  discarding the changes. A squash starts with the oldest message and the others listed below it,
+  as GitHub writes a squash merge.
+- Left for later: squash merge and absorb; commits pushed on the old version after a rewrite here,
+  which still look diverged; the undo of an amend pushed by force; a reset meant to take pushed
+  commits off origin too.
+
+---
+
 ## Postponed or left out on purpose
 
 Each is in `.notes/MODERNIZATION.md` (under Deferred) or `.notes/USABILITY.md`, with the reasoning:
@@ -332,5 +401,7 @@ Each is in `.notes/MODERNIZATION.md` (under Deferred) or `.notes/USABILITY.md`, 
   no SmartScreen warning since no browser downloads it, and a dev container feature. winget was left
   out: Defender in its validation blocks an unsigned program few have run, and gmd is not signed.
   Scoop, a dotnet tool, AUR and an Intel Mac build are postponed (`.notes/USABILITY.md`, item 24).
-- **Staging of single lines or hunks**, left out: the file checklist in the commit dialog was judged
-  the right size for gmd.
+- **A staging area**, left out: the file checklist in the commit dialog was judged the right size
+  for gmd, and since 1.11 lines are left out of a commit with `x` instead, with nothing staged.
+- **Squash merge and absorb**, from the rebase and squash review: most squash merges are made on
+  GitHub, and absorb is the most work of what was proposed.

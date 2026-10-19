@@ -1,3 +1,4 @@
+using gmd.Git;
 using gmd.Server;
 using gmd.Server.Private;
 using gmd.Server.Private.Augmented;
@@ -60,7 +61,7 @@ public class AugmentedServiceIntegrationTest
         await repo.GitAsync("checkout main");
         await repo.CommitFileAsync("main.txt", "main\n", "Main work");
 
-        var metaDataService = new MetaDataService(repo.Git, new FakeRepoConfig());
+        var metaDataService = new MetaDataService(repo.Git, new FakeRepoConfig(), new MetaDataFile());
         var service = RepoBuilder.NewAugmentedService(repo.Git, metaDataService);
         var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
 
@@ -274,7 +275,7 @@ public class AugmentedServiceIntegrationTest
         Assert.IsFalse(status.IsMerging, "Nothing was merged, so there is nothing to commit");
     }
 
-    // Rebase and Push onto force pushes over origin's branch as the repo had it when the user chose
+    // Rebase onto, asked to push, force pushes over origin's branch as the repo had it when the user chose
     // it, not as a fetch may have moved it since, so a commit someone else pushed meanwhile is kept,
     // and the error says the rebase is done and the push is not
     [TestMethod]
@@ -292,7 +293,7 @@ public class AugmentedServiceIntegrationTest
         await repo.GitAsync("push -q origin dev"); // As pushed elsewhere and fetched here
         await repo.GitAsync("reset -q --hard HEAD~1");
 
-        var error = AssertError(await BranchWrites().RebaseBranchAsync(shown, "main"));
+        var error = AssertError(await BranchWrites().RebaseBranchAsync(shown, "main", isPush: true));
 
         StringAssert.Contains(error.AllMessages(), "Rebased 'dev' onto 'main', but did not push it");
         StringAssert.Contains(error.AllMessages(), "origin/dev has changed since gmd showed it");
@@ -300,7 +301,8 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual("Main work", (await repo.GitAsync("log -1 --format=%s dev~1")).Trim(), "Rebased");
     }
 
-    IBranchWriteService BranchWrites() => new BranchWriteService(repo.Git, new FakeMetaDataService(new MetaData()));
+    IBranchWriteService BranchWrites() =>
+        new BranchWriteService(repo.Git, new FakeMetaDataService(new MetaData()), new FakeRepoConfig());
 
     // Initial on main and one commit on a 'dev' branched out from it, with 'dev' current, i.e.
     // the smallest repo that has something to merge back to main
@@ -355,4 +357,102 @@ public class AugmentedServiceIntegrationTest
 
     static Repo ViewRepo(Repo augRepo, ShowBranches show = ShowBranches.Specified) =>
         new ViewRepoCreater(new ViewRepoConverter(), new FakeRepoConfig()).GetViewRepoAsync(augRepo, [], show, 10);
+
+    // Commits made on main by mistake, moved to a new branch: it is checked out where main was, and
+    // main goes back to the commit before them, its last change a reset, which Undo takes back. The
+    // reflog says the commits were made on main, but they are drawn on the new branch, since main
+    // no longer has them.
+    [TestMethod]
+    public async Task TestCommitsMovedToANewBranch()
+    {
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        var initial = await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        var first = await repo.CommitFileAsync("b.txt", "b\n", "Meant for a branch");
+        var second = await repo.CommitFileAsync("c.txt", "c\n", "This too");
+        repo.WriteFile("d.txt", "d\n");
+
+        AssertOk(
+            await BranchWrites()
+                .MoveCommitsToNewBranchAsync(AssertOk(await service.GetRepoAsync(repo.Path)), "fix", first)
+        );
+
+        Assert.AreEqual("fix", (await repo.GitAsync("branch --show-current")).Trim());
+        Assert.AreEqual(initial, (await repo.GitAsync("rev-parse main")).Trim());
+        Assert.AreEqual(second, (await repo.GitAsync("rev-parse fix")).Trim());
+        Assert.AreEqual("?? d.txt", (await repo.GitAsync("status --porcelain")).Trim(), "The change is left as it was");
+        var moved = AssertOk(await service.GetRepoAsync(repo.Path));
+        Assert.AreEqual(
+            "fix, fix, main",
+            string.Join(", ", new[] { second, first, initial }.Select(id => moved.CommitById[id].BranchName))
+        );
+        Assert.AreEqual(StepKind.Reset, moved.UndoSteps["main"].Kind);
+    }
+
+    // dev has two commits of Anna's, made from main, which has moved on since
+    async Task<(string One, string Two)> DevOfAnnasAsync(string twoFile = "two.txt")
+    {
+        await repo.CommitFileAsync("a.txt", "a\n", "Initial");
+        await repo.GitAsync("checkout -q -b dev");
+        File.WriteAllText(Path.Join(repo.Path, "one.txt"), "one\n");
+        await repo.GitAsync("add .");
+        await repo.GitAsync("-c user.name=\"Anna Lind\" -c user.email=anna@x commit -qm \"Dev one\"");
+        File.WriteAllText(Path.Join(repo.Path, twoFile), "two\n");
+        await repo.GitAsync("add .");
+        await repo.GitAsync("-c user.name=\"Anna Lind\" -c user.email=anna@x commit -qm \"Dev two\"");
+        var two = (await repo.GitAsync("rev-parse HEAD")).Trim();
+        var one = (await repo.GitAsync("rev-parse HEAD~1")).Trim();
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+        return (one, two);
+    }
+
+    // Several commits are picked by git's own cherry pick, each committed as it was made, its author
+    // kept, and Undo takes them all back as one change
+    [TestMethod]
+    public async Task TestCherryPickSeveralCommitsAndUndoThem()
+    {
+        var config = new FakeRepoConfig();
+        var service = RepoBuilder.NewAugmentedService(
+            repo.Git,
+            new FakeMetaDataService(new MetaData()),
+            new FakeFileMonitor(),
+            config
+        );
+        var (one, two) = await DevOfAnnasAsync();
+        var before = await repo.HeadIdAsync();
+        var read = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        var writes = new BranchWriteService(repo.Git, new FakeMetaDataService(new MetaData()), config);
+        AssertOk(await writes.CherryPickCommitsAsync(read, [read.CommitById[one], read.CommitById[two]]));
+
+        Assert.AreEqual(
+            "Dev two Anna Lind\nDev one Anna Lind\nMain work Test User",
+            (await repo.GitAsync("log --format=\"%s %an\" -3")).Trim()
+        );
+        var picked = AssertOk(await service.GetRepoAsync(repo.Path));
+        var step = picked.UndoSteps["main"];
+        Assert.AreEqual((StepKind.CherryPick, "Dev one, and 1 more"), (step.Kind, step.Name));
+        AssertOk(await new UndoService(repo.Git, config).UndoStepAsync(picked, step));
+        Assert.AreEqual(before, await repo.HeadIdAsync());
+    }
+
+    // One that conflicts stops the pick there, git's own sequence keeping the ones left, which Continue
+    // picks once the conflict is resolved
+    [TestMethod]
+    public async Task TestACherryPickThatConflictsIsContinued()
+    {
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        var (one, two) = await DevOfAnnasAsync(twoFile: "main.txt");
+        var read = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        var error = AssertError(
+            await BranchWrites().CherryPickCommitsAsync(read, [read.CommitById[two], read.CommitById[one]])
+        );
+
+        Assert.IsTrue(ConflictError.IsIn(error), error.AllMessages());
+        File.WriteAllText(Path.Join(repo.Path, "main.txt"), "both\n");
+        await repo.GitAsync("add main.txt");
+        AssertOk(await repo.Git.ContinueOperationAsync(repo.Path));
+        Assert.AreEqual("Dev one\nDev two\nMain work", (await repo.GitAsync("log --format=%s -3")).Trim());
+    }
 }

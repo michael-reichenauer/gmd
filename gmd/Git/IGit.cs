@@ -26,8 +26,14 @@ interface IGit
 
     // The ones of the ids that are commits git still has
     Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd);
+
+    // The ones of the ids that are commits origin has, as last fetched or pushed
+    Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd);
     Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
+
+    // The local branches whose tips the commit has, i.e. merged into it as git counts it
+    Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd);
     Task<Result<Status>> GetStatusAsync(string wd);
 
     // The status of a worktree someone else is working in, read without taking its index lock
@@ -119,6 +125,10 @@ interface IGit
     // Moves the current branch's commits after the fork point onto its remote branch, e.g. 'origin/dev'
     Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
+
+    // The commits picked onto the current branch, oldest first, each committed as it was made, its
+    // author and message kept; stops on a conflict, to be continued, skipped or aborted
+    Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd);
     Task<Result> AbortOperationAsync(string wd);
     Task<Result> ContinueOperationAsync(string wd);
     Task<Result> SkipOperationAsync(string wd);
@@ -152,7 +162,7 @@ interface IGit
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
-    Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd);
 
     // Folds the 'amend!' and 'fixup!' commits into the commits they name, rebasing the commits after
     // the base, or all of them for ""
@@ -167,15 +177,23 @@ interface IGit
     // Moves the commits of the current branch after 'upstream' onto 'onto', keeping their merges
     Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
 
+    // Replays the commits of the current branch after 'baseId' in the order given, oldest first, which
+    // reorders them, by git's interactive rebase; stops on a conflict as any rebase
+    Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd);
+
+    // Whether merging commit 'theirs' into commit 'ours' would change nothing, i.e. what 'theirs'
+    // changed is in 'ours' already, e.g. squash merged or rebase merged: false too on a conflict
+    Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd);
+
     // The branches, remote branches and tags on the commit or after it, as full ref names
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
     Task<Result<string>> GetValueAsync(string key, string wd);
-    Task<Result> SetValueAsync(string key, string value, string wd);
+    Task<Result> DeleteValueAsync(string key, string wd);
     Task<Result<string>> GetOriginValueAsync(string key, string wd);
-    Task<Result<bool>> PushValueAsync(string key, string wd);
+    Task<Result<bool>> PushValueAsync(string key, string value, string wd);
     Task<Result> FetchValueAsync(string key, string wd);
     Task<Result> StashAsync(string message, string wd);
     Task<Result<IReadOnlyList<Stash>>> GetStashesAsync(string wd);
@@ -296,8 +314,10 @@ public enum ConflictKind
 
 // The two sides of an operation stopped on conflicts, as far as git knows them: the branch HEAD is on,
 // "" when it is on none, as during a rebase, and the subject of each side's commit, "" for the other
-// side where git keeps no ref to it, e.g. a cherry pick with --no-commit or an 'am'
-public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject);
+// side where git keeps no ref to it, e.g. a cherry pick with --no-commit or an 'am'. TheirsName is
+// what git calls the other side in the conflict markers it writes, e.g. 'dev' or '1a2b3c4', which
+// 'git checkout --merge' writes as 'theirs' instead.
+public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject, string TheirsName = "");
 
 public record ConflictedFile(string Path, ConflictKind Kind)
 {

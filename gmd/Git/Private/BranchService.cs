@@ -5,6 +5,7 @@ namespace gmd.Git.Private;
 interface IBranchService
 {
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd);
     Task<Result> CheckoutAsync(string name, string wd);
     Task<Result> CreateBranchAsync(string name, bool isCheckout, string wd);
     Task<Result> CreateBranchFromCommitAsync(string name, string sha, bool isCheckout, string wd);
@@ -17,6 +18,7 @@ interface IBranchService
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
+    Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd);
 }
 
 class BranchService : IBranchService
@@ -94,6 +96,17 @@ class BranchService : IBranchService
         return await cmd.RunAsync("git", $"branch -m {oldName} {newName}", wd);
     }
 
+    // The local branches merged into a commit, i.e. whose tips it has: 'git branch --merged', with the
+    // format pinned to the bare name, which config could otherwise color or mark with the '*' of the
+    // current branch or the '+' of one checked out in another worktree
+    public async Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd)
+    {
+        var result = await cmd.RunAsync("git", $"branch --merged {id} --format=%(refname:short)", wd);
+        if (result is not string output)
+            return result.Error;
+        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+    }
+
     public async Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>
         await cmd.RunAsync("git", $"branch {(isForced ? "-D" : "-d")} {name}", wd);
 
@@ -154,6 +167,15 @@ class BranchService : IBranchService
     public async Task<Result> CherryPickAsync(string sha, string wd)
     {
         var rsp = await cmd.RunAsync("git", $"cherry-pick --no-commit {sha}", wd);
+        return ConflictError.ToConflict(rsp, "The cherry pick stopped on conflicts");
+    }
+
+    // Git's own cherry pick of several commits, which commits each as it was made rather than staging
+    // it for a message, as CherryPickAsync does, and which git can continue past a conflict, its
+    // sequence of the ones left being its own (.git/sequencer)
+    public async Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd)
+    {
+        var rsp = await cmd.RunAsync("git", $"cherry-pick {string.Join(' ', idsOldestFirst)}", wd);
         return ConflictError.ToConflict(rsp, "The cherry pick stopped on conflicts");
     }
 

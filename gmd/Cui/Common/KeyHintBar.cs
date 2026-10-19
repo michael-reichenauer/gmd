@@ -1,4 +1,4 @@
-using Terminal.Gui;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
@@ -27,17 +27,18 @@ class KeyHintBar : View
     // view's last row, and put back once the message has been shown long enough, which nothing else
     // would redraw it for. For the diff and the blame, whose messages say what a search found. 'view'
     // is the one the bar is in, redrawn whole, since the row under the bar can be any of its views,
-    // e.g. the blame's commit details.
+    // e.g. the blame's commit details. Terminal.Gui 2.x draws the views under a menu too, so the
+    // message of a greyed out item of a menu open over the view, why it is greyed out, shows beneath it.
     public void FollowStatus(IStatusLine status, bool isHintsShown, View view)
     {
         Visible = isHintsShown;
         status.Changed += () =>
-            UI.Post(() =>
+            UI.OnMainLoop(() =>
             {
                 Update();
                 UI.AddTimeout(
                     (status.Current?.Duration ?? StatusLine.Duration) + TimeSpan.FromMilliseconds(100),
-                    _ =>
+                    () =>
                     {
                         Update();
                         return false;
@@ -48,26 +49,17 @@ class KeyHintBar : View
         void Update()
         {
             Visible = isHintsShown || status.Current != null;
-            SetNeedsDisplay();
-            view.SetNeedsDisplay(); // The row under the bar, when it was shown over it
-
-            // While a menu is open over the view, Terminal.Gui redraws only the menu, and the message
-            // can be the one of a greyed out item of that menu, why it is greyed out, so the line is
-            // drawn now, beneath the menu. The log view's is in the view Terminal.Gui always redraws.
-            if (Application.Current != view && Visible)
-            {
-                Redraw(Bounds);
-                Application.Driver.Refresh();
-            }
+            SetNeedsDraw();
+            view.SetNeedsDraw(); // The row under the bar, when it was shown over it
         }
     }
 
-    public override void Redraw(Rect bounds)
+    protected override bool OnDrawingContent(DrawContext? context)
     {
-        Clear();
         var text = getMessage() is StatusMessage message
-            ? KeyHintLine.ToText(message, Frame.Width)
-            : KeyHintLine.ToText(getHints(), Frame.Width);
+            ? KeyHintLine.ToText(message, Viewport.Width)
+            : KeyHintLine.ToText(getHints(), Viewport.Width);
         text.Draw(this, 0, 0);
+        return true;
     }
 }

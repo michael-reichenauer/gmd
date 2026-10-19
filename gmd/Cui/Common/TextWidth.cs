@@ -5,13 +5,11 @@ namespace gmd.Cui.Common;
 // character outside the basic plane, e.g. an emoji, is two chars. Measured in chars, a subject in
 // Japanese moved the sid, author and time columns after it, and a cut could split an emoji in two.
 //
-// Terminal.Gui 1.x's curses driver cannot draw a character outside the basic plane (an emoji came out
-// as '~I'), so one is drawn as '�', one column, and counted so; it stays itself in the text, which
-// is what a copy takes.
+// A character outside the basic plane, e.g. an emoji, is drawn as itself, as wide as Terminal.Gui
+// counts it, two columns for most: Terminal.Gui 2.x writes it as it is, where 1.x's curses driver
+// could not (it came out as '~I'), and gmd drew '�'.
 static class TextWidth
 {
-    public const string Replacement = "�";
-
     // The columns of a string, quickly for the text below U+0300, all one column wide, which nearly
     // all text is
     public static int Of(string text)
@@ -29,9 +27,7 @@ static class TextWidth
     // still moves past, one
     public static int Of(System.Text.Rune rune)
     {
-        if (!rune.IsBmp)
-            return 1;
-        var width = System.Rune.ColumnWidth(new System.Rune((uint)rune.Value));
+        var width = Terminal.Gui.Text.RuneExtensions.GetColumns(rune);
         return width < 0 ? 1 : width;
     }
 
@@ -78,25 +74,18 @@ static class TextWidth
         return slice.ToString();
     }
 
-    // The string as drawn: a character outside the basic plane as '�', and a control character as
-    // its picture, e.g. '\r' as '␍', one column as counted: a '\r' kept from a file, e.g. a lone one
-    // in a line of a diff, was drawn as it is, which moves the terminal's cursor back to the start of
-    // the row, over what was drawn there
+    // The string as drawn: a control character as its picture, e.g. '\r' as '␍', one column as
+    // counted: a '\r' kept from a file, e.g. a lone one in a line of a diff, was drawn as it is, which
+    // moves the terminal's cursor back to the start of the row, over what was drawn there
     public static string Drawn(string text)
     {
-        if (
-            !text.AsSpan().ContainsAnyInRange((char)0xD800, (char)0xDFFF)
-            && !text.AsSpan().ContainsAnyInRange('\0', (char)0x1F)
-            && !text.Contains('\u007F')
-        )
+        if (!text.AsSpan().ContainsAnyInRange('\0', (char)0x1F) && !text.Contains('\u007F'))
             return text;
 
         var drawn = new System.Text.StringBuilder();
         foreach (var rune in text.EnumerateRunes())
         {
-            if (!rune.IsBmp)
-                drawn.Append(Replacement);
-            else if (rune.Value < 0x20)
+            if (rune.Value < 0x20)
                 drawn.Append((char)(0x2400 + rune.Value));
             else if (rune.Value == 0x7F)
                 drawn.Append('\u2421');

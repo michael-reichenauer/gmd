@@ -9,7 +9,7 @@ namespace gmd.Utils;
 //   if (result is not Status status) return result.Error;
 //   ... status is a Status from here on
 //
-//   if (await git.SetValueAsync(key, json, wd) is Error e) return e;
+//   if (await git.FetchValueAsync(key, wd) is Error e) return e;
 //
 //   return await server.PullAsync(name, wd) switch
 //   {

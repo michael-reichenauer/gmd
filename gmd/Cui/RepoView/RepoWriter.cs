@@ -25,13 +25,15 @@ class RepoWriter : IRepoWriter
 
     readonly IBranchColorService branchColorService;
     readonly IGraphWriter graphWriter;
+    readonly DiffMark diffMark;
 
     record Columns(int Subject, int Sid, int Author, int Time, int GraphWidth);
 
-    public RepoWriter(IBranchColorService branchColorService, IGraphWriter graphWriter)
+    public RepoWriter(IBranchColorService branchColorService, IGraphWriter graphWriter, DiffMark diffMark)
     {
         this.branchColorService = branchColorService;
         this.graphWriter = graphWriter;
+        this.diffMark = diffMark;
     }
 
     public IEnumerable<Text> ToPage(
@@ -60,6 +62,7 @@ class RepoWriter : IRepoWriter
         var crb = repo.Repo.BranchByName[crc.BranchName];
         var isUncommitted = !repo.Repo.Status.IsOk;
         var isBranchDetached = crb.IsDetached;
+        var markedId = diffMark.IdIn(repo.Path);
         Columns cw = ColumnWidths(repo, width);
 
         // Branch? prevBranch = null;
@@ -72,34 +75,38 @@ class RepoWriter : IRepoWriter
             // Build row
             var graphText = new TextBuilder();
             WriteGraph(graphText, repo.Graph, i, cw.GraphWidth, hooverBranchName, i == hooverIndex);
-            WriteBlankOrStash(graphText, c);
-            WriteCheckoutMarker(
-                graphText,
-                c,
-                isUncommitted,
-                isBranchDetached,
-                isSelected,
-                IsTipInOtherWorktree(repo, c)
-            );
-            WriteAheadBehindMarker(graphText, c);
+            var markers = new TextBuilder();
+            WriteDiffMarkOrStash(markers, c, markedId);
+            WriteCheckoutMarker(markers, c, isUncommitted, isBranchDetached, isSelected, IsTipInOtherWorktree(repo, c));
+            WriteAheadBehindMarker(markers, c);
 
             var text = new TextBuilder();
             WriteSubjectColumn(text, cw, c, crb, branchTips);
             WriteSid(text, cw, c);
             WriteAuthor(text, cw, c);
             WriteTime(text, cw, c);
+            // The commit marked for a diff, from its mark to the end of the row, the graph left as
+            // it is, so that it is found again among the others once there is one to diff it with,
+            // and is not taken for the cursor, which the cursor's and a selection's highlights
+            // below replace on their rows
+            if (c.Id == markedId)
+            {
+                markers.Highlight(Color.MarkBg);
+                text.Highlight(Color.MarkBg);
+            }
             // The current commit, across the whole row, the graph too, so that the node it is on is
             // found without following the row across from the subject by eye. Not while a branch is
             // hoovered, since the keys then act on the branch, which the graph shows instead.
             if (i == currentIndex && hooverBranchName == "")
             {
                 graphText.Highlight();
+                markers.Highlight();
                 text.Highlight();
             }
             if (isSelected && c.BranchPrimaryName == crb.PrimaryName)
                 text.Select(); // Selected commit
 
-            rows.Add(graphText.Add(text));
+            rows.Add(graphText.Add(markers).Add(text));
         }
 
         return rows;
@@ -155,8 +162,15 @@ class RepoWriter : IRepoWriter
         text.Add(graphWriter.ToText(graph, index, maxGraphWidth, highlightBranchName, isHoverIndex));
     }
 
-    static void WriteBlankOrStash(TextBuilder text, Commit c)
+    // The commit marked for a diff, which takes the column over from a stash: the mark is there for
+    // a moment and has to be seen, while the top bar still counts the stash
+    static void WriteDiffMarkOrStash(TextBuilder text, Commit c, string markedId)
     {
+        if (c.Id == markedId)
+        {
+            text.Color(Color.DiffMark, DiffMark.Marker);
+            return;
+        }
         if (c.HasStash)
         {
             text.White("ß");
@@ -214,6 +228,7 @@ class RepoWriter : IRepoWriter
             text.BrightGreen("▲");
         else if (c.IsBehind)
             text.BrightBlue("▼");
+        // A commit of the old version of a branch rewritten here has nothing to pull, so no marker
         else if (c.IsUncommitted)
             text.Yellow("©");
         else
@@ -310,6 +325,10 @@ class RepoWriter : IRepoWriter
         else if (c.IsBehind)
         {
             text.BrightBlue(c.Subject);
+        }
+        else if (c.IsReplaced)
+        { // The old version of a branch rewritten here, which a force push replaces
+            text.Dark(c.Subject);
         }
         else if (c.Id == Repo.TruncatedLogCommitId)
         {
@@ -444,6 +463,10 @@ class RepoWriter : IRepoWriter
                                 tipText.Color(color, $"({branchName})");
                             }
                         }
+                    }
+                    else if (repo.Repo.MergedOnOrigin.ContainsKey(b.Name))
+                    { // Only local, origin's deleted once it was squash merged or rebase merged there
+                        tipText.Color(color, "(").White(marker).Green("✓ ").Color(color, $"{branchName})");
                     }
                     else
                     { // Only local branch (no remote branch)

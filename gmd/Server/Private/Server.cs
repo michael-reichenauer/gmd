@@ -12,6 +12,7 @@ class Server : IServer
     readonly ICommitRewriteService commitRewriteService;
     readonly IUndoService undoService;
     readonly IDeletedBranchService deletedBranchService;
+    readonly IMergedBranchService mergedBranches;
     readonly IViewRepoConverter converter;
     readonly IViewRepoCreater viewRepoCreater;
     readonly IFileMonitor fileMonitor;
@@ -24,6 +25,7 @@ class Server : IServer
         ICommitRewriteService commitRewriteService,
         IUndoService undoService,
         IDeletedBranchService deletedBranchService,
+        IMergedBranchService mergedBranches,
         IViewRepoConverter converter,
         IViewRepoCreater viewRepoCreater,
         IFileMonitor fileMonitor,
@@ -37,6 +39,7 @@ class Server : IServer
         this.commitRewriteService = commitRewriteService;
         this.undoService = undoService;
         this.deletedBranchService = deletedBranchService;
+        this.mergedBranches = mergedBranches;
         this.converter = converter;
         this.viewRepoCreater = viewRepoCreater;
         this.fileMonitor = fileMonitor;
@@ -79,7 +82,8 @@ class Server : IServer
         if (repoResult is not Repo augmentedRepo)
             return repoResult.Error;
 
-        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, showBranches);
+        // With what is known of the branches merged on origin, so that a refresh shows it at once
+        return viewRepoCreater.GetViewRepoAsync(mergedBranches.WithKnown(augmentedRepo), showBranches);
     }
 
     public async Task<Result<Repo>> GetUpdateStatusRepoAsync(Repo repo)
@@ -417,16 +421,18 @@ class Server : IServer
     public Task<Result> RenameBranchAsync(string oldName, string newName, string wd) =>
         Paused(() => branchWriteService.RenameBranchAsync(oldName, newName, wd));
 
+    // The metadata is pushed after the branch, since only the values of the commits origin has are,
+    // and so those of the commits just pushed go with it. In the background, as it is best effort, and
+    // a push of the branch is not kept waiting for a second one.
     public async Task<Result> PushBranchAsync(string name, string wd)
     {
         using (fileMonitor.Pause())
         using (Timing.Start($"Pushed {name}"))
         {
-            var metadataTask = augmentedService.PushMetaDataAsync(wd);
-            var pushTask = git.PushBranchAsync(name, wd);
-
-            await Task.WhenAll(metadataTask, pushTask);
-            return pushTask.Result;
+            var pushed = await git.PushBranchAsync(name, wd);
+            if (pushed is Success)
+                augmentedService.PushMetaDataAsync(wd).RunInBackground();
+            return pushed;
         }
     }
 
@@ -466,8 +472,17 @@ class Server : IServer
         return converter.ToViewCommits(commits).ToList();
     }
 
-    public Task<Result> RebaseBranchAsync(Repo repo, string branchName) =>
-        Paused(() => branchWriteService.RebaseBranchAsync(repo, branchName));
+    public Task<Result> CherryPickCommitsAsync(Repo repo, IReadOnlyList<Commit> commitsOldestFirst) =>
+        Paused(() => branchWriteService.CherryPickCommitsAsync(repo, commitsOldestFirst));
+
+    public Task<Result> MoveCommitAsync(Repo repo, string id, bool isUp) =>
+        Paused(() => commitRewriteService.MoveCommitAsync(repo, id, isUp));
+
+    public Task<Result> MoveCommitsToNewBranchAsync(Repo repo, string newBranchName, string commitId) =>
+        Paused(() => branchWriteService.MoveCommitsToNewBranchAsync(repo, newBranchName, commitId));
+
+    public Task<Result> RebaseBranchAsync(Repo repo, string branchName, bool isPush) =>
+        Paused(() => branchWriteService.RebaseBranchAsync(repo, branchName, isPush));
 
     public Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd) =>
         Paused(() => git.RebaseOntoAsync(newBase, oldBase, wd));
@@ -511,13 +526,15 @@ class Server : IServer
         string wd
     )
     {
-        var fileResult = await git.GetConflictFileAsync(path, GitConverter.ToGitConflictKind(kind), wd);
+        // Not back on the caller's main loop between the two, see ConflictService.GetConflictFileAsync
+        var fileResult = await git.GetConflictFileAsync(path, GitConverter.ToGitConflictKind(kind), wd)
+            .ConfigureAwait(false);
         if (fileResult is not Git.ConflictFile file)
             return fileResult.Error;
 
         if (isWithBase)
         {
-            var withBase = await git.WithBaseAsync(file, wd);
+            var withBase = await git.WithBaseAsync(file, wd).ConfigureAwait(false);
             if (withBase is not Git.ConflictFile fileWithBase)
                 return withBase.Error;
             file = fileWithBase;
@@ -572,6 +589,13 @@ class Server : IServer
     // changes in each after it is shown
     public Task<Result<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo) =>
         augmentedService.GetUpdatedWorktreesRepoAsync(repo);
+
+    public bool HasUnknownMergedOnOrigin(Repo repo) => mergedBranches.HasUnknown(repo);
+
+    public Task<Result<Repo>> GetMergedOnOriginRepoAsync(Repo repo) => mergedBranches.GetUpdatedRepoAsync(repo);
+
+    public Task<Result<IReadOnlyList<MergedBranch>>> GetMergedBranchesAsync(Repo repo) =>
+        mergedBranches.GetMergedBranchesAsync(repo);
 
     public Task<Result> AddWorktreeAsync(
         string path,
@@ -629,12 +653,19 @@ class Server : IServer
             discarded.DiscardAsync("All changes, not the ignored files", () => git.CleanWorkingFolderAsync(wd), wd)
         );
 
-    public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) => git.GetFilesToCleanAsync(wd);
+    public Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd) => git.GetIgnoredFilesAsync(wd);
 
     public Task<Result> UndoCommitAsync(string id, int parentIndex, string wd) =>
         Paused(() => git.UndoCommitAsync(id, parentIndex, wd));
 
     public Task<Result> UncommitLastCommitAsync(string wd) => Paused(() => git.UncommitLastCommitAsync(wd));
+
+    public Task<Result> ResetCurrentBranchAsync(Repo repo, string toId, bool isKeepChanges)
+    {
+        var branch = repo.CurrentBranch();
+        var tipId = repo.CurrentCommit().Id;
+        return Paused(() => git.ResetBranchAsync(branch.Name, toId, tipId, !isKeepChanges, repo.Path));
+    }
 
     public Task<Result> UncommitUntilCommitAsync(string id, string wd) =>
         Paused(() => git.UncommitUntilCommitAsync(id, wd));

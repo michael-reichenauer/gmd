@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace gmd.Git.Private;
 
@@ -97,12 +98,16 @@ class ConflictService : IConflictService
     // Reads the working tree file and parses it. The working tree file rather than the index
     // stages, because it is the only artifact that holds the text *between* the conflicts, and it
     // is what git takes verbatim once the path is marked resolved — including any hand edits.
+    //
+    // This and WithBaseAsync await without the caller's context (ConfigureAwait(false)): a UI's main
+    // loop resumes each await on it a while later, up to 40 ms with Terminal.Gui, and a file with its
+    // ancestor is six git commands, read each time a resolver goes to another file.
     public async Task<Result<ConflictFile>> GetConflictFileAsync(string path, ConflictKind kind, string wd)
     {
         var fullPath = System.IO.Path.Join(wd, path);
 
         // Which sides exist decides what can be offered for the file, so it is read for every one
-        var stagesResult = await GetStagesAsync(path, wd);
+        var stagesResult = await GetStagesAsync(path, wd).ConfigureAwait(false);
         if (stagesResult is not IReadOnlyDictionary<int, string> stages)
             return stagesResult.Error;
 
@@ -136,7 +141,8 @@ class ConflictService : IConflictService
 
     // The branch HEAD is on and the subjects of the two sides' commits: HEAD's, and the other side's
     // from the ref git keeps to it while the operation is stopped, MERGE_HEAD, CHERRY_PICK_HEAD or
-    // REVERT_HEAD (OperationState), or during a rebase REBASE_HEAD, which is the commit being applied.
+    // REVERT_HEAD (OperationState), or during a rebase REBASE_HEAD, which is the commit being applied;
+    // and the name git gives the other side in the markers (TheirsName).
     // REBASE_HEAD is read during a rebase alone: git leaves it behind once a rebase that stopped is
     // continued, and an operation with no ref of its own, e.g. a squash merge, was named by it.
     public async Task<Result<ConflictSides>> GetConflictSidesAsync(string wd)
@@ -152,19 +158,43 @@ class ConflictService : IConflictService
                 ? OperationState.ReadFirstLine(System.IO.Path.Join(GitDir.GitDirPathOf(wd), "REBASE_HEAD"))
             : "";
 
-        // In the order given, HEAD's first, and with nothing but the subject whatever log's config
-        var args = $"log --no-walk=unsorted --no-show-signature --format=%s HEAD {theirs}".TrimEnd();
+        // In the order given, HEAD's first, each the short id and the subject, whatever log's config
+        var args = $"log --no-walk=unsorted --no-show-signature --format=%h%x09%s HEAD {theirs}".TrimEnd();
         var subjectsResult = await cmd.RunAsync("git", args, wd);
         if (subjectsResult is not string subjects)
             return subjectsResult.Error;
 
-        var lines = subjects.Split('\n');
+        var lines = subjects.Split('\n').Select(l => l.Split('\t', 2)).ToList();
+        var oursSubject = lines[0].Length > 1 ? lines[0][1] : "";
+        var (theirsId, theirsSubject) =
+            theirs != "" && lines.Count > 1 && lines[1].Length > 1 ? (lines[1][0], lines[1][1]) : ("", "");
         return new ConflictSides(
             branch == "HEAD" ? "" : branch,
-            lines[0],
-            theirs != "" && lines.Length > 1 ? lines[1] : ""
+            oursSubject,
+            theirsSubject,
+            TheirsName(state, theirsId)
         );
     }
+
+    // What git calls the other side in the conflict markers: a merge the name it was given, which its
+    // message says, e.g. 'Merge branch 'dev'', or else its commit, a rebase and a cherry pick the
+    // commit's short id, and a revert the parent of it. 'git checkout --merge', which puts a file's
+    // conflicts back, writes 'theirs' instead, and this is what that side is to be called by.
+    static string TheirsName(OperationState state, string theirsId) =>
+        state.Operation switch
+        {
+            GitOperation.Merge => MergedName.Match(state.MergeMessage) is { Success: true } m
+                ? m.Groups[1].Value
+                : theirsId,
+            GitOperation.Revert => theirsId != "" ? $"parent of {theirsId}" : "",
+            _ => theirsId,
+        };
+
+    // The merge messages git writes for one name merged, 'into <branch>' when not merged into the
+    // default branch; not those of a pull, '... of <url>', which name a branch of another repository
+    static readonly Regex MergedName = new(
+        @"^Merge (?:remote-tracking branch|branch|tag|commit) '([^']+)'(?: into \S+)?$"
+    );
 
     // Fills in the common ancestor of each conflict, i.e. what the base pane shows.
     //
@@ -184,7 +214,7 @@ class ConflictService : IConflictService
         if (file.Hunks.Count == 0 || file.Hunks.Any(h => h.HasBase))
             return file with { HasBase = true };
 
-        var stagesResult = await GetStagesAsync(file.Path, wd);
+        var stagesResult = await GetStagesAsync(file.Path, wd).ConfigureAwait(false);
         if (stagesResult is not IReadOnlyDictionary<int, string> stages)
             return stagesResult.Error;
 
@@ -200,7 +230,7 @@ class ConflictService : IConflictService
 
         try
         {
-            var mergedResult = await MergeWithBaseAsync(stages, baseSha, tempDir);
+            var mergedResult = await MergeWithBaseAsync(stages, baseSha, tempDir).ConfigureAwait(false);
             if (mergedResult is not string merged)
                 return mergedResult.Error;
 
@@ -239,7 +269,7 @@ class ConflictService : IConflictService
     // The blob of each stage of an unmerged path, keyed on stage number
     async Task<Result<IReadOnlyDictionary<int, string>>> GetStagesAsync(string path, string wd)
     {
-        var result = await cmd.RunAsync("git", $"ls-files -u {Spec(path)}", wd);
+        var result = await cmd.RunAsync("git", $"ls-files -u {Spec(path)}", wd).ConfigureAwait(false);
         if (result is not string output)
             return result.Error;
 
@@ -263,13 +293,13 @@ class ConflictService : IConflictService
         string tempDir
     )
     {
-        var baseResult = await UnpackAsync(baseSha, tempDir);
+        var baseResult = await UnpackAsync(baseSha, tempDir).ConfigureAwait(false);
         if (baseResult is not string baseFile)
             return baseResult.Error;
-        var oursResult = await UnpackAsync(stages[2], tempDir);
+        var oursResult = await UnpackAsync(stages[2], tempDir).ConfigureAwait(false);
         if (oursResult is not string oursFile)
             return oursResult.Error;
-        var theirsResult = await UnpackAsync(stages[3], tempDir);
+        var theirsResult = await UnpackAsync(stages[3], tempDir).ConfigureAwait(false);
         if (theirsResult is not string theirsFile)
             return theirsResult.Error;
 
@@ -282,7 +312,7 @@ class ConflictService : IConflictService
         // result is judged by what it produced rather than by the exit code.
         var args =
             $"merge-file --diff3 -L ours -L base -L theirs {Cmd.Quote(oursFile)} {Cmd.Quote(baseFile)} {Cmd.Quote(theirsFile)}";
-        await cmd.RunAsync("git", args, tempDir, skipLogError: true);
+        await cmd.RunAsync("git", args, tempDir, skipLogError: true).ConfigureAwait(false);
 
         var mergedPath = System.IO.Path.Join(tempDir, oursFile);
         var read = Result.Catch(() => File.ReadAllText(mergedPath));
@@ -295,7 +325,7 @@ class ConflictService : IConflictService
     // Writes the blob to a file in tempDir and returns its name, which git chooses
     async Task<Result<string>> UnpackAsync(string sha, string tempDir)
     {
-        var result = await cmd.RunAsync("git", $"unpack-file {sha}", tempDir);
+        var result = await cmd.RunAsync("git", $"unpack-file {sha}", tempDir).ConfigureAwait(false);
         if (result is not string name)
             return result.Error;
 

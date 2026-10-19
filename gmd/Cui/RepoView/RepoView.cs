@@ -6,7 +6,8 @@ using gmd.Cui.Login;
 using gmd.Git;
 using gmd.Installation;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.RepoView;
 
@@ -87,6 +88,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly Config config;
     readonly IUpdater updater;
     readonly IRepoConfigService repoConfig;
+    readonly IBranchColorService branchColors;
     readonly IProgress progress;
     readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
@@ -101,6 +103,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly SearchMatches searchMatches = new();
     readonly CurrentBranchShown currentBranchShown = new();
     readonly ForcePushNotes forcePushNotes = new();
+    readonly MergedOnOriginNotes mergedOnOriginNotes = new();
     IReadOnlyList<HiddenBranchNews> hiddenNews = [];
     readonly RepoViewInput input;
 
@@ -140,6 +143,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         Config config,
         IUpdater updater,
         IRepoConfigService repoConfig,
+        IBranchColorService branchColors,
         IProgress progress,
         IGit git,
         ICommitDetailsView commitDetailsView,
@@ -157,6 +161,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         this.config = config;
         this.updater = updater;
         this.repoConfig = repoConfig;
+        this.branchColors = branchColors;
         this.progress = progress;
         this.git = git;
         this.commitDetailsView = commitDetailsView;
@@ -221,10 +226,10 @@ class RepoView : IRepoView, IRepoViewInputHost
         UpdateLayout();
         if (await ShowRepoAsync(path) is Error e)
             return e;
-        UI.AddTimeout(fetchInterval, (_) => FetchFromRemote());
+        UI.AddTimeout(fetchInterval, () => FetchFromRemote());
         UI.AddTimeout(
             worktreeStatusInterval,
-            (_) =>
+            () =>
             {
                 UpdateWorktreesStatus();
                 return true;
@@ -320,7 +325,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         if (commitDetailsView.View.IsFocus)
             ToggleDetailsFocus();
         commitsView.IsHideCursor = true;
-        commitsView.SetNeedsDisplay();
+        commitsView.SetNeedsDraw();
 
         var orgRepo = repo.Repo;
         var orgCommit = repo.RowCommit;
@@ -330,8 +335,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         isShowFilter = false;
         commitsView.IsHideCursor = false;
         commitsView.SetFocus();
-        commitsView.SetNeedsDisplay();
-        Application.Driver.SetCursorVisibility(CursorVisibility.Invisible);
+        commitsView.SetNeedsDraw();
 
         if (selected is SearchPick pick)
         { // A commit was picked. It is shown with its branch as any branch is shown, so that
@@ -389,9 +393,9 @@ class RepoView : IRepoView, IRepoViewInputHost
         commitDetailsView.View.Height = detailsHeight;
         UpdateRowName();
 
-        commitsView.SetNeedsDisplay();
-        commitDetailsView.View.SetNeedsDisplay();
-        keyHintBar.SetNeedsDisplay();
+        commitsView.SetNeedsDraw();
+        commitDetailsView.View.SetNeedsDraw();
+        keyHintBar.SetNeedsDraw();
     }
 
     // The commit on the row and its branch are named first on the key-hint line, and in the
@@ -423,12 +427,12 @@ class RepoView : IRepoView, IRepoViewInputHost
     // enough, which nothing else would redraw it for
     void OnStatusChanged()
     {
-        UI.Post(() =>
+        UI.OnMainLoop(() =>
         {
             UpdateStatusLine();
             UI.AddTimeout(
                 (status.Current?.Duration ?? StatusLine.Duration) + TimeSpan.FromMilliseconds(100),
-                _ =>
+                () =>
                 {
                     UpdateStatusLine();
                     return false;
@@ -440,9 +444,9 @@ class RepoView : IRepoView, IRepoViewInputHost
     void UpdateStatusLine()
     {
         keyHintBar.Visible = IsKeyHintBarShown;
-        keyHintBar.SetNeedsDisplay();
-        commitsView.SetNeedsDisplay(); // The row under the line, when it was shown over the log
-        startPage?.SetNeedsDisplay(); // ... or over the start page
+        keyHintBar.SetNeedsDraw();
+        commitsView.SetNeedsDraw(); // The row under the line, when it was shown over the log
+        startPage?.SetNeedsDraw(); // ... or over the start page
     }
 
     IReadOnlyList<KeyHint> GetKeyHints()
@@ -467,8 +471,8 @@ class RepoView : IRepoView, IRepoViewInputHost
         commitsView.IsFocus = !commitsView.IsFocus;
         commitDetailsView.View.IsFocus = !commitDetailsView.View.IsFocus;
 
-        commitDetailsView.View.SetNeedsDisplay();
-        commitsView.SetNeedsDisplay();
+        commitDetailsView.View.SetNeedsDraw();
+        commitsView.SetNeedsDraw();
     }
 
     // A change is shown by reading the repo again, unless the repo shown was read after the change
@@ -559,13 +563,43 @@ class RepoView : IRepoView, IRepoViewInputHost
         Log.Info($"Showed updated worktrees {viewRepo}");
     }
 
+    // The read after a repo is shown of which branches deleted on origin were merged there, which git
+    // does not say (Repo.MergedOnOrigin): only while a branch is not known yet, since that is a git
+    // command each, and never over an update in progress
+    void UpdateMergedOnOrigin()
+    {
+        UI.AssertOnUIThread();
+        if (reads.IsReading || !server.HasUnknownMergedOnOrigin(repo.Repo))
+            return;
+
+        ShowMergedOnOriginRepoAsync().RunInBackground();
+    }
+
+    // As for the worktrees: nothing is waited for, and the repo is only replaced when something
+    // was found and nothing else was shown meanwhile
+    async Task ShowMergedOnOriginRepoAsync()
+    {
+        var shown = repo.Repo;
+        var viewRepoResult = await server.GetMergedOnOriginRepoAsync(shown);
+        if (viewRepoResult is not Server.Repo viewRepo)
+        {
+            Log.Warn($"Failed to read the branches merged on origin, {viewRepoResult.Error}");
+            return;
+        }
+        if (repo.Repo != shown || viewRepo.MergedOnOrigin.Count == shown.MergedOnOrigin.Count)
+            return;
+
+        ShowRepo(viewRepo);
+        Log.Info($"Showed the branches merged on origin {viewRepo}");
+    }
+
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)
     {
         // The current row can have moved without the hoover following it, e.g. when a command
         // scrolled the view, so let the hoover follow the new row or be given up.
         if (hoover.FollowCurrentIndex(currentIndex, repo.Graph.GetRowBranches(repo.CurrentIndex)))
         {
-            commitsView.SetNeedsDisplay();
+            commitsView.SetNeedsDraw();
         }
 
         var page = repoWriter.ToPage(
@@ -579,8 +613,10 @@ class RepoView : IRepoView, IRepoViewInputHost
             Selection
         );
 
-        // Whatever redraws the log may have changed what the keys do, so the hints follow it
-        keyHintBar.SetNeedsDisplay();
+        // Whatever redraws the log may have changed what the keys do, so the hints follow it, once the
+        // log is drawn: Terminal.Gui marks every view drawn once a draw is done, and the line is drawn
+        // before the log, which it is added after
+        UI.Post(keyHintBar.SetNeedsDraw);
         return (page, repo.Repo.ViewCommits.Count);
     }
 
@@ -598,6 +634,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
             UpdateWorktreesStatus();
+            UpdateMergedOnOrigin();
             return Result.Ok;
         }
     }
@@ -637,6 +674,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             viewRepo = WithCurrentBranchShown(viewRepo);
             ShowRepo(viewRepo);
             UpdateWorktreesStatus();
+            UpdateMergedOnOrigin();
 
             if (commitId != "")
             {
@@ -729,7 +767,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             UpdateHiddenNews(serverRepo);
         applicationBarView.SetRepo(serverRepo, hiddenNews.Count);
 
-        commitsView.SetNeedsDisplay();
+        commitsView.SetNeedsDraw();
         OnCurrentIndexChange();
 
         // Remember shown branch for next restart of program
@@ -738,12 +776,19 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         ShowChangesMadeMeanwhile();
 
-        // A force push on origin looks like new commits on both sides, so it is said, once
-        if (forcePushNotes.Untold(serverRepo) is string note)
-            status.Info(note);
+        // A force push on origin looks like new commits on both sides, and a branch squash merged on
+        // origin like one not merged, so each is said, once
+        var notes = new[] { forcePushNotes.Untold(serverRepo), mergedOnOriginNotes.Untold(serverRepo) }
+            .OfType<string>()
+            .ToList();
+        if (notes.Count > 0)
+            status.Info(string.Join("; ", notes));
 
         var names = repo.Repo.ViewBranches.Select(b => b.PrimaryBaseName).Distinct().Take(30).ToList();
         repoConfig.Set(serverRepo.Path, s => s.Branches = names);
+
+        // A new branch keeps the color it is drawn in now, and a branch gone is forgotten
+        branchColors.Remember(serverRepo);
     }
 
     // The shown branches are seen, and what is new on the hidden ones is counted against what was

@@ -127,6 +127,10 @@ static class CommitDetailsRows
             text.Color(colors.GetColor(repo, branch), NameOf(branch));
             if (!branch.IsGitBranch)
                 text.Dark("  (deleted)");
+            else if (repo.MergedOnOrigin.TryGetValue(branch.Name, out var into))
+                text.Dark($"  (merged into {into} on origin)");
+            else if (branch.GoneRemoteName != "")
+                text.Dark("  (deleted on origin)");
         }
 
         if (commit.IsBranchSetByUser)
@@ -135,6 +139,8 @@ static class CommitDetailsRows
             text.Green("  ▲ pushable");
         if (commit.IsBehind)
             text.Blue("  ▼ pullable");
+        if (commit.IsReplaced)
+            text.Dark("  replaced here, still on origin");
 
         var otherTips = repo
             .ViewBranches.Where(b => b.TipId == commit.Id && b.NiceNameUnique != branch.NiceNameUnique)

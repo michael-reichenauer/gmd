@@ -76,15 +76,20 @@ static class LogKeys
     }
 
     // 'p' pushes the highlighted branch, as the branch menu's Push does, and the current branch when
-    // none is highlighted, which goes through the command that asks before a force push
+    // none is highlighted, which goes through the command that asks before a force push. A branch
+    // rewritten here is pushed with force, which the hint says, since there is nothing to pull first.
     public static KeyAction Push(IViewRepo repo, Hoover hoover)
     {
         if (Hoovered(repo, hoover) is not Branch branch || IsCurrent(branch))
-            return new(BranchPushPullCommands.CanPushCurrentBranch(repo.Repo) ? "push" : "");
+        {
+            if (!BranchPushPullCommands.CanPushCurrentBranch(repo.Repo))
+                return new("");
+            return new(RewrittenHere.Of(repo.Repo, repo.Repo.CurrentBranch()) != null ? "force push" : "push");
+        }
 
-        return BranchPushPullCommands.CanPushBranch(repo.Repo, branch)
-            ? new("push")
-            : KeyAction.No(BranchPushPullCommands.WhyNoPushBranch(repo.Repo, branch));
+        return !BranchPushPullCommands.CanPushBranch(repo.Repo, branch)
+            ? KeyAction.No(BranchPushPullCommands.WhyNoPushBranch(repo.Repo, branch))
+            : new(RewrittenHere.Of(repo.Repo, branch) != null ? "force push" : "push");
     }
 
     // 'u' pulls the highlighted branch, as the branch menu's Pull does, and the current branch when
@@ -108,8 +113,8 @@ static class LogKeys
             : new("copy");
 
     // 'd' diffs the rows selected, else opens the menu of diffs of the highlighted branch, else
-    // diffs the row's commit; on the uncommitted row with conflicts the diff is where they are
-    // resolved, with Enter
+    // diffs the row's commit; on the uncommitted row with conflicts it asks whether to resolve them,
+    // the default, or to show the diff (IsResolve)
     public static KeyAction Diff(IViewRepo repo, Hoover hoover, Selection selection)
     {
         if (selection.IsRows)
@@ -117,9 +122,14 @@ static class LogKeys
         if (hoover.IsBranch)
             return repo.Status.IsOk ? new("diff") : KeyAction.No(Why.Changes);
 
-        var isConflicts = repo.RowCommit.IsUncommitted && repo.Status.Conflicted > 0;
-        return new(isConflicts ? "resolve" : "diff");
+        return new(IsResolve(repo, hoover, selection) ? "resolve" : "diff");
     }
+
+    // Whether 'd' is on the uncommitted row with files in conflict, where it asks whether to resolve
+    // them or to show the diff: it showed the diff, where Enter resolved them, while the hint said
+    // 'd resolve'
+    public static bool IsResolve(IViewRepo repo, Hoover hoover, Selection selection) =>
+        !selection.IsRows && !hoover.IsBranch && repo.RowCommit.IsUncommitted && repo.Status.Conflicted > 0;
 
     // 'h' hides the highlighted branch, else the row's branch, which is not hinted. The main branch
     // is always shown: 'h' on it, and its menu item, did nothing and said nothing.

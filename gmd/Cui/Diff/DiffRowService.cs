@@ -38,8 +38,12 @@ interface IDiffRowService
 // text rather than as a block of color.
 class DiffRowService : IDiffRowService
 {
-    // The bar at the edge of a changed line's column
+    // The bar at the edge of a changed line's column. In one column a removed line has a '-' there
+    // and an added one a '+', as git writes them: the sides no longer tell them apart, and the red and
+    // the green alone are one color to a red-green color blind eye, and to a screen of no colors.
     const string ChangeBar = "▌";
+    const string RemovedMark = "-";
+    const string AddedMark = "+";
 
     // The side of a row with no line, e.g. beside a line added, drawn blank. 300 wide, so it fills a
     // column of any width, and known by identity, which is how DiffRows and the view tell it apart.
@@ -402,13 +406,14 @@ class DiffRowService : IDiffRowService
         for (var i = 0; i < fileDiff.SectionDiffs.Count; i++)
         {
             if (i > 0)
-                rows.AddHunkSeparator(HunkSeparator(fileDiff.SectionDiffs[i], fileDiff.SectionDiffs[i - 1]));
+                rows.AddHunkSeparator(HunkSeparator);
             AddSectionDiff(fileDiff, fileDiff.SectionDiffs[i], rows, layout);
         }
     }
 
-    // What a file in conflict has, and the key that resolves it, e.g. '2 conflicts: Enter resolves
-    // them'; one with no markers, e.g. deleted on one side, is a conflict of the whole file
+    // What a file in conflict has, and the key that resolves it, e.g. '2 conflicts: Enter opens the
+    // resolver', which said 'Enter resolves them', not that it opens a view of its own; one with no
+    // markers, e.g. deleted on one side, is a conflict of the whole file, which is asked about instead
     static Text UnmergedText(FileDiff fd)
     {
         var count = fd.SectionDiffs.SelectMany(s => s.LineDiffs).Count(l => l.DiffMode == DiffMode.DiffConflictStart);
@@ -418,7 +423,9 @@ class DiffRowService : IDiffRowService
             1 => "1 conflict",
             _ => $"{count} conflicts",
         };
-        return Text.Dark("      ").Yellow(what).Dark($": Enter resolves {(count > 1 ? "them" : "it")}");
+        return Text.Dark("      ")
+            .Yellow(what)
+            .Dark(count == 0 ? ": Enter asks how to resolve it" : ": Enter opens the resolver");
     }
 
     // Add a file section diff (the actual diff lines for a sub section of a file)
@@ -502,7 +509,7 @@ class DiffRowService : IDiffRowService
                     else if (fileDiff.DiffMode == DiffMode.DiffRemoved)
                     { // Whole file removed, use one column
                         var line = new Line(leftNr, dl.Line, LineKind.Removed);
-                        rows.Add(LineText(line), leftLineNbr: leftNr, removedText: dl.Line);
+                        rows.Add(LineText(line, layout.IsOneColumn), leftLineNbr: leftNr, removedText: dl.Line);
                     }
                     else
                     {
@@ -528,7 +535,7 @@ class DiffRowService : IDiffRowService
                     else if (fileDiff.DiffMode == DiffMode.DiffAdded)
                     { // Whole file added, use one column
                         var line = new Line(rightNr, dl.Line, LineKind.Added);
-                        rows.Add(LineText(line), rightLineNbr: rightNr, addedText: dl.Line);
+                        rows.Add(LineText(line, layout.IsOneColumn), rightLineNbr: rightNr, addedText: dl.Line);
                     }
                     else
                     {
@@ -568,14 +575,11 @@ class DiffRowService : IDiffRowService
     }
 
     // Where unchanged lines are left out between two hunks, '⋯', which the line numbers say how many
-    // of, and the function git found the hunk in, e.g. 'public decimal Total()', where it is not the
-    // one before it: with no pattern for the file's language (e.g. '*.cs diff=csharp' in
-    // .gitattributes), git names the nearest line above that is not indented, a C# file's class for
-    // every hunk
-    static Text HunkSeparator(SectionDiff sd, SectionDiff previous) =>
-        sd.Function != "" && sd.Function != previous.Function
-            ? Text.Dark($"{LeftOutIndent}{LeftOutMark} ").Cyan(sd.Function)
-            : Text.Dark($"{LeftOutIndent}{LeftOutMark}");
+    // of. Not the text git writes after a hunk's '@@', the function it found the hunk in: with no
+    // pattern for the file's language (e.g. '*.cs diff=csharp' in .gitattributes), git names the
+    // nearest line above that is not indented, a C# file's class, or any line of a text, which was
+    // more puzzling than telling.
+    static Text HunkSeparator => Text.Dark($"{LeftOutIndent}{LeftOutMark}");
 
     // The mark of lines left out, where a side's line numbers are, which the view draws on the right
     // side too
@@ -634,12 +638,12 @@ class DiffRowService : IDiffRowService
         for (; same < Math.Min(left.Count, right.Count) && left[same].Kind == LineKind.Same; same++)
             rows.Add(LineText(right[same]), leftLineNbr: left[same].LineNbr, rightLineNbr: right[same].LineNbr);
 
-        var leftTexts = left.Select(LineText).ToList();
-        var rightTexts = right.Select(LineText).ToList();
+        var leftTexts = left.Select(l => LineText(l, isOneColumn: true)).ToList();
+        var rightTexts = right.Select(l => LineText(l, isOneColumn: true)).ToList();
         for (int i = same; i < Math.Min(left.Count, right.Count); i++)
         {
             if (left[i].Kind == LineKind.Removed && right[i].Kind == LineKind.Added)
-                (leftTexts[i], rightTexts[i]) = ChangedSides(left[i], right[i], isIgnoreWhitespace);
+                (leftTexts[i], rightTexts[i]) = ChangedSides(left[i], right[i], isIgnoreWhitespace, isOneColumn: true);
         }
 
         for (int i = same; i < left.Count; i++)
@@ -679,18 +683,19 @@ class DiffRowService : IDiffRowService
     static string? AddedText(Line line) => line.Kind == LineKind.Added ? line.Text : null;
 
     // A source line's gutter: the bar of a change in its color, or a space, and the line number
-    static TextBuilder Gutter(int lineNbr, Color? bar, Color nbrColor) =>
-        (bar != null ? Text.Color(bar, ChangeBar) : Text.Black(" ")).Color(nbrColor, $"{lineNbr, 4} ");
+    static TextBuilder Gutter(int lineNbr, Color? bar, Color nbrColor, string mark = ChangeBar) =>
+        (bar != null ? Text.Color(bar, mark) : Text.Black(" ")).Color(nbrColor, $"{lineNbr, 4} ");
 
-    // A line as it is, with the gutter of its kind: a change's bar and number in its red or green,
-    // and the sides of a conflict in the colors the resolver gives them, ours yellow, theirs cyan
-    static Text LineText(Line line)
+    // A line as it is, with the gutter of its kind: a change's bar, or in one column its '-' or '+',
+    // and its number in its red or green, and the sides of a conflict in the colors the resolver
+    // gives them, ours yellow, theirs cyan
+    static Text LineText(Line line, bool isOneColumn = false)
     {
         var (nbr, text) = (line.LineNbr, WithoutCr(line.Text));
         return line.Kind switch
         {
-            LineKind.Removed => Gutter(nbr, Color.Red, Color.Red).White(text),
-            LineKind.Added => Gutter(nbr, Color.Green, Color.Green).White(text),
+            LineKind.Removed => Gutter(nbr, Color.Red, Color.Red, isOneColumn ? RemovedMark : ChangeBar).White(text),
+            LineKind.Added => Gutter(nbr, Color.Green, Color.Green, isOneColumn ? AddedMark : ChangeBar).White(text),
             LineKind.Ours => Gutter(nbr, Color.Yellow, Color.Dark).Yellow(text),
             LineKind.Theirs => Gutter(nbr, Color.Cyan, Color.Dark).Cyan(text),
             _ => Gutter(nbr, null, Color.Dark).White(text),
@@ -717,11 +722,11 @@ class DiffRowService : IDiffRowService
     // words that differ are marked, and the spaces one has before or after its text that the other
     // has not, which no word shows, unless whitespace is left out. Where they share little, nothing
     // is marked: the line was rewritten, and the marks would be noise.
-    static (Text, Text) ChangedSides(Line removed, Line added, bool isIgnoreWhitespace)
+    static (Text, Text) ChangedSides(Line removed, Line added, bool isIgnoreWhitespace, bool isOneColumn = false)
     {
         var (lL, rL) = WithCrShown(removed, added, isIgnoreWhitespace);
-        var left = Gutter(lL.LineNbr, Color.Red, Color.Red);
-        var right = Gutter(rL.LineNbr, Color.Green, Color.Green);
+        var left = Gutter(lL.LineNbr, Color.Red, Color.Red, isOneColumn ? RemovedMark : ChangeBar);
+        var right = Gutter(rL.LineNbr, Color.Green, Color.Green, isOneColumn ? AddedMark : ChangeBar);
         // The spaces before and after the text are marked like words, unless whitespace is left out
         var (removedSpace, addedSpace) = isIgnoreWhitespace ? (Color.White, Color.White) : (Color.RedBg, Color.GreenBg);
 

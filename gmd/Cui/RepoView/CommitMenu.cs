@@ -8,6 +8,8 @@ interface ICommitMenu
     void Show(int x, int y, int index);
     void ShowStashMenu(int x = Menu.Center, int y = 0);
     void ShowCopyMenu(int x, int y);
+
+    IEnumerable<MenuItem> GetCommitMenuItems(string commitId);
 }
 
 class CommitMenu : ICommitMenu
@@ -54,7 +56,7 @@ class CommitMenu : ICommitMenu
         Menu.Show(title, x, y + 2, GetCopyItems());
     }
 
-    IEnumerable<MenuItem> GetCommitMenuItems(string commitId)
+    public IEnumerable<MenuItem> GetCommitMenuItems(string commitId)
     {
         var c = repo.Repo.CommitById[commitId];
         var cc = repo.Repo.CurrentCommit();
@@ -63,30 +65,48 @@ class CommitMenu : ICommitMenu
         var isStatusOK = repo.Repo.Status.IsOk;
         var sid = Sid(c.Id);
 
+        // Grouped by what the items do: write commits, look at this one, take it to a branch, and
+        // the sub menus of the rest, each group under a line of its own
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
             .Item("Commit ...", "c", () => cmds.Commit(false), () => !isStatusOK, () => "Nothing to commit")
-            // Enabled as the 'a' key is: a commit not yet pushed can be amended with no changes too,
-            // to reword its message
+            // Enabled as the 'a' key is: the last commit can be amended with no changes too, to reword
+            // its message, also once pushed, which 'p' then pushes with force
             .Item(
                 "Amend ...",
                 "a",
                 () => cmds.Commit(true),
-                () => CommitRewrite.IsNotPushed(repo.Repo, cc),
-                () => "Only a commit not yet pushed can be amended"
+                () => CommitRewrite.WhyNotAmendLast(repo.Repo) == "",
+                () => CommitRewrite.WhyNotAmendLast(repo.Repo)
             )
             .Items(GetAmendOlderItems(c, cc))
             // Straight in the menu rather than in a 'Rebase' sub menu of its own, which held nothing
             // else and named a rebase that it is not
             .Items(GetSquashItems())
+            // Greyed out with nothing it can do, e.g. on a commit of another branch, saying why
+            .SubMenu("Reorder", "", GetReorderItems(c), whyNot: () => CommitRewrite.WhyNotMove(repo.Repo, c, true))
+            // This commit and the newer ones, e.g. made on main by mistake, which are not pushed yet
+            .Item(
+                "Move to New Branch ...",
+                "",
+                () => commands.CreateCmds.MoveCommitsToNewBranch(c.Id),
+                () => CommitRewrite.WhyNotMoveToNewBranch(repo.Repo, c) == "",
+                () => CommitRewrite.WhyNotMoveToNewBranch(repo.Repo, c)
+            )
+            .Separator()
+            .Item("Commit Details", "Enter", () => cmds.ToggleDetails())
             .Item("Commit Diff", "d", () => cmds.ShowCurrentRowDiff())
             // Any two commits, which a range selected with ⇧↑↓ is only for commits of one branch
-            .Item("Mark for Diff", "", () => cmds.MarkForDiff(c.Id), () => !c.IsUncommitted, () => NoCommit)
-            .Items(GetDiffWithMarkedItems(c))
-            .SubMenu("Undo", "", GetCommitUndoItems())
-            .SubMenu("Stash", "", GetStashMenuItems())
-            // On any row, since its list of every tag is not about the commit
-            .SubMenu("Tag", "", GetTagItems())
+            .Items(GetMarkForDiffItems(c))
+            // Belongs with the commit items: the files offered are the ones this commit has, though the
+            // history then shown for the chosen one is every commit that changed it. It was named
+            // 'Full File History', for that, but nothing beside it is a partial one: the history of
+            // lines is the blame's, which names it 'History of Line 12'.
+            .Item("File History ...", "", () => cmds.ShowFileHistory())
+            // The same file list, answering the other question: not how the file changed over
+            // time, but which commit each line of it as it stands came from
+            .Item("Blame File ...", "", () => cmds.BlameFile())
+            .Separator()
             .Item(
                 "Create Branch from Commit ...",
                 "b",
@@ -95,29 +115,36 @@ class CommitMenu : ICommitMenu
                 () => BranchCreateCommands.NoCommitToStartAt
             )
             .Item(
-                $"Merge Commit into {cb?.ShortNiceUniqueName()}",
-                "",
-                () => commands.BranchCmds.MergeBranch(c.Id),
-                () => isStatusOK && rb != cb,
-                () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
-            )
-            .Item(
-                $"Cherry Pick into {cb?.ShortNiceUniqueName()}",
-                "",
-                () => cmds.CherryPick(),
-                () => isStatusOK && rb != cb,
-                () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
-            )
-            .Item(
                 "Switch to Commit",
                 "",
                 () => commands.BranchCmds.SwitchToCommit(),
                 () => isStatusOK && repo.RowCommit.Id != repo.Repo.CurrentCommit().Id,
                 () => !isStatusOK ? Why.Changes : "Already on this commit"
             )
-            .Item("Commit Details", "Enter", () => cmds.ToggleDetails())
+            .Item(
+                $"Merge Commit into {cb?.ShortNiceUniqueName()}",
+                "",
+                () => commands.BranchCmds.MergeBranch(c.Id),
+                () => isStatusOK && rb != cb,
+                () => !isStatusOK ? Why.Changes : "The commit is on the current branch already"
+            )
+            .Item(GetCherryPickItem(rb, cb, isStatusOK))
+            // Which branch gmd worked out the commit is on, when it got that wrong. It was in the
+            // branch menu, where it set the branch of the commit the cursor was on all the same,
+            // which need not be on the branch the menu was for.
+            .Item(
+                "Set Commit Branch Manually ...",
+                "",
+                () => commands.BranchCmds.SetBranchManuallyAsync(),
+                () => !c.IsUncommitted,
+                () => "The uncommitted changes have no branch to set: move to a commit first"
+            )
+            .Separator()
+            .SubMenu("Undo", "", GetCommitUndoItems())
+            .SubMenu("Stash", "", GetStashMenuItems())
+            // On any row, since its list of every tag is not about the commit
+            .SubMenu("Tag", "", GetTagItems())
             .SubMenu("Copy", "Ctrl-C", GetCopyItems(), () => WhyNotCopy() == "", WhyNotCopy)
-            // Above the file items rather than at the end, which the walks to Blame File count from
             .Item(
                 "Open Commit in Browser",
                 "",
@@ -125,12 +152,6 @@ class CommitMenu : ICommitMenu
                 () => WebCommands.CanOpenCommit(repo.Repo, c),
                 () => WebCommands.WhyNoOpenCommit(repo.Repo, c)
             )
-            // Belongs with the commit items: the files offered are the ones this commit has, even
-            // though the history then shown for the chosen one is its full history, hence 'Full'
-            .Item("Full File History ...", "", () => cmds.ShowFileHistory())
-            // The same file list, answering the other question: not how the file changed over
-            // time, but which commit each line of it as it stands came from
-            .Item("Blame File ...", "", () => cmds.BlameFile())
             .Separator()
             // Everything about branches, including showing and hiding them, is under here
             .SubMenu("Branches", "", branchMenu.GetShownBranchesItems())
@@ -152,29 +173,34 @@ class CommitMenu : ICommitMenu
         var step = BranchUndo.StepOf(repo.Repo, current);
         var whyNotDrop = CommitRewrite.WhyNotDrop(repo.Repo, repo.RowCommit);
         var whyNotUncommit = CommitRewrite.WhyNotUncommit(repo.Repo, repo.RowCommit);
+        var whyNotReset = CommitRewrite.WhyNotResetTo(repo.Repo, repo.RowCommit);
 
+        // An operation git stopped part way through, e.g. a merge, is backed out of first, as at the
+        // top of the repo menu, since Undo is where one looks to back out. Discard All Changes below
+        // ends a merge only because its reset drops it, and leaves a rebase going.
+        var abortItems =
+            repo.Repo.Status.Operation == GitOperation.None
+                ? Menu.Items
+                : Menu
+                    .Items.Item(
+                        $"Abort {commands.RepoCmds.OperationName()}",
+                        "",
+                        () => commands.RepoCmds.AbortOperation()
+                    )
+                    .Separator();
+
+        // The last change first, then the undos of commits, the discards of uncommitted changes, and
+        // last what brings back what those and others threw away
         return Menu
-            .Items.Item(
+            .Items.Items(abortItems)
+            .Item(
                 BranchUndo.Label(step),
                 "",
                 () => commands.UndoCmds.UndoLastChange(current.Name),
                 () => BranchUndo.WhyNot(repo.Repo, current, step) == "",
                 () => BranchUndo.WhyNot(repo.Repo, current, step)
             )
-            // The work no branch has any more, which the reflogs still know of
-            .Item("Recover Lost Commits ...", "", () => commands.UndoCmds.RecoverLostCommits())
-            // The branches gmd deleted, whose reflogs git deleted with them
-            .Item("Restore Deleted Branch ...", "", () => commands.UndoCmds.RestoreDeletedBranch())
-            // What the discards threw away, and the stashes dropped, which gmd keeps, as git does not
-            .Item("Restore Discarded Changes ...", "", () => commands.UndoCmds.RestoreDiscarded())
             .Separator()
-            .SubMenu(
-                "Discard Changes in a File",
-                "",
-                GetUncommittedFileItems(),
-                () => cmds.CanUndoUncommitted(),
-                () => "There are no uncommitted changes to undo"
-            )
             .Item("Revert Commit", "", () => cmds.UndoCommit(id), () => repo.Repo.Status.IsOk, () => Why.Changes)
             // Revert's twin for a commit not pushed yet: out of the branch rather than undone by
             // another commit
@@ -199,7 +225,22 @@ class CommitMenu : ICommitMenu
                 () => whyNotUncommit == "",
                 () => whyNotUncommit
             )
+            // To any commit, of the branch or another, asking whether to keep the changes
+            .Item(
+                repo.RowCommit.IsUncommitted ? "Reset Branch to Commit ..." : $"Reset Branch to {id.Sid()} ...",
+                "",
+                () => cmds.ResetBranchTo(id),
+                () => whyNotReset == "",
+                () => whyNotReset
+            )
             .Separator()
+            .SubMenu(
+                "Discard Changes in a File",
+                "",
+                GetUncommittedFileItems(),
+                () => cmds.CanUndoUncommitted(),
+                () => "There are no uncommitted changes to undo"
+            )
             .Item(
                 "Discard Changes in Binary Files",
                 "",
@@ -207,16 +248,17 @@ class CommitMenu : ICommitMenu
                 () => binaryPaths.Any(),
                 () => "There are no uncommitted binary files"
             )
-            .Item(
-                "Discard All Changes",
-                "",
-                () => commands.RepoCmds.UndoAllUncommittedChanged(),
-                () => cmds.CanUndoUncommitted(),
-                () => "There are no uncommitted changes to undo"
-            )
-            // The same and the ignored files too, i.e. the folder as a fresh clone would have it.
-            // Enabled with no changes as well, since deleting what git ignores is reason enough.
-            .Item("Discard All Changes and Ignored Files", "", () => commands.RepoCmds.CleanWorkingFolder());
+            // The question offers to delete the files git ignores too, the folder then as a fresh
+            // clone has it. Enabled with no changes as well, since deleting those is reason enough,
+            // and which there are is read only once it is picked.
+            .Item("Discard All Changes ...", "", () => commands.RepoCmds.DiscardAllChanges())
+            .Separator()
+            // The work no branch has any more, which the reflogs still know of
+            .Item("Recover Lost Commits ...", "", () => commands.UndoCmds.RecoverLostCommits())
+            // The branches gmd deleted, whose reflogs git deleted with them
+            .Item("Restore Deleted Branch ...", "", () => commands.UndoCmds.RestoreDeletedBranch())
+            // What the discards threw away, and the stashes dropped, which gmd keeps, as git does not
+            .Item("Restore Discarded Changes ...", "", () => commands.UndoCmds.RestoreDiscarded());
     }
 
     // The amend of the commit the menu is for, when that is an older one than the last, whose own
@@ -237,16 +279,81 @@ class CommitMenu : ICommitMenu
         );
     }
 
-    const string NoCommit = "The uncommitted changes are no commit: move to one first";
-
-    // The diff of this commit with the one marked for a diff, once one is
-    IEnumerable<MenuItem> GetDiffWithMarkedItems(Commit c)
+    // Picks the row's commit into the current branch, staged for the commit dialog, or the commits of
+    // the rows selected with ⇧↑↓, which the item counts, each committed as it was made
+    MenuItem GetCherryPickItem(Branch? rb, Branch? cb, bool isStatusOK)
     {
-        var markedId = diffMark.IdIn(repo.Path);
-        if (markedId == "" || !repo.Repo.CommitById.ContainsKey(markedId))
+        var selection = commands.View.Selection;
+        var into = cb?.ShortNiceUniqueName();
+        if (
+            selection.IsRows
+            && CommitCommands.CommitsToPick(repo.Repo, selection.I1, selection.I2) is { Count: > 1 } picks
+        )
+        {
+            var whyNot = CommitCommands.WhyNotCherryPick(repo.Repo, selection.I1, selection.I2);
+            return new MenuItem(
+                $"Cherry Pick {picks.Count} Commits into {into}",
+                "",
+                () => cmds.CherryPick(),
+                () => whyNot == ""
+            )
+            {
+                WhyNot = () => whyNot,
+            };
+        }
+        return new MenuItem($"Cherry Pick into {into}", "", () => cmds.CherryPick(), () => isStatusOK && rb != cb)
+        {
+            WhyNot = () => !isStatusOK ? Why.Changes : "The commit is on the current branch already",
+        };
+    }
+
+    // The commit moved past the next one up the branch, or down it, each named by the commit it is
+    // moved past, so that which way is which needs no thinking about. None when neither can be.
+    IEnumerable<MenuItem> GetReorderItems(Commit c)
+    {
+        if (CommitRewrite.WhyNotMove(repo.Repo, c, true) != "" && CommitRewrite.WhyNotMove(repo.Repo, c, false) != "")
             return [];
 
-        return Menu.Items.Item(
+        MenuItem Move(bool isUp)
+        {
+            var other = c.IsUncommitted ? null : CommitRewrite.Neighbour(repo.Repo, c, isUp);
+            var name =
+                other == null
+                    ? (isUp ? "Move Up" : "Move Down")
+                    : $"Move {(isUp ? "Above" : "Below")} '{Shortened(other.Subject)}'";
+            var whyNot = CommitRewrite.WhyNotMove(repo.Repo, c, isUp);
+            return new MenuItem(name, "", () => cmds.MoveCommit(c.Id, isUp), () => whyNot == "")
+            {
+                WhyNot = () => whyNot,
+            };
+        }
+        return [Move(true), Move(false)];
+    }
+
+    static string Shortened(string subject) => subject.Length <= 30 ? subject : subject[..29] + "…";
+
+    const string NoCommit = "The uncommitted changes are no commit: move to one first";
+
+    // Marking this commit for a diff, or unmarking it when it is the one marked, and the diff of
+    // this commit with the one marked, once one is. Mark and Unmark are one item, so the items after
+    // them are as many moves down whichever it is.
+    IEnumerable<MenuItem> GetMarkForDiffItems(Commit c)
+    {
+        var markedId = diffMark.IdIn(repo.Path);
+        var items =
+            c.Id == markedId
+                ? Menu.Items.Item("Unmark for Diff", "", () => cmds.UnmarkForDiff())
+                : Menu.Items.Item(
+                    "Mark for Diff",
+                    "",
+                    () => cmds.MarkForDiff(c.Id),
+                    () => !c.IsUncommitted,
+                    () => NoCommit
+                );
+        if (markedId == "" || !repo.Repo.CommitById.ContainsKey(markedId))
+            return items;
+
+        return items.Item(
             $"Diff with {Sid(markedId)}",
             "",
             () => cmds.DiffWithMarked(c.Id),
@@ -314,9 +421,9 @@ class CommitMenu : ICommitMenu
             c1 = repo.Repo.ViewCommits[i1];
             c2 = repo.Repo.ViewCommits[i2];
             whyNot = CommitRewrite.WhyNotSquash(repo.Repo, c1, c2);
-            if (!c1.IsUncommitted && !c2.IsUncommitted)
+            if (whyNot == "")
             {
-                selected = $"{Sid(c1.Id)}...{Sid(c2.Id)}";
+                selected = $"{CommitRewrite.Squashed(repo.Repo, c1, c2).Count} Commits";
             }
         }
 

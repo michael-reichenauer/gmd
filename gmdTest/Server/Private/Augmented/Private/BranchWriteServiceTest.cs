@@ -104,7 +104,7 @@ public class BranchWriteServiceTest
         metaData.SetCommitBranch("abc123", "dev");
         metaData.SetBranched("def456", "main");
         var git = new FakeGit();
-        var service = new BranchWriteService(git, new FakeMetaDataService(metaData));
+        var service = new BranchWriteService(git, new FakeMetaDataService(metaData), new FakeRepoConfig());
 
         AssertOk(await service.RenameBranchAsync("origin/dev", "dev2", "/wd"));
 
@@ -129,7 +129,7 @@ public class BranchWriteServiceTest
             .AugmentedRepoAsync();
         var metaData = new MetaData();
         var git = new FakeGit();
-        var service = new BranchWriteService(git, new FakeMetaDataService(metaData));
+        var service = new BranchWriteService(git, new FakeMetaDataService(metaData), new FakeRepoConfig());
 
         AssertOk(await service.CreateBranchFromBranchAsync(repo, "feature", "origin/dev", false));
 

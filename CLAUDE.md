@@ -5,7 +5,7 @@ Guidance for Claude Code when working in this repository.
 ## What this is
 
 **Gmd** is a cross-platform console-UI (TUI) Git client written in C# / .NET 10, built on
-[Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) 1.x. Its distinguishing feature is
+[Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) 2.x. Its distinguishing feature is
 *interactive branch visibility*: the user chooses which branches are shown in the commit
 graph, so a clean log is achieved without rebasing or squashing.
 
@@ -25,7 +25,7 @@ scripts/build -l       # linux only (x64 and arm64; much faster — use this for
 scripts/log            # tail the runtime log with lnav (~/gmd.log)
 scripts/updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
 scripts/installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
-scripts/demo           # re-record gmd/doc/Animation.gif, the README's animation (~30 s; tmux + agg)
+scripts/demo           # re-record the README's animation and log pictures in gmd/doc/ (~30 s; tmux + agg)
 scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
 ```
 
@@ -39,7 +39,7 @@ and `scripts/test`.
 
 ### Running the TUI from a non-interactive shell
 
-gmd is a full-screen curses app, so it needs a pty: started from a shell with no terminal it will
+gmd is a full-screen terminal app, so it needs a pty: started from a shell with no terminal it will
 not run at all. tmux is the way in — it parses the escape sequences and keeps a screen model, so
 `capture-pane` hands back the rendered screen as plain text, which is what makes it assertable.
 Installed by `scripts/installtools`.
@@ -124,7 +124,9 @@ Key types and flow:
   run, to the write services of the augmented layer (`BranchWriteService`, `CommitRewriteService`,
   `UndoService`, `DeletedBranchService`). Every write the user asks for runs in `Server.Paused`,
   which pauses the file monitor; the background fetch does not. `GitConverter` turns git's records
-  into the server's.
+  into the server's. Which branches deleted on origin were squash or rebase merged there, which git
+  does not count merged, is `MergedBranchService`: a `git merge-tree` per branch, so read after the
+  repo is shown, as the other worktrees' changes are, and kept for the session (`Repo.MergedOnOrigin`).
 - `Augmented/Private/BranchStructureService.cs` — the heart of the product, and the most subtle
   code in the repo. `DetermineCommitBranches` is only the pipeline: set branch tips → link
   parents/children → assign branches to commits → build hierarchy → find root branch → compute
@@ -153,20 +155,27 @@ Key types and flow:
   has `RefreshTimingTest` (`GMD_PERF_REPO=<repo> GMD_PERF_OUT=<file>`, `--filter RefreshTiming`),
   which times each stage of a refresh and writes what the view repos hold to `<file>.view`, for the
   same before/after `diff`.
-- The reflog is read for three more things, none of which touch the inference: Undo, the last
+- The reflog is read for four more things, none of which touch the inference: Undo, the last
   change of each local branch from its own reflog (`ReflogSteps`, `Repo.UndoSteps`, with gmd's own
   record of a squash and of an undo in `RepoConfig.UndoSteps`); Recover Lost Commits, the commits
   no ref reaches (`LostWorkFinder`, read only when asked); and a force push on origin, from the
   reflogs of the remote branches whose local branches have commits not pushed (`RemoteRewrites`,
-  `Repo.RemoteRewrites`). A deleted branch is the one thing the reflog cannot bring back, since git
+  `Repo.RemoteRewrites`); and its mirror, a branch rewritten here after it was pushed, e.g. squashed,
+  from the branch's own (`LocalRewrites`, `Repo.LocalRewrites`), which needs a force push, not a
+  pull. A deleted branch is the one thing the reflog cannot bring back, since git
   deletes the branch's reflog with it, so gmd records each branch it deletes itself
   (`RepoConfig.DeletedBranches`, `DeletedBranchRecords`), which Restore Deleted Branch restores from.
   Nor can it bring back what a discard throws away, uncommitted changes, which git never had, or a
   stash dropped: `Server/Private/DiscardedChanges.cs` keeps them, the working tree before and after
   each discard as commits on `refs/gmd/discarded`, whose reflog keeps them for git's 30 days, which
   Restore Discarded Changes puts back (`SnapshotService` in the git layer).
-- `Augmented/Private/MetaDataService.cs` — persists user branch choices as git key/value
-  data so they can be pushed/pulled and shared.
+- `Augmented/Private/MetaDataService.cs` — keeps the branches the user set by hand, and what the
+  reflog decided, in `.git/gmd-metadata.json` (`MetaDataFile`), never in the repository: an older
+  gmd kept it as the ref `refs/gmd-metadata-key-value/data`, read until the first write moves it.
+  With the shared branch structure on (`RepoConfig.SyncMetaData`, off by default) the entries for
+  commits origin has, and only those (`IGit.GetIdsOnOriginAsync`), are pushed under that ref after a
+  branch push, and origin's is fetched into `refs/gmd-metadata-key-value-origin/data` and merged.
+  The README's "What Gmd Stores and Sends" lists everything gmd writes; keep it complete.
 - `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,
   `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
   details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
@@ -210,20 +219,28 @@ Key types and flow:
   out item gives; the help and the README write `Shift-P` in their text. Item names are
   plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
 - `Cui/Graphs/` — `GraphCreater`, `Graph` and `GraphWriter` turn a `Repo` into the drawn
-  branch graph.
+  branch graph. A branch's color is `BranchColorService`'s (`Cui/Common/`): picked the first time
+  gmd sees the branch, unlike its parent's and its siblings' (`BranchColorPicker`), and remembered in
+  the repo config, the colors of branches gone forgotten, so that nothing done around a branch, a
+  show, a push, a sibling squash merged away, changes its color. Keep it so: the user relies on it.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
   drawing through a `GetContentCallback`, so a large repo is never materialized as text. Such a
   view learns how many rows there are only as it draws, so whoever makes its rows anew calls
-  `SetTotalCount` before putting the cursor on one, or it is scrolled to within the old count. `TopRow`
+  `SetTotalCount` before putting the cursor on one, or it is scrolled to within the old count. A view
+  opened at a row has no height to scroll by until it is laid out, so it puts the cursor there with
+  `WhenSized`, which waits for that. `TopRow`
   draws a row above them from the first one shown, in the same draw (the diff's breadcrumb): a view
   of its own beside it would be redrawn only on the next key. Where it is
   scrolled to (`ContentScroll.cs`) and what is selected (`ContentSelection.cs`) are index math with
   no view, so they are unit testable — keep new logic there rather than in the view.
 - `Cui/Common/UIDialog.cs` — builds a dialog from the custom views beside it (`UILabel`,
-  `UITextField`, `UITextView`, `UIComboTextField`, `BorderView`) and runs it modally. `ListDlg` is
+  `UITextField`, `UITextView`, `UIComboTextField`, `UIButton`, `UICheckBox`, `BorderView`) and runs it
+  modally in a `DialogView`, gmd's own frame, title and buttons rather than Terminal.Gui's `Dialog`,
+  whose look and default button logic are its own; message boxes (`MessageDlg`) are built on it too.
+  Enter presses the default button, Alt and a button's hot letter that button. `ListDlg` is
   the dialog of a list to pick a row from, with a button and a key per action (Worktrees, Recover
-  Lost Commits, Restore Deleted Branch, Tags); the rows are drawn by a `*Rows` class beside the dialog.
+  Lost Commits, Restore Deleted Branch, Delete Merged Branches, Tags); the rows are drawn by a `*Rows` class beside the dialog.
 - Spell checking of the commit message inputs (commit, squash). `Common/Spelling/SpellChecker` is
   WeCantSpell.Hunspell over the SCOWL en_US dictionary embedded from `gmd/doc/spelling/` (or the
   user's own, `Config.SpellDictionary`; added words go to `Config.SpellWords`), and `SpellScanner`
@@ -259,32 +276,53 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   pairs them the same way, and that is what decides where a line kept ends up when part of a change
   is committed or discarded, so the view would otherwise show one file and commit another. The rows
   are side by side, or in one column (`isOneColumn`) on a narrow view, and `DiffFileList` is the list
-  of files drawn beside a wide diff.
+  of files drawn beside a wide diff. `DiffSyntax` colors the code of the rows as they are drawn, each
+  side of a file line after line, a hunk starting afresh: the grammars are TextMateSharp's
+  (`Cui/Common/CodeGrammars`, the scopes turned into gmd's colors by `CodeScopes`), whose regular
+  expressions run on a native library a release embeds and `OnigurumaLibrary` writes out and loads,
+  rather than the .NET host's extraction, which can stop gmd from starting. Nothing is colored
+  wherever it cannot be loaded, nor in the 16 colors.
   `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
   context larger than any file, since git has no "all". `DiffSource` is what the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
   It holds how to read the diff again (`DiffReload`), and what the view may do with it: step the
   context (not a line history, `git log -L`), and commit and discard (the log's uncommitted diff
-  alone, not blame's). What a diff is read with is `Git.DiffOptions`, the context and whether
+  alone, not blame's), and, for a diff of no commit, what its two sides are (`Sides`), which `b`
+  blames a line in (`DiffBlameTarget`). What a diff is read with is `Git.DiffOptions`, the context and whether
   whitespace is left out (`w`); git then leaves out a file of whitespace changes alone, which
   `DiffWhitespace` puts back, listed with no lines.
 - **`Cui/Blame/`** — `BlameRowService` turns a `Server.Blame` into `BlameRows`, aggregating consecutive
   lines from one commit into the runs the gutter bracket draws. `BlameColumns` is the gutter width
-  math, and steps detail down as the terminal narrows.
+  math, and steps detail down as the terminal narrows. The diff and the blame open each other: `b` in
+  a diff blames the file at the cursor's commit and line, through `IDiffBlame` (`Diff/` cannot name
+  `Blame/`, which is above it), and `⇧l` in the blame shows the file's history at the line's commit;
+  each is a modal view on top of the other, which `Esc` closes back to it. `BlameSyntax` colors the
+  code with the diff's grammars, the whole file from its top rather than hunk by hunk
+  (`Cui/Common/CodeLines`), under the same `ColorCode` setting; both draw the spans with
+  `Text.WithCode`, which leaves text in any color but white alone, so an uncommitted line stays
+  bright yellow.
 - **`Cui/Conflict/`** — the two/three-pane resolver. `ConflictResolution` holds what the user decided
   per hunk; it never builds file text, the decisions go back down to be applied. `SideChanges` is a
   side as its change against the common ancestor, which the resolver reads as the file opens, and
   `ConflictCombine` both sides' changes in one where they touch other words, taken as text written
   by hand. The result pane below is the file as it will be saved, which goes along with the cursor:
   `ConflictResult.RangeOf` is where the cursor's line or conflict is in it. `e` types a conflict in
-  the result pane, a `UITextView` laid over its rows, which `ConflictTyping` places. `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
+  the result pane, a `UITextView` laid over its rows, which `ConflictTyping` places. `ConflictSyntax`
+  colors the code as the blame does (`CodeLines`), each side as its version of the whole file, a
+  pane's line found by the number its gutter shows (`ConflictRow.Lines`), and the result as it will be
+  saved, which keeps the colors of its lines above the first that changed as it is made anew with
+  each decision and key typed (`ConflictResult.Code`). `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
   the operation, one after the other, from the conflict box, the repo menu and the diff's Enter, and
-  asks to commit or continue once none is left, which the caller does; how a file's view ended
-  (`ConflictOutcome`) says where it goes next, and `ConflictFileList` is the list of files beside it.
+  asks to commit or continue once none is left, which the caller does. It is one view for them all:
+  as a file ends, how (`ConflictOutcome`) is handed to the workspace, which says the file to open in
+  it next (`ConflictNext`), since a view per file showed the log between them while git read the
+  next one. `ConflictFileList` is the list of files beside it, whose arrows show the file they
+  select, and `ConflictDecisions` the decisions not saved of the files left, kept for going back to
+  them and asked about as the resolver closes.
   `IConflictView.Show`
-  is deliberately **synchronous** — a Terminal.Gui `SynchronizationContext` posts an await's
-  continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is
+  is deliberately **synchronous** — the main loop's `SynchronizationContext` (`MainLoopQueue`) posts an
+  await's continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is
   why the caller (`ConflictWorkspace`) loads the file.
 
 Below the UI, `Git/ConflictFile.cs` is the model (a `FileLine` keeps its own terminator, so a file
@@ -365,7 +403,7 @@ var result = await git.GetStatusAsync(wd);
 if (result is not Status status) return result.Error;
 
 // Propagate, no value
-if (await git.SetValueAsync(key, json, wd) is Error e) return e;
+if (await git.FetchValueAsync(key, wd) is Error e) return e;
 
 // Branch on the outcome: exhaustive, no discard arm
 return await server.PullAsync(name, wd) switch
@@ -493,6 +531,27 @@ not change the string's value.
 
 Terminal.Gui has a single main loop thread. Marshal back with `UI.Post(...)`
 (`Cui/Common/UI.cs`), assert with `UI.AssertOnUIThread()` / `Threading.AssertIsMainThread()`.
+`UI.Post` and every await on the main loop go through `MainLoopQueue`, gmd's own synchronization
+context, run as each iteration of the main loop starts, a dialog's too: Terminal.Gui 2.5's own runs
+posted work as a timer, holding the lock of the timers meanwhile, so a dialog opened after an await
+made every thread that posted wait until it closed. Post always queues; 2.x's `Invoke` runs the
+action at once on the main loop. 2.x sleeps between iterations, up to 40 ms at its 25 a second, and
+cannot be woken, so each await on the main loop resumes that much later: nothing for a command's few,
+but a loop of awaits that never touches the UI awaits with `ConfigureAwait(false)`, or it crawls (the
+updater's download, a read per 16 KB, took five minutes for 130 MB). And 2.x marks every view drawn once a draw is done, so a view that
+changes another while it is drawn (a label it fills in, the key-hint line it is followed by) posts
+that change, or it is never drawn. So does a change of the focus made as the focus changes
+(`HasFocusChanged`): 2.x throws when the view it was moving the focus to has not got it, and gmd
+crashes. The arrow keys move the focus too, in 2.x, wherever the view with it has no use for them.
+A paste from the terminal (bracketed paste) is gmd's to place: `UI.Paste` puts it into the input the
+keys go to (`IPasteTarget`), since 2.x gives it to the view it last recorded as focused, which in a
+dialog just opened is the inside of its frame, and drops it where no input has the keys.
+
+The colors are names (`ColorName`, `Cui/Common/Color.cs`), drawn in the RGB of the `Palette` in use:
+dark (Campbell) or light, picked by the terminal's own background, which 2.x asks the terminal for,
+or the 16 colors of the terminal's theme on black, as gmd looked with 1.x, for a terminal of 16
+colors and the setting `Colors` ("auto", "dark", "light", "16"). The views Terminal.Gui draws, e.g.
+the text inputs, read gmd's colors through `WithScheme`, as they are when drawn.
 Dialogs run via `UI.RunDialog`; message boxes via `UI.InfoMessage` / `UI.ErrorMessage`.
 A broken invariant is `throw Asserter.Fail(...)` (or `Asserter.Requires(...)`), reported to
 `ExceptionHandling` before it is thrown, which logs it and stops the main loop, so a catch that takes
@@ -506,7 +565,8 @@ own, and `Program` says what failed once the terminal is given back.
   several gmd instances share: a write reads the file afresh and renames a new file over it, and a
   file that is not json is set aside as `<file>.unreadable` rather than stopping gmd.
 - Per-repo state — `Common/RepoConfig.cs`.
-- Shared branch metadata — inside the git repo via `MetaDataService`.
+- Branch metadata — `.git/gmd-metadata.json`, via `MetaDataService`, shared through origin only when
+  the shared branch structure is on.
 
 ## Testing
 
@@ -582,7 +642,8 @@ both take their color letters from `TextColors`.
 The other fakes in `gmdTest/Fixtures/`: `FakeViewRepo` stands in for `IViewRepo`, for the log
 view's writer and menus, and `FakeRepoView` for the view, which `FakeRepoView.Context` puts in a
 `CommandContext` for the command classes and menus; `FakeSpellChecker` has the word list a test gives it; `FakeConfigService`
-is a config whose `Set` sticks, for a test of what a class saves rather than reads.
+is a config whose `Set` sticks, for a test of what a class saves rather than reads; `FakeMetaDataFile`
+is the metadata's file in the git dir, for the tests of `MetaDataService`.
 
 **`FakeCmd`** (`gmdTest/Utils/`) is a double for `ICmd`, the seam between the git services and
 the `git` executable. Every git service takes `ICmd` in its constructor, so canned output tests
@@ -626,7 +687,7 @@ environment variables, and `GIT_COMMITTER_DATE` is the only way to set a committ
 pty. tmux keeps a screen model, so `capture-pane` gives back the rendered screen, and that is what
 is asserted — the drawing, the layout, the key dispatch and the dialogs, none of which anything
 else in the suite reaches. It names no Terminal.Gui type, deliberately, so it is as valid against a
-2.x build as a 1.x one. `ScreenText` normalizes a capture, `TempHome` isolates the home directory
+2.x build as a 1.x one, and it was the acceptance suite of the port to 2.x. `ScreenText` normalizes a capture, `TempHome` isolates the home directory
 and `E2eRepo` builds the fixture repo:
 
 ```csharp
@@ -644,7 +705,9 @@ every machine.
 Colors are assertable too: `gmd.CaptureColors()` keeps them as ANSI, and `ScreenText.ColorsOf` /
 `ColorRows` / `BackgroundRows` turn that into one letter per cell lined up under the text, exactly
 as `GraphText.ColorsOf` does for the graph column — uppercase for a normal color, lowercase for its
-bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black). `BackgroundRows`
+bright variant (`M` magenta, `m` bright magenta, `W` white, `D` dark, `.` black), which are the 16
+colors `TempHome` has gmd draw in (`"Colors": "16"`): the RGB of gmd's own palettes has no letters.
+The color carries on from row to row, as tmux writes it. `BackgroundRows`
 is how the current row's highlight is reached, that being a background rather than a foreground.
 So is the cursor: `gmd.IsCursorVisible` and `gmd.CursorPosition` come from tmux's pane state, which
 is how "the caret is back in the text field after the menu closed" is asserted.
@@ -676,7 +739,10 @@ test must keep doing:
 - **Polling, never sleeping.** `WaitFor` waits for the text *and* for three identical captures in a
   row. The stability half is not optional: gmd **drops** keystrokes while a git command is running
   (`Progress.Show` → `UI.StopInput` → `RootKeyEvent = _ => true`), so a key sent into a moving
-  screen is silently lost, not queued.
+  screen is silently lost, not queued. And before asserting what a key changed, wait for the change
+  itself (`WaitFor` its text, `WaitUntil` for a color), not for a stable screen: one unchanged for
+  three polls is also the screen from before a key that a loaded machine, as CI is, has not acted on
+  yet. Three tests flaked in CI that way.
 - **A fresh repo per test.** `<repo>/.git/.gmdconfig` holds the shown-branch list and is rewritten
   on every repo show, and it is the one piece of state `HOME` cannot isolate.
 - **Pinned dates when the test lets gmd commit.** `StartGmd(repo, commitTime: …)` puts
@@ -717,9 +783,11 @@ Seven traps worth knowing before adding one:
   arrived as three, and a miscounted menu runs the wrong command. Same "never send a key into a
   screen that has not settled" rule, and it applies even though no git command is running. It is not
   only menus: in the log view, ten `Down`s sent in one call moved the cursor five rows.
-- **Count menu moves against the *fixture*, not the menu source.** `OnCursorDown` skips disabled
-  items, so the same item is a different number of moves in a repo with a remote than in one
-  without. `BranchTest.TestRenameBranch` is five moves for that reason.
+- **Walk a menu to an item by its name, `gmd.SelectMenuItem("Undo")`, not by a count of moves.**
+  `OnCursorDown` skips disabled items, so the same item is a different number of moves in a repo
+  with a remote than in one without, and a count breaks whenever an item above it is added or
+  moved. `SelectMenuItem` sends one `Down` at a time, waits for each to move the cursor, and stops
+  on the item drawn highlighted, in any palette. Wait for the menu first (`WaitFor` an item of it).
 
 When a snapshot disagrees, `AssertEqual` prints the actual screen ready to paste back in, and
 `GMD_E2E_KEEP=1` leaves the session up to attach to.
@@ -728,13 +796,19 @@ The same machinery records the README's animation, `gmd/doc/Animation.gif`, whic
 re-records. `gmdE2eTest/Demo/DemoTest.cs` is the script: an end-to-end test in all but asserting,
 run only when `scripts/demo` names a cast file for it (skipped otherwise), on `DemoRepo`, a
 repository made to look like a team's. `DemoRecording` turns the settled screens into an asciicast,
-each shown for as long as the script says rather than as long as it took, with a caption bar under
-them that says what the frames show, and `scripts/demo` renders that with agg, which
+each shown for as long as the script says rather than as long as it took, with a caption panel under
+them that says what the frames show, its keys written between backticks drawn as key caps, and each
+caption a scene numbered of how many (`9/18`), and `scripts/demo` renders that with agg, which
 `scripts/installtools` installs with its fonts. Everything is pinned, including what would differ
 between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
-byte for byte the same and the GIF only changes when what gmd draws does. When gmd's UI changes in
+byte for byte the same and the GIF only changes when what gmd draws does. It is drawn in the dark
+palette (`TempHome.Create(colors: "dark")`), as a user sees gmd, not in the 16 colors the other
+end-to-end tests draw in, which have none of the branch and code colors. When gmd's UI changes in
 a way the demo passes through, re-record it; when a step of the script goes wrong, `CAST=<path>
-scripts/demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step.
+scripts/demo` keeps the cast, and `agg --select marker:<label>` renders the frame of one step. The
+same run makes the two pictures the README compares, `GitLog.gif`, git's own `log --graph` of the
+demo's repository, and `GmdLog.gif`, gmd's log of it (`RecordReadmePictures`), so re-record when the
+log view changes too.
 
 Other things to know:
 
@@ -755,14 +829,14 @@ Other things to know:
   builds a real `ContentView`, sets its `Frame` (which is where its height comes from) and exercises
   everything on it except drawing. Keep logic out of the view classes so it stays reachable this way
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
-  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `BranchFinder`, `BranchUndo`, `ForcePushes`,
+  `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `DiffSyntax`, `BlameSyntax`, `ConflictSyntax`, `CodeLines`, `CodeScopes`, `BranchFinder`, `FileTree`, `FileFinder`, `FileBrowseRows`, `FolderTree`, `FolderFinder`, `FolderBrowseRows`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `MergedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping`, `ConflictDecisions` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
-- Terminal.Gui ships a public `FakeDriver` that works headlessly, so drawing *is* testable without a
-  terminal — not adopted by the suite yet; see the headless-drawing note in `.notes/MODERNIZATION.md`
-  first.
+- Terminal.Gui 2.x can be driven headlessly, with input injection and a test driver, so drawing *is*
+  testable without a terminal — not adopted by the suite yet; see the headless-drawing note in
+  `.notes/MODERNIZATION.md` first.
 - `gmdTest` runs sequentially (no `.runsettings`), and has to: run in parallel, 4 of 15 runs failed.
   `LogServiceTest` and `TimeDateExtensionsTest` change `CultureInfo.DefaultThreadCurrentCulture`, and
   `GitIntegrationTest` sets `GIT_EDITOR`. MSTest sets parallelism per assembly (`[Parallelize]` has no

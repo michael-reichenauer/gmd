@@ -332,4 +332,35 @@ public class LogServiceTest
         Assert.AreEqual(0, AssertOk(await new LogService(cmd).GetExistingCommitIdsAsync([], "/wd")).Count);
         Assert.AreEqual(0, cmd.Calls.Count);
     }
+
+    // The ids git has, less those it lists as reached by no remote branch of origin; one it does not
+    // have is not asked about
+    [TestMethod]
+    public async Task TestIdsOnOrigin()
+    {
+        const string Id3 = "3333333333333333333333333333333333333333";
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.StartsWith("for-each-ref") ? FakeCmd.Ok("refs/remotes/origin/main\n")
+                : args.StartsWith("rev-list --no-walk") ? FakeCmd.Ok($"{Id1}\n{Id2}\n")
+                // Id2 is not on origin, nor its parent
+                : FakeCmd.Ok($"{Id2}\n4444444444444444444444444444444444444444\n")
+        );
+
+        var onOrigin = AssertOk(await new LogService(cmd).GetIdsOnOriginAsync([Id1, Id2, Id3], "/wd"));
+
+        CollectionAssert.AreEqual(new[] { Id1 }, onOrigin.ToList());
+        Assert.AreEqual($"rev-list {Id1} {Id2} --not --remotes=origin", cmd.Calls[2].Args);
+    }
+
+    // With no remote branch of origin, nothing is on it, and the walk, which would list the whole
+    // history, is not made
+    [TestMethod]
+    public async Task TestNoIdsOnOriginWithoutRemoteBranches()
+    {
+        var cmd = new FakeCmd((_, args, _) => FakeCmd.Ok(args.StartsWith("for-each-ref") ? "" : $"{Id1}\n"));
+
+        Assert.AreEqual(0, AssertOk(await new LogService(cmd).GetIdsOnOriginAsync([Id1], "/wd")).Count);
+        Assert.AreEqual(1, cmd.Calls.Count);
+    }
 }

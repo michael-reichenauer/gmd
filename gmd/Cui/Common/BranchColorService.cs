@@ -1,28 +1,38 @@
-using System.Security.Cryptography;
-using System.Text;
+using System.Runtime.CompilerServices;
 using gmd.Common;
 using gmd.Server;
 
 namespace gmd.Cui.Common;
 
 // Manages brach colors, each branch has a color that is used in the UI.
-// By default, the color is based on the branch primary name (hashed id), but also if the color.
-// is the same as the parent branch, it is changed to a different color.
-// The user can manually change the color of a branch, and the color is stored in the state
-// until user changes again.
+// A branch's color is picked the first time gmd sees the branch, unlike its parent's and its
+// siblings' (see BranchColorPicker), and remembered in the repo config from then on, so it stays the
+// same whatever happens around it, until the user changes it, which is remembered the same way.
+// The colors of the branches that are gone are forgotten, so the config holds the live ones only.
 // Branches that are no longer active (deleted branches, which gmd inferred from merge commits)
 // are gray, so the active branches stand out. That color cannot be changed by the user.
 interface IBranchColorService
 {
     Color GetColor(Repo repo, Branch branch);
     void ChangeColor(Repo repo, Branch branch);
+
+    // Remembers the colors of the branches new in the repo, and forgets those of the branches gone
+    void Remember(Repo repo);
 }
 
+[SingleInstance]
 class BranchColorService : IBranchColorService
 {
-    static readonly Color[] BranchColors = [Color.Blue, Color.Green, Color.Cyan, Color.Red, Color.Yellow];
+    // The palette's, twelve of RGB, or five of the 16 colors, those that mean nothing else (main,
+    // deleted, ahead and behind have the others); read as gmd draws, as the palette can change once
+    // the terminal has said what its background is
+    static IReadOnlyList<Color> BranchColors => Palette.Current.BranchColors;
 
     readonly IRepoConfigService repoConfig;
+
+    // The colors of each repo, i.e. of each snapshot of it, which every branch drawn asks for, picked
+    // once per snapshot and in the palette it was picked in
+    readonly ConditionalWeakTable<Repo, Picked> pickedByRepo = new();
 
     internal BranchColorService(IRepoConfigService repoConfig)
     {
@@ -38,63 +48,53 @@ class BranchColorService : IBranchColorService
         if (!branch.IsGitBranch)
             return Color.Dark; // Branch is no longer active (deleted), it is dimmed
 
-        if (repoConfig.Get(repo.Path).BranchColors.TryGetValue(branch.PrimaryName, out var colorId))
-        { // Branch has a color set by user, use it
-            return GetColorByColorId(colorId);
-        }
-
-        if (branch.ParentBranchName == "")
-        { // branch has no parent, get color based on branch name
-            return GetColorByName(branch.PrimaryName);
-        }
-
-        // Branch has a parent, lets check the color of parent to determine branch color
-        var parentBranch = repo.BranchByName[branch.ParentBranchName];
-
-        if (branch.PrimaryName == parentBranch.PrimaryName)
-        { // Same common name, lets use parent color
-            return GetColor(repo, parentBranch);
-        }
-
-        // Parent is a different branch lets use a colors that is different
-        Color color = GetColorByName(branch.PrimaryName);
-        Color parentColor = GetColor(repo, parentBranch);
-        if (color == parentColor)
-        { // branch got same color as parent, lets change branch color one step
-            color = GetColorByName(branch.PrimaryName, 1);
-        }
-
-        return color;
+        return BranchColor(ColorIdOf(repo, branch));
     }
 
     public void ChangeColor(Repo repo, Branch branch)
     {
-        var color = GetColor(repo, branch);
-        var colorId = GetColorId(color);
-        var newColorId = (colorId + 1) % BranchColors.Length;
+        var key = BranchColorPicker.Key(repo, branch);
+        var newColorId = (ColorIdOf(repo, branch) % BranchColors.Count + 1) % BranchColors.Count;
 
-        repoConfig.Set(repo.Path, s => s.BranchColors[branch.PrimaryName] = newColorId);
+        ColorsOf(repo)[key] = newColorId; // In case the repo is drawn again before it is refreshed
+        repoConfig.Set(repo.Path, s => s.BranchColors[key] = newColorId);
     }
 
-    static Color GetColorByName(string name, int addIndex = 0)
+    public void Remember(Repo repo)
     {
-        var branchColorId = (Hash(name) + addIndex) % BranchColors.Length;
-        return GetColorByColorId(branchColorId);
+        // A search's results hold only some of the branches, and the others would be forgotten
+        if (repo.Filter != "")
+            return;
+
+        var colors = ColorsOf(repo);
+        var remembered = repoConfig.Get(repo.Path).BranchColors;
+        if (colors.Count == remembered.Count && colors.All(c => remembered.GetValueOrDefault(c.Key, -1) == c.Value))
+            return;
+
+        // Picked again from the config as it is written, in case another gmd changed it since
+        var count = BranchColors.Count;
+        repoConfig.Set(repo.Path, s => s.BranchColors = BranchColorPicker.Pick(repo, s.BranchColors, count));
     }
 
-    // Create a simple string hash to int
-    static int Hash(string plainText)
+    // A live branch's color: as picked for the repo, or, for a branch that is not in it, as it would
+    // be picked if it had no parent nor siblings
+    int ColorIdOf(Repo repo, Branch branch) =>
+        ColorsOf(repo).TryGetValue(BranchColorPicker.Key(repo, branch), out var colorId)
+            ? colorId
+            : BranchColorPicker.FirstChoice(repo, branch, BranchColors.Count);
+
+    Dictionary<string, int> ColorsOf(Repo repo)
     {
-        // Computing Hash - returns here byte array
-        byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(plainText));
-        return Math.Abs(BitConverter.ToInt32(bytes, 0));
+        var count = BranchColors.Count;
+        if (pickedByRepo.TryGetValue(repo, out var picked) && picked.Count == count)
+            return picked.Colors;
+
+        var colors = BranchColorPicker.Pick(repo, repoConfig.Get(repo.Path).BranchColors, count);
+        pickedByRepo.AddOrUpdate(repo, new Picked(count, colors));
+        return colors;
     }
 
-    static Color GetColorByColorId(int colorId)
-    {
-        var index = Math.Min(colorId, BranchColors.Length - 1);
-        return BranchColors[index];
-    }
+    static Color BranchColor(int colorId) => BranchColors[colorId % BranchColors.Count];
 
-    static int GetColorId(Color color) => Array.FindIndex(BranchColors, c => c == color);
+    record Picked(int Count, Dictionary<string, int> Colors);
 }

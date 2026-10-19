@@ -16,6 +16,7 @@ static class BlameHints
         ];
         hints.Add(new("d", "diff"));
         hints.Add(new("l", "line history"));
+        hints.Add(new("⇧l", "file history"));
         if (hasPrevious)
             hints.Add(new("p", "previous"));
         if (canGoBack)

@@ -3,7 +3,8 @@ using gmd.Cui;
 using gmd.Cui.Common;
 using gmd.Git;
 using gmd.Installation;
-using Terminal.Gui;
+using Terminal.Gui.App;
+using Terminal.Gui.Drivers;
 
 namespace gmd;
 
@@ -77,26 +78,31 @@ class Program
     {
         LogProgramInfo();
 
-        // No program is started before Terminal.Gui has started, git's version included: curses sets
-        // the locale as it starts (setlocale), and on macOS a fork in another thread meanwhile hangs
-        // both, the fork waiting for setlocale's lock, and setlocale for malloc, which the fork has
-        // locked. gmd hung so at two starts in three, with nothing drawn (macOS 27, 2026-10-14).
-        Application.Init();
+        // No program is started before Terminal.Gui has started, git's version included. With 1.x it
+        // was curses that set the locale as it started (setlocale), and on macOS a fork in another
+        // thread meanwhile hung both, the fork waiting for setlocale's lock, and setlocale for malloc,
+        // which the fork had locked: gmd hung so at two starts in three (macOS 27, 2026-10-14). 2.x
+        // has no curses, but it asks the terminal things as it starts, which a git started meanwhile
+        // has no part in either.
+        using IApplication app = Application.Create().Init();
+        UI.SetApp(app);
+        UI.UsePalette(config.Colors);
+        if (app.Driver is IDriver driver)
+        {
+            // The terminal says what its background is a moment after the start, which picks the
+            // light palette or the dark one, as the setting is then
+            driver.DefaultAttributeChanged += (_, _) => UI.Post(() => UI.UsePalette(config.Colors));
+        }
         LogGitVersionAsync().RunInBackground();
 
-        // Only reached when no view above handles Esc, e.g. before a repo is shown. The log view
-        // takes Esc itself and asks before quitting (RepoViewInput.QuitAfterAsking).
-        Application.Top.AddKeyBinding(Key.Esc, Command.QuitToplevel);
-        UI.HideCursor(); // Hide cursor to avoid flickering
-        Application.Driver.Checked = '◙'; // '■'; // ▣';      // Checked box characters
-        Application.Driver.UnChecked = '□'; // '□'; //▢';
-        Application.Driver.Stipple = ' '; // The scrollbar background character
-
-        Application.Top.Add(mainView.View);
+        // Esc, Terminal.Gui's quit key, ends the view on top, which is gmd itself when no view above
+        // takes it, e.g. before a repo is shown. The log view takes Esc itself and asks before
+        // quitting (RepoViewInput.QuitAfterAsking).
+        var view = mainView.View;
 
         // Run blocks until the user quits the application
-        Application.Run(HandleUIMainLoopError);
-        Application.Shutdown();
+        app.Run(view, HandleUIMainLoopError);
+        view.Dispose();
     }
 
     bool HandleUIMainLoopError(Exception e)

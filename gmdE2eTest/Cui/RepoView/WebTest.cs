@@ -22,19 +22,12 @@ public class WebTest
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Add delta");
 
-        // 'Add delta', the last commit pushed, and its menu, where the item is four up from the end,
-        // past 'Branches', the separator and the two file items
+        // 'Add delta', the last commit pushed, and its menu
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Commit Diff");
-        gmd.Send("End");
-        gmd.WaitForStable();
-        for (int i = 0; i < 4; i++)
-        {
-            gmd.Send("Up");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Open Commit in Browser");
         gmd.Send("Enter");
 
         Assert.AreEqual(

@@ -43,12 +43,22 @@ sealed class TempHome : IDisposable
     // the bottom row, and every test opens a repository for the first time.
     //
     // The recent repositories are what the start page lists, and none unless a test sets them.
-    static string ConfigJson(bool isKeyHints, bool isHiddenBranchesTip, IReadOnlyList<string> recentFolders) =>
+    //
+    // The colors are the 16 of the terminal's theme, as escape codes 30 to 37 and 90 to 97, which is
+    // what the color letters of ScreenText read; gmd's own palettes are 24-bit RGB (see Palette),
+    // which a test of what they alone draw asks for.
+    static string ConfigJson(
+        bool isKeyHints,
+        bool isHiddenBranchesTip,
+        IReadOnlyList<string> recentFolders,
+        string colors
+    ) =>
         $$"""
             {
               "CheckUpdates": false,
               "AutoUpdate": false,
               "ShowKeyHints": {{(isKeyHints ? "true" : "false")}},
+              "Colors": "{{colors}}",
               "IsHiddenBranchesTold": {{(isHiddenBranchesTip ? "false" : "true")}},
               "RecentFolders": {{System.Text.Json.JsonSerializer.Serialize(recentFolders)}}
             }
@@ -56,17 +66,18 @@ sealed class TempHome : IDisposable
 
     bool isKeyHints;
     bool isHiddenBranchesTip;
+    string colors = "16";
 
     TempHome(string path) => Path = path;
 
     // The folder to point HOME at
     public string Path { get; }
 
-    public static TempHome Create(bool isKeyHints = false, bool isHiddenBranchesTip = false)
+    public static TempHome Create(bool isKeyHints = false, bool isHiddenBranchesTip = false, string colors = "16")
     {
         var path = IOPath.Join(IOPath.GetTempPath(), $"{FolderPrefix}{Guid.NewGuid():N}");
         var home = new TempHome(path);
-        home.Init(isKeyHints, isHiddenBranchesTip);
+        home.Init(isKeyHints, isHiddenBranchesTip, colors);
         return home;
     }
 
@@ -98,12 +109,16 @@ sealed class TempHome : IDisposable
 
     // The repositories opened before, as gmd will read them when it starts, for the start page
     public void SetRecentFolders(IReadOnlyList<string> folders) =>
-        File.WriteAllText(IOPath.Join(Path, ".gmdconfig"), ConfigJson(isKeyHints, isHiddenBranchesTip, folders));
+        File.WriteAllText(
+            IOPath.Join(Path, ".gmdconfig"),
+            ConfigJson(isKeyHints, isHiddenBranchesTip, folders, colors)
+        );
 
-    void Init(bool isKeyHints, bool isHiddenBranchesTip)
+    void Init(bool isKeyHints, bool isHiddenBranchesTip, string colors)
     {
         this.isKeyHints = isKeyHints;
         this.isHiddenBranchesTip = isHiddenBranchesTip;
+        this.colors = colors;
 
         // All three have to exist before gmd starts: LogFile's static constructor writes
         // the log file and fails fast if it cannot

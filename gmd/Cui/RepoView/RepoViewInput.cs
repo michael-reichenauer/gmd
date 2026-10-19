@@ -3,7 +3,8 @@ using gmd.Cui.Commits;
 using gmd.Cui.Common;
 using gmd.Cui.Graphs;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.RepoView;
 
@@ -84,12 +85,12 @@ class RepoViewInput
         // looked up by exact value, so a case is only handled if it is registered: 'p' and 'P'
         // below are deliberately different commands, and that is the reason to be explicit here
         // rather than to fold case anywhere central.
-        commitsView.RegisterKeyHandler(Key.q, () => UI.Shutdown());
         commitsView.RegisterKeyHandler(Key.Q, () => UI.Shutdown());
-        commitsView.RegisterKeyHandler(Key.C | Key.CtrlMask, () => Copy());
-        commitsView.RegisterKeyHandler(Key.m, () => OnMenu());
-        commitsView.RegisterKeyHandler(Key.M, () => Menus.ShowRepoMenu(0, 0));
-        commitsView.RegisterKeyHandler(Key.o, () => Menus.ShowOpenRepoMenu());
+        commitsView.RegisterKeyHandler(Key.Q.WithShift, () => UI.Shutdown());
+        commitsView.RegisterKeyHandler(Key.C.WithCtrl, () => Copy());
+        commitsView.RegisterKeyHandler(Key.M, () => OnMenu());
+        commitsView.RegisterKeyHandler(Key.M.WithShift, () => Menus.ShowRepoMenu(0, 0));
+        commitsView.RegisterKeyHandler(Key.O, () => Menus.ShowOpenRepoMenu());
         commitsView.RegisterKeyHandler(Key.CursorLeft, () => OnCursorLeft());
         commitsView.RegisterKeyHandler(Key.CursorRight, () => OnCursorRight());
         commitsView.RegisterKeyHandler(Key.CursorUp, () => OnCursorUp());
@@ -97,59 +98,59 @@ class RepoViewInput
         // Only the details moved into take the page keys, otherwise they page the log as usual
         commitsView.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-DetailsPage));
         commitsView.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(DetailsPage));
-        commitsView.RegisterKeyHandler(Key.CursorRight | Key.ShiftMask, OnKeyShiftCursorRight);
+        commitsView.RegisterKeyHandler(Key.CursorRight.WithShift, OnKeyShiftCursorRight);
 
-        commitsView.RegisterKeyHandler(Key.r, () => host.RefreshAndFetch());
+        commitsView.RegisterKeyHandler(Key.R, () => host.RefreshAndFetch());
         commitsView.RegisterKeyHandler(Key.F5, () => host.RefreshAndFetch());
-        commitsView.RegisterKeyHandler(Key.c, () => CommitCmds.Commit(false));
-        commitsView.RegisterKeyHandler(Key.a, () => CommitCmds.Commit(true));
-        commitsView.RegisterKeyHandler(Key.t, () => CommitCmds.AddTag());
-        commitsView.RegisterKeyHandler(Key.b, () => CreateBranch());
-        commitsView.RegisterKeyHandler(Key.d, OnKeyD);
-        commitsView.RegisterKeyHandler(Key.D | Key.CtrlMask, () => CommitCmds.ShowCurrentRowDiff());
-        commitsView.RegisterKeyHandler(Key.i, () => Cmd.Copy(CopyKind.Ids));
-        commitsView.RegisterKeyHandler(Key.I, () => Cmd.Copy(CopyKind.Messages));
-        commitsView.RegisterKeyHandler(Key.p, OnKeyP);
-        commitsView.RegisterKeyHandler(Key.P, () => PushPullCmds.PushAllBranches());
-        commitsView.RegisterKeyHandler(Key.u, OnKeyU);
-        commitsView.RegisterKeyHandler(Key.U, () => PushPullCmds.PullAllBranches());
+        commitsView.RegisterKeyHandler(Key.C, () => CommitCmds.Commit(false));
+        commitsView.RegisterKeyHandler(Key.A, () => CommitCmds.Commit(true));
+        commitsView.RegisterKeyHandler(Key.T, () => CommitCmds.AddTag());
+        commitsView.RegisterKeyHandler(Key.B, () => CreateBranch());
+        commitsView.RegisterKeyHandler(Key.D, OnKeyD);
+        commitsView.RegisterKeyHandler(Key.D.WithCtrl, () => CommitCmds.ShowCurrentRowDiff());
+        commitsView.RegisterKeyHandler(Key.I, () => Cmd.Copy(CopyKind.Ids));
+        commitsView.RegisterKeyHandler(Key.I.WithShift, () => Cmd.Copy(CopyKind.Messages));
+        commitsView.RegisterKeyHandler(Key.P, OnKeyP);
+        commitsView.RegisterKeyHandler(Key.P.WithShift, () => PushPullCmds.PushAllBranches());
+        commitsView.RegisterKeyHandler(Key.U, OnKeyU);
+        commitsView.RegisterKeyHandler(Key.U.WithShift, () => PushPullCmds.PullAllBranches());
         commitsView.RegisterKeyHandler(Key.F1, () => Cmd.ShowHelp());
         commitsView.RegisterKeyHandler((Key)63, () => Cmd.ShowHelp()); // '?' key
-        commitsView.RegisterKeyHandler(Key.f, () => OnKeyF());
+        commitsView.RegisterKeyHandler(Key.F, () => OnKeyF());
         commitsView.RegisterKeyHandler((Key)'/', () => OnKeyF()); // The search key of most other tools
         // The next and the previous match of the last search, as in less and vim
-        commitsView.RegisterKeyHandler(Key.n, () => BranchCmds.ShowSearchMatch(1));
-        commitsView.RegisterKeyHandler(Key.N, () => BranchCmds.ShowSearchMatch(-1));
+        commitsView.RegisterKeyHandler(Key.N, () => BranchCmds.ShowSearchMatch(1));
+        commitsView.RegisterKeyHandler(Key.N.WithShift, () => BranchCmds.ShowSearchMatch(-1));
         // A developer's tool, the Unicode sets, and a digit easily hit by accident, so only in a
         // build run from the source
         if (Build.IsDevInstance())
             commitsView.RegisterKeyHandler(Key.D0, () => charDlg.Show());
 
-        commitsView.RegisterKeyHandler(Key.y, () => BranchCmds.ShowBranch(ServerRepo.CurrentBranch().Name, false));
-        commitsView.RegisterKeyHandler(Key.s, OnKeyS);
-        commitsView.RegisterKeyHandler(Key.e, OnKeyE);
-        commitsView.RegisterKeyHandler(Key.E, OnKeyShiftE);
-        commitsView.RegisterKeyHandler(Key.h, OnKeyH);
+        commitsView.RegisterKeyHandler(Key.Y, () => BranchCmds.ShowBranch(ServerRepo.CurrentBranch().Name, false));
+        commitsView.RegisterKeyHandler(Key.S, OnKeyS);
+        commitsView.RegisterKeyHandler(Key.E, OnKeyE);
+        commitsView.RegisterKeyHandler(Key.E.WithShift, OnKeyShiftE);
+        commitsView.RegisterKeyHandler(Key.H, OnKeyH);
         // Back to the branches shown before the last show or hide, as a browser goes back a page
         commitsView.RegisterKeyHandler(Key.Backspace, () => BranchCmds.UndoShowOrHide());
-        commitsView.RegisterKeyHandler(Key.w, () => WorktreeCmds.ShowWorktrees());
+        commitsView.RegisterKeyHandler(Key.W, () => WorktreeCmds.ShowWorktrees());
 
         commitsView.RegisterKeyHandler(Key.Enter, OnKeyEnter);
         commitsView.RegisterKeyHandler(Key.Tab, host.ToggleDetailsFocus);
-        commitsView.RegisterKeyHandler(Key.g, OnKeyG);
+        commitsView.RegisterKeyHandler(Key.G, OnKeyG);
 
-        commitsView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => OnClicked(x + 1, y));
-        commitsView.RegisterMouseHandler(MouseFlags.Button2Clicked, (x, y) => OnClickedMiddle(x + 1, y));
+        commitsView.RegisterMouseHandler(MouseFlags.LeftButtonClicked, (x, y) => OnClicked(x + 1, y));
+        commitsView.RegisterMouseHandler(MouseFlags.MiddleButtonClicked, (x, y) => OnClickedMiddle(x + 1, y));
 
-        commitsView.RegisterMouseHandler(MouseFlags.Button1DoubleClicked, (x, y) => OnDoubleClicked(x + 1, y));
-        commitsView.RegisterMouseHandler(MouseFlags.Button3Pressed, (x, y) => OnRightClicked(x + 1, y));
-        commitsView.RegisterMouseHandler(MouseFlags.ReportMousePosition, (x, y) => OnMouseMoved(x + 1, y));
+        commitsView.RegisterMouseHandler(MouseFlags.LeftButtonDoubleClicked, (x, y) => OnDoubleClicked(x + 1, y));
+        commitsView.RegisterMouseHandler(MouseFlags.RightButtonPressed, (x, y) => OnRightClicked(x + 1, y));
+        commitsView.RegisterMouseHandler(MouseFlags.PositionReport, (x, y) => OnMouseMoved(x + 1, y));
 
         // Keys on commit details view. Esc too, since a click on the pane gives it the focus, and the
         // key would then go on to the global binding in Program, which quits without asking.
         commitDetailsView.View.RegisterKeyHandler(Key.Esc, QuitAfterAsking);
         commitDetailsView.View.RegisterKeyHandler(Key.Tab, () => host.ToggleDetailsFocus());
-        commitDetailsView.View.RegisterKeyHandler(Key.d, () => CommitCmds.ShowCurrentRowDiff());
+        commitDetailsView.View.RegisterKeyHandler(Key.D, () => CommitCmds.ShowCurrentRowDiff());
 
         applicationBarView.ItemClicked += OnApplicationClick;
     }
@@ -182,6 +183,11 @@ class RepoViewInput
         if (hoover.IsBranch && !commitsView.Selection.IsRows)
         {
             Menus.ShowDiffBranchToMenu(hoover.ColumnIndex + 2, MenuY(hoover.RowIndex), hoover.BranchName);
+            return;
+        }
+        if (LogKeys.IsResolve(Repo, hoover, commitsView.Selection))
+        {
+            Cmd.ResolveOrDiff();
             return;
         }
 
@@ -637,7 +643,7 @@ class RepoViewInput
                 return;
             }
             hoover.SetCommit(index, Repo.Graph.Width + 2, Repo.CurrentIndex);
-            commitsView.SetNeedsDisplay();
+            commitsView.SetNeedsDraw();
             return;
         }
     }
@@ -645,14 +651,14 @@ class RepoViewInput
     void SetHooverBranch(GraphBranch branch, int index)
     {
         if (hoover.SetBranch(branch, index, Repo.CurrentIndex))
-            commitsView.SetNeedsDisplay();
+            commitsView.SetNeedsDraw();
     }
 
     void ClearHoover()
     {
         if (hoover.Clear())
         {
-            commitsView.SetNeedsDisplay();
+            commitsView.SetNeedsDraw();
         }
     }
 

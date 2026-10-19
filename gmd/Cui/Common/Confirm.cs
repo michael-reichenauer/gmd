@@ -8,6 +8,32 @@ namespace gmd.Cui.Common;
 // against is an Enter on the wrong item, and an Enter on the question would only repeat it. What
 // they throw away gmd keeps, for Restore Discarded Changes (Server.DiscardedChanges), which the
 // questions say, and the status line once it is done.
+// What the question before a reset of the current branch was answered with: its commits' changes kept
+// as uncommitted changes, or the files taken back to the commit too
+enum ResetChoice
+{
+    Cancel,
+    KeepChanges,
+    DiscardChanges,
+}
+
+// What the question before Discard All Changes was answered with: the uncommitted changes discarded,
+// or the files git ignores deleted too
+enum DiscardChoice
+{
+    Cancel,
+    Changes,
+    ChangesAndIgnored,
+}
+
+// What the question before a rewrite of commits, a drop or a rebase, was answered with
+enum RewriteChoice
+{
+    Cancel,
+    Rewrite,
+    RewriteAndPush,
+}
+
 static class Confirm
 {
     const int MaxListedPaths = 10;
@@ -18,18 +44,63 @@ static class Confirm
     internal static string Discarded(string what) =>
         $"Discarded {what}: Restore Discarded Changes in the Undo menu brings it back";
 
-    internal static bool UndoAllUncommitted() =>
-        Ask(
-            "Discard All Changes",
-            """
-            Discard all uncommitted changes?
+    const string UndoAllQuestion = """
+        Discard all uncommitted changes?
 
-            Every changed file is reset to the last commit,
-            and every new file is deleted.
-            Restore Discarded Changes, in the Undo menu,
-            brings them back.
-            """
+        Every changed file is reset to the last commit,
+        and every new file is deleted.
+        Restore Discarded Changes, in the Undo menu,
+        brings them back.
+        """;
+
+    internal static bool UndoAllUncommitted() => Ask("Discard All Changes", UndoAllQuestion);
+
+    // Discard All Changes in the Undo menu, which offers to delete the files git ignores too, when
+    // there are any: the folder then as a fresh clone of the last commit has it, so that no leftover
+    // file can make a build or a test pass that would fail elsewhere. Those are also files a user
+    // may mean to keep, e.g. a .env file of secrets, and the ones least in view, and nothing brings
+    // them back, so the question lists them rather than only naming the kinds. With no uncommitted
+    // changes, deleting them is all there is to ask about.
+    internal static DiscardChoice DiscardAll(bool isChanges, IReadOnlyList<string> ignored)
+    {
+        if (ignored.Count == 0)
+            return UndoAllUncommitted() ? DiscardChoice.Changes : DiscardChoice.Cancel;
+
+        var listed = ignored.Take(MaxListedPaths).Select(p => $"  {p}");
+        string[] more = ignored.Count > MaxListedPaths ? [$"  ... and {ignored.Count - MaxListedPaths} more"] : [];
+        var paths = string.Join("\n", listed.Concat(more));
+
+        if (!isChanges)
+            return Ask(
+                "Delete Ignored Files",
+                "There are no uncommitted changes. Delete the files git ignores,\n"
+                    + "as a fresh clone of the last commit has the folder?\n\n"
+                    + paths
+                    + "\n\nThey may be meant to stay: secrets such as .env files, local\n"
+                    + "settings, dependencies, build output. Nothing brings them back."
+            )
+                ? DiscardChoice.ChangesAndIgnored
+                : DiscardChoice.Cancel;
+
+        var choice = UI.InfoMessage(
+            "Discard All Changes",
+            UndoAllQuestion
+                + "\n\nThe files git ignores are kept: secrets such as\n"
+                + ".env files, local settings, dependencies, build\n"
+                + "output. Discard and Delete Ignored deletes them\n"
+                + "too, as a fresh clone has the folder, and nothing\n"
+                + "brings them back:\n\n"
+                + paths,
+            2,
+            ["Discard and Delete _Ignored", "_Discard", "Cancel"]
         );
+        return choice switch
+        {
+            0 => DiscardChoice.ChangesAndIgnored,
+            1 => DiscardChoice.Changes,
+            _ => DiscardChoice.Cancel,
+        };
+    }
 
     internal static bool UndoFile(string path, bool isNew) =>
         isNew
@@ -82,32 +153,6 @@ static class Confirm
         );
     }
 
-    // The folder as a fresh clone would have it, which is what this is for: no leftover file that
-    // git ignores can then make a build or a test pass that would fail elsewhere. The ignored files
-    // are also the ones a user may mean to keep, e.g. a .env file of secrets, and the ones least in
-    // view, so the question lists what goes rather than only naming the kinds.
-    internal static bool CleanWorkingFolder(IReadOnlyList<string> toDelete)
-    {
-        var listed = toDelete.Take(MaxListedPaths).Select(p => $"  {p}");
-        string[] more = toDelete.Count > MaxListedPaths ? [$"  ... and {toDelete.Count - MaxListedPaths} more"] : [];
-        var deleted =
-            toDelete.Count == 0
-                ? "There is no such file here now."
-                : "These are deleted:\n\n" + string.Join("\n", listed.Concat(more));
-
-        return Ask(
-            "Discard All Changes and Ignored Files",
-            "Make the working folder as a fresh clone of the last commit?\n\n"
-                + "Every uncommitted change is undone, and every file git does\n"
-                + "not track is deleted, the files it ignores too: secrets such\n"
-                + "as .env files, local settings, dependencies, build output.\n\n"
-                + deleted
-                + "\n\nThe changes and the new files can be brought back with Restore\n"
-                + "Discarded Changes, in the Undo menu, but none of the ignored\n"
-                + "files, which git never had."
-        );
-    }
-
     internal static bool DropStash(string message) =>
         Ask(
             "Drop Stash",
@@ -130,32 +175,93 @@ static class Confirm
         );
 
     // Undo brings a dropped commit back, but a slip of the finger should not need it: the commit's
-    // changes leave the branch with it, and later commits are rewritten
-    internal static bool DropCommit(string sid, string subject, string branchName) =>
-        Ask(
-            "Drop Commit",
-            $"""
+    // changes leave the branch with it, and later commits are rewritten. One on origin can be pushed
+    // with force once dropped, which replaces it there too, the default when offered as ticked (see
+    // ForcePush), and Cancel the default button throughout.
+    internal static RewriteChoice DropCommit(string sid, string subject, string branchName, ForcePush forcePush)
+    {
+        var question = $"""
             Drop the commit from '{branchName}'?
 
               {sid} {subject}
 
             Its changes leave the branch with it, and the commits
             after it are rewritten without it. Undo brings it back.
-            """
-        );
+            """;
+        if (forcePush == ForcePush.NotOffered)
+            return Ask("Drop Commit", question) ? RewriteChoice.Rewrite : RewriteChoice.Cancel;
 
-    // A rebase of a branch on origin is pushed with force, which replaces origin's copy for everyone,
-    // as Force Push and Restore origin do, and both ask first
-    internal static bool RebaseAndPush(string branchName, string ontoName, string remoteName) =>
-        Ask(
-            "Rebase and Push",
+        var choice = UI.InfoMessage(
+            "Drop Commit",
+            question
+                + "\n\nIt is on origin: Drop and Push replaces it there too,\nwith force, for everyone who has the branch.",
+            2,
+            ["Drop and Push", "Drop", "Cancel"]
+        );
+        return choice switch
+        {
+            0 => RewriteChoice.RewriteAndPush,
+            1 => RewriteChoice.Rewrite,
+            _ => RewriteChoice.Cancel,
+        };
+    }
+
+    // A rebase of a branch on origin is pushed with force too, when asked, which replaces origin's copy
+    // for everyone, as Force Push and Restore origin do, and both ask first; or it is left to 'p'
+    internal static RewriteChoice Rebase(string branchName, string ontoName, string remoteName, ForcePush forcePush)
+    {
+        if (forcePush == ForcePush.NotOffered)
+            return RewriteChoice.Rewrite;
+
+        var choice = UI.InfoMessage(
+            "Rebase",
             $"""
-            Rebase '{branchName}' onto '{ontoName}', and push it with force?
+            Rebase '{branchName}' onto '{ontoName}'?
 
-            The rebase rewrites the commits of '{branchName}', and the push
-            replaces {remoteName} with them, for everyone who has it.
-            """
+            The rebase rewrites the commits of '{branchName}', which are on
+            origin: Rebase and Push replaces {remoteName} with them, with force,
+            for everyone who has it. Rebase leaves that to p.
+            """,
+            2,
+            ["Rebase and Push", "Rebase", "Cancel"]
         );
+        return choice switch
+        {
+            0 => RewriteChoice.RewriteAndPush,
+            1 => RewriteChoice.Rewrite,
+            _ => RewriteChoice.Cancel,
+        };
+    }
+
+    // Rewriting commits on origin that others may have built on: the branch is shared, or some of them
+    // are someone else's (CommitRewrite.PushedWarning)
+    internal static bool RewritePushed(string question) => Ask("Rewrite Pushed Commits", question);
+
+    // A reset of the current branch to a commit, whose commits after it leave the branch, Undo the way
+    // back, with Cancel the default: what they changed kept as uncommitted changes ('reset --mixed'),
+    // or the files taken back to the commit too ('reset --keep', which git refuses rather than
+    // overwrite an uncommitted change). What it says of the commits is CommitCommands'.
+    internal static ResetChoice ResetBranch(string branchName, string sid, string subject, string what)
+    {
+        var choice = UI.InfoMessage(
+            "Reset Branch",
+            $"Reset '{branchName}' to {sid}?\n\n  {sid} {subject}\n\n{what}\n\n"
+                + "Keep Changes leaves what it takes off as uncommitted changes,\n"
+                + "Discard Changes takes the files back to the commit too, where no\n"
+                + "uncommitted change is in the way. Undo takes the reset back.",
+            2,
+            ["Keep Changes", "Discard Changes", "Cancel"]
+        );
+        return choice switch
+        {
+            0 => ResetChoice.KeepChanges,
+            1 => ResetChoice.DiscardChanges,
+            _ => ResetChoice.Cancel,
+        };
+    }
+
+    // Deleting every merged branch listed, which Restore Deleted Branch brings back one by one
+    internal static bool DeleteMergedBranches(string question) => Ask("Delete Merged Branches", question);
 
     // Putting a remote branch back as it was before a force push, which is one in turn, for everyone
     internal static bool RestoreOrigin(string remoteName, string question) => Ask($"Restore {remoteName}", question);

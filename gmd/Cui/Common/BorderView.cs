@@ -1,9 +1,10 @@
-using Terminal.Gui;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
-// A rectangle drawn in one color, used to frame another view, since the Border property of a
-// Terminal.Gui view does not draw for all views.
+// A rectangle drawn in one color, used to frame another view, e.g. a multi line text input. It is
+// under the view it frames (UIDialog.AddBorderView), which Terminal.Gui draws first and keeps it off,
+// and it keeps the views under it off its lines, e.g. the text a drop down list is opened over.
 class BorderView : View
 {
     readonly Color color;
@@ -14,39 +15,20 @@ class BorderView : View
         this.color = color;
     }
 
-    public override void Redraw(Rect bounds)
+    protected override bool OnDrawingContent(DrawContext? context)
     {
-        base.Redraw(bounds);
-        var b = bounds;
+        var (w, h) = (Viewport.Width, Viewport.Height);
+        if (w < 2 || h < 2)
+            return true;
 
-        Driver.SetAttribute(color);
-
-        // Draw corners
-        Move(b.X, b.Y);
-        Driver.AddRune('┌');
-        Move(b.X + b.Width - 1, b.Y);
-        Driver.AddRune('┐');
-        Move(b.X, b.Y + b.Height - 1);
-        Driver.AddRune('└');
-        Move(b.X + b.Width - 1, b.Y + b.Height - 1);
-        Driver.AddRune('┘');
-
-        // Draw top/bottom
-        for (int i = 1; i < b.Width - 1; i++)
+        SetAttribute(color);
+        AddStr(0, 0, "┌" + new string('─', w - 2) + "┐");
+        for (int i = 1; i < h - 1; i++)
         {
-            Move(b.X + i, b.Y);
-            Driver.AddRune('─');
-            Move(b.X + i, b.Y + b.Height - 1);
-            Driver.AddRune('─');
+            AddStr(0, i, "│");
+            AddStr(w - 1, i, "│");
         }
-
-        // Draw left/right sides
-        for (int i = 1; i < b.Height - 1; i++)
-        {
-            Move(b.X, b.Y + i);
-            Driver.AddRune('│');
-            Move(b.X + b.Width - 1, b.Y + i);
-            Driver.AddRune('│');
-        }
+        AddStr(0, h - 1, "└" + new string('─', w - 2) + "┘");
+        return true;
     }
 }

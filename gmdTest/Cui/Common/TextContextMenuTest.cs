@@ -1,7 +1,8 @@
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmdTest.Fixtures;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 using MenuItem = gmd.Cui.Common.MenuItem;
 
 namespace gmdTest.Cui.Common;
@@ -20,7 +21,7 @@ public class TextContextMenuTest
     [TestMethod]
     public void TestIsMenuKey()
     {
-        Assert.IsTrue(TextContextMenu.IsMenuKey(Key.F10 | Key.ShiftMask));
+        Assert.IsTrue(TextContextMenu.IsMenuKey(Key.F10.WithShift));
         Assert.IsFalse(TextContextMenu.IsMenuKey(Key.F10));
         Assert.IsFalse(TextContextMenu.IsMenuKey(Key.F7));
     }
@@ -98,7 +99,7 @@ public class TextContextMenuTest
         );
         Assert.IsInstanceOfType<MenuSeparator>(items[3]);
         CollectionAssert.AreEqual(
-            new[] { "Ctrl-T", "Alt-C", "Alt-W", "Ctrl-Y", "Ctrl-Z", "Ctrl-R" },
+            new[] { "Ctrl-A", "Ctrl-C", "Ctrl-X", "Ctrl-V", "Ctrl-Z", "Ctrl-Y" },
             items.Skip(4).Select(i => i.Shortcut).ToList()
         );
         Assert.IsFalse(items[5].CanExecute!(), "Copy needs a selection");
@@ -116,16 +117,16 @@ public class TextContextMenuTest
             new[] { "Select All", "Copy", "Cut", "Paste", "Undo", "Redo" },
             items.Select(i => i.Text).ToList()
         );
-        // A TextField binds other keys than a TextView does
+        // A TextField binds the same keys as a TextView, as Terminal.Gui 2.x has them, where 1.x's
+        // TextView had Emacs keys
         CollectionAssert.AreEqual(
-            new[] { "Ctrl-T", "Ctrl-C", "Ctrl-X", "Ctrl-V", "Ctrl-Z", "Ctrl-Y" },
+            new[] { "Ctrl-A", "Ctrl-C", "Ctrl-X", "Ctrl-V", "Ctrl-Z", "Ctrl-Y" },
             items.Select(i => i.Shortcut).ToList()
         );
         Assert.IsTrue(items[1].CanExecute!());
     }
 
-    // The edit actions are not public in Terminal.Gui, so an item runs its action by the key the
-    // view binds it to
+    // An item runs the command of the view, as the key the view binds it to does
     [TestMethod]
     public void TestAnEditActionRunsByItsKey()
     {

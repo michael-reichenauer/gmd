@@ -16,8 +16,7 @@ public class BlameViewTest
     public async Task TestBlameFile()
     {
         using var repo = await E2eRepo.CreateAsync();
-        // Two commits over one file, so the blame has two runs of two lines each. It has to be
-        // alpha.txt: the file picker opens on the first file of the tree and OpenBlameOf takes it.
+        // Two commits over one file, so the blame has two runs of two lines each
         var t = TempRepo.BaseTime;
         await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\nthree\nfour\n", "Add lines", t.AddMinutes(7));
         await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\nCHANGED\nFOUR\n", "Change lines", t.AddMinutes(8));
@@ -120,6 +119,57 @@ public class BlameViewTest
         Assert.AreEqual(localMain, await repo.GitAsync("rev-parse main"), "main is untouched");
     }
 
+    // The code is in its language's colors, as in the diff (DiffViewTest), those of VS Code's Dark+ in
+    // the dark palette; the 16 colors, which the other tests draw in, have none for code
+    [TestMethod]
+    public async Task TestCodeIsInItsLanguagesColors()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAtAsync("Total.cs", "int total = 42; // so far\n", "Add total", TempRepo.BaseTime);
+        using var gmd = TmuxSession.StartGmd(TempHome.Create(colors: "dark"), repo.Path);
+        gmd.WaitFor("Add total");
+
+        OpenBlameOf(gmd, "Total.cs");
+        gmd.WaitFor("Blame  Total.cs");
+
+        var line = gmd.CaptureColors().Split('\n').Single(l => l.Contains("so far"));
+        StringAssert.Contains(line, "\u001b[38;2;86;156;214mint", "The keyword blue");
+        StringAssert.Contains(line, "\u001b[38;2;181;206;168m42", "The number green");
+        StringAssert.Contains(line, "\u001b[38;2;106;153;85m// so far", "The comment green");
+    }
+
+    // ⇧l shows every commit that changed the file, scrolled to the commit of the cursor's line: here
+    // line 2's, 'Change two', below the newer 'Change one'. The lines added before it are many, so
+    // that the history is longer than the screen and there is something to scroll. Esc comes back to
+    // the blame.
+    [TestMethod]
+    public async Task TestShiftLShowsTheFileHistoryAtTheLinesCommit()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var t = TempRepo.BaseTime;
+        var rest = string.Concat(Enumerable.Range(3, 60).Select(i => $"line {i}\n"));
+        await repo.CommitFileAtAsync("alpha.txt", "one\ntwo\n" + rest, "Add lines", t.AddMinutes(7));
+        await repo.CommitFileAtAsync("alpha.txt", "one\nTWO\n" + rest, "Change two", t.AddMinutes(8));
+        await repo.CommitFileAtAsync("alpha.txt", "ONE\nTWO\n" + rest, "Change one", t.AddMinutes(9));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Change one");
+        OpenBlameOf(gmd, "alpha.txt");
+        gmd.WaitFor("TWO");
+        gmd.Send("Down");
+        gmd.WaitForStable();
+
+        gmd.Send("L");
+
+        // Waited for by the author's email, which the diff writes and the blame does not, rather than
+        // by the blame being gone, which a slow read of the history shows as nothing at all
+        var history = gmd.WaitFor($"<{TempRepo.AuthorEmail}>");
+        StringAssert.Contains(ScreenText.Rows(history, repo.Path, 0, 2), "Change two", "At the line's commit");
+        Assert.IsFalse(ScreenText.Rows(history, repo.Path, 0, 2).Contains("Change one"), "Scrolled past the newer one");
+
+        gmd.Send("Escape");
+        gmd.WaitFor("Blame  alpha.txt");
+    }
+
     // Both cases open the menu, as in the diff view
     [TestMethod]
     [DataRow("m")]
@@ -137,9 +187,6 @@ public class BlameViewTest
         gmd.WaitFor("Blame: alpha.txt");
     }
 
-    // 'Blame File ...' is the second last item of the commit menu, so 'End' and two 'Up' is the
-    // steadier walk to it than counting downwards past the items OnCursorDown skips. One key per
-    // Send with a wait after each, since a menu redraw drops whatever was sent behind it.
     // 'i' copies the line's commit id and Shift-I its whole message, as they copy a commit's in the
     // log view; the message from the log, since the blame has only its subject. 'g' steps the
     // gutter's detail down, the author first.
@@ -185,7 +232,7 @@ public class BlameViewTest
         var hints = ScreenText.LastLine(gmd.WaitFor("p previous")).TrimStart('─', ' ');
         StringAssert.StartsWith(
             hints,
-            "m menu  Esc close  Enter details  d diff  l line history  p previous  f search  i copy id ─"
+            "m menu  Esc close  Enter details  d diff  l line history  ⇧l file history  p previous  f search ─"
         );
         StringAssert.EndsWith(hints, "? help");
 
@@ -314,13 +361,14 @@ public class BlameViewTest
         gmd.Send("n");
         gmd.WaitFor("Match 3 of 3");
         gmd.WaitForStable();
-        // The cursor on the third match, 'four', highlighted, 'D', and each 'o' marked, 'y'
+        // The cursor on the third match, 'four', highlighted, 'D', and each 'o' marked, 'y', on the
+        // black of the 16 colors
         Assert.AreEqual(
             """
-            - -------- ---- ----   ---------- -   --y..
-            -                                 -   ----y
-            -                                 -   -------
-            -                                 D   DDDyDD
+            . ........ .... ....   .......... .   ..y..
+            .                                 .   ....y
+            .                                 .   .......
+            .                                 D   DDDyDD
             """,
             ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4)
         );
@@ -337,18 +385,17 @@ public class BlameViewTest
         gmd.WaitFor("'Test User' is not in alpha.txt");
     }
 
+    // The file is picked by typing its name, which finds it wherever the picker opens, on the first
+    // file the commit changed
     static void OpenBlameOf(TmuxSession gmd, string path)
     {
         gmd.Send("m");
         gmd.WaitFor("Commit ...");
-        gmd.Send("End");
-        gmd.WaitForStable();
-        gmd.Send("Up");
-        gmd.WaitForStable();
-        gmd.Send("Up");
-        gmd.WaitForStable();
+        gmd.SelectMenuItem("Blame File ...");
         gmd.Send("Enter");
-        gmd.WaitFor(path);
+        gmd.WaitFor("Find:");
+        gmd.SendText(path);
+        gmd.WaitFor($"Find: {path}");
         gmd.Send("Enter");
     }
 }

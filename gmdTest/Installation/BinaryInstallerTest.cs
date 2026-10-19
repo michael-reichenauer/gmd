@@ -215,6 +215,99 @@ public class BinaryInstallerTest
         StringAssert.Contains(e.Message, "nothing came for");
     }
 
+    // The download goes on beside the main loop it was started from, not back to it after every read:
+    // Terminal.Gui 2.x's main loop runs what is posted to it at most 25 times a second, and a binary
+    // of 130 MB, a read per 16 KB that came, took five minutes, where curl took three seconds
+    [TestMethod]
+    public async Task TestADownloadDoesNotGoBackToTheMainLoopForEveryRead()
+    {
+        const int Chunks = 50;
+        var http = new FakeHttp(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new ChunkedStream(Chunks, 100)),
+        });
+        var path = Path.Join(folder, "gmd.update_ABCDE");
+        var installer = new BinaryInstaller(Runs("1.6.1444.870"), http);
+        var mainLoop = new CountingContext();
+
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(mainLoop);
+        Task<Result> download;
+        try
+        {
+            download = installer.DownloadAsync(Url, path, TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+        AssertOk(await download);
+
+        Assert.AreEqual(Chunks * 100, new FileInfo(path).Length);
+        Assert.IsLessThan(5, mainLoop.Posts, "Back on the main loop for every read");
+    }
+
+    // A main loop, as far as an await can tell: what is posted to it is counted, and run on the pool
+    // with it as the context, as a main loop is the context of what it runs
+    class CountingContext : SynchronizationContext
+    {
+        int posts;
+
+        public int Posts => posts;
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            Interlocked.Increment(ref posts);
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                SetSynchronizationContext(this);
+                try
+                {
+                    d(state);
+                }
+                finally
+                {
+                    SetSynchronizationContext(null);
+                }
+            });
+        }
+    }
+
+    // A body that comes in chunks, each a moment after the one before, as from a network
+    class ChunkedStream(int chunks, int size) : Stream
+    {
+        int left = chunks;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        {
+            await Task.Delay(1, ct).ConfigureAwait(false);
+            if (left-- <= 0)
+                return 0;
+            buffer.Span[..size].Fill((byte)'x');
+            return size;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override void Flush() { }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     // A download cancelled by the user, from the box shown while updating, stops, and leaves gmd as
     // it was, with nothing beside it
     [TestMethod]

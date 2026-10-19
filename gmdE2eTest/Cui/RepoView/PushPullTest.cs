@@ -9,11 +9,12 @@ namespace gmdE2eTest.Cui.RepoView;
 [TestClass]
 public class PushPullTest
 {
-    // Rebase and Push onto pushes the rebased branch over origin's copy with force, for everyone, and
-    // ran it with no question, an Enter on the sub menu's first item, where Force Push and Restore
-    // origin both ask. It asks now, No the default, and No leaves both sides where they were.
+    // Rebase onto of a branch on origin asks whether to push it with force too, for everyone, which
+    // Rebase and Push onto did with no question, on an Enter on the sub menu's first item. Cancel is
+    // the default and leaves both sides where they were; Rebase and Push rebases and replaces
+    // origin's copy.
     [TestMethod]
-    public async Task TestRebaseAndPushAsksBeforeItPushesWithForce()
+    public async Task TestRebaseOntoAsksWhetherToPushWithForce()
     {
         using var repo = await E2eRepo.CreateWithOriginAsync();
         await repo.GitAsync("checkout -q -b feature");
@@ -31,26 +32,42 @@ public class PushPullTest
         gmd.WaitForStable();
         gmd.Send("Left");
         gmd.WaitForStable();
-        gmd.Send("m");
-        gmd.WaitFor("Branch: feature");
-        // Past 'Merge into feature' and 'Merge feature into' to 'Rebase and Push onto', and main in it
-        for (var i = 0; i < 2; i++)
+        void PickRebaseOntoMain()
         {
-            gmd.Send("Down");
+            gmd.Send("m");
+            gmd.WaitFor("Branch: feature");
+            // Past 'Merge into feature' and 'Merge feature into' to 'Rebase onto', and main in it
+            for (var i = 0; i < 2; i++)
+            {
+                gmd.Send("Down");
+                gmd.WaitForStable();
+            }
+            gmd.Send("Right");
             gmd.WaitForStable();
+            gmd.Send("Enter");
+            StringAssert.Contains(gmd.WaitFor("Rebase and Push replaces"), "Rebase 'feature' onto 'main'?");
         }
-        gmd.Send("Right");
+
+        PickRebaseOntoMain();
+        gmd.Send("Enter"); // Cancel, the default
+        gmd.WaitUntilGone("Rebase and Push replaces");
+        Assert.AreEqual(before, await repo.GitAsync("rev-parse feature origin/feature"), "Neither side moved");
+
+        PickRebaseOntoMain();
+        gmd.Send("Left"); // From Cancel, the default, past Rebase to Rebase and Push
+        gmd.WaitForStable();
+        gmd.Send("Left");
         gmd.WaitForStable();
         gmd.Send("Enter");
 
-        StringAssert.Contains(
-            gmd.WaitFor("push it with force"),
-            "Rebase 'feature' onto 'main', and push it with force?"
+        Assert.AreEqual(
+            "Rebased 'feature' onto 'main', and pushed it with force",
+            ScreenText.LastLine(gmd.WaitFor("Rebased 'feature'"))
         );
-        gmd.Send("Enter");
-
-        gmd.WaitUntilGone("push it with force");
-        Assert.AreEqual(before, await repo.GitAsync("rev-parse feature origin/feature"), "Neither side moved");
+        Assert.AreEqual(
+            "Feature work\nAdd eta",
+            (await repo.GitAsync($"-C \"{repo.Path}-origin\" log --format=%s -2 feature")).Trim()
+        );
     }
 
     // Pushing the current branch with 'p'. The fixture has one commit that is not on the remote,
@@ -456,6 +473,109 @@ public class PushPullTest
         );
     }
 
+    // A branch rewritten here after it was pushed, by an amend made outside gmd: said once it is found,
+    // with the old version drawn as no commit to pull, and the pull that would bring it back is not
+    // made, nor is the force push by Push All. 'p' asks first, with Cancel as the default.
+    [TestMethod]
+    public async Task TestABranchRewrittenHereIsNotPulled()
+    {
+        using var repo = await E2eRepo.CreateWithRewrittenHereAsync();
+        var onOrigin = await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main");
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        var screen = gmd.WaitFor("was rewritten here");
+        Assert.AreEqual(
+            "'main' was rewritten here by the amend: p pushes it with force, over origin's old version",
+            ScreenText.LastLine(screen)
+        );
+        Assert.AreEqual(
+            """
+             Gmd {repo}, ●main, ▲1                                           commit on main [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             ╭┺ ●▲Add zeta, reworded                                              (● main) 54d31fe2 Test User      2024-10-15 12:07
+            ┣│    Add zeta                                                        (^/main) 4dd1e9f8 Test User      2024-10-15 12:07
+            ┣╯    Add delta                                                         [v1.0] 17d85ba8 Test User      2024-10-15 12:06
+            """,
+            ScreenText.Rows(screen, repo.Path, 0, 5)
+        );
+
+        gmd.WaitUntilGone("was rewritten here");
+        gmd.Send("u");
+        Assert.AreEqual(
+            "Nothing to pull on 'main', rewritten here by the amend: p pushes it with force",
+            ScreenText.LastLine(gmd.WaitFor("Nothing to pull"))
+        );
+        gmd.Send("P");
+        Assert.AreEqual(
+            "'main' was rewritten here: push it on its own (p), which asks to force it",
+            ScreenText.LastLine(gmd.WaitFor("push it on its own"))
+        );
+
+        gmd.Send("p");
+        StringAssert.Contains(gmd.WaitFor("Force Push"), "and origin still has the 1 commit it replaced:");
+        gmd.Send("Enter"); // Cancel, the default
+        gmd.WaitUntilGone("Force Push replaces");
+        Assert.AreEqual(
+            onOrigin,
+            await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse main"),
+            "origin is untouched"
+        );
+    }
+
+    // A branch deleted on origin, e.g. once its pull request was merged there, is no branch to publish
+    // as one never pushed is: 'p' says so rather than pointing at Push, and so does the details pane
+    [TestMethod]
+    public async Task TestABranchDeletedOnOriginIsNotPublishedAgainByP()
+    {
+        using var repo = await E2eRepo.CreateWithBranchDeletedOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add feature");
+
+        gmd.Send("p");
+        Assert.AreEqual(
+            "'feature' was deleted on origin, e.g. its pull request was merged: Push in its branch menu puts it back",
+            ScreenText.LastLine(gmd.WaitFor("was deleted on origin"))
+        );
+
+        gmd.Send("Enter");
+        gmd.WaitFor("feature  (deleted on origin)");
+    }
+
+    // A branch squash merged on origin and deleted there, as a pull request merged by GitHub's squash
+    // merge leaves it, which git counts unmerged: told by content once the repo is shown, marked '✓'
+    // at its tip, and 'p' and the details pane say where it went
+    [TestMethod]
+    public async Task TestABranchSquashMergedOnOriginIsMarkedMerged()
+    {
+        using var repo = await E2eRepo.CreateWithBranchSquashMergedOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            """
+             Gmd {repo}, ●feature, ▼1                                        commit on main [Ϙ Search] ? X
+            ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+            ┣      ▼Feature (#1)                                                  (^/main) 7172afa3 Test User      2024-10-15 12:10
+            ┃   ┣ ● Fix feature                                              (● ✓ feature) adc13004 Test User      2024-10-15 12:09
+            ┃  ╭┺   Add feature                                                            2fa8d315 Test User      2024-10-15 12:08
+            ┣─┺╯    Add zeta                                                        (main) 4dd1e9f8 Test User      2024-10-15 12:07
+            """,
+            ScreenText.Rows(gmd.WaitFor("✓ feature"), repo.Path, 0, 6)
+        );
+
+        // Waited for by what only 'p' says: the note said as the ✓ was drawn is still up, and says
+        // 'was merged into' too, which a slow machine showed the assert before 'p' was acted on
+        gmd.Send("p");
+        Assert.AreEqual(
+            "'feature' was merged into 'main' on origin, and deleted there: nothing to push",
+            ScreenText.LastLine(gmd.WaitFor("nothing to push"))
+        );
+
+        gmd.Send("Down"); // From main's squash, at the top, to the tip of 'feature'
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+        gmd.WaitFor("feature  (merged into main on origin)");
+    }
+
     // A force push that only dropped a commit leaves 'main' just ahead, and a plain push of it would
     // put the commit back on origin: said once it is found, and the push asks first, with Cancel as
     // the default. Pull, with nothing new on origin, moves the commit of its own onto the new version.
@@ -491,9 +611,7 @@ public class PushPullTest
     }
 
     // A force push on origin taken back from the branch menu: origin gets the old version again,
-    // after a question with No as the default. For 'main', the current branch, the menu starts on
-    // 'Hide Branch', the first item it can act on, and the item is three moves down, past 'Pull'
-    // and 'Push'.
+    // after a question with No as the default
     [TestMethod]
     public async Task TestRestoreOriginFromBeforeTheForcePush()
     {
@@ -506,12 +624,7 @@ public class PushPullTest
         gmd.WaitForStable();
         gmd.Send("m");
         gmd.WaitFor("Restore origin/main from before the Force Push");
-        // Two moves, Hide Branch being greyed out for main, which is always shown
-        for (var i = 0; i < 2; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Restore origin/main from before the Force Push ...");
         gmd.Send("Enter");
 
         StringAssert.Contains(gmd.WaitFor("Put 'origin/main' back"), "This is a force push too");

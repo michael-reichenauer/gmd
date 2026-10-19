@@ -156,6 +156,62 @@ static class E2eRepo
         return repo;
     }
 
+    // The mirror of a force push on origin: 'Add zeta' is pushed, and then amended here, as an agent's
+    // 'git commit --amend' would, so 'main' has the new version and origin the old one. The amend is
+    // pinned to a minute of its own, so that its id is the same on every run.
+    public static async Task<TempRepo> CreateWithRewrittenHereAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+
+        await repo.GitAsync("push -q origin main");
+        repo.GitAt(["commit", "-q", "--amend", "-m", "Add zeta, reworded"], TempRepo.BaseTime.AddMinutes(8));
+
+        return repo;
+    }
+
+    // 'feature', pushed and then deleted on origin, as GitHub deletes a branch once its pull request is
+    // merged, and pruned here by a fetch, so git reports its remote branch as gone. 'feature' is
+    // current. Deleted inside the bare origin, so no second clone is needed.
+    public static async Task<TempRepo> CreateWithBranchDeletedOnOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("feature.txt", "feature\n", "Add feature", TempRepo.BaseTime.AddMinutes(8));
+        await repo.GitAsync("push -q --set-upstream origin feature");
+        await repo.GitAsync($"-C \"{repo.Path}-origin\" update-ref -d refs/heads/feature");
+        await repo.GitAsync("fetch -q --prune origin");
+
+        return repo;
+    }
+
+    // The same with 'feature' squash merged into main on origin before it was deleted there, as a pull
+    // request merged with GitHub's squash merge leaves it: main on origin has a copy of its changes,
+    // 'Feature (#1)', and git counts 'feature' unmerged. The squash is made on a detached HEAD, so
+    // that no branch's reflog has it, and pushed to origin's main; main here is behind it. 'feature' is
+    // current, or 'main', which git can delete 'feature' from.
+    public static async Task<TempRepo> CreateWithBranchSquashMergedOnOriginAsync(bool isOnMain = false)
+    {
+        var repo = await CreateWithOriginAsync();
+        var t = TempRepo.BaseTime;
+
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("feature.txt", "feature\n", "Add feature", t.AddMinutes(8));
+        await repo.CommitFileAtAsync("feature.txt", "feature\nfixed\n", "Fix feature", t.AddMinutes(9));
+        await repo.GitAsync("push -q --set-upstream origin feature");
+        await repo.GitAsync("checkout -q --detach origin/main");
+        await repo.GitAsync("merge -q --squash feature");
+        repo.GitAt(["commit", "-q", "-m", "Feature (#1)"], t.AddMinutes(10));
+        await repo.GitAsync("push -q origin HEAD:main");
+        await repo.GitAsync(isOnMain ? "checkout -q main" : "checkout -q feature");
+        await repo.GitAsync($"-C \"{repo.Path}-origin\" update-ref -d refs/heads/feature");
+        await repo.GitAsync("fetch -q --prune origin");
+
+        return repo;
+    }
+
     // The mirror of the above: everything is pushed and then the local branch is moved back a
     // commit, so origin has one the local branch has not got. That is what draws the behind marker
     // and gives 'Pull' something to do.
@@ -203,11 +259,14 @@ static class E2eRepo
         await repo.GitAsync("push -q origin work");
         await repo.GitAsync("reset -q --hard HEAD~1");
 
-        // 'main' diverged: the same move back, and then a local commit on top of it
-        await repo.GitAsync("checkout -q main");
+        // 'main' diverged: origin has a commit main never had, as someone else's push would leave it,
+        // made on a detached HEAD so that no branch's reflog has it, and main a commit of its own.
+        // Not pushed from main and moved back, as 'work' is: main's reflog would then say it was
+        // rewritten here (LocalRewrites), which has nothing to pull and is pushed with force.
+        await repo.GitAsync("checkout -q --detach main");
         await repo.CommitFileAtAsync("main2.txt", "remote\n", "Main remote", t.AddMinutes(10));
-        await repo.GitAsync("push -q origin main");
-        await repo.GitAsync("reset -q --hard HEAD~1");
+        await repo.GitAsync("push -q origin HEAD:main");
+        await repo.GitAsync("checkout -q main");
         await repo.CommitFileAtAsync("main3.txt", "local\n", "Main local", t.AddMinutes(11));
 
         await repo.GitAsync("checkout -q work");

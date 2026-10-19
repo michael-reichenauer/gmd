@@ -21,7 +21,7 @@ class CommitRewriteService : ICommitRewriteService
         var c2 = repo.CommitById[id2];
         if (!c2.ParentIds.Any())
             return new Error("Last commit does not have a parent");
-        if (c1.BranchName != c2.BranchName)
+        if (c1.BranchPrimaryName != c2.BranchPrimaryName)
             return new Error("Commits are not on the same branch");
         var branch = repo.BranchByName[c1.BranchName];
 
@@ -94,7 +94,8 @@ class CommitRewriteService : ICommitRewriteService
     // takes back to uncommitted changes.
     //
     // What the menu checks (CommitRewrite) is checked here against git too, since the commits are
-    // rewritten: a commit on origin already, or one another branch or a tag is on, is left as it is.
+    // rewritten: a commit on another branch of origin, or one another branch or a tag is on, is left
+    // as it is. One on origin's copy of the branch is rewritten, and a force push replaces it there.
     public async Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths)
     {
         var commit = repo.CommitById[id];
@@ -128,8 +129,8 @@ class CommitRewriteService : ICommitRewriteService
         return Result.Ok;
     }
 
-    // Takes an older commit of the current branch, one not pushed yet, out of the branch: the newer
-    // commits are replayed onto its parent. One that conflicts without it stops the rebase there.
+    // Takes an older commit of the current branch out of the branch: the newer commits are replayed
+    // onto its parent. One that conflicts without it stops the rebase there.
     public async Task<Result> DropCommitAsync(Repo repo, string id)
     {
         var commit = repo.CommitById[id];
@@ -157,9 +158,64 @@ class CommitRewriteService : ICommitRewriteService
         return Result.Ok;
     }
 
-    // The current local branch, when only it has the commit: no remote branch, i.e. it is not pushed,
-    // and no other branch or tag, which would be left on the old commits. Asked of git rather than
-    // taken from the repo read, since the commits are rewritten.
+    // Swaps a commit of the current branch with the one after it on the branch, or before it: an
+    // interactive rebase from the older of the two, with the two the other way round in its list and
+    // the newer ones as they were. The older is the one git checks, the rewrite starting there. One
+    // that conflicts with the other, which then comes first, stops the rebase there.
+    public async Task<Result> MoveCommitAsync(Repo repo, string id, bool isUp)
+    {
+        var commit = repo.CommitById[id];
+        var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote && !b.IsDetached);
+        if (local == null)
+            return new Error("Not on a branch");
+
+        // The commits from the tip down to the older of the two, newest first, down git's first parents
+        List<Commit> commits = [];
+        var c = repo.CurrentCommit();
+        var olderId = isUp ? id : commit.GitParentIds.FirstOrDefault() ?? "";
+        while (true)
+        {
+            commits.Add(c);
+            if (c.Id == olderId)
+                break;
+            if (c.GitParentIds.Count == 0 || !repo.CommitById.TryGetValue(c.GitParentIds[0], out var parent))
+                return new Error(
+                    $"{commit.Sid} has no commit {(isUp ? "after" : "before")} it on '{local.NiceNameUnique}'"
+                );
+            c = parent;
+        }
+        var older = commits[^1];
+        if (commits.Count < 2 || older.GitParentIds.Count == 0)
+            return new Error($"{commit.Sid} has no commit {(isUp ? "after" : "before")} it to move past");
+
+        var checkResult = await CheckRewritableAsync(repo, older);
+        if (checkResult is not Branch)
+            return new Error($"Cannot move {commit.Sid}", checkResult.Error);
+
+        var order = commits.Select(x => x.Id).Reverse().ToList();
+        (order[0], order[1]) = (order[1], order[0]);
+        if (await git.ReorderCommitsAsync(older.GitParentIds[0], order, repo.Path) is Error moveError)
+            return new Error($"Failed to move {commit.Sid}", moveError);
+
+        UndoService.Record(
+            repoConfig,
+            repo,
+            local.Name,
+            new RecordedStep
+            {
+                Kind = nameof(StepKind.Move),
+                Name = commit.Subject.Trim(),
+                BeforeId = repo.CurrentCommit().Id,
+                Moves = 1,
+            }
+        );
+        return Result.Ok;
+    }
+
+    // The current local branch, when only it and its copy on origin have the commit: no other remote
+    // branch, e.g. origin's main once it is merged there, nor another branch or a tag, which would be
+    // left on the old commits. Asked of git rather than taken from the repo read, since the commits are
+    // rewritten.
     async Task<Result<Branch>> CheckRewritableAsync(Repo repo, Commit commit)
     {
         var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote && !b.IsDetached);
@@ -171,11 +227,14 @@ class CommitRewriteService : ICommitRewriteService
             return refsResult.Error;
         if (!refs.Contains($"refs/heads/{local.Name}"))
             return new Error($"{commit.Sid} is not on '{local.NiceNameUnique}'");
-        if (refs.FirstOrDefault(r => r.StartsWith("refs/remotes/")) is string remote)
-            return new Error($"{commit.Sid} is on '{remote["refs/remotes/".Length..]}' already, i.e. pushed");
+        // origin/HEAD names another remote branch, e.g. origin/main, which is listed on its own
+        var ownRemote = local.RemoteName == "" ? "" : $"refs/remotes/{local.RemoteName}";
+        refs = refs.Where(r => !(r.StartsWith("refs/remotes/") && r.EndsWith("/HEAD"))).ToList();
+        if (refs.FirstOrDefault(r => r.StartsWith("refs/remotes/") && r != ownRemote) is string remote)
+            return new Error($"{commit.Sid} is on '{remote["refs/remotes/".Length..]}' already");
         if (refs.FirstOrDefault(r => r.StartsWith("refs/tags/")) is string tag)
             return new Error($"The tag '{tag["refs/tags/".Length..]}' is on {commit.Sid} or a commit after it");
-        if (refs.FirstOrDefault(r => r != $"refs/heads/{local.Name}") is string other)
+        if (refs.FirstOrDefault(r => r != $"refs/heads/{local.Name}" && r != ownRemote) is string other)
             return new Error($"'{other["refs/heads/".Length..]}' is on {commit.Sid} or a commit after it");
         return local;
     }

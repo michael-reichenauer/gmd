@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Branches;
 
@@ -33,7 +34,7 @@ class DeleteBranchDlg : IDeleteBranchDlg
 // the branch's name, and a box for each side, checked, and enabled only for a side there is
 static class BranchSides
 {
-    public static (CheckBox Local, CheckBox Remote) Add(
+    public static (UICheckBox Local, UICheckBox Remote) Add(
         UIDialog dlg,
         string verb,
         string name,

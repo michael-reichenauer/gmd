@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.App;
 
@@ -33,7 +34,7 @@ class UnicodeSetsDlg : IUnicodeSetsDlg
         contentView.RegisterKeyHandler(Key.Esc, () => dlg.Close());
 
         dlg.AddDlgClose(true);
-        contentView.RegisterKeyHandler(Key.C | Key.CtrlMask, OnCopy);
+        contentView.RegisterKeyHandler(Key.C.WithCtrl, OnCopy);
         dlg.Show(contentView);
     }
 

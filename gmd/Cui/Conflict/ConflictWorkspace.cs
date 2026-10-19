@@ -21,10 +21,10 @@ interface IConflictWorkspace
 
 // The resolver of every conflicted file of an operation, one after the other: it opens a file in the
 // resolver (ConflictView), with the list of them beside it, and goes on from how that ends, to the
-// file asked for, or once one is resolved to the next one still conflicted. A file with no text to
-// merge, binary or deleted on one side, is asked about instead. Once none is left, it asks whether
-// to commit or continue, which the caller does: it was a box saying 'Resolve them in the diff', and
-// then the diff, the resolver of one file and back, and a commit from the log.
+// file asked for, or once one is resolved to the next one still conflicted, in the same view. A file
+// with no text to merge, binary or deleted on one side, is asked about instead. Once none is left, it
+// asks whether to commit or continue, which the caller does: it was a box saying 'Resolve them in
+// the diff', and then the diff, the resolver of one file and back, and a commit from the log.
 class ConflictWorkspace : IConflictWorkspace
 {
     readonly IServer server;
@@ -43,76 +43,160 @@ class ConflictWorkspace : IConflictWorkspace
         if (await ReadStateAsync(repoPath) is not ConflictState state || state.Files.Count == 0)
             return ResolveNext.None;
 
-        // The files the operation stopped on, which the list keeps, ticking those resolved since, and
-        // those whose question was cancelled, passed over until the workspace is opened again
-        var files = state.Files;
-        HashSet<string> passed = [];
         var sides = await server.GetConflictSidesAsync(repoPath) is ConflictSides known ? known : ConflictSides.None;
-        var open = files.Any(f => f.Path == path) ? path : files[0].Path;
-
-        while (open != "")
-        {
-            var list = new ConflictFileList(files, ResolvedOf(files, state), open);
-            var outcome = await ShowAsync(list, state, sides, repoPath);
-            if (outcome.End == ConflictEnd.Skipped)
-                passed.Add(open);
-
-            if (await ReadStateAsync(repoPath) is not ConflictState now)
-                return ResolveNext.None;
-            state = now;
-            if (state.Files.Count == 0)
-                return AskWhatNext(state);
-
-            open = (list with { Resolved = ResolvedOf(files, state) }).After(outcome, passed);
-        }
-        return ResolveNext.None;
+        var session = new Session(this, state, repoPath);
+        var first = await session.StartAsync(path);
+        if (first.File is ConflictFile file)
+            conflictView.Show(file, sides, state.Operation, repoPath, first.List, session.NextAsync);
+        return session.Finish;
     }
 
-    // The file opened in the resolver, or asked about where it has no text to merge
-    async Task<ConflictOutcome> ShowAsync(
+    // One opening of the workspace, which the resolver asks for the file to go on to each time one
+    // ends: the files the operation stopped on, which the list keeps, ticking those resolved since,
+    // those whose question was cancelled, passed over until the workspace is opened again, and what
+    // the user chose to do once none is left
+    class Session
+    {
+        readonly ConflictWorkspace workspace;
+        readonly IReadOnlyList<ConflictedFile> files;
+        readonly string repoPath;
+        readonly HashSet<string> passed = [];
+        ConflictState state;
+        ConflictFileList list = ConflictFileList.None;
+
+        public ResolveNext Finish { get; private set; } = ResolveNext.None;
+
+        public Session(ConflictWorkspace workspace, ConflictState state, string repoPath)
+        {
+            this.workspace = workspace;
+            this.state = state;
+            this.files = state.Files;
+            this.repoPath = repoPath;
+        }
+
+        // The file at the path, or else the first, or the one after it it comes to, see NextAsync
+        public async Task<ConflictNext> StartAsync(string path)
+        {
+            var open = files.Any(f => f.Path == path) ? path : files[0].Path;
+            list = new ConflictFileList(files, ResolvedOf(files, state), open);
+            var (file, asked) = await workspace.OpenAsync(list, state, repoPath);
+            return file != null ? new(file, list) : await NextAsync(asked);
+        }
+
+        // The file to open once the open one ended as it did, those with no text to merge on the way
+        // asked about as their turn comes, or none, when the resolver closes: once no conflict is
+        // left, after asking what finishes the operation
+        public async Task<ConflictNext> NextAsync(ConflictOutcome outcome)
+        {
+            if (outcome.End == ConflictEnd.Look)
+                return await LookAsync(outcome.Path);
+
+            while (true)
+            {
+                if (outcome.End == ConflictEnd.Skipped)
+                    passed.Add(list.Open);
+
+                if (await workspace.ReadStateAsync(repoPath) is not ConflictState now)
+                    return ConflictNext.Close;
+                state = now;
+                if (state.Files.Count == 0)
+                {
+                    Finish = AskWhatNext(state);
+                    return ConflictNext.Close;
+                }
+
+                list = list with { Resolved = ResolvedOf(files, state) };
+                var open = list.After(outcome, passed);
+                if (open == "")
+                    return ConflictNext.Close;
+
+                list = list with { Open = open };
+                var (file, asked) = await workspace.OpenAsync(list, state, repoPath);
+                if (file != null)
+                    return new(file, list);
+                outcome = asked;
+            }
+        }
+
+        // A file looked at in the list, as its arrows move: opened where it has text to merge, with no
+        // read of what is left, which looking changes nothing of. One with none is left for Enter, which
+        // asks about it, rather than asked about at each arrow key that passes it. A file resolved is
+        // opened as it was saved, with no conflict left in it: the last file shown stayed, as if it
+        // were the one selected. One a side deleted may be no file now, so it is only said to be
+        // resolved.
+        async Task<ConflictNext> LookAsync(string path)
+        {
+            var conflicted = state.Files.FirstOrDefault(f => f.Path == path);
+            var resolved = conflicted == null ? files.FirstOrDefault(f => f.Path == path) : null;
+            if (resolved != null && resolved.Kind is not (ConflictKind.BothModified or ConflictKind.BothAdded))
+                return ConflictNext.StayOn($"{path} is resolved");
+            if ((conflicted ?? resolved) is not ConflictedFile known)
+                return ConflictNext.StayOn($"{path} has no conflicts");
+            if (await workspace.ReadAsync(known, repoPath) is not ConflictFile file)
+                return ConflictNext.StayOn($"{path} could not be read");
+            if (resolved != null ? file.IsBinary : !HasText(file))
+                return ConflictNext.StayOn(
+                    resolved != null
+                        ? $"{path} is resolved"
+                        : $"{path} has no text to merge: Enter asks how to resolve it"
+                );
+
+            list = list with { Open = path };
+            return new(file, list);
+        }
+    }
+
+    // The open file of the list read, to be resolved in the resolver, or where it has no text to
+    // merge asked about instead, and how that ended
+    async Task<(ConflictFile? File, ConflictOutcome Asked)> OpenAsync(
         ConflictFileList list,
         ConflictState state,
-        ConflictSides sides,
         string repoPath
     )
     {
         var conflicted = state.Files.FirstOrDefault(f => f.Path == list.Open);
         if (conflicted == null)
-            return new(ConflictEnd.Done);
-
-        ConflictFile file;
-        using (progress.Show())
-        {
-            // With the common ancestor, which the sides are drawn against, and without it where it
-            // cannot be had, e.g. the file changed since git wrote the conflicts into it
-            var read = await server.GetConflictFileAsync(conflicted.Path, conflicted.Kind, true, repoPath);
-            if (read is Error)
-                read = await server.GetConflictFileAsync(conflicted.Path, conflicted.Kind, false, repoPath);
-            if (read is not ConflictFile conflictFile)
-            {
-                UI.ErrorMessage($"Failed to open {conflicted.Path}\n{read.Error.AllMessages()}");
-                return new(ConflictEnd.Closed);
-            }
-            file = conflictFile;
-        }
-
-        if (!file.IsBinary && file.Hunks.Count > 0)
-            return conflictView.Show(file, sides, state.Operation, repoPath, list);
+            return (null, new(ConflictEnd.Done));
+        if (await ReadAsync(conflicted, repoPath) is not ConflictFile file)
+            return (null, new(ConflictEnd.Closed));
+        if (HasText(file))
+            return (file, new(ConflictEnd.Done));
 
         // Cancelled, it is passed over for the next one, as long as there is another
         if (conflictView.AskWholeFile(file, repoPath) is not Func<Task<Result>> action)
-            return new(ConflictEnd.Skipped);
+            return (null, new(ConflictEnd.Skipped));
 
         using (progress.Show())
         {
             if (await action() is Error e)
             {
                 UI.ErrorMessage($"Failed to resolve {file.Path}\n{e.AllMessages()}");
-                return new(ConflictEnd.Closed);
+                return (null, new(ConflictEnd.Closed));
             }
         }
-        return new(ConflictEnd.Done);
+        return (null, new(ConflictEnd.Done));
     }
+
+    // With the common ancestor, which the sides are drawn against, and without it where it cannot be
+    // had, e.g. the file changed since git wrote the conflicts into it; null where it cannot be read,
+    // which is said
+    async Task<ConflictFile?> ReadAsync(ConflictedFile conflicted, string repoPath)
+    {
+        using (progress.Show())
+        {
+            var read = await server.GetConflictFileAsync(conflicted.Path, conflicted.Kind, true, repoPath);
+            if (read is Error)
+                read = await server.GetConflictFileAsync(conflicted.Path, conflicted.Kind, false, repoPath);
+            if (read is ConflictFile file)
+                return file;
+
+            UI.ErrorMessage($"Failed to open {conflicted.Path}\n{read.Error.AllMessages()}");
+            return null;
+        }
+    }
+
+    // A file opened in the resolver, rather than asked about whole: binary, or a side deleted it
+    static bool HasText(ConflictFile file) => !file.IsBinary && file.Hunks.Count > 0;
 
     async Task<ConflictState?> ReadStateAsync(string repoPath)
     {

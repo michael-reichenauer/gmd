@@ -217,6 +217,103 @@ public class RepoWriterTest
         StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 120), "┺ß● Second");
     }
 
+    // The commit marked for a diff, in the stash's column, so that it is seen at the start of its
+    // row, where Diff with in the menu of another commit only names it
+    [TestMethod]
+    public async Task TestTheCommitMarkedForADiffIsMarked()
+    {
+        var view = await View();
+        var mark = new DiffMark();
+        mark.Set(view.Path, RepoBuilder.Sha("c2"));
+
+        // Hoovering a branch turns the current row's highlight off, see the ahead and behind test
+        var rows = Rows(view, 120, hooverBranch: "main", hooverIndex: 0, diffMark: mark);
+
+        StringAssert.StartsWith(rows[1].ToString(), "┣  ±  Second");
+        StringAssert.StartsWith(TextColors.Of(rows[1]), "M  ±..WWWWWW", "Solid bright cyan, as no other mark is");
+        Assert.IsFalse(rows[0].ToString().Contains('±') || rows[2].ToString().Contains('±'), "The one marked only");
+    }
+
+    // Its row is drawn on a background of its own from the mark to the end, the graph left as it is,
+    // so that it is found again among the others when another is to be diffed with it, and is not
+    // taken for the cursor's row. The author and time, dark on the other rows, are white on it.
+    [TestMethod]
+    public async Task TestTheRowMarkedForADiffHasABackgroundFromItsMarkOn()
+    {
+        var view = await View();
+        var mark = new DiffMark();
+        mark.Set(view.Path, RepoBuilder.Sha("c2"));
+
+        var rows = Rows(view, 120, hooverBranch: "main", hooverIndex: 0, diffMark: mark);
+
+        var row = rows[1];
+        Assert.AreEqual(ColorName.Background, row.Fragments[0].Color.Background, "Not on the graph");
+        Assert.AreEqual(Color.DiffMark, row.Fragments.First(f => f.Text == DiffMark.Marker).Color, "The mark its own");
+        Assert.IsTrue(
+            row.Fragments.SkipWhile(f => f.Text != DiffMark.Marker).Skip(1).All(IsMarkBg),
+            "Every column after it"
+        );
+        Assert.AreEqual(Color.White.Foreground, row.Fragments[^1].Color.Foreground, "The author and time");
+        Assert.IsFalse(rows[0].Fragments.Any(IsMarkBg) || rows[2].Fragments.Any(IsMarkBg), "The one marked only");
+    }
+
+    // The cursor's highlight replaces the background on its row, but not the mark itself, so that
+    // marking a commit, which the cursor is on, is seen at once
+    [TestMethod]
+    public async Task TestTheCursorOnTheMarkedRowLeavesTheMarkAsItIs()
+    {
+        var view = await View();
+        var mark = new DiffMark();
+        mark.Set(view.Path, RepoBuilder.Sha("c2"));
+
+        var row = Rows(view, 120, currentIndex: 1, diffMark: mark)[1];
+
+        Assert.IsTrue(IsHighlighted(row));
+        Assert.AreEqual(Color.DiffMark, row.Fragments.First(f => f.Text == DiffMark.Marker).Color);
+        Assert.IsFalse(row.Fragments.Any(IsMarkBg), "The cursor's background throughout");
+    }
+
+    // A selection replaces it too, on the columns a selection covers, the subject on
+    [TestMethod]
+    public async Task TestTheMarkedRowSelectedIsDrawnAsSelected()
+    {
+        var view = await View();
+        var mark = new DiffMark();
+        mark.Set(view.Path, RepoBuilder.Sha("c2"));
+
+        var row = Rows(view, 120, selection: new Selection(0, 0, 0, 1, 0), diffMark: mark)[1];
+
+        Assert.IsTrue(IsSelected(row));
+        Assert.AreEqual(Color.White.Foreground, row.Fragments[^1].Color.Background, "The time column it ends with");
+    }
+
+    // The mark is there for a moment and has to be seen, so it is drawn over a stash's 'ß', which
+    // the top bar still counts
+    [TestMethod]
+    public async Task TestTheDiffMarkTakesTheColumnOverFromAStash()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true)
+            .Stash("stash@{0}", "c2")
+            .ViewRepoAsync();
+        var mark = new DiffMark();
+        mark.Set(repo.Path, RepoBuilder.Sha("c2"));
+
+        StringAssert.StartsWith(Rows(new FakeViewRepo(repo), 120, diffMark: mark)[0].ToString(), "┣─┺±● Second");
+    }
+
+    // A mark is of the repository it was made in, so another one opened in the same gmd has none
+    [TestMethod]
+    public async Task TestAMarkInAnotherRepositoryIsNotDrawn()
+    {
+        var mark = new DiffMark();
+        mark.Set("/some/other/repo", RepoBuilder.Sha("c2"));
+
+        Assert.IsFalse(Page(await View(), 120, diffMark: mark).Contains('±'));
+    }
+
     // The branch tips, i.e. the '(name)' after the subject saying which branches end at this commit
 
     [TestMethod]
@@ -397,8 +494,21 @@ public class RepoWriterTest
 
     static bool IsSelected(Text row) => row.Fragments.Any(f => f.Color.Background == Color.White.Foreground);
 
-    static string Page(FakeViewRepo view, int width, int firstRow = 0, int count = 20, Selection? selection = null) =>
-        string.Join("\n", Rows(view, width, firstRow, count, selection: selection).Select(t => t.ToString().TrimEnd()));
+    static bool IsMarkBg(TextFragment f) => f.Color.Background == ColorName.MarkBg;
+
+    static string Page(
+        FakeViewRepo view,
+        int width,
+        int firstRow = 0,
+        int count = 20,
+        Selection? selection = null,
+        DiffMark? diffMark = null
+    ) =>
+        string.Join(
+            "\n",
+            Rows(view, width, firstRow, count, selection: selection, diffMark: diffMark)
+                .Select(t => t.ToString().TrimEnd())
+        );
 
     static string FirstRow(FakeViewRepo view, int width) => Rows(view, width)[0].ToString().TrimEnd();
 
@@ -410,9 +520,10 @@ public class RepoWriterTest
         int currentIndex = 0,
         string hooverBranch = "",
         int hooverIndex = -1,
-        Selection? selection = null
+        Selection? selection = null,
+        DiffMark? diffMark = null
     ) =>
-        new RepoWriter(new BranchColorService(new FakeRepoConfig()), new GraphWriter())
+        new RepoWriter(new BranchColorService(new FakeRepoConfig()), new GraphWriter(), diffMark ?? new DiffMark())
             .ToPage(view, firstRow, count, currentIndex, hooverBranch, hooverIndex, width, selection ?? NoSelection)
             .ToList();
 

@@ -1,6 +1,7 @@
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Branches;
 
@@ -46,8 +47,8 @@ class FindBranchDlg : IFindBranchDlg
         this.totalCount = BranchFinder.Find(repo, "").Count;
         // As tall as every branch needs, within the screen, so that a repo with few is not a box of
         // blank rows: the list plus the field, the line under it, the status and the borders
-        var width = Math.Min(MaxWidth, Application.Driver.Cols - 4);
-        var height = Math.Min(Math.Min(MaxHeight, Application.Driver.Rows - 4), Math.Max(8, totalCount + 5));
+        var width = Math.Min(MaxWidth, UI.ScreenSize.Width - 4);
+        var height = Math.Min(Math.Min(MaxHeight, UI.ScreenSize.Height - 4), Math.Max(8, totalCount + 5));
 
         dlg = new UIDialog("Find Branch", width, height, OnKey);
         dlg.RegisterMouseHandler(OnMouse);
@@ -60,11 +61,7 @@ class FindBranchDlg : IFindBranchDlg
         listView.IsScrollMode = false;
         statusLabel = dlg.AddLabel(1, height - 3);
 
-        findField.KeyUp += e =>
-        {
-            Update();
-            e.Handled = true;
-        };
+        findField.TextChanged += (_, _) => Update();
         Update();
 
         dlg.Show(findField);
@@ -73,8 +70,8 @@ class FindBranchDlg : IFindBranchDlg
 
     void Update()
     {
-        // Every key released in the field comes here, the ones moving in the list too, which must
-        // not move it back to the top
+        // Called for every change of the text, and once as the dialog opens; a text as it was must
+        // not move the list back to the top
         var text = findField.Text;
         if (text == foundText)
             return;
@@ -82,7 +79,7 @@ class FindBranchDlg : IFindBranchDlg
         foundText = text;
         found = BranchFinder.Find(repo, text);
         listView.MoveToTop();
-        listView.SetNeedsDisplay();
+        listView.SetNeedsDraw();
         UpdateStatus();
     }
 
@@ -94,26 +91,19 @@ class FindBranchDlg : IFindBranchDlg
 
     bool OnKey(Key key)
     {
-        switch (key)
-        {
-            case Key.Enter:
-                Pick();
-                return true;
-            case Key.CursorUp:
-                listView.Move(-1);
-                return true;
-            case Key.CursorDown:
-                listView.Move(1);
-                return true;
-            case Key.PageUp:
-                listView.Move(-listView.ContentHeight);
-                return true;
-            case Key.PageDown:
-                listView.Move(listView.ContentHeight);
-                return true;
-        }
-
-        return false;
+        if (key == Key.Enter)
+            Pick();
+        else if (key == Key.CursorUp)
+            listView.Move(-1);
+        else if (key == Key.CursorDown)
+            listView.Move(1);
+        else if (key == Key.PageUp)
+            listView.Move(-listView.ContentHeight);
+        else if (key == Key.PageDown)
+            listView.Move(listView.ContentHeight);
+        else
+            return false;
+        return true;
     }
 
     // A click on a branch picks it, and the wheel scrolls the list. The dialog has the mouse, so
@@ -123,20 +113,15 @@ class FindBranchDlg : IFindBranchDlg
         var listRow = ev.Y - 1 - ListY;
         var isInList = listRow >= 0 && listRow < listView.ViewHeight && ev.X > 0 && ev.X < listView.ViewWidth + 1;
 
-        if (ev.Flags.HasFlag(MouseFlags.Button1Clicked) && isInList)
+        if (ev.Flags.HasFlag(MouseFlags.LeftButtonClicked) && isInList)
         {
             listView.SetIndexAtViewY(listRow);
             Pick();
             return true;
         }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        if (Wheel.Vertical(ev.Flags) is var wheel && wheel != 0)
         {
-            listView.Scroll(1);
-            return true;
-        }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            listView.Scroll(-1);
+            listView.Scroll(wheel);
             return true;
         }
 

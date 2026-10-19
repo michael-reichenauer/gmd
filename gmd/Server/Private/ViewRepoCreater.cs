@@ -38,7 +38,7 @@ class ViewRepoCreater : IViewRepoCreater
         var viewBranches = FilterOutViewBranches(repo, showBranches, show, count);
         var viewCommits = FilterOutViewCommits(repo, viewBranches);
 
-        SetAheadBehind(viewBranches, viewCommits);
+        SetAheadBehind(viewBranches, viewCommits, repo.LocalRewrites);
 
         var viewRepo = converter.ToViewRepo(DateTime.UtcNow, viewCommits, viewBranches, "", repo);
 
@@ -196,6 +196,8 @@ class ViewRepoCreater : IViewRepoCreater
             Worktrees = repo.Worktrees,
             UndoSteps = repo.UndoSteps,
             RemoteRewrites = repo.RemoteRewrites,
+            LocalRewrites = repo.LocalRewrites,
+            MergedOnOrigin = repo.MergedOnOrigin,
             CurrentAuthor = repo.CurrentAuthor,
         };
 
@@ -205,14 +207,18 @@ class ViewRepoCreater : IViewRepoCreater
         return converter.ToViewRepo(DateTime.UtcNow, viewCommits, viewBranches, filter, augRepo);
     }
 
-    static void SetAheadBehind(List<Branch> filteredBranches, List<Commit> filteredCommits)
+    static void SetAheadBehind(
+        List<Branch> filteredBranches,
+        List<Commit> filteredCommits,
+        IReadOnlyDictionary<string, LocalRewrite> localRewrites
+    )
     {
         foreach (var b in filteredBranches.ToList()) // ToList() since SetBehind/SetAhead modifies branches
         {
             if (b.IsRemote && b.LocalName != "")
             {
                 // Remote branch with ahead commits (remote only commits)
-                SetBehindCommits(b, filteredBranches, filteredCommits);
+                SetBehindCommits(b, filteredBranches, filteredCommits, localRewrites.ContainsKey(b.LocalName));
             }
             else if (!b.IsRemote && b.RemoteName != "")
             {
@@ -222,7 +228,15 @@ class ViewRepoCreater : IViewRepoCreater
         }
     }
 
-    static void SetBehindCommits(Branch remoteBranch, List<Branch> filteredBranches, List<Commit> filteredCommits)
+    // The remote branch's own commits are the ones to pull, unless the local branch was rewritten
+    // here (Repo.LocalRewrites): they are then the old version, which a force push replaces, and
+    // nothing is to pull, so the commands and the markers do not offer a pull that would bring it back
+    static void SetBehindCommits(
+        Branch remoteBranch,
+        List<Branch> filteredBranches,
+        List<Commit> filteredCommits,
+        bool isRewrittenHere
+    )
     {
         int remoteBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.Name);
         int localBranchIndex = filteredBranches.FindIndex(b => b.Name == remoteBranch.LocalName);
@@ -273,11 +287,16 @@ class ViewRepoCreater : IViewRepoCreater
             }
 
             // Commit is(behind)
-            filteredCommits[commitIndex] = commit with
-            {
-                IsBehind = true,
-            };
-            hasBehindCommits = true;
+            filteredCommits[commitIndex] = isRewrittenHere
+                ? commit with
+                {
+                    IsReplaced = true,
+                }
+                : commit with
+                {
+                    IsBehind = true,
+                };
+            hasBehindCommits = !isRewrittenHere;
 
             if (commit.ParentIds.Count == 0)
             { // Reach last commit

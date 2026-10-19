@@ -85,6 +85,9 @@ internal class Git : IGit
     public Task<Result<IReadOnlySet<string>>> GetExistingCommitIdsAsync(IReadOnlyList<string> ids, string wd) =>
         logService.GetExistingCommitIdsAsync(ids, wd);
 
+    public Task<Result<IReadOnlySet<string>>> GetIdsOnOriginAsync(IReadOnlyList<string> ids, string wd) =>
+        logService.GetIdsOnOriginAsync(ids, wd);
+
     public Task<Result<IReadOnlyList<string>>> GetIdsChangingFilesAsync(string pathText, int maxCount, string wd) =>
         logService.GetIdsChangingFilesAsync(pathText, maxCount, wd);
 
@@ -95,6 +98,9 @@ internal class Git : IGit
         logService.GetFilePathsAsync(reference, wd);
 
     public Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd) => branchService.GetBranchesAsync(wd);
+
+    public Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd) =>
+        branchService.GetMergedBranchNamesAsync(id, wd);
 
     public Task<Result<Status>> GetStatusAsync(string wd) => statusService.GetStatusAsync(wd);
 
@@ -208,6 +214,9 @@ internal class Git : IGit
     public Task<Result> RebaseOntoRemoteAsync(string remoteName, string forkPointId, string wd) =>
         branchService.RebaseOntoRemoteAsync(remoteName, forkPointId, wd);
 
+    public Task<Result> CherryPickCommitsAsync(IReadOnlyList<string> idsOldestFirst, string wd) =>
+        branchService.CherryPickCommitsAsync(idsOldestFirst, wd);
+
     public Task<Result> CherryPickAsync(string sha, string wd) => branchService.CherryPickAsync(sha, wd);
 
     public Task<Result> AbortOperationAsync(string wd) => conflictService.AbortOperationAsync(wd);
@@ -276,8 +285,8 @@ internal class Git : IGit
 
     public Task<Result> CleanWorkingFolderAsync(string wd) => commitService.CleanWorkingFolderAsync(wd);
 
-    public Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd) =>
-        commitService.GetFilesToCleanAsync(wd);
+    public Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd) =>
+        commitService.GetIgnoredFilesAsync(wd);
 
     public Task<Result> AutosquashAsync(string baseId, string wd) => commitService.AutosquashAsync(baseId, wd);
 
@@ -288,6 +297,12 @@ internal class Git : IGit
 
     public Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd) =>
         commitService.RebaseOntoKeepingMergesAsync(onto, upstream, wd);
+
+    public Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd) =>
+        commitService.ReorderCommitsAsync(baseId, idsOldestFirst, wd);
+
+    public Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd) =>
+        commitService.IsMergedByContentAsync(ours, theirs, wd);
 
     public Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd) =>
         commitService.GetRefsContainingAsync(id, wd);
@@ -302,13 +317,13 @@ internal class Git : IGit
 
     public Task<Result<string>> GetValueAsync(string key, string wd) => keyValueService.GetValueAsync(key, wd);
 
-    public Task<Result> SetValueAsync(string key, string value, string wd) =>
-        keyValueService.SetValueAsync(key, value, wd);
+    public Task<Result> DeleteValueAsync(string key, string wd) => keyValueService.DeleteValueAsync(key, wd);
 
     public Task<Result<string>> GetOriginValueAsync(string key, string wd) =>
         keyValueService.GetOriginValueAsync(key, wd);
 
-    public Task<Result<bool>> PushValueAsync(string key, string wd) => keyValueService.PushValueAsync(key, wd);
+    public Task<Result<bool>> PushValueAsync(string key, string value, string wd) =>
+        keyValueService.PushValueAsync(key, value, wd);
 
     public Task<Result> FetchValueAsync(string key, string wd) => keyValueService.FetchValueAsync(key, wd);
 

@@ -1,7 +1,8 @@
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmdTest.Fixtures;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmdTest.Cui.Common;
 
@@ -107,8 +108,8 @@ public class SpellSpansTest
     public void TestLineTextIsOneCharPerRune()
     {
         Assert.AreEqual("a�b", SpellSpans.LineText("a🎉b"));
-        Assert.AreEqual("ab", SpellSpans.LineText(new List<Rune> { new Rune('a'), new Rune('b') }));
-        Assert.AreEqual("a�b", SpellSpans.LineText(new List<Rune> { new Rune('a'), new Rune(0x1F389), new Rune('b') }));
+        Assert.AreEqual("ab", SpellSpans.LineText(new List<System.Text.Rune> { new('a'), new('b') }));
+        Assert.AreEqual("a�b", SpellSpans.LineText(new List<System.Text.Rune> { new('a'), new(0x1F389), new('b') }));
     }
 
     [TestMethod]
@@ -123,8 +124,8 @@ public class SpellSpansTest
     public void TestIsSpellKey()
     {
         Assert.IsTrue(SpellSpans.IsSpellKey(Key.F7));
-        Assert.IsTrue(SpellSpans.IsSpellKey(Key.G | Key.CtrlMask));
-        Assert.IsFalse(SpellSpans.IsSpellKey(Key.G));
+        Assert.IsTrue(SpellSpans.IsSpellKey(Key.G.WithCtrl));
+        Assert.IsFalse(SpellSpans.IsSpellKey(Key.G.WithShift));
         Assert.IsFalse(SpellSpans.IsSpellKey(Key.F5));
     }
 

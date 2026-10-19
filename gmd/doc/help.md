@@ -121,6 +121,20 @@ While a commit, push or pull runs it says what is being done, in cyan. For
 a few seconds after a command it says what the command did, or why a key
 or a greyed out menu item did nothing, and in red when a fetch failed.
 
+### Colors
+
+Gmd draws in colors of its own: a dark palette, or a light one when the
+terminal's background is light, which gmd asks the terminal as it starts.
+Branches get twelve colors. A branch is given one the first time gmd sees
+it, by its name, unless its parent has that color or the branches started
+just before it from the same branch do, and it keeps that color from then
+on, whatever is shown, pushed or merged around it. `g` changes the color of
+the highlighted one. **Colors** in **Config ...** in the repo menu
+chooses: `auto` (dark or light by the terminal), `dark`, `light`, or `16`,
+the 16 colors of the terminal's own theme on black, with five branch colors,
+which is also what a terminal of 16 colors gets. A terminal without 24-bit
+color, e.g. macOS Terminal before macOS 26, needs `16`.
+
 
 ## Showing and Hiding Branches
 
@@ -134,7 +148,8 @@ hidden until it next becomes current.
 - `Shift-→` opens **Show Branch**: first the hidden branches that merge in
   or branch out at the cursor's commit, then New (see ✦ below), Recent,
   Active, My Active (where the last commit is yours), Active and Deleted,
-  and Ambiguous. The branch menus have the same list, as a submenu.
+  and Ambiguous. The repo menu (`Shift-M`) has the same list, as a
+  submenu beside Search, and so does Branches in the commit menu.
 - Typing in that menu, or in its sub menus, opens **Find Branch** with what
   was typed. The list narrows as more of the name is typed, every word has
   to be in it, and the names it starts a part of come first. `Enter` or a
@@ -191,14 +206,29 @@ repository.
 - **Undo a mistake:** **Undo** in the commit menu (`m`) takes back the last
   change of the branch you are on, e.g. a commit, a merge or a pull.
 - **Switch repository:** `o`, then the number of a recent one, or browse to,
-  clone or create one. Started outside a repository, gmd shows a start page
-  instead of the log: `Enter` opens the most recent repository, `1` to `9`
-  any one listed, which includes those in the folder gmd was started in, and
-  `Delete` takes one off the recent list, leaving its folder as it is.
-  `gmd -m` shows the start page inside a repository too.
-- **Fix a commit not pushed yet:** `m` on it, then **Amend <id> ...** for a
-  new message, or the changes you tick, or both, or **Drop <id>** under
-  **Undo** to take it out of the branch. `a` amends the last commit.
+  clone or create one. Browsing shows the folders as a tree, starting from
+  the one most likely wanted, open, with the repositories marked `repo`:
+  `→` and `←` open and close a folder. Typing a name finds it among the
+  folders listed, and typing a path, e.g. `~/code/`, lists the folders in
+  it, `→` going into the one found. `Enter` or a click on a name picks the
+  folder, and a click on `▸` opens it. Clone, Init and Create Worktree pick
+  their folder the same way, with **Browse**. Started outside a repository,
+  gmd shows a start page instead of the log: `Enter` opens the most recent
+  repository, `1` to `9` any one listed, which includes those in the folder
+  gmd was started in, and `Delete` takes one off the recent list, leaving
+  its folder as it is. `gmd -m` shows the start page inside a repository
+  too.
+- **Clean up after pull requests:** **Delete Merged Branches ...** in the repo
+  menu (`Shift-M`) lists the local branches merged into main, by a squash or
+  a rebase on GitHub too, marked `✓` in the log, and deletes them.
+- **Committed on the wrong branch,** e.g. on main: `m` on the oldest commit
+  of them, then **Move to New Branch ...**, which moves it and the newer
+  ones while they are not pushed yet.
+- **Fix a commit:** `m` on it, then **Amend <id> ...** for a new message,
+  or the changes you tick, or both, or **Drop <id>** under **Undo** to take
+  it out of the branch. `a` amends the last commit. Once the commit is on
+  origin, `p` then replaces it there (see [When You Rewrote a Pushed
+  Branch](#when-you-rewrote-a-pushed-branch)).
 
 
 ## Keys
@@ -217,7 +247,7 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
 | Tab        | Move between the log and the commit details                |
 | c          | Commit the uncommitted changes                             |
-| a          | Amend the last commit, while it is not pushed              |
+| a          | Amend the last commit                                      |
 | d          | Diff of the commit (on a branch: diff the branch to ...)   |
 | Ctrl-D     | Diff of the commit or the selected rows, even on a branch  |
 | s          | Switch to the highlighted branch                           |
@@ -255,6 +285,8 @@ In dialogs and text fields:
 | Alt-O      | OK, e.g. to commit while typing in the message box         |
 | Ctrl-D     | Show the diff of what is committed, in the commit dialog   |
 | Ctrl-A     | After a merge, add the merged commits' subjects            |
+| Ctrl-A     | Otherwise select all; Ctrl-C, -X, -V copy, cut and paste   |
+| Ctrl-Z     | Undo typing (Ctrl-Y redo)                                  |
 | Space, a   | Untick or tick a file, or all, in the commit file list     |
 | F7         | Spelling suggestions (also Ctrl-G)                         |
 | Shift-F10  | Text menu: spelling, copy, paste (also right-click)        |
@@ -289,8 +321,10 @@ selects them too, in any terminal.
 | *      | Detached commit (commit checked out, not a branch)           |
 | ⌂      | Commit and branch checked out in another worktree            |
 | ß      | Stash based on commit                                        |
+| ±      | Commit marked for a diff (Mark for Diff, in the commit menu) |
 | ▲      | Commit not yet pushed (green subject)                        |
 | ▼      | Commit not yet pulled (blue subject)                         |
+| ✓      | Branch squash or rebase merged on origin, deleted there      |
 | ^      | Abbreviation for 'origin' in branch names                    |
 | ~      | Deleted branch (inactive, drawn in gray)                     |
 | o      | Branch shown in the graph (in branch menus)                  |
@@ -313,6 +347,9 @@ which way they have to go:
 
 - `▲` and a green subject: a commit to push.
 - `▼` and a blue subject: a commit to pull.
+- A dark subject with neither, in origin's column: the old version of a
+  branch you rewrote (see [When You Rewrote a Pushed
+  Branch](#when-you-rewrote-a-pushed-branch)), which a force push replaces.
 
 `p` and `u` push and pull the highlighted branch, or the current one when
 none is, as **Push** and **Pull** in its branch menu do. A push leaves the
@@ -320,6 +357,22 @@ uncommitted changes where they are; a pull needs them committed or stashed
 first. Switching to a branch where git would overwrite them offers to stash
 them, switch, and put them back. `Shift-P` and `Shift-U` push or update all
 shown branches.
+
+A branch deleted on origin, e.g. by GitHub once its pull request was
+merged, and then by a fetch here, is said to be in the details pane,
+`(deleted on origin)`, and `p` says so rather than pushing it: **Push** in
+its branch menu makes it again on origin, after asking.
+
+Merged by a squash or a rebase first, as GitHub's squash merge and rebase
+merge do, the branch is not merged as git counts it, since what went into
+main are copies of its commits. Gmd tells it by content, once the repo is
+shown: merging the branch into main, or into the branch it was made from,
+as origin has them, would change nothing. Its tip is then marked `✓`, e.g.
+`(✓ feature)`, the details pane says `(merged into main on origin)`, and
+the worktree list counts it merged, and the status line says so once,
+pointing at **Delete Merged Branches ...** (see [More
+Commands](#more-commands)). A branch whose lines main changed again since
+is not told.
 
 A branch with both unpulled and unpushed commits can only be pushed by
 force, which `p` asks about first, and is not updated by `Shift-U`, which
@@ -352,6 +405,42 @@ anything was pushed since the last fetch (`--force-with-lease`) or on top
 of the rewrite. It also takes gmd's own **Rebase**, which force pushes,
 back on origin after **Undo Rebase** took it back here.
 
+### When You Rewrote a Pushed Branch
+
+The mirror of the above: you squashed, amended, dropped or rebased commits
+that are on origin already, in gmd or not, e.g. a coding agent did. Then your branch
+has the new version and origin the old one. That looks like new commits on
+both sides, but origin has nothing new: a pull would merge the old version
+back in, putting every change in twice. Gmd tells this apart by the
+branch's own reflog, which says it was where origin is now, and says so on
+the status line when it first sees it, e.g. right after a squash. The old
+version is drawn dark, with no `▼`, and there is nothing to pull.
+
+`p` then pushes the branch with force, after a question that names the
+commits it replaces on origin, for everyone who has the branch. It is
+leased on origin as shown, so it is refused if anyone pushed since the last
+fetch, and `Shift-P` leaves the branch out, to be asked about on its own.
+Recover Lost Commits finds the old version afterwards.
+
+Someone else's commits pushed on top of the old version make origin a
+commit your branch never was at: the branch is then shown as diverged, as
+new commits on both sides.
+
+Amend, Drop and Squash rewrite commits on origin as they do the others, on
+one rule: not while origin has commits the branch has not, which the force
+push would drop, so those are pulled first, and not a commit origin has on
+another branch, e.g. one merged into main. On a branch others build on
+(main, an integration branch such as develop, or a release branch), or when
+some of the commits on origin are someone else's, they ask first, with No
+the default. Uncommit is for commits not pushed only.
+
+The push can be made with the rewrite: Amend and Squash have a box, *Push
+to 'origin/...' with force when done*, ticked on a branch of your own and
+unticked once they asked first, and Drop's and **Rebase onto**'s questions
+have **Drop and Push** and **Rebase and Push** beside Drop and Rebase. A
+rewrite that stops on a conflict pushes nothing; once it is continued, `p`
+pushes it.
+
 
 ## Undo and Recovery
 
@@ -359,6 +448,10 @@ The ways back are under **Undo** in the commit menu (`m`). The items that
 throw changes away ask first, and what they throw away gmd keeps, for
 **Restore Discarded Changes**.
 
+- **Abort Merge**, or **Abort Rebase** and so on, comes first while a merge,
+  rebase, cherry pick or revert is in progress, conflicted or not committed
+  yet: it backs out of it, as in the repo menu (see *Continue, Skip or
+  Abort*).
 - **Undo** the last change of the current branch, named after it, e.g.
   **Undo Rebase** or **Undo Commit 'Fix'**: the branch goes back to where
   it was before, as git's reflog of the branch has it, whether the change
@@ -412,7 +505,7 @@ throw changes away ask first, and what they throw away gmd keeps, for
   changes): `git checkout --force HEAD -- <file>`, staged changes too, or
   a new file is unstaged and deleted
 - **Revert Commit**: `git revert --no-commit <commit-sha>`
-- **Drop <commit-sha>**: takes a commit not pushed yet out of the branch,
+- **Drop <commit-sha>**: takes a commit out of the current branch,
   `git rebase --onto <commit-sha>~ <commit-sha>`, asked first. The commits
   after it are rewritten without it, and Undo brings it back. Not for a
   merge, or past one, nor with another branch or a tag on it or after it,
@@ -420,13 +513,21 @@ throw changes away ask first, and what they throw away gmd keeps, for
 - **Uncommit Last Commit**: `git reset HEAD~1`, the changes stay uncommitted
 - **Uncommit <commit-sha> and Newer**: `git reset --soft <commit-sha>~`, so
   that commit and the ones after it are uncommitted
-- **Discard All Changes**: `git reset --hard` and `git clean -fd`
-- **Discard All Changes and Ignored Files**: `git reset --hard` and
-  `git clean -fxd`, i.e. the folder as a fresh clone of the last commit
-  has it, to check that nothing left over makes a build or a test pass.
-  The files git ignores go too, also those kept on purpose, such as a
-  .env file of secrets, so the question lists everything it deletes.
-  Restore Discarded Changes brings back the rest, but not those.
+- **Reset Branch to <commit-sha> ...**: the current branch moved to any
+  commit, of it or another, after a question that says how many commits
+  leave the branch, and that a pull brings back those origin has. **Keep
+  Changes**, `git reset --mixed`, leaves what they changed as uncommitted
+  changes, and **Discard Changes**, `git reset --keep`, takes the files back
+  to the commit too, which git refuses rather than overwrite an uncommitted
+  change. Undo takes it back, and Recover Lost Commits finds the commits.
+- **Discard All Changes ...**: `git reset --hard` and `git clean -fd`. When
+  there are files git ignores, the question lists them and offers
+  **Discard and Delete Ignored** too, `git clean -fxd`, i.e. the folder as a
+  fresh clone of the last commit has it, to check that nothing left over
+  makes a build or a test pass. Those go also when kept on purpose, such as
+  a .env file of secrets, and Restore Discarded Changes brings back the
+  changes but not them. With no uncommitted changes, it asks to delete just
+  the ignored files.
 
 
 ## More Commands
@@ -452,9 +553,9 @@ throw changes away ask first, and what they throw away gmd keeps, for
   the merged commits, one per line, and for a merged merge the list in its
   message.
 - **Amend ...** (`a`) and **Amend <commit-sha> ...**:
-  `a` amends the last commit while it is not pushed: its message, and the
-  files ticked in the dialog. The commit menu of an older commit not pushed
-  yet has an Amend of its own, with that commit's message and the changed
+  `a` amends the last commit: its message, and the files ticked in the
+  dialog. The commit menu of an older commit of the current branch has an
+  Amend of its own, with that commit's message and the changed
   files, none ticked at first: a new message, the ticked changes, or both.
   It is git's own way: an "amend!" commit of them, folded in by
   `git rebase -i --autosquash`, with the files left unticked put aside and
@@ -490,8 +591,8 @@ throw changes away ask first, and what they throw away gmd keeps, for
   into main** and `Shift-E` **Merge main into dev**. On the current branch
   itself they are **Merge into main** and **Merge main into**, each a list
   of the shown branches to pick the other one from. A merge opens the
-  commit dialog, and **Abort Merge** at the top of the repo menu backs out
-  of it.
+  commit dialog, and **Abort Merge** at the top of the repo menu, or of
+  **Undo** in the commit menu, backs out of it.
   Git can only merge into the branch that is checked out, so `Shift-E`
   switches to the target branch, merges, opens the commit dialog there,
   and switches back once the merge is committed. Cancelling the commit, or
@@ -500,9 +601,14 @@ throw changes away ask first, and what they throw away gmd keeps, for
   takes it back.
 - **Squash ...** (in the commit menu):
   Select a range of commits on the current branch with `Shift-↑↓`, and
-  squash them into one commit with a new message. The commits after them
+  squash them into one commit with a new message, which starts as the
+  oldest commit's, with the subjects of the others listed below it, as
+  GitHub lists them in a squash merge. The commits after them
   are put back on top as they were, merges and authors too, and **Undo**
-  takes the squash back. Nothing changes until the squash is made.
+  takes the squash back. Nothing changes until the squash is made. Commits
+  on origin already can be squashed too, and `p` then pushes the squash with
+  force: see [When You Rewrote a Pushed
+  Branch](#when-you-rewrote-a-pushed-branch).
 - **Tags** (in the commit menu's **Tag** menu):
   **Add Tag ...** (`t`) puts a tag on the commit, and pushes it to origin
   unless its box is unticked. **Tags ...** lists every tag, newest commit
@@ -515,20 +621,51 @@ throw changes away ask first, and what they throw away gmd keeps, for
   back and keeps it, e.g. for the same changes on another branch as well,
   and **Stash Diff** and **Stash Drop** show it and throw it away, which
   Restore Discarded Changes, under Undo, takes back.
+- **Cherry Pick into <branch>** (commit menu): the commit's changes are
+  staged on the current branch, for the commit dialog, with its message.
+  With the commits of another branch selected with `Shift-↑↓`, one line of
+  them, the item counts them, **Cherry Pick 3 Commits into main**, and
+  picks each as it was made, its author and message kept, with git's own
+  `cherry-pick`; **Undo** takes them all back at once. One that conflicts
+  stops the pick for the resolver, and **Continue** picks the rest.
+- **Reorder** (commit menu): **Move Above '...'** and **Move Below '...'**
+  move the commit past the next one of the current branch, or the one
+  before it, each item naming the commit it is moved past. The two are
+  swapped by git's own interactive rebase, on the rules Amend has, and Undo
+  takes it back. Two commits that change the same lines conflict once
+  swapped, which stops the rebase, to be resolved and continued, or
+  aborted.
+- **Move to New Branch ...** (commit menu):
+  Moves the commits of the current branch from this one up, not pushed
+  yet, to a new branch, e.g. ones made on main by mistake. The new branch
+  is made where they are and checked out, so the files and any changes
+  stay as they are, and published when its box is ticked; the branch they
+  were on goes back to the commit before them, which **Undo** in its
+  branch menu takes back.
+- **Delete Merged Branches ...** (repo menu, `Shift-M`):
+  Lists the local branches with no branch on origin, deleted there or never
+  pushed, whose work is in main or an integration branch already: merged
+  as git counts it, or squash or rebase merged on origin (marked `✓`, see
+  [Remote and Local Branches](#remote-and-local-branches)). `Enter` or `d`
+  deletes the one selected, and `a` all of them, after asking, as git's
+  `branch -D` would, which a squash merge needs. A branch checked out, here
+  or in another worktree, is listed but left. Each one deleted is kept for
+  **Restore Deleted Branch**. A branch made with no commits of its own yet
+  is not listed, though git counts it merged.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on
   the remote as well, by pushing the new name and then deleting the old
   remote branch. Note that deleting it affects everyone: other clones lose
   track of the branch and a pull request made from the old name is closed.
-- **Open in Browser** (branch menu):
+- **Open Branch in Browser** (branch menu):
   Opens the branch on the site hosting the remote (GitHub, GitLab,
   Bitbucket, Azure DevOps or Gitea), and **Create Pull Request in Browser**
   the page for a pull request into the branch it was made from. The commit
   menu has **Open Commit in Browser**, and the repo menu **Open Repository
   in Browser**. `$BROWSER` is used when it is set, and with no browser to
   open, e.g. over ssh, the link is copied instead.
-- **Set Commit Branch Manually ...** (branch menu):
+- **Set Commit Branch Manually ...** (commit menu):
   Sets the branch of a commit where gmd guessed wrong or could not decide
   (see [How Gmd Picks a Commit's Branch](#how-gmd-picks-a-commits-branch)).
 
@@ -544,33 +681,42 @@ conflicted, and the lines added and deleted in it, headed by how many there
 are of each, e.g. `3 files changed  1 added, 2 modified  +25 -7`; the files
 are left out of it, that row kept, while they are listed beside the diff
 (below). Each file
-starts with a row naming it, underlined in blue. Where unchanged lines are
+starts with a row naming it, with a line in cyan after it. Where unchanged lines are
 left out between the parts that changed, a dark line with `⋯` where the line
-numbers are says so, with the function or heading git finds the next part in, when it is not
-the one before it. Git finds it by a pattern for the file's language, set
-in `.gitattributes`, e.g. `*.cs diff=csharp`; with none, it takes the
-nearest line above that is not indented, which in C# is the class for every
-part. A changed line has a bar
+numbers are says so, and `Enter` on it shows more of them, as `+` does. A changed line has a bar
 beside its number, red for a line removed and green for a line added, and
 where a removed line and the added line beside it are mostly alike, the
-words that differ are marked. The cursor is the line number drawn reversed.
+words that differ are marked. The code is in the colors of its language, as
+VS Code's Dark+ and Light+ themes color it, known by the file's extension, for
+some fifty languages. Each part of a file is colored from where it starts, so
+one that starts inside a comment of many lines is colored as code until the
+comment ends. **Color the code by its language** in **Config ...** turns it
+off, here, in the blame and in the conflict resolver, and the `16` colors
+have none to spare for it. The cursor is the line number drawn reversed.
 A line whose line end alone changed, e.g. from LF to CRLF, has a `␍` on the
 side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
 stepping from the 6 lines of context it starts with to 15, and then to the
 whole file (and `=` does what `+` does, without the shift). It applies to
 that one file, so the rest of the commit stays as it was, and the header of
-a widened file says what it is showing. The menu has the same two, as
+a widened file says what it is showing. The line the cursor is on stays
+where it is on the screen, the lines coming and going around it; on the `⋯`,
+the line above it stays, and the lines left out come in below it. The menu has the same two, as
 **More Context** and **Less Context**, naming the file they would act on
 and what it would then show.
 
 Rows selected with `Shift-↑↓` and `d` diff the commits of a range on one
-branch. Any two commits, wherever they are, are diffed with **Mark for
-Diff** in the commit menu of one, and **Diff with <id>** in the menu of the
-other: the changes from the older of the two to the newer.
+branch: the changes they made, the oldest one's too, titled e.g. *Diff of 3
+commits*. Any two commits, wherever they are, are diffed with **Mark for
+Diff** in the commit menu of one, which marks it `±` in the log, its row
+tinted to be found again, and **Diff with <id>** in the menu of the other:
+the changes from the older of the two to the newer, so not the older one's
+own. The mark stays for diffs with other commits too, until another commit
+is marked or **Unmark for Diff** in its menu takes it away.
 
 In a view narrower than 110 columns, the diff is in one column instead,
-each change's removed lines above its added ones, as git writes them, and
+each change's removed lines above its added ones, as git writes them, each
+with a `-` or a `+` where side by side has the bar, and
 a conflict's two sides one after the other, each named. `v` switches
 between the two, for the diff it is pressed in.
 
@@ -600,11 +746,19 @@ Within the diff: `r` re-reads it from git, `u`
 discards uncommitted changes (the change the cursor is on, the lines
 selected, a file or all of them, see [Undo and Recovery](#undo-and-recovery)), `x` leaves the change the
 cursor is on, or the lines selected, out of the next commit, or puts them
-back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` resolves
-a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
+back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` opens
+a conflicted file in the resolver, `m` or a right-click opens the menu, `←` `→` scroll the
 two columns sideways, their line numbers staying where they are, and pick
-which one a selection copies from, `Ctrl-C`
+which one a selection copies from (a mouse's sideways wheel, or `Shift` and
+the wheel, scrolls them a few columns a turn), `Ctrl-C`
 copies the selected lines, and `Esc` or `q` closes the view.
+
+`b` blames the file the cursor is in, in the commit the diff is of, with
+the cursor on the line it was on in the diff: who wrote the code around a
+change. A line the commit removed is blamed in the version before it, and
+the uncommitted changes in the working tree. In a file history each line is
+blamed in its own commit, so `b` on a line of an old commit shows the whole
+file as it was then. `Esc` comes back to the diff.
 
 `f` or `/` searches the lines for a text, as it is typed and in any case,
 and puts the cursor on the first line with it from the cursor down, on the
@@ -623,14 +777,30 @@ whitespace again. **Diff File**
 in the menu opens an uncommitted file in the diff tool git is configured
 with (`git difftool`).
 
-**Blame File ...** in the commit menu picks a file and shows which commit
-last changed each of its lines. Consecutive lines from the same commit are
-bracketed together with `┌ │ └` (`╺` for a run of a single line) and that
-commit is named once per run rather than on every line, which is what makes
-this readable where the console `git blame` is not. The bracket and the
-short id are shaded by age, from yellow for the newest commit through to
-gray for the oldest, and lines that are not committed yet are bright yellow
-and marked `©`.
+**File History ...** and **Blame File ...** in the commit menu pick
+the file in the same dialog. First come the files the commit changed, under
+**Changed in commit** (on the uncommitted row, **Uncommitted changes**),
+each with its letter (`M`, `A`, ...), and the cursor on the first of them.
+Below them, under **All files**, are all the files of the commit, or on the
+uncommitted row of its branch, as a tree with every folder closed, where a
+changed file has its letter too and a folder holding one a `•`. `→` and
+`←` open and close a folder, and `←` on a file goes up to its folder.
+Typing lists the files whose path has every word typed, in any case and in
+any order, the names that start with the first word first, and clearing it
+goes back to the tree. `Enter` or a click picks the file, or opens or
+closes a folder, and `Esc` closes the dialog.
+
+**File History ...** shows every commit that changed the file, opened at the
+commit the menu is for when it is one of them, the newer ones above it.
+
+**Blame File ...** shows which commit last changed each line of the file.
+Consecutive lines from the same commit are bracketed together with `┌ │ └`
+(`╺` for a run of a single line) and that commit is named once per run
+rather than on every line, which is what makes this readable where the
+console `git blame` is not. The bracket and the short id are shaded by age,
+from yellow for the newest commit through to gray for the oldest. The code
+is in the colors of its language, as in the diff, but for the lines that
+are not committed yet, which are bright yellow and marked `©`.
 
 Within the blame: `Enter` toggles the commit details of the current line,
 the same pane the log view shows, which follows the cursor as you move down
@@ -639,11 +809,14 @@ diff of the current line's commit, or for a line not committed yet the
 uncommitted changes, to read (they are committed and discarded from the
 log), `l` the history of the lines selected with `Shift-↑↓`, or of the
 current one: every commit that changed them, with the diff of those lines
-alone (and no more context, which git does not give it), `p` blames the version before it (so a
+alone (and no more context, which git does not give it), `Shift-L` the full
+history of the file, every commit that changed it, at the commit of the
+current line, to see that change among the ones around it (`b` there blames
+the file again, as it was in the commit the cursor is in), `p` blames the version before it (so a
 reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column
-stays put, `i` copies the current line's commit id and `Shift-I` its
+stays put, as the sideways wheel or `Shift` and the wheel do, `i` copies the current line's commit id and `Shift-I` its
 message, as in the log, `f` or `/` searches the code and `n` and `Shift-N`
 step through what it found, as in the diff, `Ctrl-C` copies the selected
 lines, `m` opens the menu, and `Esc` or `q` closes the view.
@@ -661,22 +834,30 @@ Conflicts, Continue, Skip and Abort.
 
 The files are resolved one after the other. Saving a file with every
 conflict decided marks it resolved and opens the next one still conflicted,
-and `}` and `{` go to the next or previous one without saving, asking first
-if there are decisions to keep. The header says which file it is, e.g.
-`file 1 of 3`, and a terminal at least 150 columns wide lists the files at
-the left, the resolved ones ticked; `Tab` moves into the list, where `↑`
-`↓` and `Enter` open another, and `l` hides it and shows it again, as in the
-diff, which the files after keep. A file with no text to merge, such as one a
-side deleted, or a binary file, asks its question as its turn comes (see
-below), and Cancel passes it over until the resolver is opened again. Once
+and `}` and `{` go to the next or previous one without saving: the
+decisions made in a file are kept while the resolver is open, there as they
+were left when you go back to it. A terminal at least 150 columns wide lists
+the files at the left, the resolved ones ticked, and how far each file with
+decisions is; `Tab` moves into the list, where `↑` `↓` show the file they
+select, as in the diff, a resolved one as it was saved, and `Enter` or `Tab`
+goes back to it, and `l` hides it and shows it again, which the files after
+keep. **Unresolve This File**, under `a`, puts the conflicts of a file back,
+a resolved one's too, to resolve it again. Without the list, the
+header says which file it is, e.g. `file 1 of 3`. A file with no text to
+merge, such as one a side deleted, or a binary file, asks its question as
+its turn comes (see below), or when `Enter` is pressed on it in the list,
+and Cancel passes it over until the resolver is opened again. Once
 no conflict is left, a box asks whether to finish: **Commit** opens the
 commit dialog for a merge, a cherry pick or a revert, and **Continue** goes
 on with a rebase. **Later** leaves it for the commit (`c`) or the repo
 menu. Conflicts with nothing in progress, e.g. of a stash popped, have
 nothing to finish, and no box asks.
 
-The diff of the uncommitted changes (`d` on the `©` row) shows a conflicted
-file as one row saying how many conflicts it has, since its sides are in
+`d` on the `©` row, while files are in conflict, asks whether to resolve
+them, **Resolve Conflicts**, the default, or to show the diff of the
+uncommitted changes, **Show Diff**; `Ctrl-D` shows the diff without asking.
+The diff shows a conflicted file as one row saying how many conflicts it
+has, e.g. `2 conflicts: Enter opens the resolver`, since its sides are in
 the resolver, where `Enter` on it opens it. With the cursor elsewhere,
 `Enter` offers the list of the conflicted files, which is also under
 **Resolve Conflicts** in the diff menu. **Run External Merge Tool** in the
@@ -686,13 +867,17 @@ diff menu opens a file in the tool git is configured with instead
 The two sides are shown beside each other, titled by name rather than
 "ours" and "theirs", since during a rebase those two mean the opposite of
 what you would expect: the branch HEAD is on, e.g. `main (HEAD)`, and the
-branch merged in, or during a rebase the commit being applied, each with
-the subject of its commit, which says what it was doing. Each side is shown as what it did to
+branch merged in, or during a rebase the commit being applied. A side named
+by a commit, as during a rebase, has the subject of its commit beside it,
+which says what it was doing. Each side is shown as what it did to
 the version both started from, the common ancestor, which is what says why
 they conflict: `+` a line it added, `~` a line it changed, with the words
 it changed marked in its color, `-` a line of the ancestor's it removed, in
 dark, and the lines it kept in dark too. A line is numbered as its side has
-it, and the text between conflicts as the left side has it.
+it, and the text between conflicts as the left side has it. The code is in
+the colors of its language, as in the diff, each side as its version of the
+whole file has it, but for the dark lines and the words a side changed,
+which keep their colors; the result below is colored too.
 
 A pane below, **Result**, shows the file as it will be saved, as your
 decisions so far make it: each decided conflict's lines with a bar in the
@@ -704,7 +889,9 @@ the pane. Its line numbers are the saved file's. `Shift-↑` `↓` or the mouse
 wheel over it scroll it on its own, until the cursor moves again.
 
 The whole file is shown, not just its conflicts, since the text around a
-conflict is what tells you what it is part of. The view opens on the first
+conflict is what tells you what it is part of. A conflict starts with a
+magenta line saying its number and what it is decided as, and ends with a
+gray one, where its sides do. The view opens on the first
 conflict rather than at the top of the file, and `]` and `[` move to the
 next and previous one from wherever the cursor is.
 
@@ -724,15 +911,14 @@ next and previous one from wherever the cursor is.
 | Tab        | Into the list of files, and back                           |
 | l          | Hide or show the list of files                             |
 | m          | Open the menu, which lists all of these                    |
-| ←  →       | Scroll all the columns sideways                            |
+| ←  →       | Scroll the columns sideways, as the sideways wheel does    |
 | Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 
-Nothing is written until `s`, so closing without saving leaves the file as
-it was, and closing or going to another file with decisions unsaved asks
-first. A file saved with
-conflicts still undecided keeps their markers, and is marked resolved once
-none is left.
+Nothing is written until `s`, so closing without saving leaves the files as
+they were, and closing with decisions unsaved, in any of the files, asks
+first: **Save and Close** saves them all. A file saved with conflicts still
+undecided keeps their markers, and is marked resolved once none is left.
 
 `b` shows the version both sides started from in a pane of its own,
 between them, and `0` resolves the conflict *to* it, the answer when
@@ -786,15 +972,16 @@ resolved (`git add`); a rebase over several commits may then stop again on
 the next one, which is shown as the first stop was, with the files and the
 way on. **Skip This Commit** drops the commit it
 stopped on and carries on with the rest. **Abort** throws the whole
-operation away and puts the working folder back as it was.
+operation away and puts the working folder back as it was; it is also the
+first item of **Undo** in the commit menu, where one looks to back out.
 
 *Continue* is offered for whatever a commit does not finish, and only a
 rebase or an `am` has commits to skip, so those items appear only where
 they apply. A merge has no *Continue*, since committing is what finishes
-one, and neither has gmd's own **Cherry Pick** or **Revert Commit**, which
-stage one change for the commit dialog with nothing queued behind it.
-Pressing `c` during a rebase, an `am`, a cherry pick started outside gmd,
-or a revert of several commits offers **Continue** instead: committing
+one, and neither has gmd's own **Cherry Pick** of one commit or **Revert
+Commit**, which stage one change for the commit dialog with nothing queued
+behind it. Pressing `c` during a rebase, an `am`, a cherry pick of several
+commits, or a revert of several commits offers **Continue** instead: committing
 there would make the one commit git stopped on and leave the rest
 unapplied.
 
@@ -849,7 +1036,8 @@ keep a column of its own:
 
 - Where git's local reflog still says which branch a commit was made on,
   or which branch a branch was started from, that decides, and is kept in
-  the branch metadata for when the reflog has expired.
+  a file of gmd's in the `.git` folder, `gmd-metadata.json`, for when the
+  reflog has expired.
 - Merge messages name the branches that were merged, e.g. "Merge branch
   'dev' into main", which brings back branches deleted long ago.
 - Otherwise, where branches meet, the one the others were started from
@@ -860,12 +1048,19 @@ keep a column of its own:
   the repo menu.
 
 When it cannot decide, the branch is drawn white and its tip is labeled
-`(~ambiguous)`. **Set Commit Branch Manually ...** in the branch menu sets
+`(~ambiguous)`. **Set Commit Branch Manually ...** in the commit menu sets
 the right branch for a commit, which is then marked `Φ`. **Ambiguous** in
 the Show Branch menu lists the ambiguous branches.
 
-The branches set by hand can be shared: **Config ...** in the repo menu
-can push them with the repository, so that everyone sees the same graph.
+What gmd keeps there, the branches set by hand and what the reflog said,
+can be shared with others using gmd: **Share the branch structure with
+others using gmd** in **Config ...** in the repo menu, which says what it
+pushes before it is turned on. Gmd then pushes to origin, after a branch,
+which branch each commit is on, only for the commits origin has, as
+`refs/gmd-metadata-key-value/data`, and fetches what the others who share
+it pushed, so that you see the same branches. Turned off, what was pushed
+stays on origin, and `git push origin :refs/gmd-metadata-key-value/data`
+removes it.
 
 
 ## Problems and Feedback

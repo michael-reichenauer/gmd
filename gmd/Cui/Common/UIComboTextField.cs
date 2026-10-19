@@ -1,4 +1,5 @@
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Common;
 
@@ -13,9 +14,7 @@ class UIComboTextField : UITextField
     private readonly int w;
 
     readonly Func<IReadOnlyList<string>> getItems;
-    readonly Label borderTop;
-    readonly List<Label> borderSides;
-    readonly Label borderBottom;
+    readonly BorderView border;
     readonly ContentView listView;
     private List<string> items = [];
     IReadOnlyList<Text> itemTexts = new List<Text>();
@@ -38,58 +37,56 @@ class UIComboTextField : UITextField
             Height = h - 1,
             IsShowCursor = false,
             IsScrollMode = false,
-            ColorScheme = ColorSchemes.TextField,
-        };
-        // Once, here: they were added at every open, and Leave is an event, so each open added one
+        }.WithScheme(() => ColorSchemes.TextField);
+        // Once, here: they were added at every open, and the focus change is an event, so each open
+        // added one
         listView.RegisterKeyHandler(Key.Esc, () => CloseListView());
         listView.RegisterKeyHandler(Key.Enter, () => SelectItem(listView.CurrentIndex));
-        listView.RegisterMouseHandler(MouseFlags.Button1Clicked, (x, y) => SelectItem(y + listView.FirstIndex));
-        // Tabbing away from the open list would otherwise leave it lying on the dialog
-        listView.Leave += _ => CloseListView();
-
-        // For some reason the list view will not show border using the Border property, lets just draw it manually
-        borderTop = new Label(x - 1, y + 1, "├" + new string('─', w + 2) + "┤")
+        listView.RegisterMouseHandler(MouseFlags.LeftButtonClicked, (x, y) => SelectItem(y + listView.FirstIndex));
+        // Tabbing away from the open list, or an arrow key it has no use for, which Terminal.Gui 2.x
+        // moves the focus with, would otherwise leave it lying on the dialog. Closed once that change
+        // of the focus is done, and the focus left where it went: changed within it, as it was, 2.x
+        // threw, and gmd crashed.
+        listView.HasFocusChanged += (_, e) =>
         {
-            ColorScheme = ColorSchemes.Scrollbar,
+            if (!e.NewValue)
+                UI.Post(() => CloseListView(isFocusBack: false));
         };
-        borderSides = Enumerable
-            .Range(0, h)
-            .Select(i => new Label(x - 1, y + 2 + i, "│" + new string('─', w + 2) + "│")
-            {
-                ColorScheme = ColorSchemes.Scrollbar,
-            })
-            .ToList();
-        borderBottom = new Label(x - 1, y + h + 1, "└" + new string('─', w + 2) + "┘")
+
+        // The frame around the list, its top joining the field's underline
+        border = new BorderView(Color.BrightMagenta)
         {
-            ColorScheme = ColorSchemes.Scrollbar,
+            X = x - 1,
+            Y = y + 1,
+            Width = w + 4,
+            Height = h + 1,
         };
     }
 
     // Called when clicking on the down arrow
-    public void OnFieldMouseClicked(MouseEventArgs e)
+    public void OnMarkerClicked()
     {
-        if (e.MouseEvent.Flags == MouseFlags.Button1Clicked && !isShowList)
+        if (!isShowList)
             UI.Post(() => ShowListView());
-        if (e.MouseEvent.Flags == MouseFlags.Button1Clicked && isShowList)
+        else
             UI.Post(() => CloseListView());
-        e.Handled = false;
     }
 
-    public override bool ProcessKey(KeyEvent keyEvent)
+    protected override bool OnKeyDown(Key key)
     {
-        if (keyEvent.Key == Key.CursorDown)
+        if (key == Key.CursorDown && !isShowList)
         { // User press down, show list view (if not already shown)
-            if (isShowList)
-                return base.ProcessKey(keyEvent);
             ShowListView();
             return true;
         }
 
-        return base.ProcessKey(keyEvent);
+        return base.OnKeyDown(key);
     }
 
     void ShowListView()
     {
+        if (SuperView is not View dlg)
+            return;
         isShowList = true;
         items = getItems().ToList();
         itemTexts = items
@@ -100,18 +97,16 @@ class UIComboTextField : UITextField
             )
             .ToList();
 
-        listView.SetNeedsDisplay();
+        listView.SetTotalCount(itemTexts.Count);
+        listView.SetNeedsDraw();
 
-        Dialog dlg = (Dialog)this.SuperView.SuperView;
-        dlg.Add(borderTop);
-        borderSides.ForEach(bs => dlg.Add(bs));
-        dlg.Add(borderBottom);
+        dlg.Add(border);
         dlg.Add(listView);
 
         // Start on the item the field already names, and take the keys until closed
         listView.SetCurrentIndex(Math.Max(0, items.IndexOf(Text)));
         listView.SetFocus();
-        dlg.SetNeedsDisplay();
+        dlg.SetNeedsDraw();
     }
 
     void SelectItem(int index)
@@ -126,21 +121,19 @@ class UIComboTextField : UITextField
             ItemSelected?.Invoke();
     }
 
-    void CloseListView()
+    // Closes the list, and gives the field the focus back, unless the focus went elsewhere
+    void CloseListView(bool isFocusBack = true)
     {
-        if (!isShowList)
+        if (!isShowList || SuperView is not View dlg)
             return;
         isShowList = false;
 
-        Dialog dlg = (Dialog)this.SuperView.SuperView;
         dlg.Remove(listView);
+        dlg.Remove(border);
 
-        dlg.Remove(borderTop);
-        borderSides.ForEach(bs => dlg.Remove(bs));
-        dlg.Remove(borderBottom);
-
-        SetFocus();
-        dlg.SetNeedsDisplay();
+        if (isFocusBack)
+            SetFocus();
+        dlg.SetNeedsDraw();
     }
 
     (IEnumerable<Text> rows, int total) OnGetContent(int firstIndex, int count, int currentIndex, int width)

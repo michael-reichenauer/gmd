@@ -103,9 +103,20 @@ interface IServer
     Task<Result> SwitchToAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeBranchAsync(Repo repo, string branchName);
     Task<Result<IReadOnlyList<Commit>>> MergeToBranchAsync(Repo repo, string targetName);
-    Task<Result> RebaseBranchAsync(Repo repo, string branchName);
+
+    // The commits of the current branch from this one up, not pushed yet, moved to a new branch, which
+    // is checked out, the current one going back to the commit before them
+    Task<Result> MoveCommitsToNewBranchAsync(Repo repo, string newBranchName, string commitId);
+
+    // The current branch rebased onto another, and pushed with force when asked, leased on origin's
+    // tip as the repo has it
+    Task<Result> RebaseBranchAsync(Repo repo, string branchName, bool isPush);
     Task<Result> RebaseOntoAsync(string newBase, string oldBase, string wd);
     Task<Result> CherryPickAsync(string sha, string wd);
+
+    // Commits of another branch picked onto the current one, oldest first, each committed as it was
+    // made, its author and message kept, and recorded as one change for Undo
+    Task<Result> CherryPickCommitsAsync(Repo repo, IReadOnlyList<Commit> commitsOldestFirst);
     Task<Result> AbortOperationAsync(string wd);
     Task<Result> ContinueOperationAsync(string wd);
     Task<Result> SkipOperationAsync(string wd);
@@ -129,6 +140,15 @@ interface IServer
     Task<Result> DeleteBranchAsync(Repo repo, string localName, string remoteName, bool isForce);
     Task<Result> DeleteRemoteBranchAsync(string name, string wd);
     Task<Result<Repo>> GetUpdatedWorktreesRepoAsync(Repo repo);
+
+    // Which branches deleted on origin were squash merged or rebase merged there (Repo.MergedOnOrigin):
+    // whether a branch is not known yet, and the repo with all known, a git command for each not known
+    bool HasUnknownMergedOnOrigin(Repo repo);
+    Task<Result<Repo>> GetMergedOnOriginRepoAsync(Repo repo);
+
+    // The local branches with no branch on origin whose work is in main or an integration branch
+    // already, for Delete Merged Branches: merged as git counts it, or squash or rebase merged on origin
+    Task<Result<IReadOnlyList<MergedBranch>>> GetMergedBranchesAsync(Repo repo);
     Task<Result> AddWorktreeAsync(string path, string branchName, bool isNewBranch, string startPoint, string wd);
     Task<Result> RemoveWorktreeAsync(string path, bool isForce, string wd);
     Task<Result> PruneWorktreesAsync(string wd);
@@ -140,10 +160,14 @@ interface IServer
     // changes left as they are; refused when the file has changed since the lines were shown
     Task<Result> DiscardLinesAsync(string path, IReadOnlyList<ChosenLine> lines, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
-    Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd);
     Task<Result> UndoCommitAsync(string id, int parent, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
     Task<Result> UncommitUntilCommitAsync(string id, string wd);
+
+    // The current branch reset to a commit, its changes since kept as uncommitted ones ('--mixed'),
+    // or the files taken back too ('--keep'); only from where the repo has it
+    Task<Result> ResetCurrentBranchAsync(Repo repo, string toId, bool isKeepChanges);
 
     // Takes back the last change of a branch (Repo.UndoSteps), or a redo, see UndoService
     Task<Result> UndoStepAsync(Repo repo, UndoStep step);
@@ -184,6 +208,9 @@ interface IServer
     // new message alone, or taken out of the branch
     Task<Result> AmendOlderCommitAsync(Repo repo, string id, string message, IReadOnlyList<string> paths);
     Task<Result> DropCommitAsync(Repo repo, string id);
+
+    // A commit of the current branch moved past the one after it on the branch, or the one before it
+    Task<Result> MoveCommitAsync(Repo repo, string id, bool isUp);
 }
 
 // A change the file monitor saw, with when it was told of the last of the changes it reports,

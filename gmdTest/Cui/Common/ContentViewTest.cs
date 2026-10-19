@@ -1,5 +1,6 @@
 using gmd.Cui.Common;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmdTest.Cui.Common;
 
@@ -10,6 +11,26 @@ namespace gmdTest.Cui.Common;
 [TestClass]
 public class ContentViewTest
 {
+    // What is to be done at a row waits for the view to have its height, since a view not yet laid out
+    // scrolls as if no row were in sight, and is done at once once it has it
+    [TestMethod]
+    public void TestWhenSizedWaitsForTheViewsHeight()
+    {
+        var view = new ContentView(Enumerable.Range(0, 100).Select(i => (Text)Text.White($"{i}")).ToList());
+        var done = 0;
+
+        view.WhenSized(() => done++);
+        Assert.AreEqual(0, done, "No height yet");
+
+        view.Frame = new System.Drawing.Rectangle(0, 0, 20, 10);
+        Assert.AreEqual(1, done, "Done once laid out");
+        view.Frame = new System.Drawing.Rectangle(0, 0, 20, 12);
+        Assert.AreEqual(1, done, "And only once");
+
+        view.WhenSized(() => done++);
+        Assert.AreEqual(2, done, "At once once it has a height");
+    }
+
     [TestMethod]
     public void TestRowsGivenToTheConstructorAreCounted()
     {
@@ -197,7 +218,10 @@ public class ContentViewTest
     [TestMethod]
     public void TestTheCursorIsShownInRowsCountedAnew()
     {
-        var view = new ContentView((first, count, _, _) => ([], 100)) { Frame = new Rect(0, 0, 20, 10) };
+        var view = new ContentView((first, count, _, _) => ([], 100))
+        {
+            Frame = new System.Drawing.Rectangle(0, 0, 20, 10),
+        };
         view.SetTotalCount(100);
         view.ShowCurrentIndex(95);
         Assert.AreEqual(90, view.FirstIndex);
@@ -212,6 +236,6 @@ public class ContentViewTest
     static ContentView NewView(int rowCount, int width = 20, int height = 10)
     {
         var rows = Enumerable.Range(0, rowCount).Select(i => Text.White($"row {i}").ToText()).ToList();
-        return new ContentView(rows) { Frame = new Rect(0, 0, width, height) };
+        return new ContentView(rows) { Frame = new System.Drawing.Rectangle(0, 0, width, height) };
     }
 }

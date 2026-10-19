@@ -130,8 +130,68 @@ sealed class TmuxSession : IDisposable
     public string WaitUntilGone(string expected, int timeoutMs = DefaultTimeoutMs) =>
         Poll(screen => !screen.Contains(expected), $"text '{expected}' to disappear", timeoutMs);
 
-    // Polls until the screen has simply stopped changing
+    // Polls until the screen has simply stopped changing. Not a wait for what a key did: a screen
+    // that has not changed for three polls is stable before a key is acted on too, which a loaded
+    // machine, as CI is, takes longer than that for at times. Before asserting what a key changed,
+    // wait for the change itself, with WaitFor or WaitUntil.
     public string WaitForStable(int timeoutMs = DefaultTimeoutMs) => Poll(_ => true, "the screen to settle", timeoutMs);
+
+    // Moves the cursor of the open menu down to the item with the text, a key at a time, the item the
+    // cursor is on read off the screen. Rather than a count of key presses: the menu skips what is
+    // greyed out, so a count depends on the fixture, and changes whenever an item above it is added
+    // or moved. Each key is waited for to move the cursor, not just for a stable screen, which a key
+    // not yet acted on leaves too, and the next one would then move past the item.
+    public void SelectMenuItem(string text, int maxMoves = 30)
+    {
+        WaitForStable();
+        for (var moves = 0; ; moves++)
+        {
+            var screen = CaptureColors();
+            if (ScreenText.IsMenuItemCurrent(screen, text))
+                return;
+            if (moves == maxMoves)
+                break;
+
+            Send("Down");
+            WaitForMenuMove(screen, text);
+        }
+
+        Assert.Fail($"The menu item '{text}' was not reached in {maxMoves} moves\n{Diagnostics(Capture())}");
+    }
+
+    // Polls until the screen differs from the one before the key and has then held for a poll. A
+    // shorter wait than WaitForStable's, since a move of a menu's cursor is a redraw of a few rows
+    // with no git command behind it, and a walk down a long menu is many of them.
+    void WaitForMenuMove(string before, string text)
+    {
+        var clock = Stopwatch.StartNew();
+        var previous = before;
+        while (clock.ElapsedMilliseconds < DefaultTimeoutMs)
+        {
+            Thread.Sleep(PollMs);
+            var screen = CaptureColors();
+            if (screen != before && screen == previous)
+                return;
+            previous = screen;
+        }
+
+        Assert.Fail($"Timed out waiting for the menu cursor to move on towards '{text}'\n{Diagnostics(Capture())}");
+    }
+
+    // Polls until a condition holds, e.g. on the colors of a capture, which WaitFor cannot look for
+    public void WaitUntil(Func<bool> isDone, string what, int timeoutMs = DefaultTimeoutMs)
+    {
+        var clock = Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < timeoutMs)
+        {
+            if (isDone())
+                return;
+
+            Thread.Sleep(PollMs);
+        }
+
+        Assert.Fail($"Timed out after {timeoutMs} ms waiting for {what}\n{Diagnostics(Capture())}");
+    }
 
     // Polls until the screen matches and returns it as it was at that moment, without waiting for
     // it to settle. The one wait that does not, because what it is for is something that moves:
@@ -281,6 +341,12 @@ sealed class TmuxSession : IDisposable
     // -1: a terminal sends it as a press of button 65 or 64, with no release
     public void Wheel(int x, int y, int step) => SendText($"\u001b[<{(step > 0 ? 65 : 64)};{x + 1};{y + 1}M");
 
+    // Turns the sideways wheel a notch, right for a step of 1 and left for -1: a terminal sends it as
+    // a press of button 67 or 66. With isShift it is the vertical wheel turned with Shift, which is
+    // 65 or 64 with the Shift bit, 4, that Terminal.Gui takes for the sideways wheel.
+    public void WheelSideways(int x, int y, int step, bool isShift = false) =>
+        SendText($"\u001b[<{(isShift ? 68 : 66) + (step > 0 ? 1 : 0)};{x + 1};{y + 1}M");
+
     // Where a text first is on the screen, 0-based, for clicking it. Every rune gmd draws is one cell
     // wide, so the index in the row is the column.
     public static (int X, int Y) PositionOf(string screen, string text)
@@ -296,6 +362,10 @@ sealed class TmuxSession : IDisposable
         Assert.Fail($"'{text}' is not on the screen:\n{screen}");
         return (0, 0);
     }
+
+    // Pastes the text as a terminal does, between the markers of a bracketed paste, which gmd's
+    // Terminal.Gui asks the terminal for, with a line's end as the CR a terminal sends for it
+    public void Paste(string text) => SendText($"\u001b[200~{text.Replace("\n", "\r")}\u001b[201~");
 
     // Sends text literally, for typing into a dialog, so that e.g. "Down" is five characters
     // rather than a cursor key

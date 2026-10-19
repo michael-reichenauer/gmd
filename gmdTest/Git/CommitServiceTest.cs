@@ -54,6 +54,33 @@ public class CommitServiceTest
         }
     }
 
+    // What merge-tree answers: the tree of the merge, the same as ours when there is nothing to merge;
+    // exit 1 on a conflict, which is an answer; anything else a failure, e.g. a git older than 2.38
+    [TestMethod]
+    [DataRow(0, "t1\n", true, DisplayName = "Nothing to merge")]
+    [DataRow(0, "t2\n", false, DisplayName = "Something to merge")]
+    [DataRow(1, "t3\n100644 abc 1\tlogin.txt\n", false, DisplayName = "Conflicts")]
+    public async Task TestMergedByContentIsAMergeThatChangesNothing(int exitCode, string mergeTree, bool isMerged)
+    {
+        var cmd = new FakeCmd(
+            (_, args, _) =>
+                args.StartsWith("merge-tree") ? FakeCmd.Problems(mergeTree, exitCode)
+                : args.StartsWith("rev-parse") ? FakeCmd.Ok("t1\n")
+                : FakeCmd.Fail("unexpected")
+        );
+
+        Assert.AreEqual(isMerged, AssertOk(await new CommitService(cmd).IsMergedByContentAsync("m1", "f1", wd)));
+        Assert.AreEqual("merge-tree --write-tree --no-messages m1 f1", ArgsOf(cmd)[0]);
+    }
+
+    [TestMethod]
+    public async Task TestMergedByContentFailsWithAGitTooOld()
+    {
+        var cmd = new FakeCmd((_, _, _) => FakeCmd.Fail("error: unknown option `write-tree'", 129));
+
+        AssertError(await new CommitService(cmd).IsMergedByContentAsync("m1", "f1", wd));
+    }
+
     // Everything is staged first, so untracked files are committed too
     [TestMethod]
     public async Task TestCommitStagesEverythingFirst()
@@ -220,18 +247,16 @@ public class CommitServiceTest
         CollectionAssert.AreEqual(new[] { "reset --hard", "clean -fxd" }, ArgsOf(cmd));
     }
 
-    // What the clean would delete is git's dry run of the same clean, a folder once rather than its files
+    // The ignored files are git's dry run of a clean of them alone, a folder once rather than its files
     [TestMethod]
-    public async Task TestTheFilesToCleanAreTheDryRunOfTheClean()
+    public async Task TestTheIgnoredFilesAreTheDryRunOfACleanOfThem()
     {
-        var cmd = new FakeCmd(
-            "Would remove .env\nWould remove bin/\nWould remove notes.txt\nWould remove \"n\\303\\266w.txt\"\n"
-        );
+        var cmd = new FakeCmd("Would remove .env\nWould remove bin/\nWould remove \"n\\303\\266w.log\"\n");
 
-        var files = AssertOk(await new CommitService(cmd).GetFilesToCleanAsync(wd));
+        var files = AssertOk(await new CommitService(cmd).GetIgnoredFilesAsync(wd));
 
-        CollectionAssert.AreEqual(new[] { ".env", "bin/", "notes.txt", "nöw.txt" }, files.ToArray());
-        CollectionAssert.AreEqual(new[] { "clean -n -x -d" }, ArgsOf(cmd));
+        CollectionAssert.AreEqual(new[] { ".env", "bin/", "nöw.log" }, files.ToArray());
+        CollectionAssert.AreEqual(new[] { "clean -n -X -d" }, ArgsOf(cmd));
     }
 
     [TestMethod]

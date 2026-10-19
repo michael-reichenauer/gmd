@@ -121,7 +121,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   unhandled-exception path logs and shows. So `Result.cs`, `UnionPolyfill.cs` and the test helper
   `ResultAssert.cs` depend on nothing but the BCL and can be copied to another project as they are
   (one namespace line each).
-- The compiler is the .NET 11 RC1 SDK's (`global.json`; `LangVersion preview` in
+- The compiler is the .NET 11 RC2 SDK's since 2026-10-17, RC1 before (`global.json`; `LangVersion preview` in
   `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
   are polyfilled in `gmd/Utils/UnionPolyfill.cs`. CSharpier 1.3.0 parses no C# 15 syntax, which is
   why the union is a hand-written struct rather than a `union` declaration. A missing switch arm
@@ -545,8 +545,9 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - No key for Undo, nor a key hint; it is in the commit menu and the branch menus.
   - "Undo the last change in any branch" would need the times of the reflog entries, which are not
     read (`%gd` with a date would give them, and would change the selector the inference reads).
-  - Merge to is undone from the target's branch menu, not from where it was run; a range cherry
-    pick is one commit per entry, so one undo each; Pull All is an undo per branch.
+  - Merge to is undone from the target's branch menu, not from where it was run; Pull All is an undo
+    per branch. A range cherry pick is one undo since 2026-10-17 (git's own `cherry-pick` of them
+    all, recorded), unless it stopped on a conflict, when Undo names the last commit picked.
   - `RepoConfig.UndoSteps` is pruned of the branches that are gone only when a record is written.
   - A lost line of work's time is its tip's commit time, since the reflog entries carry none.
   - With no remote reflog (expired after 90 days, `core.logAllRefUpdates` off, a fresh clone), a
@@ -554,6 +555,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   - A branch that merged the rewritten version into the old one (a `git pull` that merges) is not
     told, though its push puts the old version back; and the commits of the old version the local
     branch never had, fetched but not pulled, are not in the log, so they are not counted dropped.
+  - A branch rewritten here after it was pushed (`LocalRewrites`, 2026-10-17) is told only while
+    origin's tip is a commit the branch was at: commits pushed on the old version since (someone
+    else's) make it diverged again, where a force push would drop them and a pull merges the old
+    version back. Telling those apart (the old version's commits by the branch's reflog, the new ones
+    not) and moving them onto the rewrite is left. Nor is a branch only behind told, a reset back of
+    pushed commits, which a pull brings back as before, nor one whose reflog expired.
   - Restoring discarded changes and dropped stashes is not done: the reflog records neither, but
     git prints a dropped stash's id, and `git stash create` before a discard would keep one.
   - Restore Deleted Branch tells whether a branch of a record's name is back from the augmented
@@ -688,9 +695,10 @@ Add new open issues and findings here as work lands; keep them short and drop th
     character, and draws one outside the basic plane as `�`, one column. Left: strings measured in
     chars outside `Text` (`Max`, which is `gmd.Utils`', and the menu widths), so a menu item in CJK
     is cut short rather than drawn wider.
-  - `BranchColorService.GetColor` reads the repo config (a `Directory.Exists`, a hash) for every
-    branch on every redraw of the log, i.e. every key, from `RepoWriter.GetBranchTips`; the graph has
-    the colors already. Not measured.
+  - *Done 2026-10-19:* `BranchColorService.GetColor` read the repo config (a `Directory.Exists`, a
+    hash) for every branch on every redraw of the log, i.e. every key, from
+    `RepoWriter.GetBranchTips`. The colors are picked once per repo snapshot now, see the branch
+    colors below.
   - *Done 2026-10-14:* the smaller ones, each with a test: the diff's right side numbered 3 low
     after conflict markers; the resolver's result not scrollable, its tabs not expanded, and `b`
     moving its cursor to another conflict; `g` on main silent; Merge silent with nothing to merge;
@@ -743,10 +751,14 @@ Add new open issues and findings here as work lands; keep them short and drop th
     'v1_release' is a trunk of its own, and 'prepare-release' a feature.
 - Left open by the review before merging to dev (2026-09-26):
   - Every reflog fact that decided between branches is kept in the metadata for good, never pruned,
-    so the metadata grows with the user's own commits, and opening a repo with a reflog now writes
-    `refs/gmd-metadata-key-value/data` into it (on a read-only checkout, a failed write logged on
-    every read). Keeping facts only in repos that already use the metadata, or pruning the ones for
-    commits no branch still passes, is to decide.
+    so the metadata grows with the user's own commits. Pruning the ones for commits no branch still
+    passes is to decide. *Half done 2026-10-18:* the other half, that opening a repo with a reflog
+    wrote `refs/gmd-metadata-key-value/data` into the repository, is gone: the metadata is kept in
+    `.git/gmd-metadata.json`, the ref is read until the first write moves it there, and with the
+    shared branch structure on, only the entries of commits origin has are pushed, after a branch
+    push. A ref is listed by `for-each-ref` and every tool that lists refs, and a `push --mirror`
+    sends it; and the reflog facts named local branches never pushed, which went to origin with
+    every push. (On a read-only checkout the file write fails as the ref's did, logged.)
   - `ReflogWitness.BranchOrNull` rejects a name with `@`, which is a valid branch name, while a
     detached checkout of `origin/dev` counts as being on dev and a checkout of a tag as a branch.
   - A fast-forward read for the first time after the fast-forwarded branch's creation entry expired
@@ -918,17 +930,177 @@ Add new open issues and findings here as work lands; keep them short and drop th
   line), and is held to before/after dumps on real repositories. Fetch and push of a chosen remote,
   for the other cases, is a separate and smaller change. Today gmd fetches and pushes `origin` only.
 
-- **Terminal.Gui 1.x → 2.x.** When, not if. For: v1 is frozen (last commit June 2025); true color
-  would lift the five-color branch palette, which a tool built on showing many branches runs out of;
-  2.x's input injection reaches the views directly. Against: it is one branch that does not compile
-  until finished — 32 files, ~11.7k lines, 9 custom views, with `ColorScheme`, `Toplevel`, the
-  whole `Key` API, `Redraw`, `ScrollBarView`, `RootKeyEvent` and the tree view all replaced — and
-  2.x still ships breaking changes inside minor releases. The end-to-end tier names no Terminal.Gui
-  type and is the port's acceptance suite. Order when it starts: `Color.cs` + `ColorSchemes.cs`,
-  `UI.cs`, `ContentView`, `UIDialog`, the two browse dialogs; `MessageDlg` and `BorderView` are
-  deleted rather than ported. Trap: the migration guide describes `v2_develop`, not the released
-  package; check the shipped assembly before believing any specific API.
-- **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7):
+- **Terminal.Gui 1.x → 2.x.** When, not if, and a spike (2026-10-17) found it feasible now: branch
+  `spike/tgui2`, whose `.notes/tgui2-spike/` has the pictures and how to run it. For: v1 is frozen
+  (last commit June 2025); 2.x is released (2.5.0 on 2026-09-11, 2.4.x stable before it), and though
+  its minor releases still break the API, they announce it a release ahead with `[Obsolete]` (2.5
+  broke three small things); true color lifts the five branch colors; it draws emoji, which 1.x's
+  curses could not. Against: one branch that does not compile until finished — 43 files, ~12.1k
+  lines, 11 custom views. The end-to-end tier names no Terminal.Gui type and is the port's
+  acceptance suite. What the spike found, with the log and the diff ported over the real server
+  and row writers:
+  - *The core ports mechanically.* `ContentView` changed 187 of 520 lines, nearly all of them `Key`,
+    a class with a `KeyCode` now, so a `switch` on keys became `if` chains and Shift a property
+    (`Key.A.WithShift`); `Redraw` became `OnDrawingContent`, `ProcessHotKey` `OnKeyDown`, and
+    `MouseEvent` `OnMouseEvent(Mouse)`, with flags renamed (`LeftButtonPressed`, `PositionReport`).
+    `Text.Draw` changed 3 lines. The application is an instance (`IApplication`), kept in `UI`;
+    `RootKeyEvent` became the application's `KeyDown` with `key.Handled`; a `Runnable` run with
+    `app.Run` is modal as `UI.RunDialog` needs. `await` resumes on the main loop as in 1.x (a
+    `MainLoopSyncContext` while `Run` runs), so the trap of blocking it is the same. Inside a `View`
+    subclass `Text` is the view's string property, which hides gmd's `Text` (`Common.Text`). The
+    declarations alone name `MouseEvent`, `Rect`, `KeyEvent`, `Toplevel`, NStack's `Rune`,
+    `ColorScheme` and `MainLoop`, all gone, and 2.x's own `Menu` and `View.Border` clash with gmd's.
+    The bulk of the work is past the spike: `UIDialog` and the text inputs with spell checking,
+    `Menu`, and the keys of the log, diff, blame and resolver views.
+  - *Keys and the mouse arrive*, in tmux: Shift letters, Ctrl-C, Alt and Alt-Shift, F-keys,
+    Ctrl-arrows, Shift-Tab, the wheel. A resize no longer eats the next key (so the F12
+    `TmuxSession.Resize` sends could go), and quitting gives the terminal back clean.
+  - *The colors are gmd's own.* 2.x writes every color as 24-bit RGB, its named ones too, at W3C
+    values (`Color.Blue` is 0,0,255), so gmd's look no longer follows the terminal's 16-color theme
+    and needs a palette of its own; the spike's is Campbell, as the README's pictures are. Twelve
+    branch colors (Material 300–400 hues) told apart the neighbours five did not; a hash still lets
+    two neighbours collide, so a port should pick one unlike its parent's and neighbours'. A light
+    terminal works: `Color.None` is the terminal's own background (`CSI 49m`), and 2.x asks the
+    terminal for its colors at start (OSC 10/11, `IDriver.DefaultAttribute`), which can pick the
+    light palette or the dark. With 16 colors forced (`Driver.Force16Colors`, set for `TERM=linux`,
+    `TERM=dumb` and `NO_COLOR`) the RGB is mapped to the nearest of 16; drawn with 2.x's named
+    colors that is exactly today's look, a setting for users who want their theme's colors.
+  - *No 256-color output.* 2.x detects a 256-color terminal (`TERM=*-256color` and no `COLORTERM`)
+    but writes 24-bit colors to it anyway (`OutputBase.AppendOrWriteAttribute` knows RGB and 16
+    only), which a terminal without true color garbles (Terminal.app before macOS 26, as far as is
+    known). The 16-color setting is the way out. Worth an issue upstream.
+  - *Syntax colors work*: 2.x's `TextMateSyntaxHighlighter` (TextMateSharp, VS Code's grammars,
+    picked by the file's extension) colors a line in `DiffRowService.LineText`, and the changed
+    words of `ChangedSides` keep its colors on the change's background. Its roles are coarse
+    (`public`, a `storage.modifier`, has none), so a port would call TextMateSharp itself with
+    gmd's own scope colors. It costs ~0.14 ms a row, 280 ms for a diff of 2,000 rows against
+    12–23 ms without, and gmd makes every row up front: color only the rows drawn, cached, with a
+    highlighter per side of a hunk, so that a multi-line comment is colored (the spike resets it
+    per line).
+  - *Packaging.* The single-file linux-arm64 build grows from 112 to 126 MB (2.5 brings
+    TextMateSharp's grammars, Markdig and Microsoft.Extensions.Configuration). The highlighter's
+    native `libonigwrap` is put beside the binary, where the updater, which swaps one file, would
+    leave it behind: `IncludeNativeLibrariesForSelfExtract=true` bundles it, extracted to
+    `~/.net/gmd/` at the first start. Without it highlighting is silently off. It is built for
+    linux, osx and win, x64 and arm64. (The port does not bundle it that way, see the syntax colors
+    below: the host's extraction can stop gmd from starting.)
+  - *Costs.* Start to a drawn log 340 ms against 270 ms (release builds in tmux, the spike drawing
+    less than 1.x). Idle CPU about 3% of a core against 0.4%: 2.x polls, its input thread every
+    20 ms (`InputImpl`, not configurable) and the main loop 25 times a second
+    (`Application.MaximumIterationsPerSecond`, lowering which changed nothing), where 1.x waits.
+    Worth an issue upstream too.
+  - *Tests.* The end-to-end tier drives the spike as it is, but `ScreenText`'s color letters read
+    the 16 SGR codes, in 24 tests: run them with 16 colors forced, or teach it the palette's RGB.
+    `gmdTest`'s view tests (`ContentViewTest` and the like) are ported with the views.
+  - *Untested*: real terminals (iTerm2, Terminal.app, Windows Terminal, Ghostty, all of which 2.x
+    sends queries to at start), the Windows driver, dialogs, text input, paste.
+
+  Order when it starts: `Color.cs` with the palettes and the choice between them, `UI.cs`,
+  `ContentView` (the spike's three are a start), `UIDialog` and the text inputs, `Menu`, then the
+  views; `MessageDlg` and `BorderView` are deleted rather than ported. Trap: the migration guide
+  describes the development branch, not the released package; check the shipped assembly (its XML
+  docs, or the source at the release tag) before believing any specific API. The source has
+  `ai-v2-primer.md`, the 1.x habits to drop.
+
+  **The port, branch `mr/tgui2` (from 2026-10-17)**, kept off dev until it works well (the user's
+  call: dev goes on to main meanwhile). The whole suite passes on 2.5.0: 2106 unit and integration
+  tests and the 272 end-to-end tests, which run gmd in the 16 colors. The look is kept: dialogs are
+  gmd's own `DialogView` (frame, title, `UIButton`, `UICheckBox`), not 2.x's `Dialog`; `MessageDlg`
+  and `BorderView` were kept, on it, rather than deleted as planned. Colors are names drawn in a
+  `Palette` (dark, light, or the 16 of the terminal's theme), twelve branch colors in RGB. The traps
+  2.5 had, each with what was done about it:
+  - *`Invoke` on the main loop runs the action at once*; 1.x queued it. `UI.Post` queues (the
+    menu's first move off a greyed out item recursed until the stack overflowed).
+  - *Posted work runs as a timer, holding the timers' lock while it runs* (`TimedEvents.RunTimers`).
+    A dialog opened after an await runs its main loop inside that lock, and every thread that posts
+    meanwhile (an await's continuation, through 2.x's `MainLoopSyncContext` and `Invoke`) waits for
+    the lock until the dialog closes: Ctrl-D in the commit dialog never showed its diff. gmd's own
+    `MainLoopQueue` is the synchronization context, set and drained as each iteration starts
+    (`IApplication.Iteration`). A bug worth reporting, with the two below.
+  - *A view with no scheme of its own asks its superview for its colors* (`GetAttributeForRole`),
+    never raising `GettingScheme`; `WithScheme` sets the scheme too.
+  - *Every view is marked drawn once a draw is done*, a peer marked from another's draw too, and the
+    last added is drawn first: a view changed from another's draw (the key-hint line from the log's,
+    the spell hint from the input's) is changed in a post.
+  - *A `TextField` selects its whole text as the keys move into it*, so the first key replaced it;
+    `UITextField` takes the selection back. A `TextView` moves the caret without drawing, and a
+    word's spell color depends on the caret, so the inputs draw anew when it moved.
+  - *`KeyUp` is raised only for a release* (the kitty keyboard protocol), not as a key is done:
+    `TextChanged` where it meant the text changed.
+  - *A runnable's position is not clamped to the screen* (1.x put Y -1 on row 0): the search
+    dialog is at X -2, Y 0. *Ctrl-A, -C, -X, -V, -Z and -Y* are the edit keys of both text inputs,
+    where 1.x's TextView had Emacs keys. *An emoji is drawn as itself*, two columns.
+  - *Idle CPU about 3% of a core* (the input thread polls every 20 ms): not fixable from gmd.
+  - *A change of the focus made as the focus changes throws*: "FocusChanging was not cancelled and
+    the HasFocus value did not change", when the view 2.x was moving the focus to does not have it
+    after. The open list of a combo field (the Colors of the Config dialog) closed as it lost the
+    focus and gave it back to its field, and Tab, or an arrow key, which 2.x binds to moving the focus
+    for a view that does not use it, crashed gmd (2026-10-18). It closes in a post now, leaving the
+    focus where it went (`ConfigDlgTest`). The resolver's typing box does the same, unharmed, since
+    the sides it gives the focus to are where Tab takes it anyway.
+  - *A paste went nowhere, or as keys*: Terminal.Gui turns on bracketed paste and gives a paste to
+    the view it recorded as focused, but a runnable made modal records its `Focused`, the direct
+    subview, not the `MostFocused` (`Runnable.RaiseIsModalChangedEvent`; its popovers record
+    `MostFocused`): in a gmd dialog, the inside of its frame, which takes no text, so a paste into a
+    dialog's first field was dropped until a key moved the focus (2026-10-18). gmd takes the paste
+    (`IApplication.Paste`) and puts it into the input at the end of the focus chain of the view on
+    top (`UI.Paste`, `IPasteTarget`, through the input's own sanitizing and paste), and drops it
+    elsewhere (`PasteTest`). Without the markers a paste is keys: a message of two lines into the
+    commit dialog committed its first line at once, and the rest went to the log as keys. A bug worth
+    reporting, with the others.
+  - *An await on the main loop resumes up to 40 ms later*: 2.x sleeps a fixed time between
+    iterations (`ApplicationMainLoop.Iteration`, `Task.Delay(...).Wait()`), and `MainLoopQueue` runs
+    as one starts; 1.x woke the loop as work was posted. The updater's download went back to the main
+    loop after every read, one 16 KB read per iteration, 400 KB/s, so 130 MB took five and a half
+    minutes and looked hung (2026-10-18; `ConfigureAwait(false)` in `DownloadAsync` now). Making the
+    loop go round every millisecond for 100 ms after posted work (`Application.MaximumIterationsPerSecond`
+    set from the `Iteration` event, read right after it) kept idle CPU at 3.3% but opening a diff
+    took the same 70 to 100 ms, so it was left out: only a loop of awaits suffers, and none other is.
+  - *`TextView` is obsolete in 2.5*, "superseded by tui-cs/Editor's EditorView", a package of its own.
+    `UITextView` (the commit message, the resolver's typing) is built on it, with spell checking in its
+    `OnDrawNormalColor`; a later 2.x may drop it, and then the port is to EditorView.
+  - *A view of no height is drawn*, which 1.x left out. The commit details, hidden by Enter at a
+    height of 0 with their rows still in them, asked for rows to draw, got none, moved to the end and
+    asked again, without end: the second Enter hung gmd at full CPU (2026-10-18, found by the demo,
+    the only thing that hid them). `ContentView.GetContentRows` stops when there is no room for a
+    row (`LogViewTest.TestEnterHidesTheDetails`). A draw that loops until it has rows has to
+    allow for none.
+
+  Merged into dev on 2026-10-17 for pre-releases, tried by the user on Linux, Windows and macOS. The
+  setting `Colors` is in the Config dialog, and help.md and the README describe the colors; the demo
+  and the README's pictures were re-recorded on 2.5 on 2026-10-18. Left: real terminals
+  beyond those (iTerm2, Terminal.app, Ghostty), and the upstream issues (a reminder on 2026-10-24).
+
+  **Syntax colors in the diff (2026-10-18)**, branch `mr/syntax-colors`. TextMateSharp is called
+  directly, not through 2.x's `TextMateSyntaxHighlighter`, whose single state and theme colors fit a
+  Markdown code block, not two sides of many hunks in gmd's palettes. `CodeGrammars` loads a grammar
+  per extension, `CodeScopes` turns a token's scopes into gmd's code color names (Dark+ and Light+ RGB
+  in `Palette`, none in the 16 colors), and `DiffSyntax` colors the rows as they are drawn, each side
+  of a file line after line with the state carried, cached; a large file added whole is colored
+  from 100 lines above the one jumped to rather than from its top. About 0.1 ms a line (Debug), the
+  grammar 40 ms to load. Found on the way:
+  - *C#'s grammar reads members and statements alike from a fresh state*, as at the top of a file
+    (top-level statements), but from inside a class body it reads `if (x)` as a method and
+    `return` as its name. So each hunk starts afresh, never primed with a class or a method.
+  - *`IncludeNativeLibrariesForSelfExtract` can stop gmd from starting.* The .NET host extracts the
+    bundled native libraries to `$HOME/.net/gmd/<hash>/` as the single file starts, and where it
+    cannot make that folder it stops: "Failed to determine location for extracting embedded files",
+    `--version` too, so the updater's check of a new version (`BinaryInstaller`) would have refused
+    every update there. gmd embeds `libonigwrap` itself (a target in `gmd.csproj`, from the package's
+    resolved native assets, an error when there is none) and `OnigurumaLibrary` writes it out on first
+    use, into the user's `LocalApplicationData` (`~/.local/share/gmd/` on Linux) named by its hash,
+    and loads it; where anything fails, code is not colored, and gmd says so in the log.
+  - *`Environment.GetFolderPath` returns "" for a folder not made yet*, unless `DoNotVerify`, and
+    `Path.Join("", "gmd")` is a path in the current folder: the first try wrote the library into the
+    repo gmd had open.
+  - *Static fields are initialized in the order they are written*: the palettes, built from a table of
+    code colors written below them, read it as null, and gmd did not start.
+  - *A line's time limit cuts it short, and the first lines are the slow ones*: they compile the
+    grammar's regular expressions. With 50 ms, the end-to-end test of the colors, eight gmds at once
+    in CI, got the keyword and the number of its one line colored and not the comment after them.
+    500 ms now, VS Code's, and a line cut short is logged.
+- **Theme, the parts that wait for the 2.x port** (USABILITY.md, Tier 4 item 7), the first two of
+  which the spike above shows working:
   - *Light terminals.* Every color is on a forced black background (`Color.Make` pairs each with
     `Terminal.Gui.Color.Black`), so a light-themed terminal shows gmd as a black box: readable, but
     not the user's theme. The fix is the terminal's own default background, which 1.x has no color
@@ -938,6 +1110,13 @@ Add new open issues and findings here as work lands; keep them short and drop th
     other 16-color entries already mean something (main, deleted, ahead, behind). Two of four
     shown branches often share one; `g` recolors by hand. Needs 256 or true color. Consider
     replacing red or green then too, for red-green color blindness.
+    *Done 2026-10-19, the sharing:* twelve with 2.x, and a branch's color is picked the first time
+    gmd sees it, unlike its parent's and its live siblings' (the least recently used of them), and
+    remembered in `.gmdconfig` (`BranchColorPicker`), the colors of the branches gone forgotten.
+    Remembered, since any rule over the branches that are there changes colors as they change: one
+    over the branches shown (who is drawn next to whom) whenever one is shown or hidden, and one over
+    the siblings whenever one goes, as a squash merged and deleted branch leaves the history. Keyed by
+    the name without `origin/`, as the hash of the primary name changed the color of a pushed branch.
   - *`NO_COLOR`.* Not read. Low value for gmd, whose graph tells branches apart by color alone;
     revisit if asked.
 - **Combined diffs (`diff --cc`)** are skipped with a warning. Relaxing the `@@ ` check alone is

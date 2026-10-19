@@ -57,9 +57,14 @@ record ConflictFileList(IReadOnlyList<ConflictedFile> Files, IReadOnlySet<string
         };
 
     // The rows of the list, of the width with its separator: the title saying how many are left,
-    // then a file per row, '✓' resolved and '●' not, the open one marked and saying how far it is,
-    // e.g. '1 of 2', and the selected one highlighted while the list has the keys
-    public IReadOnlyList<Text> Rows(int width, int selected, bool isFocused, string openProgress)
+    // then a file per row, '✓' resolved and '●' not, the open one marked, those in progress saying how
+    // far they are, e.g. '1 of 2', and the selected one highlighted while the list has the keys
+    public IReadOnlyList<Text> Rows(
+        int width,
+        int selected,
+        bool isFocused,
+        IReadOnlyDictionary<string, string> progress
+    )
     {
         var textWidth = Math.Max(0, width - 2);
         var left = LeftCount;
@@ -69,7 +74,7 @@ record ConflictFileList(IReadOnlyList<ConflictedFile> Files, IReadOnlySet<string
         {
             var file = Files[i];
             var isOpen = file.Path == Open;
-            var note = isOpen && openProgress != "" ? $"  {openProgress}" : "";
+            var note = progress.TryGetValue(file.Path, out var how) && how != "" ? $"  {how}" : "";
             var text = (isOpen ? Text.Magenta("▌") : Text.Black(" "))
                 .Add(Resolved.Contains(file.Path) ? Text.Green("✓ ") : Text.Red("● "))
                 .Add(PathText(file.Path, textWidth - 3 - note.Length))

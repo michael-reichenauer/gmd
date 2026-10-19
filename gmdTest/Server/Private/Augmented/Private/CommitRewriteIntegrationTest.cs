@@ -119,10 +119,10 @@ public class CommitRewriteIntegrationTest
         Assert.IsTrue(File.Exists(Path.Join(repo.Path, "b.txt")));
     }
 
-    // Git is asked, whatever the repo read says: a commit on origin, or one another branch is on, is
-    // left as it is
+    // Git is asked, whatever the repo read says: a commit another branch is on, here or on origin, is
+    // left as it is. One on origin's copy of the branch is not (ForcePushIntegrationTest).
     [TestMethod]
-    public async Task TestACommitPushedOrOnAnotherBranchIsLeftAsItIs()
+    public async Task TestACommitOnAnotherBranchHereOrOnOriginIsLeftAsItIs()
     {
         await repo.GitAsync("branch other HEAD~1");
         var augmented = AssertOk(await ReadAsync());
@@ -132,13 +132,15 @@ public class CommitRewriteIntegrationTest
         StringAssert.Contains(otherError.AllMessages(), "'other' is on");
         Assert.AreEqual("Third\nSecond\nInitial", await LogAsync());
 
+        await repo.GitAsync("branch -D other");
         await repo.AddOriginAsync();
         await repo.GitAsync("push -u origin main");
+        await repo.GitAsync("push origin main:release");
         augmented = AssertOk(await ReadAsync());
 
         var pushedError = AssertError(await rewrite.AmendOlderCommitAsync(augmented, c3, "Reworded", []));
 
-        StringAssert.Contains(pushedError.AllMessages(), "is on 'origin/main' already");
+        StringAssert.Contains(pushedError.AllMessages(), "is on 'origin/release' already");
         Assert.AreEqual(c3, await repo.HeadIdAsync());
     }
 
@@ -216,5 +218,35 @@ public class CommitRewriteIntegrationTest
         Assert.AreEqual("On top\nSquashed\nInitial", await LogAsync());
         StringAssert.Contains(await repo.GitAsync("cat-file -p HEAD~1"), "BEGIN SSH SIGNATURE", "The squash");
         StringAssert.Contains(await repo.GitAsync("cat-file -p HEAD"), "BEGIN SSH SIGNATURE", "The commit on top");
+    }
+
+    // A commit moved down, past the one before it, is the two swapped, and Undo takes it back whole;
+    // moved up is the same swap, seen from the other commit
+    [TestMethod]
+    public async Task TestMoveACommitAndUndoIt()
+    {
+        AssertOk(await rewrite.MoveCommitAsync(AssertOk(await ReadAsync()), c3, isUp: false));
+
+        Assert.AreEqual("Second\nThird\nInitial", await LogAsync());
+        Assert.AreEqual("", await repo.GitAsync("status --porcelain"));
+        var undone = await UndoAsync();
+        Assert.AreEqual((StepKind.Move, "Third"), (undone.Kind, undone.Name));
+        Assert.AreEqual(c3, await repo.HeadIdAsync());
+
+        var second = (await repo.GitAsync("rev-parse HEAD~1")).Trim();
+        AssertOk(await rewrite.MoveCommitAsync(AssertOk(await ReadAsync()), second, isUp: true));
+        Assert.AreEqual("Second\nThird\nInitial", await LogAsync());
+    }
+
+    // Two commits that change the same lines conflict once swapped, which stops the rebase there
+    [TestMethod]
+    public async Task TestAMoveThatConflictsStops()
+    {
+        var fourth = await repo.CommitFileAsync("c.txt", "c, changed\n", "Fourth");
+
+        var error = AssertError(await rewrite.MoveCommitAsync(AssertOk(await ReadAsync()), fourth, isUp: false));
+
+        Assert.IsTrue(ConflictError.IsIn(error), error.AllMessages());
+        StringAssert.Contains(await repo.GitAsync("status"), "rebase in progress");
     }
 }

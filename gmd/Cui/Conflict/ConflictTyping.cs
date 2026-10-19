@@ -40,17 +40,19 @@ record ConflictTyping(int First, int Above, int TextHeight, int Below)
     }
 
     // The rows of the pane: the file above, for each row of the text its gutter, numbered where the
-    // row is a line of the result, counted from the row the text is scrolled to, and the file after
-    public IReadOnlyList<Text> Rows(ConflictResult result, int hunk, int topRow)
+    // row is a line of the result, counted from the row the text is scrolled to, and the file after.
+    // rowAt is a row of the result as drawn, its code colored (ConflictSyntax).
+    public IReadOnlyList<Text> Rows(ConflictResult result, int hunk, int topRow, Func<int, Text>? rowAt = null)
     {
+        rowAt ??= i => result.Rows[i];
         var (start, end) = (result.Starts[hunk], result.Ends[hunk]);
-        List<Text> rows = [.. result.Rows.Skip(First).Take(Above)];
+        List<Text> rows = [.. Enumerable.Range(First, Above).Select(rowAt)];
         for (int i = 0; i < TextHeight; i++)
         {
             var row = start + topRow + i;
             rows.Add(row < end ? result.Rows[row].Subtext(0, ConflictRowService.GutterWidth) : Text.Magenta("▌"));
         }
-        rows.AddRange(result.Rows.Skip(end).Take(Below));
+        rows.AddRange(Enumerable.Range(end, Math.Min(Below, result.Rows.Count - end)).Select(rowAt));
         return rows;
     }
 }

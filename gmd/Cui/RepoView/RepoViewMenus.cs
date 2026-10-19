@@ -39,7 +39,9 @@ class RepoViewMenus : IRepoViewMenus
         DiffMark diffMark
     )
     {
-        repoMenu = new RepoMenu(repo, commands, config, configDlg);
+        // Each menu has items of the other's, so the repo menu's Show Branch is had through a callback:
+        // branchMenu is made on the next line, and the callback is called only as the menu is shown
+        repoMenu = new RepoMenu(repo, commands, config, configDlg, () => branchMenu!.GetShowBranchSubMenu());
         branchMenu = new BranchMenu(repoMenu, repo, commands);
         commitMenu = new CommitMenu(repoMenu, branchMenu, repo, commands, diffMark);
     }

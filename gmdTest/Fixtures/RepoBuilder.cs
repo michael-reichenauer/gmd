@@ -49,6 +49,7 @@ class RepoBuilder
     readonly List<GitWorktree> worktrees = [];
     readonly List<ReflogEntry> reflog = [];
     readonly List<ReflogEntry> remoteReflog = [];
+    string currentAuthor = "";
     readonly Dictionary<string, string> copies = [];
     readonly List<string> integrationNames = [];
     readonly Dictionary<string, int> worktreeChanges = [];
@@ -97,6 +98,21 @@ class RepoBuilder
                 authorTime
             )
         );
+        return this;
+    }
+
+    // Who made a commit declared already, which is "Test Author" unless said
+    public RepoBuilder AuthoredBy(string commitName, string author)
+    {
+        var i = commits.FindIndex(c => c.Id == Sha(commitName));
+        commits[i] = commits[i] with { Author = author };
+        return this;
+    }
+
+    // The name the repo's commits are made with, its user.name, which is "" unless said
+    public RepoBuilder CurrentAuthor(string author)
+    {
+        currentAuthor = author;
         return this;
     }
 
@@ -399,7 +415,8 @@ class RepoBuilder
             reflog,
             integrationNames,
             recordedSteps,
-            remoteReflog
+            remoteReflog,
+            currentAuthor
         );
 
     // The commits, with each copy given its original's subject, author and author time
@@ -500,10 +517,11 @@ class RepoBuilder
         return new ServerImpl(
             git,
             NewAugmentedService(git, metaDataService, monitor, Config),
-            new BranchWriteService(git, metaDataService),
+            new BranchWriteService(git, metaDataService, Config),
             new CommitRewriteService(git, Config),
             new UndoService(git, Config),
             new DeletedBranchService(git, Config),
+            new MergedBranchService(git, Config),
             new ViewRepoConverter(),
             NewViewRepoCreater(),
             monitor,

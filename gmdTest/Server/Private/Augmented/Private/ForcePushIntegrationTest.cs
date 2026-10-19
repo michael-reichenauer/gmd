@@ -287,4 +287,129 @@ public class ForcePushIntegrationTest
 
         Assert.AreEqual(later, (await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse dev")).Trim());
     }
+
+    // A branch rewritten here once it was pushed, the mirror of the above: dev on origin is Initial <-
+    // First <- Second, which is pushed, and then rewritten here, while origin keeps it
+    async Task<(string First, string Second)> PushedDevAsync()
+    {
+        await CommitAsync("a.txt", "Initial");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -u origin main");
+        await repo.GitAsync("checkout -b dev");
+        var first = await CommitAsync("f.txt", "First");
+        var second = await CommitAsync("s.txt", "Second");
+        await repo.GitAsync("push -u origin dev");
+        return (first, second);
+    }
+
+    // gmd's squash of commits on origin, named as gmd recorded it: origin has the old version, and the
+    // force push replaces it, leased on origin's tip as it was read, after which nothing is told
+    [TestMethod]
+    public async Task TestASquashOfPushedCommitsIsARewriteHere()
+    {
+        var (first, second) = await PushedDevAsync();
+        var read = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        AssertOk(await new CommitRewriteService(repo.Git, config).SquashCommitsAsync(read, second, first, "Both"));
+
+        var rewrite = AssertOk(await service.GetRepoAsync(repo.Path)).LocalRewrites["dev"];
+        Assert.AreEqual(
+            (StepKind.Squash, "Both", second, 1),
+            (rewrite.Kind, rewrite.Name, rewrite.OldTipId, rewrite.NewCount)
+        );
+        CollectionAssert.AreEqual(new[] { second, first }, rewrite.OldIds.ToArray());
+
+        AssertOk(await repo.Git.PushForceAsync("dev", "origin/dev", rewrite.OldTipId, repo.Path));
+
+        Assert.AreEqual(
+            await repo.HeadIdAsync(),
+            (await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse dev")).Trim()
+        );
+        Assert.AreEqual(0, AssertOk(await service.GetRepoAsync(repo.Path)).LocalRewrites.Count);
+    }
+
+    // The same made outside gmd, by the reflog's own words, as an agent's amend of a pushed commit
+    [TestMethod]
+    public async Task TestAnAmendOfAPushedCommitIsARewriteHere()
+    {
+        var (_, second) = await PushedDevAsync();
+
+        repo.GitAt(["commit", "-q", "--amend", "-m", "Second, reworded"], NextTime());
+
+        var rewrite = AssertOk(await service.GetRepoAsync(repo.Path)).LocalRewrites["dev"];
+        Assert.AreEqual((StepKind.Amend, "Second, reworded", second), (rewrite.Kind, rewrite.Name, rewrite.OldTipId));
+    }
+
+    // A rebase that stopped on a conflict, and was continued: the rebase itself, as git's reflog of the
+    // branch has it once it finishes, which Rebase onto leaves to be pushed, since its push
+    // never came
+    [TestMethod]
+    public async Task TestARebaseContinuedAfterAConflictIsARewriteHere()
+    {
+        await PushedDevAsync();
+        await repo.GitAsync("checkout -q main");
+        await repo.CommitFileAtAsync("s.txt", "main's\n", "Main's", NextTime());
+        await repo.GitAsync("checkout -q dev");
+
+        AssertError(await repo.Git.RebaseOntoAsync("main", "main~1", repo.Path));
+        File.WriteAllText(Path.Join(repo.Path, "s.txt"), "both\n");
+        await repo.GitAsync("add s.txt");
+        AssertOk(await repo.Git.ContinueOperationAsync(repo.Path));
+
+        var rewrite = AssertOk(await service.GetRepoAsync(repo.Path)).LocalRewrites["dev"];
+        Assert.AreEqual((StepKind.Rebase, 2), (rewrite.Kind, rewrite.OldIds.Count));
+    }
+
+    // A commit on origin's copy of the branch is rewritten, as one not pushed is, by git's own rebase,
+    // and the branch is then one rewritten here, which a force push replaces on origin
+    [TestMethod]
+    public async Task TestAnOlderPushedCommitIsAmendedAndDropped()
+    {
+        var (first, second) = await PushedDevAsync();
+        var rewrite = new CommitRewriteService(repo.Git, config);
+
+        AssertOk(
+            await rewrite.AmendOlderCommitAsync(
+                AssertOk(await service.GetRepoAsync(repo.Path)),
+                first,
+                "First, reworded",
+                []
+            )
+        );
+
+        Assert.AreEqual("Second\nFirst, reworded\nInitial", (await repo.GitAsync("log --format=%s")).Trim());
+        var amended = AssertOk(await service.GetRepoAsync(repo.Path)).LocalRewrites["dev"];
+        Assert.AreEqual((StepKind.Amend, second), (amended.Kind, amended.OldTipId));
+
+        var read = AssertOk(await service.GetRepoAsync(repo.Path));
+        var reworded = (await repo.GitAsync("rev-parse HEAD~1")).Trim();
+        AssertOk(await rewrite.DropCommitAsync(read, reworded));
+
+        Assert.AreEqual("Second\nInitial", (await repo.GitAsync("log --format=%s")).Trim());
+        Assert.AreEqual(second, AssertOk(await service.GetRepoAsync(repo.Path)).LocalRewrites["dev"].OldTipId);
+    }
+
+    // A commit on another branch of origin, here main, which dev was merged into there, is left as it
+    // is: the force push of dev would not take it out of main
+    [TestMethod]
+    public async Task TestACommitMergedIntoMainOnOriginIsNotRewritten()
+    {
+        var (first, _) = await PushedDevAsync();
+        await repo.GitAsync("checkout -q main");
+        await repo.GitAsync("merge -q --no-ff -m \"Merge branch 'dev'\" dev");
+        await repo.GitAsync("push -q origin main");
+        await repo.GitAsync("checkout -q dev");
+
+        var refused = AssertError(
+            await new CommitRewriteService(repo.Git, config).AmendOlderCommitAsync(
+                AssertOk(await service.GetRepoAsync(repo.Path)),
+                first,
+                "First, reworded",
+                []
+            )
+        );
+
+        StringAssert.Contains(refused.AllMessages(), "is on 'origin/main' already");
+        Assert.AreEqual("Second\nFirst\nInitial", (await repo.GitAsync("log --format=%s dev")).Trim());
+    }
 }

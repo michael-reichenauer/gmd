@@ -55,5 +55,5 @@ class WorktreesDlg : IWorktreesDlg
             : Color.White;
 
     static bool IsUnmerged(Repo repo, Worktree w) =>
-        w.Branch != "" && repo.BranchByName.TryGetValue(w.Branch, out var branch) && repo.HasUnmergedCommits(branch);
+        w.Branch != "" && repo.BranchByName.TryGetValue(w.Branch, out var branch) && repo.IsUnmerged(branch);
 }

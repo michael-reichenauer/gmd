@@ -187,7 +187,29 @@ public class BranchTest
         gmd.Send("d");
 
         var screen = gmd.WaitFor("delta.txt");
-        Assert.IsFalse(screen.Contains("Diff Branch to"), "Not the branch's diff menu");
+        Assert.IsFalse(screen.Contains("╭ Diff main to"), "Not the branch's diff menu");
+    }
+
+    // 'd' on a highlighted branch, with no rows selected, picks the branch to diff it to from a menu
+    // whose title the pick completes, 'Diff main to' and then dev, as the diff is then titled
+    [TestMethod]
+    public async Task TestDiffAHighlightedBranchToAnother()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("Down");
+        gmd.WaitFor("Merge branch");
+        gmd.Send("Left"); // Hoovers main
+        gmd.WaitForStable();
+        gmd.Send("Enter"); // Shows dev
+        gmd.WaitFor("More dev work");
+
+        gmd.Send("d");
+        StringAssert.Contains(gmd.WaitFor("╭ Diff main to"), "dev");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Diff 'main' to 'dev'");
     }
 
     // Renaming is menu only, so this is also the one test that drives a menu item all the way to
@@ -215,19 +237,13 @@ public class BranchTest
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
 
-        // Down to 'Rename Branch ...', which is seven moves and not nine, since 'Rebase and push
-        // onto' and 'Pull' are disabled here and are skipped over. One key at a time: a menu
-        // redraw drops the keys sent behind it, so a single Send of seven would arrive as three.
-        for (var i = 0; i < 7; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Rename Branch ...");
         gmd.Send("Enter");
 
         // The name is filled in and the cursor is at its end, so the rename is a matter of editing
-        // it. There is no remote branch here, so the dialog says nothing about origin.
-        var dialog = gmd.WaitFor("Rename Branch");
+        // it. There is no remote branch here, so the dialog says nothing about origin. Waited for by
+        // what only the dialog says: the menu says 'Rename Branch' too, until it has closed.
+        var dialog = gmd.WaitFor("From: dev");
         Assert.AreEqual(
             """
                                           ╭ Rename Branch ───────────────────────────────────────────╮
@@ -268,9 +284,8 @@ public class BranchTest
         Assert.AreEqual("main", await repo.GitAsync("rev-parse --abbrev-ref HEAD"), "Renaming does not check out");
     }
 
-    // Deleting a branch, which is one item below the rename above and so one move further down. The
-    // dialog's default is Cancel, so Enter on the item and Enter again leaves the branch where it is,
-    // and OK is a Left away.
+    // Deleting a branch. The dialog's default is Cancel, so Enter on the item and Enter again leaves
+    // the branch where it is, and OK is a Left away.
     [TestMethod]
     public async Task TestDeleteBranch()
     {
@@ -325,16 +340,12 @@ public class BranchTest
         );
     }
 
-    // 'Delete Branch ...' in the menu of dev, hoovered, eight moves down
+    // 'Delete Branch ...' in the menu of dev, hoovered
     static void OpenDeleteBranch(TmuxSession gmd)
     {
         gmd.Send("m");
         gmd.WaitFor("Branch: dev");
-        for (var i = 0; i < 8; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Delete Branch ...");
         gmd.Send("Enter");
         gmd.WaitFor("Delete Local");
     }
@@ -782,5 +793,66 @@ public class BranchTest
         Assert.AreEqual(" M long.txt", await repo.GitAsync("status -s"), "The change came along");
         StringAssert.StartsWith(File.ReadAllText(Path.Join(repo.Path, "long.txt")), "line 1 changed\n");
         Assert.AreEqual("", await repo.GitAsync("stash list"), "and the stash is gone again");
+    }
+
+    // A branch squash merged on origin and deleted there is said once found, and Delete Merged Branches,
+    // in the repo menu, lists it and deletes it here
+    [TestMethod]
+    public async Task TestDeleteABranchMergedOnOrigin()
+    {
+        using var repo = await E2eRepo.CreateWithBranchSquashMergedOnOriginAsync(isOnMain: true);
+        using var gmd = TmuxSession.StartGmd(repo);
+
+        Assert.AreEqual(
+            "'feature' was merged into 'main' on origin: Delete Merged Branches in the repo menu deletes it here",
+            ScreenText.LastLine(gmd.WaitFor("was merged into"))
+        );
+        gmd.WaitUntilGone("was merged into");
+
+        gmd.Send("M");
+        gmd.WaitFor("Delete Merged Branches ...");
+        gmd.SelectMenuItem("Delete Merged Branches ...");
+        gmd.Send("Enter");
+
+        var dialog = gmd.WaitFor("Merged into");
+        StringAssert.Contains(dialog, "feature               main, squash or rebase    Fix feature");
+        StringAssert.Contains(dialog, "Delete deletes 'feature' here: squash or rebase merged into 'main' on origin");
+        gmd.Send("d");
+
+        Assert.AreEqual(
+            "Deleted 'feature': Restore Deleted Branch in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Deleted 'feature'"))
+        );
+        Assert.AreEqual("", (await repo.GitAsync("branch --list feature")).Trim());
+    }
+
+    // A commit made on main by mistake, 'Add zeta', not pushed yet, moved to a new branch, which is
+    // checked out and published, main going back to origin's, from the commit menu of the top row
+    [TestMethod]
+    public async Task TestMoveACommitMadeOnMainToANewBranch()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        var zeta = (await repo.GitAsync("rev-parse main")).Trim();
+        var onOrigin = (await repo.GitAsync("rev-parse origin/main")).Trim();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add zeta");
+
+        gmd.Send("m");
+        gmd.WaitFor("Move to New Branch ...");
+        gmd.SelectMenuItem("Move to New Branch ...");
+        gmd.Send("Enter");
+        StringAssert.Contains(gmd.WaitFor("Move 1 commit of 'main' to a new branch:"), "'main' goes back to 17d85ba8");
+        gmd.SendText("fix");
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Moved 1 commit of 'main' to 'fix': Undo in the branch menu of 'main' moves it forward again",
+            ScreenText.LastLine(gmd.WaitFor("Moved 1 commit"))
+        );
+        Assert.AreEqual("fix", (await repo.GitAsync("branch --show-current")).Trim());
+        Assert.AreEqual(onOrigin, (await repo.GitAsync("rev-parse main")).Trim(), "main back where origin has it");
+        Assert.AreEqual(zeta, (await repo.GitAsync("rev-parse fix origin/fix")).Split('\n')[0].Trim());
+        Assert.AreEqual(zeta, (await repo.GitAsync("rev-parse origin/fix")).Trim(), "Published");
     }
 }

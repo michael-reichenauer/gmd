@@ -6,7 +6,15 @@ namespace gmd.Cui.Blame;
 interface IBlameRowService
 {
     BlameRows ToBlameRows(Server.Blame blame);
-    Text ToRowText(BlameRow row, BlameColumns cw, int rowStartX, bool isCurrent, bool isSelected, string search = "");
+    Text ToRowText(
+        BlameRow row,
+        BlameColumns cw,
+        int rowStartX,
+        bool isCurrent,
+        bool isSelected,
+        string search = "",
+        IReadOnlyList<CodeSpan>? code = null
+    );
     IReadOnlyList<Text> ToDetailsRows(Server.BlameCommit commit);
 }
 
@@ -97,14 +105,16 @@ class BlameRowService : IBlameRowService
         return colorById;
     }
 
-    // search is the text a search found, marked where it is in the code, "" for none
+    // search is the text a search found, marked where it is in the code, "" for none, and code the
+    // spans of the code in its language's colors (BlameSyntax), none where it is not colored
     public Text ToRowText(
         BlameRow row,
         BlameColumns cw,
         int rowStartX,
         bool isCurrent,
         bool isSelected,
-        string search = ""
+        string search = "",
+        IReadOnlyList<CodeSpan>? code = null
     )
     {
         // The run bracket is drawn outside the highlight, the same way the log view highlights the
@@ -114,7 +124,7 @@ class BlameRowService : IBlameRowService
         var rest = new TextBuilder();
         WriteCommit(rest, row, cw);
         rest.Dark(LineNbrPrefix).Dark(TxtRight($"{row.LineNbr}", cw.LineNbr)).Dark(LineNbrSuffix);
-        rest.Add(ClipCode(CodeText(row).WithMatches(search), cw.Code, rowStartX));
+        rest.Add(ClipCode(CodeText(row).WithCode(0, code ?? []).WithMatches(search), cw.Code, rowStartX));
 
         Text restText =
             isSelected ? rest.Select()
@@ -144,6 +154,16 @@ class BlameRowService : IBlameRowService
             Text.Dark("This commit is not in the shown log, so its branch and full"),
             Text.Dark("message are not known here. The subject above is all git blame gives."),
         ];
+    }
+
+    // A revision as the header names it: an id short, as everywhere, with what follows it kept, e.g.
+    // '1be33bd1^' for the version before a commit, which a diff blames a removed line in; a name as it
+    // is, e.g. 'HEAD' or 'stash@{0}^'
+    public static string ReferenceText(string reference)
+    {
+        var name = reference.TrimEnd('^', '~');
+        var isId = name.Length >= 40 && name.All(char.IsAsciiHexDigit);
+        return (isId ? name.Sid() : name) + reference[name.Length..];
     }
 
     // The commit is named only on the first row of a run, the rest of the run is blank under it
@@ -181,6 +201,8 @@ class BlameRowService : IBlameRowService
         }
     }
 
+    // A line not committed yet is bright yellow, as the log view's uncommitted row, and is left so
+    // when the code is colored, which colors the text's own white alone
     static Text CodeText(BlameRow row) =>
         Text.Color(row.Commit.IsUncommitted ? Color.BrightYellow : Color.White, row.Text);
 

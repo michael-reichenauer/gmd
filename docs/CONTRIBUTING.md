@@ -1,6 +1,6 @@
 # Contributing to Gmd
 
-Gmd is written in C# for .NET 10 on [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) 1.x.
+Gmd is written in C# for .NET 10 on [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) 2.x.
 It runs the `git` command line for everything and uses no Git library. The code is layered, and
 each layer calls only the one below it:
 
@@ -46,7 +46,7 @@ They are in `scripts/`, and each runs at the repository root wherever it is star
 | `scripts/log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
 | `scripts/updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
 | `scripts/installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
-| `scripts/demo`           | Re-record the README's animation, by running a scripted session in tmux    |
+| `scripts/demo`           | Re-record the README's animation and log pictures, by a session in tmux    |
 | `scripts/brewformula <version>` | Write the Homebrew formula of a release, which the release workflow pushes to the tap |
 
 On Windows, `scripts\run.bat`, `scripts\build.bat` (`-w` builds Windows only) and `scripts\log.bat`

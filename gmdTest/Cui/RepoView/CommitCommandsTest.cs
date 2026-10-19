@@ -120,6 +120,67 @@ public class CommitCommandsTest
         Assert.IsNull(CommitCommands.CommitsToPick(repo, 0, Row(repo, "c3")));
     }
 
+    // The rows picked are one line of another branch's commits, with no merge among them, and with
+    // nothing uncommitted for the picks to go over
+    [TestMethod]
+    public async Task TestWhichRowsAreCherryPicked()
+    {
+        var repo = await TwoLines().ViewRepoAsync("dev");
+
+        Assert.AreEqual("", CommitCommands.WhyNotCherryPick(repo, Row(repo, "d2"), Row(repo, "d1")));
+        Assert.AreEqual(
+            "The selected commits are not one line of commits: select the commits of a branch",
+            CommitCommands.WhyNotCherryPick(repo, Row(repo, "c3"), Row(repo, "d1"))
+        );
+        Assert.AreEqual(
+            "The selected commits are on the current branch already",
+            CommitCommands.WhyNotCherryPick(repo, Row(repo, "c3"), Row(repo, "c2"))
+        );
+
+        var changed = await TwoLines().WithStatus(modified: 1).ViewRepoAsync("dev");
+        Assert.AreEqual(Why.Changes, CommitCommands.WhyNotCherryPick(changed, Row(changed, "d2"), Row(changed, "d1")));
+    }
+
+    // What the reset question says of the commits it takes off the branch, and of origin's copies
+    [TestMethod]
+    public async Task TestWhatAResetSays()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c4", "Fourth", "c3")
+            .Commit("c3", "Third", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c4", isCurrent: true, remoteTipCommit: "c3", ahead: 1)
+            .LocalBranch("dev", "c1")
+            .ViewRepoAsync();
+        var c = (string name) => repo.CommitById[RepoBuilder.Sha(name)];
+
+        Assert.AreEqual("The commit after it leaves the branch.", CommitCommands.ResetWhat(repo, c("c3")));
+        Assert.AreEqual(
+            "The 3 commits after it leave the branch.\n2 of them are on origin, which keeps them, and a pull brings them back.",
+            CommitCommands.ResetWhat(repo, c("c1"))
+        );
+    }
+
+    // A range diff is the changes of the commits selected, the oldest one's too, unlike the diff of
+    // two commits marked, so its title counts them. Only those of its branch, which the selection is
+    // drawn on, not dev's rows between them.
+    [TestMethod]
+    public async Task TestARangeDiffIsTitledWithTheCommitsOfItsBranch()
+    {
+        var repo = await TwoLines().ViewRepoAsync("dev");
+        Assert.IsTrue(Row(repo, "d2") > Row(repo, "c3") && Row(repo, "d1") < Row(repo, "c1"), "dev is in between");
+
+        Assert.AreEqual(
+            "Diff of 3 commits, c1000000 to c3000000",
+            CommitCommands.RangeTitle(repo, RepoBuilder.Sha("c3"), RepoBuilder.Sha("c1"))
+        );
+        Assert.AreEqual(
+            "Diff of 2 commits, d1000000 to d2000000",
+            CommitCommands.RangeTitle(repo, RepoBuilder.Sha("d2"), RepoBuilder.Sha("d1"))
+        );
+    }
+
     static int Row(Repo repo, string name) => repo.CommitById[RepoBuilder.Sha(name)].ViewIndex;
 
     // main and dev, both from c1

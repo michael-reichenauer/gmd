@@ -1,8 +1,10 @@
+using System.Drawing;
 using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Cui.Worktrees;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.App;
 
@@ -48,7 +50,7 @@ class ApplicationBar : View, IApplicationBar
     readonly UILabel label;
     readonly List<Text> items = [];
     Text rowName = Common.Text.Empty;
-    Rect bounds = Rect.Empty;
+    Rectangle bounds = Rectangle.Empty;
     bool isUpdateShown;
 
     public View View => this;
@@ -65,17 +67,12 @@ class ApplicationBar : View, IApplicationBar
         Width = Dim.Fill();
 
         label = new UILabel(0, 0);
-        var border = new HorizontalLine()
-        {
-            X = 0,
-            Y = 1,
-            ColorScheme = ColorSchemes.Border,
-        };
+        var border = new HorizontalLine() { X = 0, Y = 1 }.WithScheme(() => ColorSchemes.Border);
 
         Add(label, border);
 
-        label.MouseClick += OnLabelMouseClicked;
-        bounds = Frame;
+        label.Clicked += OnClicked;
+        bounds = Viewport;
 
         // Initialize some text values
         Enumerable
@@ -91,8 +88,8 @@ class ApplicationBar : View, IApplicationBar
         UpdateView();
 
         // Not here: the constructor runs before there is a main loop to add a timer to, since
-        // Program.Main builds the DI graph before Application.Init, and a timer added then is
-        // silently never run. Initialized is raised when the application is run.
+        // Program.Main builds the DI graph before the application is made. Initialized is raised
+        // when the application is run.
         Initialized += (_, _) => StartUpdateTimer();
     }
 
@@ -104,7 +101,7 @@ class ApplicationBar : View, IApplicationBar
     void StartUpdateTimer() =>
         UI.AddTimeout(
             TimeSpan.FromSeconds(5),
-            (_) =>
+            () =>
             {
                 if (config.Releases.IsUpdateAvailable() != isUpdateShown)
                     UpdateView();
@@ -112,19 +109,11 @@ class ApplicationBar : View, IApplicationBar
             }
         );
 
-    // Called when clicking on the label
-    void OnLabelMouseClicked(MouseEventArgs e)
+    // A click on the bar beside the label, e.g. on its line, as one on the label
+    protected override bool OnMouseEvent(Mouse e)
     {
-        if (e.MouseEvent.Flags == MouseFlags.Button1Clicked)
-            OnClicked(e.MouseEvent.X, e.MouseEvent.Y);
-        e.Handled = false;
-    }
-
-    // Mouse events from the view not handled by the label mouse clicks
-    public override bool MouseEvent(MouseEvent e)
-    {
-        if (e.Flags == MouseFlags.Button1Clicked)
-            OnClicked(e.X, e.Y);
+        if (e.Flags.HasFlag(MouseFlags.LeftButtonClicked) && e.Position is Point at)
+            OnClicked(at.X, at.Y);
         return false;
     }
 
@@ -145,16 +134,16 @@ class ApplicationBar : View, IApplicationBar
         }
     }
 
-    // Monitors if the view has been resized
-    public override void Redraw(Rect bounds)
+    // Laid out anew when the view is resized; Terminal.Gui lays it out as its size is set, in the
+    // constructor, before there are items to lay out
+    protected override void OnViewportChanged(DrawEventArgs e)
     {
-        if (bounds != this.bounds)
+        base.OnViewportChanged(e);
+        if (items.Count > 0 && Viewport.Size != bounds.Size)
         {
-            this.bounds = bounds;
+            bounds = Viewport;
             UpdateView();
         }
-
-        base.Redraw(bounds);
     }
 
     public void SetRepo(Server.Repo repo, int hiddenNewsCount)

@@ -28,6 +28,11 @@ record DiffSource(DiffReload Reload)
     // be left out of the commit (LeftOutLines)
     public bool IsCommittedWhole { get; init; }
 
+    // What a diff of no commit is between, the uncommitted changes, a stash or a range, for b, which
+    // blames a line where it is (DiffBlameTarget); null where there is nothing to blame. A diff of a
+    // commit, and the commits of a file or a line history, say it themselves with their ids.
+    public DiffSides? Sides { get; init; }
+
     // The diff, with its files of whitespace changes alone listed when whitespace is left out, which
     // git leaves out (DiffWhitespace). They are found in the diff read again with whitespace, with
     // no context, since only which files it has is wanted of it.
@@ -53,4 +58,11 @@ record DiffSource(DiffReload Reload)
                 Error e => e,
             }
         );
+}
+
+// The revisions the two sides of a diff are of, as git names them, "" for the working tree: e.g.
+// 'HEAD' and "" for the uncommitted changes, 'stash@{0}^' and 'stash@{0}' for a stash
+record DiffSides(string Old, string New)
+{
+    public static readonly DiffSides Uncommitted = new("HEAD", "");
 }

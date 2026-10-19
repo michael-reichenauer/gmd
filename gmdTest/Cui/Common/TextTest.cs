@@ -32,6 +32,50 @@ public class TextTest
         Assert.AreNotEqual(Color.White, marked.ToHighlight().Fragments[0].Color, "The rest is highlighted");
     }
 
+    // The mark of the commit marked for a diff is left as it is too, so that it is seen at once on the
+    // cursor's row, which is where a commit is marked
+    [TestMethod]
+    public void TestAHighlightLeavesADiffMarkAsItIs()
+    {
+        var marked = Text.Color(Color.DiffMark, "±").White(" Subject").ToText();
+
+        Assert.AreEqual(Color.DiffMark, marked.ToHighlight().Fragments[0].Color);
+        Assert.AreEqual(Color.DiffMark, marked.ToSelect().Fragments[0].Color);
+        Assert.AreEqual(Color.DiffMark, marked.ToTextBuilder().Highlight().ToText().Fragments[0].Color);
+        Assert.AreEqual(ColorName.Dark, marked.ToHighlight().Fragments[1].Color.Background, "The rest is highlighted");
+    }
+
+    // Dark is white on the background of the row marked for a diff, which is to stand out, as it is on
+    // the cursor's, and the other colors are kept
+    [TestMethod]
+    public void TestDarkIsWhiteOnTheMarkedRow()
+    {
+        var text = Text.Dark("Author").Cyan(" c2000000").ToText();
+
+        Assert.AreEqual(
+            new Color(ColorName.White, ColorName.MarkBg),
+            text.ToHighlight(Color.MarkBg).Fragments[0].Color
+        );
+        Assert.AreEqual(new Color(ColorName.Cyan, ColorName.MarkBg), text.ToHighlight(Color.MarkBg).Fragments[1].Color);
+        Assert.AreEqual(
+            new Color(ColorName.White, ColorName.MarkBg),
+            text.ToTextBuilder().Highlight(Color.MarkBg).ToText().Fragments[0].Color
+        );
+    }
+
+    // Code keeps its colors on the cursor's row, but selected it is the selection's text, as its colors
+    // are made for the background, not for the selection's
+    [TestMethod]
+    public void TestCodeSelectedIsTheSelectionsText()
+    {
+        var keyword = new Color(ColorName.CodeKeyword, ColorName.Background);
+        var code = Text.Color(keyword, "int").White(" x").ToText();
+
+        Assert.AreEqual(new Color(ColorName.CodeKeyword, ColorName.Dark), code.ToHighlight().Fragments[0].Color);
+        Assert.AreEqual(new Color(ColorName.Black, ColorName.White), code.ToSelect().Fragments[0].Color);
+        Assert.AreEqual(new Color(ColorName.Black, ColorName.White), code.ToTextBuilder().Select().Fragments[0].Color);
+    }
+
     // No search, or none of it in the text, leaves the text as it is
     [TestMethod]
     public void TestATextWithNoMatchIsLeftAsItIs()

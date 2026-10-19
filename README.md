@@ -49,62 +49,18 @@ Gmd leaves the history as it is and lets you choose what to look at. A developer
 Showing or hiding a branch is instant and can be undone at any time, with `Backspace`. It works like
 a squash merge that you can take back, and it never touches the history.
 
-Here is a small repository with five branches, and a sixth merged and deleted, as
-`git log --graph --oneline --decorate --all` shows it:
+Here is a small repository with five branches, and a sixth merged and deleted, as git's own log
+draws it:
 
-```text
-* 4c13bbd (origin/main) Update dependencies
-| * 1d99d6a (HEAD -> feature/login) Show login errors
-| * b826c09 (origin/feature/login) Remember me option
-| *   101b39e Merge branch 'main' into feature/login
-| |\
-| |/
-|/|
-| * f617b05 Validate email and password
-| * 4309d4b Add login page
-| | * 83d45d5 (origin/feature/dark-mode, feature/dark-mode) Add theme toggle
-| | * 09c5518 Add dark theme
-| |/
-|/|
-* |   ddf6a02 (tag: v1.1, main) Merge branch 'bugfix/cart-total'
-|\ \
-| |/
-|/|
-| * beb669c (origin/bugfix/cart-total, bugfix/cart-total) Fix rounding of cart total
-|/
-| * 6fd3597 (origin/feature/search, feature/search) Highlight search matches
-| * 6e028ff Search by category
-| * 669997e Add search box
-|/
-* 744dfa8 (tag: v1.0) Add install steps to README
-*   f36ef44 Merge branch 'feature/checkout'
-|\
-| * 5ca9760 Add checkout form
-| * 2ecfa80 Add shopping cart
-* | 6584425 Add product images
-|/
-* 471dc10 Add product catalog
-* 9e1fe92 Initial project setup
+```bash
+git log --graph --oneline --decorate --all
 ```
+![git log --graph of the repository: the six branches drawn as one tangle of lines, crossing and merging, each commit in the order of its date whichever branch it is on](gmd/doc/GitLog.gif)
 
 And here as gmd first shows it, while you work on `feature/login`: your branch and `main`, each in
 a column of its own, and the other branches hidden.
 
-```text
-      ┣  ©1 uncommitted change                    (● feature/login)
-┣     ┃  ▼Update dependencies                              (^/main)
-┃    ╭┺ ●▲Show login errors
-┃   ┣╯    Remember me option                      (^/feature/login)
-┃  ╭╊     Merge branch 'main' into feature/login
-┣┴┺╯┃     Merge branch 'bugfix/cart-total'             (main)[v1.1]
-┃   ┣     Validate email and password
-┃  ╭┺     Add login page
-┣┴─╯      Add install steps to README                        [v1.0]
-┣╮        Merge branch 'feature/checkout'
-┣         Add product images
-┣╯        Add product catalog
-┗         Initial project setup
-```
+![gmd's log of the same repository: main down the left, feature/login in a column of its own beside it, the other branches hidden, with dark marks beside main where they come and go](gmd/doc/GmdLog.gif)
 
 Git does not record which branch a commit was made on. Gmd works that out from your reflog, the
 merge messages and the branch structure, which is how `feature/checkout`, merged and deleted long
@@ -113,12 +69,14 @@ ambiguous, and you can set it by hand.
 
 ## Reading the Graph
 
-In the picture above, and in color on the screen:
+In the picture above:
 
 - **`main` runs down the left** (`┣`, down to `┗` for its first commit), and each branch has a
   column of its own to the right of the branch it was made from, here `feature/login`.
+- **Each branch has a color of its own**, its column and its name in brackets. The commits of the
+  branch you are on are white, and those of the other branches gray.
 - **A branch and its copy on origin** are two columns side by side, origin's on the left: `▼`
-  marks a commit to pull (`Update dependencies`, on `^/main`) and `▲` a commit to push
+  marks a commit to pull (`Load the catalog before rendering it`, on `^/main`) and `▲` a commit to push
   (`Show login errors`). `^` is short for origin.
 - **`●` is the commit you have checked out** and `(● feature/login)` the branch you are on.
   `©1 uncommitted change` is what you have not committed yet.
@@ -143,12 +101,16 @@ Gmd works best when:
 
 It has less to show when every pull request is **squash merged or rebase merged**: `main` is then a
 straight line, the branches leave nothing behind once deleted, and there is little to hide. Gmd is
-still a complete terminal client there, just not a different one.
+still a complete terminal client there, and it knows that workflow: a branch squash merged or rebase
+merged on origin is marked `✓` rather than looking unmerged, **Delete Merged Branches** cleans them
+up, and a branch you rebased or squashed after pushing it is pushed with force when you ask, rather
+than pulled back to its old version.
 
 Known limits:
 
 - Only the remote named `origin` is supported.
-- The colors assume a dark terminal: on a light theme gmd is drawn on black.
+- A terminal without 24-bit color, e.g. macOS Terminal before macOS 26, needs **Colors** set to `16`
+  in **Config ...**: gmd draws in colors of its own, dark or light by the terminal's background.
 - The log reads the latest 50,000 commits.
 - A password, a passphrase or whether to trust a host is asked in a dialog, but only for a command
   you ran. The fetch gmd runs in the background never asks: when it needs a login, it says so, and
@@ -162,11 +124,17 @@ once. Gmd keeps that readable rather than letting it flood the log:
 - ✦ in the top bar counts the hidden branches with something new, an agent's new branch included,
   and a click lists them, without showing them all.
 - `w` lists the worktrees, which ones have uncommitted changes, which are in use by a running
-  Claude Code session, and whose branches are merged. Open, add or remove them there.
+  Claude Code session, and whose branches are merged, by a squash on GitHub too. Open, add or remove
+  them there.
 - A branch checked out in another worktree is marked `⌂`, and `s` on it opens that worktree.
+- **Delete Merged Branches** lists the branches whose pull requests were merged, squash merged
+  ones included, and deletes them here, each one restorable.
+- An agent's rebase or amend of a branch it had pushed is told apart from new commits on origin,
+  and `p` replaces origin's old version with force, after asking.
 - When something goes wrong, **Undo** takes back the last change of a branch (a commit, a merge,
   a rebase, a reset), **Recover Lost Commits** finds the work a reset or a rebase left behind,
-  and **Restore Deleted Branch** brings back a branch deleted by mistake.
+  and **Restore Deleted Branch** brings back a branch deleted by mistake. Commits made on the wrong
+  branch are moved to a new one with **Move to New Branch**.
 
 ## Features
 
@@ -176,12 +144,12 @@ once. Gmd keeps that readable rather than letting it flood the log:
   own or deleted branches or find one by typing part of its name, and see markers where hidden
   branches merge in or branch out, and a count of the hidden branches with something new since
   you last looked, new branches included.
-- **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches. The
-  context shown around the changes can be widened for one file at a time, up to the whole file,
-  and the changes of whitespace alone can be hidden.
+- **Side-by-side diff** of a commit, the uncommitted changes, a stash, or two branches, with the
+  code in the colors of its language. The context shown around the changes can be widened for one
+  file at a time, up to the whole file, and the changes of whitespace alone can be hidden.
 - **Blame** that groups lines by the commit that last changed them and shades each commit by its
-  age. You can step back to the version before a commit to get past a reformat or a rename, or see
-  every commit that changed the lines you select.
+  age, the code in the colors of its language. You can step back to the version before a commit to
+  get past a reformat or a rename, or see every commit that changed the lines you select.
 - **Search** of the messages, the changed files and the changes themselves, stepping through the
   matches in the log, and of the lines of a diff or a blame.
 - **Diff any two commits**, wherever they are in the log.
@@ -191,13 +159,17 @@ once. Gmd keeps that readable rather than letting it flood the log:
 - **Everyday Git**: commit all the changes, the files you tick, or some lines of a file (with spell
   check), push and pull
   (every shown branch at once if you like), merge in either direction, create, rename and delete
-  branches, tags (a list of them, to push or remove), stash, cherry pick, and file history.
-- **Tidy up before you push**: amend any commit not pushed yet, with a new message or the changes
-  you tick, drop one, or squash several, and Undo takes each back.
+  branches, tags (a list of them, to push or remove), stash, cherry pick of one commit or the ones
+  you select, a reset of the branch to any commit, and file history.
+- **Tidy up a branch**, before you push or after: amend any commit of it, with a new message or the
+  changes you tick, drop one, squash several, or move one above or below the next, and Undo takes
+  each back. Once on origin, the rewrite is pushed with force, when you tick its box or with `p`
+  later, and a branch others build on, such as main, is asked about first.
 - **Conflict resolver** for merges, rebases, cherry picks and reverts. It shows both sides next to
-  each other, as what each did to the common ancestor, combines both where they changed other
-  words, and takes you through the files one after the other, with the file as it will be saved
-  below. When you are done you can commit or continue, skip or abort the operation.
+  each other, as what each did to the common ancestor, the code in the colors of its language,
+  combines both where they changed other words, and takes you through the files one after the
+  other, with the file as it will be saved below. When you are done you can commit or continue,
+  skip or abort the operation.
 - **Worktrees**: see every worktree of a repository and which ones have uncommitted changes, and
   open, add or remove them.
 - **Open in the browser**: a branch, a commit or the repository on GitHub, GitLab, Bitbucket, Azure
@@ -217,8 +189,9 @@ once. Gmd keeps that readable rather than letting it flood the log:
   the terminal instead (OSC 52), if the terminal supports it, and a link it has no browser to open
   in is copied the same way.
 - **Keeps itself up to date** with a built-in update check and a one-click update.
-- **Shared branch structure** (off by default, turned on per repository): the branch choices you
-  make by hand can be pushed with the repository, so everyone sees the same graph.
+- **Shared branch structure** (off by default, turned on per repository): which branch each commit
+  is on, as you set it by hand and as your reflog says, can be shared through origin with others
+  using gmd, for the commits origin has, so that you all see the same graph.
 
 ## Getting Started
 
@@ -264,8 +237,7 @@ browser to open, e.g. over ssh, gmd copies the link instead.
 ## Installation
 
 Gmd is one self-contained executable, so you don't need to install .NET. It does need `git` on
-the `PATH`, and a terminal with a dark theme and a font with box-drawing characters, which most
-have. Every release on the [releases page](https://github.com/michael-reichenauer/gmd/releases)
+the `PATH`, and a terminal with a font with box-drawing characters, which most have. Every release on the [releases page](https://github.com/michael-reichenauer/gmd/releases)
 has these files:
 
 | Platform              | File                                                      |
@@ -366,17 +338,43 @@ update check off, update automatically, or allow preview releases, which are bui
 
 ## What Gmd Stores and Sends
 
+In your home folder:
+
 - `~/.gmdconfig`: your settings and recent repositories.
-- `.gmdconfig` in each repository's `.git` folder: which branches are shown, their colors and
-  their order.
-- `refs/gmd-metadata-key-value/data` in a repository: the branches you set by hand, and what your
-  reflog says about where commits were made, kept for when the reflog has expired. It is pushed
-  to origin only when the shared branch structure is turned on.
-- `~/gmd.log`: a log of what gmd does, started afresh each time it runs.
+- `~/gmd.log`: a log of what gmd does, started afresh each time it runs (and moved to
+  `gmd.log.2.log` if it grows large).
+- The library that colors code, written out of the gmd executable into a `gmd` folder of your local
+  app data, e.g. `~/.local/share/gmd` on Linux.
+
+In each repository's `.git` folder, files that git never sends anywhere:
+
+- `.gmdconfig`: which branches are shown, their colors and their order, the repository's settings,
+  and what **Undo** and **Restore Deleted Branch** need.
+- `gmd-metadata.json`: which branch a commit is on, where git alone cannot tell: the branches you
+  set by hand, and what your reflog said, kept after git has expired the reflog. Only commit ids and
+  branch names. An older gmd kept it in the repository as `refs/gmd-metadata-key-value/data`, which
+  gmd moves into this file at its first change.
+
+And two refs of gmd's own in each repository, which git pushes only when told to, e.g. by
+`git push --mirror`:
+
+- `refs/gmd/discarded`: the changes you discarded, as commits, for **Restore Discarded Changes**,
+  kept as git keeps what is lost, for about 30 days. Being commits, they are in `git log --all`, and
+  in tools that draw every ref.
+- `refs/gmdtags/origin/*`: the tags origin had at the last fetch, so that a tag deleted on origin is
+  told apart from one never pushed.
 
 Over the network, gmd runs git's own fetches and pushes to origin (a fetch every five minutes, to
 keep the ▼ counts current), and asks GitHub for the latest release every hour, which **Config ...**
-turns off. Nothing else is sent: there is no telemetry.
+turns off. With the shared branch structure on, it shares the branch metadata through origin too,
+as below. Nothing else is sent: there is no telemetry.
+
+The **shared branch structure** is off unless you turn it on for a repository, in **Config ...**,
+which first says what it shares. The entries of `gmd-metadata.json` for the commits origin has are
+then pushed to origin after a branch, as `refs/gmd-metadata-key-value/data`, and fetched with the
+fetches, so that others using gmd who share it see the same branches. The entries for commits not
+pushed stay on your machine. `refs/gmd-metadata-key-value-origin/data` is gmd's record of origin's,
+and `git push origin :refs/gmd-metadata-key-value/data` removes it from origin.
 
 ## Problems and Feedback
 
@@ -394,10 +392,15 @@ scripts and the conventions.
 
 ## Third-party components
 
-- [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) (MIT) is the console UI toolkit.
+- [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) (MIT) is the console UI toolkit.
 - [Autofac](https://github.com/autofac/Autofac) (MIT) handles dependency injection.
 - [DiffPlex](https://github.com/mmanela/diffplex) (Apache 2.0) highlights the characters that
   changed within a line of the diff.
+- [TextMateSharp](https://github.com/danipen/TextMateSharp) (MIT), with the TextMate grammars of
+  VS Code, colors the code in a diff, a blame and a conflict by its language. Their regular expressions are run by
+  [Oniguruma](https://github.com/kkos/oniguruma) (BSD 2-clause) through
+  [Onigwrap](https://github.com/aikawayataro/Onigwrap) (MIT), a native library embedded in the
+  executable (see `gmd/doc/licenses/libonigwrap.license`).
 - [WeCantSpell.Hunspell](https://github.com/aarondandy/WeCantSpell.Hunspell) (MPL 2.0 / LGPL / GPL
   tri-license, used under MPL 2.0) is the managed Hunspell port that spell checks commit messages.
 - The [SCOWL](http://wordlist.aspell.net) en_US Hunspell dictionary (MIT/BSD, see

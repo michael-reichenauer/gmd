@@ -1,3 +1,4 @@
+using gmd.Common;
 using gmd.Git;
 
 namespace gmd.Server.Private.Augmented.Private;
@@ -7,11 +8,44 @@ class BranchWriteService : IBranchWriteService
 {
     readonly IGit git;
     readonly IMetaDataService metaDataService;
+    readonly IRepoConfigService repoConfig;
 
-    internal BranchWriteService(IGit git, IMetaDataService metaDataService)
+    internal BranchWriteService(IGit git, IMetaDataService metaDataService, IRepoConfigService repoConfig)
     {
         this.git = git;
         this.metaDataService = metaDataService;
+        this.repoConfig = repoConfig;
+    }
+
+    // Picks commits of another branch onto the current one, oldest first, each committed as it was
+    // made, which git's reflog of the branch has as one entry each: recorded as one change for Undo,
+    // named after the first, when they all go in at once. One that stops on a conflict is continued
+    // as any cherry pick, and Undo then names the last commit picked, the record no longer the latest.
+    public async Task<Result> CherryPickCommitsAsync(Repo repo, IReadOnlyList<Commit> commitsOldestFirst)
+    {
+        var local = repo.AllBranches.FirstOrDefault(b => b.IsCurrent && !b.IsRemote && !b.IsDetached);
+        var beforeId = repo.CurrentCommit().Id;
+        var ids = commitsOldestFirst.Select(c => c.Id).ToList();
+        if (await git.CherryPickCommitsAsync(ids, repo.Path) is Error e)
+            return e;
+
+        if (local != null)
+        {
+            var more = commitsOldestFirst.Count > 1 ? $", and {commitsOldestFirst.Count - 1} more" : "";
+            UndoService.Record(
+                repoConfig,
+                repo,
+                local.Name,
+                new RecordedStep
+                {
+                    Kind = nameof(StepKind.CherryPick),
+                    Name = commitsOldestFirst[0].Subject.Trim() + more,
+                    BeforeId = beforeId,
+                    Moves = commitsOldestFirst.Count,
+                }
+            );
+        }
+        return Result.Ok;
     }
 
     public async Task<Result> CreateBranchAsync(Repo repo, string newBranchName, bool isCheckout)
@@ -69,6 +103,32 @@ class BranchWriteService : IBranchWriteService
         var branch = repo.BranchByName[commit.BranchName];
 
         return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(commit.Id, branch.NiceName));
+    }
+
+    // Moves the commits of the current branch from this one up, ones not pushed yet, to a new branch,
+    // e.g. made on main by mistake: the new branch is made where the current one is, and checked out,
+    // which leaves the files and the changes as they are, and the branch they were on goes back to the
+    // commit before them, as git's own 'branch -f' would, which Undo takes back on it. The new branch
+    // is recorded as made from it there, which is where it parts from it now.
+    public async Task<Result> MoveCommitsToNewBranchAsync(Repo repo, string newBranchName, string commitId)
+    {
+        var wd = repo.Path;
+        var current = repo.CurrentBranch();
+        var tipId = repo.CurrentCommit().Id;
+        var toId = repo.CommitById[commitId].GitParentIds[0];
+        Log.Info($"Move {commitId.Sid()}..{tipId.Sid()} of {current.Name} to new branch {newBranchName} ...");
+
+        if (await git.CreateBranchAsync(newBranchName, true, wd) is Error createError)
+            return createError;
+
+        var message = $"branch: Reset to {toId}";
+        if (await git.MoveBranchAsync(current.Name, toId, tipId, message, wd) is Error moveError)
+            return new Error(
+                $"Made and switched to '{newBranchName}', but '{current.NiceName}' was not moved back",
+                moveError
+            );
+
+        return await metaDataService.UpdateMetaDataAsync(wd, m => m.SetBranched(toId, current.NiceName));
     }
 
     // Renames the local branch. The meta data remembers which branch a commit belongs to by name,
@@ -152,7 +212,7 @@ class BranchWriteService : IBranchWriteService
         return ToMergeCommits(repo, commits).ToList();
     }
 
-    public async Task<Result> RebaseBranchAsync(Repo repo, string name)
+    public async Task<Result> RebaseBranchAsync(Repo repo, string name, bool isPush)
     {
         var cb = repo.CurrentBranch();
         var primaryCurrent = repo.BranchByName[cb.PrimaryName];
@@ -163,7 +223,7 @@ class BranchWriteService : IBranchWriteService
         if (await git.RebaseOntoAsync(newBase, $"{oldBase}~", repo.Path) is Error e)
             return e;
 
-        if (cb.RemoteName != "")
+        if (isPush && cb.RemoteName != "")
         { // Current Branch is local branch with a remote branch, push it with force, over the
             // remote branch as it was before the rebase, i.e. as the user saw it
             var remoteTipId = repo.BranchByName.TryGetValue(cb.RemoteName, out var remote) ? remote.TipId : "";

@@ -43,6 +43,14 @@ class ContentScroll
 
     public void SetCurrentIndex(int index) => CurrentIndex = index;
 
+    // Puts the cursor on the index, on that row of the view, as near as the first and the last rows
+    // let it, e.g. a line kept where it was on the screen after the rows were made anew around it
+    public void ShowIndexAt(int index, int viewRow)
+    {
+        FirstIndex = Math.Clamp(index - viewRow, 0, Math.Max(0, TotalCount - ContentHeight));
+        CurrentIndex = index;
+    }
+
     // Scrolls so that the index is shown, unless it already is with at least the margin of rows
     // above and below it. Returns true if the view scrolled.
     public bool ScrollToShowIndex(int index, int margin = 5)

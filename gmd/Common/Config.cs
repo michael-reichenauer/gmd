@@ -17,6 +17,8 @@ class Config
     public bool ShowKeyHints { get; set; } = true; // The line at the bottom of the log view
     public bool ShowDiffFileList { get; set; } = true; // The list of files beside a wide diff, l
     public bool ShowConflictFileList { get; set; } = true; // The conflicted files beside the resolver, l
+    public string Colors { get; set; } = "auto"; // "auto", "dark", "light" or "16", see Palette
+    public bool ColorCode { get; set; } = true; // The code in a diff, a blame and the conflict resolver in its language's colors, see DiffSyntax
     public List<string> SpellWords { get; set; } = []; // Words added to the dictionary by the user
     public string SpellDictionary { get; set; } = ""; // Optional path to a Hunspell .dic (with its .aff beside it)
 

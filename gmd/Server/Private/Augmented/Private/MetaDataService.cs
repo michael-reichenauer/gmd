@@ -116,6 +116,11 @@ interface IMetaDataService
     Task<Result> AddWitnessedAsync(string path, IReadOnlyList<WitnessedBranch> witnessed);
 }
 
+// The metadata is kept in a file of its own in the git dir (MetaDataFile), on this machine alone, and
+// shared through origin only when the shared branch structure is on (RepoConfig.SyncMetaData), as a
+// git value (IGit.PushValueAsync). A gmd before kept it in the repository, under the ref it is shared
+// through, which is read until the file is first written, and deleted then.
+//
 // The metadata is read, changed and written whole, so every change is made under one lock, each on
 // what the one before wrote. Otherwise a change made in the background, e.g. keeping what the reflog
 // witnessed, and one the user made meanwhile each wrote a copy of its own, and the later write lost
@@ -127,28 +132,41 @@ interface IMetaDataService
 class MetaDataService : IMetaDataService
 {
     const string metaDataKey = "data";
+    static readonly JsonSerializerOptions options = new() { WriteIndented = true };
     readonly IGit git;
     readonly IRepoConfigService repoConfig;
+    readonly IMetaDataFile file;
     readonly SemaphoreSlim changing = new(1, 1);
 
-    internal MetaDataService(IGit git, IRepoConfigService repoConfig)
+    internal MetaDataService(IGit git, IRepoConfigService repoConfig, IMetaDataFile file)
     {
         this.git = git;
         this.repoConfig = repoConfig;
+        this.file = file;
     }
 
     public async Task<Result<MetaData>> GetMetaDataAsync(string path)
     {
+        if (!file.Exists(path))
+            return await GetUnmovedMetaDataAsync(path);
+
+        var read = await file.ReadAsync(path);
+        if (read is not string json)
+            return read.Error;
+        return Result.Catch(() => MetaData.Parse(json));
+    }
+
+    // The metadata where a gmd before kept it, the repository's own git value, or none: the normal
+    // state of a repo nobody has made a choice in, and of one whose reflog decided nothing. None too
+    // when it was moved into the file just now, after the file was looked for, which is then read.
+    async Task<Result<MetaData>> GetUnmovedMetaDataAsync(string path)
+    {
         var read = await git.GetValueAsync(metaDataKey, path);
         if (read is not string json)
-        { // Failed to read local value
-            if (IsNoLocalKey(read.Error))
-            { // No local key,
-                return new MetaData();
-            }
-
-            // Failed to get local value
-            return read.Error;
+        {
+            if (!IsNoValue(read.Error))
+                return read.Error;
+            return file.Exists(path) ? await GetMetaDataAsync(path) : new MetaData();
         }
 
         return Result.Catch(() => MetaData.Parse(json));
@@ -174,14 +192,18 @@ class MetaDataService : IMetaDataService
         return new Disposable(() => changing.Release());
     }
 
+    // The first write moves the metadata into the file, and deletes the git value it was read from
+    // until then, so that nothing of it is left in the repository
     async Task<Result> WriteMetaDataAsync(string path, MetaData metaData)
     {
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        string json = JsonSerializer.Serialize(metaData, options);
-
-        if (await git.SetValueAsync(metaDataKey, json, path) is Error e)
+        var isMoving = !file.Exists(path);
+        if (await file.WriteAsync(path, JsonSerializer.Serialize(metaData, options)) is Error e)
             return e;
-        // Log.Info($"Wrote:\n{json}");
+
+        if (isMoving && await git.DeleteValueAsync(metaDataKey, path) is Error deleteError)
+        { // The file is what is read from now on, so the value is merely left behind
+            Log.Warn($"Failed to delete the metadata's git value, kept in a file now: {deleteError}");
+        }
         return Result.Ok;
     }
 
@@ -218,7 +240,8 @@ class MetaDataService : IMetaDataService
         }
         if (fetched is Error fetchError)
         {
-            // Nobody pushed any metadata yet, which is no failure
+            // Nobody pushed any metadata yet, or it was deleted on origin, which is no failure: the
+            // record of origin's is gone then too, so the next push is leased on origin having none
             return IsNoRemoteKey(fetchError) ? Result.Ok : fetchError;
         }
 
@@ -303,6 +326,10 @@ class MetaDataService : IMetaDataService
         }
     }
 
+    // Shares the values of the commits origin has, i.e. that one of its remote branches reaches: a
+    // value of a commit origin does not have is no use to anyone else, and says what is not shared,
+    // the branches this clone has to itself and the work done on them. Called once a branch is pushed,
+    // so that the values of its commits go with it (Server.PushBranchAsync).
     public async Task<Result> PushMetaDataAsync(string path)
     {
         if (!repoConfig.Get(path).SyncMetaData)
@@ -314,19 +341,21 @@ class MetaDataService : IMetaDataService
         // Never asking for a login, as the fetch above, and best effort, as it is: a push that fails is
         // left to the next one. Refused, for another clone having pushed since the last fetch here,
         // origin's is fetched and merged first, and the merge pushed, rather than pushed over origin's,
-        // which lost the choices made there.
+        // which lost the choices made there. Under the lock, so that what is pushed is made of origin's
+        // value as the push is leased on it, not as a fetch meanwhile left it.
         using (Timing.Start())
         using (Askpass.NeverAsk())
         {
             for (var tries = 0; tries < MaxPushes; tries++)
             {
-                if (await git.PushValueAsync(metaDataKey, path) is not false)
-                    return Result.Ok;
-
                 using (await LockAsync())
                 {
-                    if (await FetchAndMergeMetaDataAsync(path) is Error)
-                        return Result.Ok;
+                    var pushed = await PushSharedAsync(path);
+                    if (pushed is not false)
+                        return pushed is Error pushError ? pushError : Result.Ok;
+
+                    if (await FetchAndMergeMetaDataAsync(path) is Error fetchError)
+                        return fetchError;
                 }
             }
 
@@ -334,10 +363,72 @@ class MetaDataService : IMetaDataService
         }
     }
 
+    // Pushes origin's value with the values here it has not, of the commits it has: true when pushed
+    // or there was nothing to push, false when origin's has changed since it was last fetched
+    async Task<Result<bool>> PushSharedAsync(string path)
+    {
+        var local = await GetMetaDataAsync(path);
+        if (local is not MetaData localMetaData)
+            return local.Error;
+        // None when there is no record of origin's: before the first fetch or push, or once origin's
+        // is deleted
+        var origin = await GetOriginMetaDataAsync(path);
+        if (origin is Error originError && !IsNoValue(originError))
+            return originError;
+        var originMetaData = origin is MetaData last ? last : new MetaData();
+
+        var ids = UnsharedIds(localMetaData, originMetaData);
+        if (ids.Count == 0)
+            return true;
+        var onOrigin = await git.GetIdsOnOriginAsync(ids, path);
+        if (onOrigin is not IReadOnlySet<string> onOriginIds)
+            return onOrigin.Error;
+        if (ToShare(localMetaData, originMetaData, onOriginIds) is not MetaData toShare)
+            return true;
+
+        return await git.PushValueAsync(metaDataKey, JsonSerializer.Serialize(toShare, options), path);
+    }
+
+    // The commits whose values here origin has not, as last fetched or pushed
+    internal static IReadOnlyList<string> UnsharedIds(MetaData local, MetaData origin) =>
+        Unshared(local.CommitBranchById, origin.CommitBranchById, null)
+            .Concat(Unshared(local.WitnessedById, origin.WitnessedById, null))
+            .Select(e => e.Key)
+            .Distinct()
+            .ToList();
+
+    // Origin's metadata with the values here it has not, of the commits it has, which is what is
+    // pushed, or null when there are none. Origin's values are kept, those here of a commit it has not
+    // too included, so that what is pushed takes nothing away from it.
+    internal static MetaData? ToShare(MetaData local, MetaData origin, IReadOnlySet<string> onOrigin)
+    {
+        var choices = Unshared(local.CommitBranchById, origin.CommitBranchById, onOrigin);
+        var witnessed = Unshared(local.WitnessedById, origin.WitnessedById, onOrigin);
+        if (choices.Count == 0 && witnessed.Count == 0)
+            return null;
+
+        var shared = new MetaData
+        {
+            CommitBranchById = new(origin.CommitBranchById),
+            WitnessedById = new(origin.WitnessedById),
+        };
+        choices.ForEach(e => shared.CommitBranchById[e.Key] = e.Value);
+        witnessed.ForEach(e => shared.WitnessedById[e.Key] = e.Value);
+        return shared;
+    }
+
+    // The values here that origin has not, of the commits given, or of any when none are given
+    static List<KeyValuePair<string, string>> Unshared(
+        Dictionary<string, string> local,
+        Dictionary<string, string> origin,
+        IReadOnlySet<string>? ids
+    ) => local.Where(e => origin.GetValueOrDefault(e.Key) != e.Value && (ids?.Contains(e.Key) ?? true)).ToList();
+
     // Another clone can push again between a fetch here and the push after it, so a few goes
     const int MaxPushes = 3;
 
-    bool IsNoLocalKey(Error e) => e.Message.Contains("Not a valid object name");
+    // No such git value, the local one or the record of origin's
+    static bool IsNoValue(Error e) => e.Message.Contains("Not a valid object name");
 
     bool IsNoRemoteKey(Error e) => e.Message.Contains("couldn't find remote ref");
 }

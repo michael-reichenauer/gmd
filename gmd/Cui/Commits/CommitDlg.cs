@@ -1,31 +1,37 @@
 using gmd.Common.Spelling;
 using gmd.Cui.Common;
 using gmd.Server;
-using Terminal.Gui;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 
 namespace gmd.Cui.Commits;
 
 interface ICommitDlg
 {
     // The message, and the paths to commit, or null for all the changes, see CommitFiles. Ctrl+D
-    // shows the uncommitted diff, with showDiff.
+    // shows the uncommitted diff, with showDiff. An amend of a commit on origin offers to push the
+    // branch with force when done (forcePush), which isForcePush says was ticked.
     bool Show(
         Repo repo,
         Action showDiff,
         bool isAmend,
         IReadOnlyList<Server.Commit>? commits,
+        ForcePush forcePush,
         out string message,
-        out IReadOnlyList<string>? paths
+        out IReadOnlyList<string>? paths,
+        out bool isForcePush
     );
 
-    // The new message of an older commit not pushed yet, and the paths of the files to add to it,
-    // none at first, and none for a new message alone
+    // The new message of an older commit, and the paths of the files to add to it, none at first, and
+    // none for a new message alone
     bool ShowAmend(
         Repo repo,
         Action showDiff,
         Server.Commit commit,
+        ForcePush forcePush,
         out string message,
-        out IReadOnlyList<string> paths
+        out IReadOnlyList<string> paths,
+        out bool isForcePush
     );
 }
 
@@ -50,12 +56,15 @@ class CommitDlg : ICommitDlg
         Action showDiff,
         bool isAmend,
         IReadOnlyList<Server.Commit>? commits,
+        ForcePush forcePush,
         out string commitMessage,
-        out IReadOnlyList<string>? paths
+        out IReadOnlyList<string>? paths,
+        out bool isForcePush
     )
     {
         this.commits = commits;
         paths = null;
+        isForcePush = false;
         if (!isAmend && repo.Status.IsOk)
         {
             commitMessage = "";
@@ -67,7 +76,17 @@ class CommitDlg : ICommitDlg
         // amend with no changes, which rewords the last commit.
         var files = repo.Status.IsMerging ? null : new CommitFiles(repo.Status, leftOut: leftOut);
         var message = isAmend ? repo.CurrentCommit().Message : repo.Status.MergeMessage;
-        var isOk = ShowDialog(repo, showDiff, isAmend, null, message, files, out commitMessage);
+        var isOk = ShowDialog(
+            repo,
+            showDiff,
+            isAmend,
+            null,
+            message,
+            files,
+            forcePush,
+            out commitMessage,
+            out isForcePush
+        );
         paths = files?.PathsToCommit;
         return isOk;
     }
@@ -76,13 +95,25 @@ class CommitDlg : ICommitDlg
         Repo repo,
         Action showDiff,
         Server.Commit commit,
+        ForcePush forcePush,
         out string commitMessage,
-        out IReadOnlyList<string> paths
+        out IReadOnlyList<string> paths,
+        out bool isForcePush
     )
     {
         commits = null;
         var files = new CommitFiles(repo.Status, isTicked: false, leftOut);
-        var isOk = ShowDialog(repo, showDiff, true, commit, commit.Message, files, out commitMessage);
+        var isOk = ShowDialog(
+            repo,
+            showDiff,
+            true,
+            commit,
+            commit.Message,
+            files,
+            forcePush,
+            out commitMessage,
+            out isForcePush
+        );
         paths = files.TickedPaths;
         return isOk;
     }
@@ -95,7 +126,9 @@ class CommitDlg : ICommitDlg
         Server.Commit? older,
         string original,
         CommitFiles? files,
-        out string commitMessage
+        ForcePush forcePush,
+        out string commitMessage,
+        out bool isForcePush
     )
     {
         (string subjectPart, string messagePart) = CommitMessage.Split(original);
@@ -109,7 +142,7 @@ class CommitDlg : ICommitDlg
             files = null;
         // Fewer on a small terminal, where the list scrolls, so that the dialog, its buttons too, fits
         // on the screen: 20 rows are the rest of the dialog, and a 24 row terminal leaves 4 for files
-        var maxFileRows = Math.Clamp(Application.Driver.Rows - 20, 1, MaxFileRows);
+        var maxFileRows = Math.Clamp(UI.ScreenSize.Height - 20, 1, MaxFileRows);
         var fileRows = files == null ? 0 : Math.Min(files.Files.Count, maxFileRows);
         var listHeight = files == null ? 0 : fileRows + 2;
         Text HeadingText() =>
@@ -117,7 +150,9 @@ class CommitDlg : ICommitDlg
                 ? Heading(title, filesCount, isAmend, files, branchName)
                 : OlderHeading(older, files, branchName);
 
-        var dlg = new UIDialog(title, 74, 18 + listHeight, (key) => OnKey(showDiff, key));
+        // The force push box, when offered, is the row above the buttons
+        var pushRows = forcePush == ForcePush.NotOffered ? 0 : 1;
+        var dlg = new UIDialog(title, 74, 18 + listHeight + pushRows, (key) => OnKey(showDiff, key));
 
         var heading = dlg.AddLabel(1, 0, HeadingText());
         heading.Width = Dim.Fill(); // It grows as files are ticked again, see UILabel.Text
@@ -151,13 +186,13 @@ class CommitDlg : ICommitDlg
             {
                 toggle();
                 heading.Text = HeadingText();
-                list.SetNeedsDisplay();
+                list.SetNeedsDraw();
             }
             list.RegisterKeyHandler(Key.Space, () => Toggle(() => files.Toggle(list.CurrentIndex)));
-            list.RegisterKeyHandler(Key.a, () => Toggle(files.ToggleAll));
             list.RegisterKeyHandler(Key.A, () => Toggle(files.ToggleAll));
+            list.RegisterKeyHandler(Key.A.WithShift, () => Toggle(files.ToggleAll));
             list.RegisterMouseHandler(
-                MouseFlags.Button1Clicked,
+                MouseFlags.LeftButtonClicked,
                 (_, y) =>
                 {
                     list.SetCurrentIndex(list.FirstIndex + y);
@@ -187,11 +222,21 @@ class CommitDlg : ICommitDlg
                 "Nothing to amend: edit the message or tick a file"
             );
 
+        var push =
+            forcePush == ForcePush.NotOffered
+                ? null
+                : dlg.AddCheckBox(1, 15 + listHeight, ForcePushLabel(repo), forcePush == ForcePush.Ticked);
+
         dlg.ShowOkCancel(subject);
 
         commitMessage = GetMessage(subject, message);
+        isForcePush = dlg.IsOK && push?.Checked == true;
         return dlg.IsOK;
     }
+
+    // The force push box of a dialog that rewrites commits on origin, naming where it pushes to
+    internal static string ForcePushLabel(Repo repo) =>
+        $"Push to '{repo.CurrentBranch()?.RemoteName}' with force when done";
 
     // "Amend 6d2212 on 'main':", and once files are ticked "Amend 6d2212 with 1 of 3 changes on 'main':"
     static Text OlderHeading(Server.Commit older, CommitFiles? files, string branchName)
@@ -239,12 +284,14 @@ class CommitDlg : ICommitDlg
 
     private bool OnKey(Action showDiff, Key key)
     {
-        if (key == (Key.D | Key.CtrlMask) || key == (Key.Space | Key.CtrlMask))
+        if (key == Key.D.WithCtrl || key == Key.Space.WithCtrl)
         {
             showDiff();
             return true;
         }
-        if (key == (Key.A | Key.CtrlMask))
+        // After a merge, Ctrl-A adds the merged commits' subjects; otherwise it is the message box's
+        // own, which selects all, as the edit menu says
+        if (key == Key.A.WithCtrl && commits?.Count > 0)
         {
             AddMergeMessages();
             return true;
@@ -265,7 +312,7 @@ class CommitDlg : ICommitDlg
         }
 
         message.Text = $"{msg}{MergedSubjects(commits)}";
-        message.SetNeedsDisplay();
+        message.SetNeedsDraw();
     }
 
     // The list Ctrl-A adds to the message of a merge: the subjects of the merged commits, oldest
@@ -292,6 +339,5 @@ class CommitDlg : ICommitDlg
         : count == 1 ? "1 change"
         : $"{count} changes";
 
-    static string GetMessage(UITextField subject, TextView message) =>
-        CommitMessage.Join(subject.Text, message.Text.ToString() ?? "");
+    static string GetMessage(UITextField subject, UITextView message) => CommitMessage.Join(subject.Text, message.Text);
 }

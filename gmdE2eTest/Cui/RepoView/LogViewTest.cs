@@ -40,7 +40,8 @@ public class LogViewTest
     // write anchored on SpecialFolder.UserProfile is ever added, this is where it shows up.
     // A subject in Japanese, an emoji in one and an author named in kanji leave the sid, author and
     // time columns where they are: measured in chars rather than in columns, each wide character
-    // moved the columns after it one more, off the screen, and the emoji was drawn as '~I'
+    // moved the columns after it one more, off the screen. The emoji is drawn as itself, two
+    // columns, where Terminal.Gui 1.x's curses drew '~I' and gmd drew '�' in its place
     [TestMethod]
     public async Task TestWideCharactersKeepTheColumnsInPlace()
     {
@@ -57,7 +58,7 @@ public class LogViewTest
         Assert.AreEqual(
             """
             ┣ ● Author in kanji                                                   (● main) 5db3922e 山田太郎       2024-10-15 12:03
-            ┣   Party � time                                                               e24544aa Test User      2024-10-15 12:02
+            ┣   Party 🎉 time                                                              e24544aa Test User      2024-10-15 12:02
             ┣   日本語のコミットメッセージ                                                 43de22f6 Test User      2024-10-15 12:01
             ┗   Plain subject                                                              e42df25a Test User      2024-10-15 12:00
             """,
@@ -361,13 +362,13 @@ public class LogViewTest
         // The first row is the one the cursor is on, and the run of dark gray 'D' is the
         // highlight. It is on the graph too, the rune and the current marker, so the node of the
         // commit is found at a glance, which it was not when the highlight stopped at the graph.
-        // The rows below it are plain.
+        // The rows below it are plain, black in the 16 colors, the graph too.
         Assert.AreEqual(
             """
             D  D DDD DDDDD                                                  DD DDDDDDDDDDD DDDDDDDD DDDD DDDD      DDDDDDDDDD DDDDD
-            --   ..... ...... ..... .... ....                                              ........ .... ....      .......... .....
-            -    ... .....                                                                 ........ .... ....      .......... .....
-            --   ... ....                                                                  ........ .... ....      .......... .....
+            ..   ..... ...... ..... .... ....                                              ........ .... ....      .......... .....
+            .    ... .....                                                                 ........ .... ....      .......... .....
+            ..   ... ....                                                                  ........ .... ....      .......... .....
             """,
             ScreenText.BackgroundRows(gmd.CaptureColors(), 2, 4)
         );
@@ -500,6 +501,24 @@ public class LogViewTest
         );
     }
 
+    // Enter hides the details it showed, and the log goes on taking keys. Hiding them hung gmd: the
+    // pane, left with rows and no room for one, asked for its rows again and again, since
+    // Terminal.Gui 2.x draws a view of no height.
+    [TestMethod]
+    public async Task TestEnterHidesTheDetails()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send("Enter");
+        gmd.WaitFor("Parents:");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Parents:");
+        gmd.Send("Enter");
+        gmd.WaitFor("Parents:");
+    }
+
     // Tab moves into the details pane, and the cursor and page keys then scroll a message too long
     // for it rather than move to another commit, which they went on doing, since only the drawn focus
     // moves. Tab back and they move the commit again.
@@ -565,14 +584,13 @@ public class LogViewTest
         Assert.AreEqual("MMMMMMMMMMMMMMMMMMMMM", LogScrollbar());
         Assert.AreEqual("D", DetailsScrollbar());
 
+        // Waited for, as a stable screen can be the one from before the key, on a loaded machine
         gmd.Send("Tab");
-        gmd.WaitForStable();
-        Assert.AreEqual("DDDDDDDDDDDDDDDDDDDDD", LogScrollbar());
+        gmd.WaitUntil(() => LogScrollbar() == "DDDDDDDDDDDDDDDDDDDDD", "the log's scrollbar to be gray");
         Assert.AreEqual("M", DetailsScrollbar());
 
         gmd.Send("Tab");
-        gmd.WaitForStable();
-        Assert.AreEqual("MMMMMMMMMMMMMMMMMMMMM", LogScrollbar());
+        gmd.WaitUntil(() => LogScrollbar() == "MMMMMMMMMMMMMMMMMMMMM", "the log's scrollbar to be magenta");
         Assert.AreEqual("D", DetailsScrollbar());
 
         gmd.Send("Down");
@@ -603,28 +621,34 @@ public class LogViewTest
              Gmd {repo}, ●main                                               commit on main [Ϙ Search] ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
             ┣  ● Add delta                                                  (● main)[v1.0] 17d85ba8 Test User      2024-10-15 12:06
-            ┣╮   Mer╭ Commit: 17d85ba8 ────────────────────╮                               4e73d230 Test User      2024-10-15 12:05
-            ┣    Add│Commit ...                         c  │                               4a15fb13 Test User      2024-10-15 12:04
-            ┣╯   Add│Amend ...                          a  │                               dd78912d Test User      2024-10-15 12:01
-            ┗    Ini│Squash ...                            │                               9dc406e3 Test User      2024-10-15 12:00
-                    │Commit Diff                        d  │
-                    │Mark for Diff                         │
-                    │Undo                                 >│
-                    │Stash                                >│
-                    │Tag                                  >│
-                    │Create Branch from Commit ...      b  │
-                    │Merge Commit into main                │
-                    │Cherry Pick into main                 │
-                    │Switch to Commit                      │
-                    │Commit Details                 Enter  │
-                    │Copy                          Ctrl-C >│
-                    │Open Commit in Browser                │
-                    │Full File History ...                 │
-                    │Blame File ...                        │
-                    │──────────────────────────────────────│
-                    │Branches                             >│
-                    │Repo Menu                         ⇧m >│
-                    ╰──────────────────────────────────────╯
+            ┣╮   Mer╭ Commit: 17d85ba8 ─────────────────────╮                              4e73d230 Test User      2024-10-15 12:05
+            ┣    Add│Commit ...                          c  │                              4a15fb13 Test User      2024-10-15 12:04
+            ┣╯   Add│Amend ...                           a  │                              dd78912d Test User      2024-10-15 12:01
+            ┗    Ini│Squash ...                             │                              9dc406e3 Test User      2024-10-15 12:00
+                    │Reorder                               >│
+                    │Move to New Branch ...                 │
+                    │───────────────────────────────────────│
+                    │Commit Details                  Enter  │
+                    │Commit Diff                         d  │
+                    │Mark for Diff                          │
+                    │File History ...                       │
+                    │Blame File ...                         │
+                    │───────────────────────────────────────│
+                    │Create Branch from Commit ...       b  │
+                    │Switch to Commit                       │
+                    │Merge Commit into main                 │
+                    │Cherry Pick into main                  │
+                    │Set Commit Branch Manually ...         │
+                    │───────────────────────────────────────│
+                    │Undo                                  >│
+                    │Stash                                 >│
+                    │Tag                                   >│
+                    │Copy                           Ctrl-C >│
+                    │Open Commit in Browser                 │
+                    │───────────────────────────────────────│
+                    │Branches                              >│
+                    │Repo Menu                          ⇧m >│
+                    ╰───────────────────────────────────────╯
             """,
             gmd.WaitFor("Commit ..."),
             repo.Path
@@ -669,59 +693,55 @@ public class LogViewTest
 
         // The two shown branches, left to right as the graph draws them, with the '●' marking the
         // current one. Both are submenus, so both carry the '>'. Below the separator, the items
-        // that change which branches are shown at all, the undo of showing dev above among them,
-        // and the ones that pull and push them all.
+        // that change which branches are shown at all, the undo of showing dev above among them.
         gmd.Send("Right");
-        var branches = gmd.WaitForStable();
+        var branches = gmd.WaitFor("╭ Branches");
         Assert.AreEqual(
             """
-                     │Open Commit in Browser                │
-                     │Full File History ...                 │
-                     │Blame File ...                        │
-                     │──────────────────────────────────────│╭ Branches ───────────────────╮
-                     │Branches                             >││●   main                    >│
-                     │Repo Menu                         ⇧m >││    dev                     >│
-                     ╰──────────────────────────────────────╯│─────────────────────────────│
-                                                             │Show Branch              ⇧→ >│
-                                                             │Hide All Branches            │
-                                                             │Undo Show 'dev'   Backspace  │
-                                                             ╰─────────────────────────────╯
+                     │Open Commit in Browser                 │
+                     │───────────────────────────────────────│╭ Branches ───────────────────╮
+                     │Branches                              >││●   main                    >│
+                     │Repo Menu                          ⇧m >││    dev                     >│
+                     ╰───────────────────────────────────────╯│─────────────────────────────│
+                                                              │Show Branch              ⇧→ >│
+                                                              │Hide All Branches            │
+                                                              │Undo Show 'dev'   Backspace  │
+                                                              ╰─────────────────────────────╯
             """,
-            ScreenText.Rows(branches, repo.Path, 22, 12)
+            ScreenText.Rows(branches, repo.Path, 30, 9)
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
-        // the branch menu, built with isLimited so it has no 'Show Branch', 'Pull All
-        // Branches', 'Push All Branches' or 'Repo Menu' of its own, since the menus it is under
-        // already offer those. The Branches menu is too wide to leave room for it on the right in
-        // 120 columns, so it opens on the left, over the commit menu.
+        // the branch menu, built with isLimited so it has no 'Repo Menu' of its own, since the menus
+        // it is under already offer it.
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Right");
         Assert.AreEqual(
             """
-                     │Commit Details                 Enter  │                               ╭ dev ──────────────────────────────╮
-                     │Copy                          Ctrl-C >│                               │Switch to Branch                s  │
-                     │Open Commit in Browser                │                               │Merge dev into main             e  │
-                     │Full File History ...                 │                               │Merge main into dev            ⇧e  │
-                     │Blame File ...                        │                               │Rebase and Push onto              >│
-                     │──────────────────────────────────────│╭ Branches ───────────────────╮│Hide Branch                     h  │
-                     │Branches                             >││●   main                    >││Pull                            u  │
-                     │Repo Menu                         ⇧m >││    dev                     >││Push                            p  │
-                     ╰──────────────────────────────────────╯│─────────────────────────────││Create Branch ...               b  │
-                                                             │Show Branch              ⇧→ >││Create Worktree ...                │
-                                                             │Hide All Branches            ││Rename Branch ...                  │
-                                                             │Undo Show 'dev'   Backspace  ││Delete Branch ...                  │
-                                                             ╰─────────────────────────────╯│Undo Commit 'More dev work'        │
-                                                                                            │Diff Branch to                  d >│
-                                                                                            │Change Branch Color             g  │
-                                                                                            │Open in Browser                    │
-                                                                                            │Create Pull Request in Browser     │
-                                                                                            │───────────────────────────────────│
-                                                                                            │Set Commit Branch Manually ...     │
-                                                                                            ╰───────────────────────────────────╯
+                     │───────────────────────────────────────│                               ╭ dev ──────────────────────────────╮
+                     │Create Branch from Commit ...       b  │                               │Switch to Branch                s  │
+                     │Switch to Commit                       │                               │Merge dev into main             e  │
+                     │Merge Commit into main                 │                               │Merge main into dev            ⇧e  │
+                     │Cherry Pick into main                  │                               │Rebase onto                       >│
+                     │Set Commit Branch Manually ...         │                               │Pull                            u  │
+                     │───────────────────────────────────────│                               │Push                            p  │
+                     │Undo                                  >│                               │───────────────────────────────────│
+                     │Stash                                 >│                               │Create Branch ...               b  │
+                     │Tag                                   >│                               │Create Worktree ...                │
+                     │Copy                           Ctrl-C >│                               │Rename Branch ...                  │
+                     │Open Commit in Browser                 │                               │Delete Branch ...                  │
+                     │───────────────────────────────────────│╭ Branches ───────────────────╮│Undo Commit 'More dev work'        │
+                     │Branches                              >││●   main                    >││───────────────────────────────────│
+                     │Repo Menu                          ⇧m >││    dev                     >││Diff Branch to                  d >│
+                     ╰───────────────────────────────────────╯│─────────────────────────────││Open Branch in Browser             │
+                                                              │Show Branch              ⇧→ >││Create Pull Request in Browser     │
+                                                              │Hide All Branches            ││───────────────────────────────────│
+                                                              │Undo Show 'dev'   Backspace  ││Hide Branch                     h  │
+                                                              ╰─────────────────────────────╯│Change Branch Color             g  │
+                                                                                             ╰───────────────────────────────────╯
             """,
-            ScreenText.Rows(gmd.WaitFor("Switch to Branch"), repo.Path, 20, 20)
+            ScreenText.Rows(gmd.WaitFor("Switch to Branch"), repo.Path, 19, 21)
         );
     }
 

@@ -1,4 +1,4 @@
-using Terminal.Gui;
+using Terminal.Gui.Input;
 
 namespace gmd.Cui.Common;
 
@@ -55,8 +55,8 @@ static class MenuShortcuts
         // After every item, so that a "⇧..." further down the menu wins over the upper case
         for (int i = 0; i < items.Count; i++)
         {
-            foreach (var key in KeysOf(items[i].Shortcut).Where(k => k is >= Key.a and <= Key.z))
-                keys.TryAdd((Key)char.ToUpperInvariant((char)key), i);
+            foreach (var key in KeysOf(items[i].Shortcut).Where(k => k.IsKeyCodeAtoZ && !k.IsShift))
+                keys.TryAdd(key.WithShift, i);
         }
 
         return keys;
@@ -77,9 +77,9 @@ static class MenuShortcuts
         if (part.StartsWith("Shift-") && part.Length == 7 && char.IsLetter(part[6]))
             return (Key)char.ToUpperInvariant(part[6]);
         if (part.StartsWith("Ctrl-") && part.Length == 6 && char.IsLetter(part[5]))
-            return (Key)char.ToUpperInvariant(part[5]) | Key.CtrlMask;
+            return ((Key)char.ToLowerInvariant(part[5])).WithCtrl;
         if (part.StartsWith("Alt-") && part.Length == 5 && char.IsLetter(part[4]))
-            return (Key)char.ToUpperInvariant(part[4]) | Key.AltMask;
+            return ((Key)char.ToLowerInvariant(part[4])).WithAlt;
         if (part == "Backspace")
             return Key.Backspace;
         if (part.Length is 2 or 3 && part[0] == 'F' && int.TryParse(part[1..], out var n) && n is >= 1 and <= 12)

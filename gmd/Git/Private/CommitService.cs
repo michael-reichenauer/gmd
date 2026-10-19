@@ -7,11 +7,13 @@ interface ICommitService
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
     Task<Result> CleanWorkingFolderAsync(string wd);
-    Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd);
+    Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd);
     Task<Result> AutosquashAsync(string baseId, string wd);
     Task<Result> DropCommitAsync(string id, string wd);
     Task<Result<string>> CommitTreeAsync(string filesOfId, string parentId, string message, string wd);
     Task<Result> RebaseOntoKeepingMergesAsync(string onto, string upstream, string wd);
+    Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd);
+    Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd);
     Task<Result<IReadOnlyList<string>>> GetRefsContainingAsync(string id, string wd);
     Task<Result> UndoCommitAsync(string id, int parentIndex, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);
@@ -147,12 +149,12 @@ class CommitService : ICommitService
         return await cmd.RunAsync("git", "clean -fxd", wd);
     }
 
-    // What CleanWorkingFolderAsync would delete, as git's dry run of the same clean lists it: every
-    // file git does not track, the ignored ones too, a folder named once rather than its files. A
-    // path is quoted when it needs it (QuotedPath).
-    public async Task<Result<IReadOnlyList<string>>> GetFilesToCleanAsync(string wd)
+    // The files git ignores in the working tree, which CleanWorkingFolderAsync deletes as well as
+    // what UndoAllUncommittedChangesAsync does, as git's dry run of a clean of them alone lists them:
+    // a folder named once rather than its files. A path is quoted when it needs it (QuotedPath).
+    public async Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd)
     {
-        var result = await cmd.RunAsync("git", "clean -n -x -d", wd);
+        var result = await cmd.RunAsync("git", "clean -n -X -d", wd);
         if (result is not string output)
             return result.Error;
 
@@ -225,6 +227,61 @@ class CommitService : ICommitService
             await cmd.RunAsync("git", $"rebase --rebase-merges --onto {onto} {upstream}", wd),
             "The rebase stopped on conflicts"
         );
+
+    // An interactive rebase with gmd's own todo list, one 'pick' per commit in the order given. The
+    // list is written to a file of its own, and the sequence editor, which git starts through its
+    // shell (bundled on Windows) with the path of the list it made, copies gmd's over it, which also
+    // leaves out whatever config would have changed in git's (rebase.autoSquash). It has to be the
+    // environment, set for this command on top of the 'true' that Cmd.NeverOpenAnEditor sets for every
+    // other. Changes in the working tree are put aside and back (--autostash). Git has read the list
+    // before it can stop on a conflict, so the file is deleted either way.
+    public async Task<Result> ReorderCommitsAsync(string baseId, IReadOnlyList<string> idsOldestFirst, string wd)
+    {
+        var todo = Path.Join(Path.GetTempPath(), $"gmd-todo-{Guid.NewGuid():N}");
+        var lines = string.Concat(idsOldestFirst.Select(id => $"pick {id}\n"));
+        if (Result.Catch(() => File.WriteAllText(todo, lines)) is Error writeError)
+            return writeError;
+        try
+        {
+            var quoted = todo.Replace('\\', '/').Replace("'", "'\\''");
+            var environment = new Dictionary<string, string> { ["GIT_SEQUENCE_EDITOR"] = $"cp '{quoted}'" };
+            return ConflictError.ToConflict(
+                await cmd.RunAsync("git", $"rebase -i --autostash {baseId}", wd, environment: environment),
+                "The move stopped on conflicts"
+            );
+        }
+        finally
+        {
+            Result.Catch(() => File.Delete(todo));
+        }
+    }
+
+    // Whether merging 'theirs' into 'ours' would change nothing: what 'theirs' changed since the two
+    // parted is in 'ours' already, as it is once squash merged or rebase merged, which git does not
+    // count as merged, since the commits that went in are copies. 'git merge-tree' merges with no
+    // branch, index or working tree touched, and gives the merge's tree, which is then ours. A
+    // conflict means not; a git older than 2.38, which has no '--write-tree', fails. The trees of a
+    // result unlike ours are written to the repository, as objects nothing refers to, which a gc
+    // removes in time.
+    public async Task<Result<bool>> IsMergedByContentAsync(string ours, string theirs, string wd)
+    {
+        var merged = await cmd.RunRawAsync(
+            "git",
+            $"merge-tree --write-tree --no-messages {ours} {theirs}",
+            wd,
+            skipLogError: true
+        );
+        if (merged.ExitCode == 1)
+            return false; // Conflicts, which the output lists after the tree
+        var mergedResult = merged.ToResult();
+        if (mergedResult is not string output)
+            return mergedResult.Error;
+
+        var treeResult = await cmd.RunAsync("git", $"rev-parse {ours}^{{tree}}", wd);
+        if (treeResult is not string oursTree)
+            return treeResult.Error;
+        return output.Split('\n')[0].Trim() == oursTree.Trim();
+    }
 
     // The branches, remote branches and tags that have the commit, i.e. are on it or after it, as
     // full ref names, e.g. 'refs/heads/main', 'refs/remotes/origin/main' and 'refs/tags/v1'

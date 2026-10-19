@@ -20,6 +20,7 @@ interface IBranchMenu
     IEnumerable<MenuItem> GetPushItems();
     IEnumerable<MenuItem> GetPullItems();
     IEnumerable<MenuItem> GetShowBranchItems();
+    SubMenu GetShowBranchSubMenu();
     IEnumerable<MenuItem> GetShownBranchesItems();
 }
 
@@ -54,9 +55,13 @@ class BranchMenu : IBranchMenu
         Menu.Show("Show Branch (type to find)", x, y + 2, GetShowBranchItems(), onTypeText: FindBranch);
     }
 
+    // Titled as the pick completes it, as the merge menus are, e.g. 'Diff dev to' and then main, which
+    // is the title of the diff then, main on the left and dev on the right. It was 'Diff Branch to
+    // dev', which named the wrong end.
     public void ShowDiffBranchToMenu(int x, int y, string branchName)
     {
-        Menu.Show($"Diff Branch to {branchName}", x, y + 2, GetBranchDiffItems(branchName));
+        var name = repo.Repo.BranchByName[branchName].ShortNiceUniqueName();
+        Menu.Show($"Diff {name} to", x, y + 2, GetBranchDiffItems(branchName));
     }
 
     public void ShowCommitBranchesMenu(int x, int y)
@@ -158,9 +163,10 @@ class BranchMenu : IBranchMenu
                 () => commands.PushPullCmds.PullCurrentBranch(),
                 () => BranchPushPullCommands.CanPullCurrentBranch(repo.Repo),
                 () =>
-                    !repo.Repo.Status.IsOk
-                        ? Why.Changes
-                        : $"Nothing to pull on '{repo.Repo.CurrentBranch().NiceNameUnique}'"
+                    RewrittenHere.Of(repo.Repo, repo.Repo.CurrentBranch()) is LocalRewrite rewrite
+                        ? RewrittenHere.WhyNoPull(rewrite)
+                    : !repo.Repo.Status.IsOk ? Why.Changes
+                    : $"Nothing to pull on '{repo.Repo.CurrentBranch().NiceNameUnique}'"
             )
             .Item(
                 "Pull All Branches",
@@ -172,7 +178,6 @@ class BranchMenu : IBranchMenu
 
     public IEnumerable<MenuItem> GetBranchMenuItems(string branchName, bool isLimited = false)
     {
-        var c = repo.RowCommit;
         var b = repo.Repo.BranchByName[branchName];
         var cb = repo.Repo.CurrentBranch();
         var isStatusOK = repo.Repo.Status.IsOk;
@@ -181,6 +186,8 @@ class BranchMenu : IBranchMenu
         var step = BranchUndo.StepOf(repo.Repo, b);
         var rewrite = ForcePushes.RewriteOf(repo.Repo, b);
 
+        // Grouped by what the items do: move the branch's commits, make and remove branches, look
+        // at it, and how it is shown, each group under a line of its own
         return Menu
             .Items.Items(repoMenu.GetNewReleaseItems())
             .Item(GetSwitchToBranchItem(branchName))
@@ -211,22 +218,14 @@ class BranchMenu : IBranchMenu
             .SubMenu(isCurrent, MergeIntoCurrentTitle(), "e", GetMergeFromItems(), whyNot: WhyNoMerge)
             .SubMenu(isCurrent, MergeCurrentIntoTitle(), "⇧e", GetMergeToItems(), whyNot: WhyNoMerge)
             .SubMenu(
-                "Rebase and Push onto",
+                "Rebase onto",
                 "",
                 GetRebaseFromItems(b),
                 whyNot: () =>
                     !isCurrent ? "Only the current branch is rebased: switch to it first"
                     : !isStatusOK ? Why.Changes
-                    : BranchCommands.WhyNotRebaseAndPush(repo.Repo, repo.Repo.CurrentBranch()) is var why && why != ""
-                        ? why
+                    : BranchCommands.WhyNotRebase(repo.Repo, repo.Repo.CurrentBranch()) is var why && why != "" ? why
                     : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
-            )
-            .Item(
-                "Hide Branch",
-                "h",
-                () => cmds.HideBranch(branchName),
-                () => !b.IsMainBranch,
-                () => Why.AlwaysShown(b)
             )
             // The same rules as the 'u' and 'p' keys on a highlighted branch, see
             // BranchPushPullCommands.CanPullBranch
@@ -267,6 +266,7 @@ class BranchMenu : IBranchMenu
                 () => rewrite?.IsRestorable == true,
                 () => rewrite != null ? ForcePushes.WhyNoRestore(rewrite) : ""
             )
+            .Separator()
             .Item("Create Branch ...", "b", () => commands.CreateCmds.CreateBranchFromBranch(b.Name))
             // A folder with this branch checked out, or with a new branch started from it when it
             // is checked out already (here or in another worktree)
@@ -314,24 +314,16 @@ class BranchMenu : IBranchMenu
                 () => BranchUndo.WhyNot(repo.Repo, b, step) == "",
                 () => BranchUndo.WhyNot(repo.Repo, b, step)
             )
+            .Separator()
             .SubMenu(
                 "Diff Branch to",
                 "d",
                 GetBranchDiffItems(branchName),
                 whyNot: () => !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see ⇧→"
             )
-            .Item(
-                "Change Branch Color",
-                "g",
-                () => cmds.ChangeBranchColor(branchName),
-                // Main is always magenta and a deleted branch always gray, so neither can be changed
-                () =>
-                    !repo.Repo.BranchByName[branchName].IsMainBranch && repo.Repo.BranchByName[branchName].IsGitBranch,
-                () => b.IsMainBranch ? Why.AlwaysMagenta : Why.AlwaysGray
-            )
             // The pages of the service hosting the remote, see WebCommands
             .Item(
-                "Open in Browser",
+                "Open Branch in Browser",
                 "",
                 () => commands.RepoCmds.OpenBranchInBrowser(branchName),
                 () => WebCommands.CanOpenBranch(repo.Repo, branchName),
@@ -344,20 +336,29 @@ class BranchMenu : IBranchMenu
                 () => WebCommands.CanOpenNewPullRequest(repo.Repo, branchName),
                 () => WebCommands.WhyNoNewPullRequest(repo.Repo, branchName)
             )
-            .Items(GetMoveBranchItems(branchName))
             .Separator()
-            // The limited menu is the one under a branch in the Branches sub menu of the commit menu,
-            // which already offers these at its root, and the repo menu beside it. Pull All and Push
-            // All are not here: they are no command of one branch, and the repo menu, the ▲ and ▼
-            // menus and Shift-U and Shift-P all have them.
-            .Items(!isLimited, [ShowBranchSubMenu()])
             .Item(
-                "Set Commit Branch Manually ...",
-                "",
-                () => cmds.SetBranchManuallyAsync(),
-                () => !c.IsUncommitted,
-                () => "The uncommitted changes have no branch to set: move to a commit first"
+                "Hide Branch",
+                "h",
+                () => cmds.HideBranch(branchName),
+                () => !b.IsMainBranch,
+                () => Why.AlwaysShown(b)
             )
+            .Item(
+                "Change Branch Color",
+                "g",
+                () => cmds.ChangeBranchColor(branchName),
+                // Main is always magenta and a deleted branch always gray, so neither can be changed
+                () =>
+                    !repo.Repo.BranchByName[branchName].IsMainBranch && repo.Repo.BranchByName[branchName].IsGitBranch,
+                () => b.IsMainBranch ? Why.AlwaysMagenta : Why.AlwaysGray
+            )
+            .Items(GetMoveBranchItems(branchName))
+            // The limited menu is the one under a branch in the Branches sub menu of the commit menu,
+            // which already has the repo menu beside it. Pull All and Push All are not here, nor Show
+            // Branch: they are no command of one branch, and the repo menu has them, Pull All and
+            // Push All the ▲ and ▼ menus and Shift-U and Shift-P too, and Show Branch Shift-→.
+            .Separator(!isLimited)
             .SubMenu(!isLimited, "Repo Menu", "⇧m", repoMenu.GetRepoMenuItems());
     }
 
@@ -432,7 +433,7 @@ class BranchMenu : IBranchMenu
         var isCurrent = sb.IsCurrent || sb.IsLocalCurrent;
         if (!repo.Repo.Status.IsOk || !isCurrent)
             return Menu.Items;
-        if (BranchCommands.WhyNotRebaseAndPush(repo.Repo, repo.Repo.CurrentBranch()) != "")
+        if (BranchCommands.WhyNotRebase(repo.Repo, repo.Repo.CurrentBranch()) != "")
             return Menu.Items;
 
         var primaryBranch = repo.Repo.ViewBranches.First(b => b.Name == sb.PrimaryName);
@@ -521,7 +522,7 @@ class BranchMenu : IBranchMenu
         if (leftPrimaryName != "")
         {
             items.Item(
-                $"<= (Move Branch left of {leftBranch!.NiceNameUnique})",
+                $"Move Left of '{leftBranch!.NiceNameUnique}'",
                 "",
                 () => cmds.MoveBranch(branch.PrimaryName, leftPrimaryName, -1)
             );
@@ -529,7 +530,7 @@ class BranchMenu : IBranchMenu
         if (rightPrimaryName != "")
         {
             items.Item(
-                $"=> (Move right of {rightBranch!.NiceNameUnique})",
+                $"Move Right of '{rightBranch!.NiceNameUnique}'",
                 "",
                 () => cmds.MoveBranch(branch.PrimaryName, rightPrimaryName, +1)
             );
@@ -635,7 +636,7 @@ class BranchMenu : IBranchMenu
         return GetShownBranchesSubMenus()
             .Concat(
                 Menu.Items.Separator()
-                    .Items([ShowBranchSubMenu()])
+                    .Items([GetShowBranchSubMenu()])
                     .Item("Hide All Branches", "", () => cmds.HideBranch("", true))
                     .Item(
                         repo.ShownHistory.Last is ShownChange last ? $"Undo {last}" : "Undo Show or Hide",
@@ -709,7 +710,7 @@ class BranchMenu : IBranchMenu
     void FindBranch(string text) => cmds.FindBranch(text);
 
     // The same menu as ShowOpenBranchMenu, as a sub menu, where typing finds a branch as well
-    SubMenu ShowBranchSubMenu() => new("Show Branch", "⇧→", GetShowBranchItems()) { OnTypeText = FindBranch };
+    public SubMenu GetShowBranchSubMenu() => new("Show Branch", "⇧→", GetShowBranchItems()) { OnTypeText = FindBranch };
 
     IEnumerable<MenuItem> ToHierarchicalBranchesItems(
         IEnumerable<Branch> branches,
