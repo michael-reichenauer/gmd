@@ -94,8 +94,8 @@ class Text
         // and make sure foreground color is readable on new background
         foreach (var fragment in fragments)
         {
-            if (fragment.Color == Common.Color.Match)
-            { // A search match stays marked on the row the cursor is put on to show it
+            if (fragment.Color == Common.Color.Match || fragment.Color == Common.Color.DiffMark)
+            { // A search match stays marked on the row the cursor is put on to show it, as does a diff mark
                 newText.Color(fragment.Color, fragment.Text);
                 continue;
             }
@@ -113,6 +113,10 @@ class Text
             }
             else if (fg == newBg && fg == Common.Color.Black)
             { // Black on black is not readable
+                fg = Common.Color.White;
+            }
+            else if (fg == Common.Color.Dark && newBg == Common.Color.MarkBg)
+            { // Dark is too dim on the marked row, which is to stand out, as on the cursor's
                 fg = Common.Color.White;
             }
             else if (fg == newBg)
@@ -370,8 +374,8 @@ class TextBuilder
         for (int i = 0; i < fragments.Count; i++)
         {
             var fragment = fragments[i];
-            if (fragment.Color == Common.Color.Match)
-                continue; // A search match stays marked, as in Text.ToHighlight
+            if (fragment.Color == Common.Color.Match || fragment.Color == Common.Color.DiffMark)
+                continue; // A search match and a diff mark stay marked, as in Text.ToHighlight
             var fg = fragment.Color.Foreground;
 
             // The colors of code are for the background, and code selected is the selection's text
@@ -385,6 +389,10 @@ class TextBuilder
             }
             else if (fg == newBg && fg == Common.Color.Black)
             { // Black on black is not readable
+                fg = Common.Color.White;
+            }
+            else if (fg == Common.Color.Dark && newBg == Common.Color.MarkBg)
+            { // Dark is too dim on the marked row, which is to stand out, as on the cursor's
                 fg = Common.Color.White;
             }
             else if (fg == newBg)

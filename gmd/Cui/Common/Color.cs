@@ -32,6 +32,9 @@ enum ColorName
     AddedBg,
     OnAdded,
 
+    // The row of the commit marked for a diff
+    MarkBg,
+
     // The branch colors, of which the palette has BranchCount
     Branch1,
     Branch2,
@@ -87,6 +90,12 @@ record Color
     // A search match in the diff and the blame, black on yellow as a find marks it in most tools. The
     // row highlights leave it as it is (Text.ToHighlight), since the cursor is put on the match.
     public static readonly Color Match = new(ColorName.Black, ColorName.BrightYellow);
+
+    // The commit marked for a diff: its marker, solid in the marker's bright cyan, which the row
+    // highlights leave as it is too, so that it is seen at once on the cursor's row, where it is
+    // marked; and the background of the rest of its row, see RepoWriter
+    public static readonly Color DiffMark = new(ColorName.Black, ColorName.BrightCyan);
+    public static readonly Color MarkBg = Make(ColorName.MarkBg);
 
     public Color(Color fg, Color bg)
         : this(fg.Foreground, bg.Foreground) { }
@@ -227,6 +236,7 @@ sealed class Palette
             onRemoved: TgColor.White,
             addedBg: TgColor.BrightGreen,
             onAdded: TgColor.Black,
+            markBg: TgColor.Blue, // The mark's cyan is too light for white text on it
             branches: [TgColor.Blue, TgColor.Green, TgColor.Cyan, TgColor.Red, TgColor.Yellow],
             code: CodeStyle.None
         )
@@ -257,6 +267,7 @@ sealed class Palette
             onRemoved: Rgb(0xF2F2F2),
             addedBg: Rgb(0x1E5A24),
             onAdded: Rgb(0xF2F2F2),
+            markBg: Rgb(0x0F4848),
             branches:
             [
                 Rgb(0x42A5F5), // blue
@@ -301,6 +312,7 @@ sealed class Palette
             onRemoved: Rgb(0x1E1E1E),
             addedBg: Rgb(0xC8F0C8),
             onAdded: Rgb(0x1E1E1E),
+            markBg: Rgb(0xC4EDED),
             branches:
             [
                 Rgb(0x1565C0), // blue
@@ -351,6 +363,7 @@ sealed class Palette
         TgColor onRemoved,
         TgColor addedBg,
         TgColor onAdded,
+        TgColor markBg,
         IReadOnlyList<TgColor> branches,
         CodeStyle code
     )
@@ -377,6 +390,7 @@ sealed class Palette
             [ColorName.OnRemoved] = onRemoved,
             [ColorName.AddedBg] = addedBg,
             [ColorName.OnAdded] = onAdded,
+            [ColorName.MarkBg] = markBg,
         };
         // A palette of fewer branch colors repeats them, so every name has an RGB
         for (int i = 0; i < 12; i++)

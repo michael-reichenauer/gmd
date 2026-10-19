@@ -8,8 +8,9 @@ namespace gmdTest.Fixtures;
 // Uppercase is a normal color and lowercase its bright variant, the same convention ScreenText
 // uses for a captured screen: 'M' magenta, 'm' bright magenta, 'W' white, 'D' dark, '.' black.
 // The two background colors a diff marks its changes with are '-' (red background, i.e. removed)
-// and '+' (green background, i.e. added), chosen so a diff's colors read as a diff, and a search
-// match is '*' (black on yellow, see Color.Match). The colors of code, which have no RGB of their own
+// and '+' (green background, i.e. added), chosen so a diff's colors read as a diff, a search
+// match is '*' (black on yellow, see Color.Match) and the log's mark of a commit marked for a diff
+// '±' (see Color.DiffMark), as it is drawn. The colors of code, which have no RGB of their own
 // in the 16 colors, are what they color: '/' a comment, '"' a string, '#' a number, 'K' a keyword,
 // 'L' a control keyword (if, return), 'T' a type, 'F' a function, 'V' a variable, 'N' a constant,
 // 'E' an escape, 'X' a tag and 'A' an attribute. ScreenText
@@ -37,6 +38,7 @@ static class TextColors
         (Color.RedBg, '-'),
         (Color.GreenBg, '+'),
         (Color.Match, '*'),
+        (Color.DiffMark, '±'),
         (Code(ColorName.CodeComment), '/'),
         (Code(ColorName.CodeString), '"'),
         (Code(ColorName.CodeNumber), '#'),
