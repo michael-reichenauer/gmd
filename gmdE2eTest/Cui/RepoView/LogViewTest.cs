@@ -712,8 +712,8 @@ public class LogViewTest
         );
 
         // Down to dev and into it: the child window is titled with the branch, and its items are
-        // the branch menu, built with isLimited so it has no 'Show Branch' or 'Repo Menu' of its
-        // own, since the menus it is under already offer those.
+        // the branch menu, built with isLimited so it has no 'Repo Menu' of its own, since the menus
+        // it is under already offer it.
         gmd.Send("Down");
         gmd.WaitForStable();
         gmd.Send("Right");

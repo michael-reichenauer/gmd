@@ -813,7 +813,10 @@ Both are reworked, see proposal D.1.
    branches are told apart (fewer since 2026-10-19: a branch is given a color unlike its parent's and
    its siblings', and keeps it); `<=` / `=>` never had keys. *And the search words (2026-10-07):* `*`
    and `$` are searched for as text now; *Ambiguous* in Show Branch lists the ambiguous branches,
-   and `Φ` in the graph marks a commit whose branch was set by hand.
+   and `Φ` in the graph marks a commit whose branch was set by hand. *And Show Branch
+   (2026-10-19):* in the repo menu beside Search, rather than at the bottom of every branch menu,
+   where it was the one item not about the branch the menu is of, and read as showing that branch;
+   `Shift-→` and Branches in the commit menu keep it.
 
 **D. Reach:**
 

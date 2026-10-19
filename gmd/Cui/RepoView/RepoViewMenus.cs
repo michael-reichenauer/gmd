@@ -39,7 +39,7 @@ class RepoViewMenus : IRepoViewMenus
         DiffMark diffMark
     )
     {
-        repoMenu = new RepoMenu(repo, commands, config, configDlg);
+        repoMenu = new RepoMenu(repo, commands, config, configDlg, () => branchMenu.GetShowBranchSubMenu());
         branchMenu = new BranchMenu(repoMenu, repo, commands);
         commitMenu = new CommitMenu(repoMenu, branchMenu, repo, commands, diffMark);
     }

@@ -24,14 +24,24 @@ class RepoMenu : IRepoMenu
     readonly IRepoCommands cmds;
     readonly Config config;
     readonly IConfigDlg configDlg;
+    readonly Func<SubMenu> showBranchSubMenu;
 
-    public RepoMenu(IViewRepo repo, CommandContext commands, Config config, IConfigDlg configDlg)
+    // The Show Branch menu is the branch menu's, which is made after this one, since it nests this one
+    // at its bottom, so it is reached through a function
+    public RepoMenu(
+        IViewRepo repo,
+        CommandContext commands,
+        Config config,
+        IConfigDlg configDlg,
+        Func<SubMenu> showBranchSubMenu
+    )
     {
         this.repo = repo;
         this.commands = commands;
         this.cmds = commands.RepoCmds;
         this.config = config;
         this.configDlg = configDlg;
+        this.showBranchSubMenu = showBranchSubMenu;
     }
 
     public void Show(int x, int y)
@@ -72,6 +82,8 @@ class RepoMenu : IRepoMenu
                 () => BranchPushPullCommands.CanPush(repo.Repo),
                 () => repo.Repo.Status.IsMerging ? Why.InProgress : "Nothing to push"
             )
+            // Which branches the log shows, and which commits: what to look at, of the whole repo
+            .Items([showBranchSubMenu()])
             .Item("Search ...", "f", () => cmds.SearchFilterRepo())
             .Item(
                 "Next Match",

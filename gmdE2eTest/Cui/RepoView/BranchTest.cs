@@ -796,9 +796,7 @@ public class BranchTest
     }
 
     // A branch squash merged on origin and deleted there is said once found, and Delete Merged Branches,
-    // in the repo menu, lists it and deletes it here. In this repo the menu starts on Pull All Branches,
-    // main being behind, and the item is four moves down, past Search, Refresh and Worktrees, Push All
-    // and the two matches being greyed out.
+    // in the repo menu, lists it and deletes it here
     [TestMethod]
     public async Task TestDeleteABranchMergedOnOrigin()
     {
@@ -812,12 +810,8 @@ public class BranchTest
         gmd.WaitUntilGone("was merged into");
 
         gmd.Send("M");
-        gmd.WaitFor("Pull All Branches");
-        for (var i = 0; i < 4; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.WaitFor("Delete Merged Branches ...");
+        gmd.SelectMenuItem("Delete Merged Branches ...");
         gmd.Send("Enter");
 
         var dialog = gmd.WaitFor("Merged into");
