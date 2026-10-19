@@ -55,6 +55,7 @@ public class ConflictSyntaxTest
                 2 int k;                 │    2 int k;
             -     int b;                 │~   3 int t;
             +   3 /* ours                │
+            ─────────────────────────────┴──────────────────────────────
                 4 int y; */
             """,
             Draw(rows, r => r.ToString().TrimEnd())
@@ -67,6 +68,7 @@ public class ConflictSyntaxTest
                 D DDD DD                 D    D DDD DD
             R     DDD DD                 DC   D KKK .W
             Y   D // ////                D
+            DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
                 D /// // //
             """,
             Draw(rows, r => TextColors.Of(r).TrimEnd())

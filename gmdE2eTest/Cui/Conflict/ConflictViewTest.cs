@@ -33,7 +33,8 @@ public class ConflictViewTest
             ─── Conflict 1 ── unresolved ──────────────────────────────────────────────────────────────────────────────────────────
             main (HEAD) · Change it on main                            │dev · Change it on dev
             ~  40 line 40 on main                                      │~  40 line 40 on dev
-               41 line 41
+            ───────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────
+               41 line 41                                                                                                          ┃
                42 line 42                                                                                                          ┃
                43 line 43                                                                                                          ┃
                44 line 44                                                                                                          ┃
@@ -41,13 +42,12 @@ public class ConflictViewTest
                46 line 46                                                                                                          ┃
                47 line 47                                                                                                          ┃
                48 line 48                                                                                                          ┃
-               49 line 49                                                                                                          ┃
+               49 line 49
                50 line 50
                51 line 51
                52 line 52
                53 line 53
                54 line 54
-               55 line 55
             ─── Result: long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
                36 line 36
                37 line 37
@@ -152,7 +152,8 @@ public class ConflictViewTest
             ─── Conflict 1 ── using the common ancestor ───────────────────────────────────────────────────────────────────────────
             main (HEAD) · Change it on main        │common ancestor                        │dev · Change it on dev
             ~  40 line 40 on main                  │      line 40                          │~  40 line 40 on dev
-               41 line 41
+            ───────────────────────────────────────┴───────────────────────────────────────┴───────────────────────────────────────
+               41 line 41                                                                                                          ┃
                42 line 42                                                                                                          ┃
                43 line 43                                                                                                          ┃
                44 line 44                                                                                                          ┃
@@ -160,13 +161,12 @@ public class ConflictViewTest
                46 line 46                                                                                                          ┃
                47 line 47                                                                                                          ┃
                48 line 48                                                                                                          ┃
-               49 line 49                                                                                                          ┃
+               49 line 49
                50 line 50
                51 line 51
                52 line 52
                53 line 53
                54 line 54
-               55 line 55
             ─── Result: long.txt as it will be saved ─────────────────────────────────────────────── ▌main ▌dev ▌both or by hand ───
                36 line 36
                37 line 37
@@ -505,8 +505,8 @@ public class ConflictViewTest
         Assert.AreEqual("▌  54 line 60 on main, 1 of 12", rows[0], "Its lines, as many as there is room for");
         Assert.AreEqual((10, 4), (rows.Count, first), "From a third of the way down");
 
-        // Into the text after it, the same line, numbered as the file will be
-        for (int i = 0; i < 16; i++)
+        // Into the text after it, past the rule it ends with, the same line, numbered as the file will be
+        for (int i = 0; i < 17; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();

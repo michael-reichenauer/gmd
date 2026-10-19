@@ -85,6 +85,7 @@ public class ConflictRowServiceTest
             ─── Conflict 1 ── unresolved ───
             HEAD           │topic
                 2 ours     │    2 theirs
+            ───────────────┴────────────────
                 3 b
             """,
             Draw(file, new ConflictResolution(file), 32)
@@ -105,6 +106,7 @@ public class ConflictRowServiceTest
             HEAD                              │9c2f1a                            │topic
             -     base                        │      base                        │-     base
             +   2 ours                        │                                  │+   2 theirs
+            ──────────────────────────────────┴──────────────────────────────────┴──────────────────────────────────
                 3 b
             """,
             Draw(file, new ConflictResolution(file), 104, isShowBase: true)
@@ -138,9 +140,11 @@ public class ConflictRowServiceTest
             HEAD                              │9c2f1a                            │topic
             -     base                        │      base                        │-     base
             +   1 ours                        │                                  │+   1 theirs
+            ──────────────────────────────────┴──────────────────────────────────┴──────────────────────────────────
             ─── Conflict 2 ── unresolved ───────────────────────────────────────────────────────────────────────────
             HEAD                              │common ancestor (nothing here)    │topic
                 2 o2                          │                                  │    2 t2
+            ──────────────────────────────────┴──────────────────────────────────┴──────────────────────────────────
             """,
             Draw(file, new ConflictResolution(file), 104, isShowBase: true)
         );
@@ -169,6 +173,7 @@ public class ConflictRowServiceTest
             HEAD                         │topic
             -     base                   │-     base
             +   2 ours                   │+   2 theirs
+            ─────────────────────────────┴──────────────────────────────
                 3 b
             """,
             drawn
@@ -217,6 +222,7 @@ public class ConflictRowServiceTest
             HEAD           │topic
                 1 o1       │    1 t1
                 2 o2       │
+            ───────────────┴────────────────
             """,
             Draw(file, new ConflictResolution(file), 32)
         );
@@ -245,6 +251,7 @@ public class ConflictRowServiceTest
             ─── Conflict 1 ── unresolved ───
             HEAD           │topic
                 2    o1    │    2 t1   x
+            ───────────────┴────────────────
             """,
             Draw(file, new ConflictResolution(file), 32)
         );
@@ -320,6 +327,7 @@ public class ConflictRowServiceTest
             ~   2 var x = 1;             │+   2 new
             -     gone                   │    3 var x = 0;
                                          │    4 gone
+            ─────────────────────────────┴──────────────────────────────
                 3 below
             """,
             Draw(file, new ConflictResolution(file), 60)

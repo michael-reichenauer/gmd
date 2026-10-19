@@ -883,7 +883,9 @@ the pane. Its line numbers are the saved file's. `Shift-↑` `↓` or the mouse
 wheel over it scroll it on its own, until the cursor moves again.
 
 The whole file is shown, not just its conflicts, since the text around a
-conflict is what tells you what it is part of. The view opens on the first
+conflict is what tells you what it is part of. A conflict starts with a
+magenta line saying its number and what it is decided as, and ends with a
+gray one, where its sides do. The view opens on the first
 conflict rather than at the top of the file, and `]` and `[` move to the
 next and previous one from wherever the cursor is.
 

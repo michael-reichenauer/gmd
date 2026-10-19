@@ -170,6 +170,10 @@ class ConflictRowService : IConflictRowService
             var lines = sides.Select(s => i < s.Count ? s[i].Line : PaneLine.None).ToList();
             rows.Add(new ConflictRow(panes, ConflictRowMode.Panes, hunk.Index, GutterWidth: GutterWidth, Lines: lines));
         }
+
+        // Where it ends, which only the line between the sides stopping said, easily missed where the
+        // text after it is much like it
+        rows.Add(ConflictRow.End(hunk.Index));
     }
 
     // The words a side changed, on the side's own color
@@ -273,6 +277,17 @@ class ConflictRowService : IConflictRowService
             return row.IsHunkHeader && span.Length + 1 < width
                 ? span.ToTextBuilder().BrightMagenta(" " + new string('─', width - span.Length - 1))
                 : span;
+        }
+
+        // The end of a conflict, in the gray of the lines between its panes, which it joins: the
+        // bottom of the box the sides are in, under the header that is its top
+        if (row.IsHunkEnd)
+        {
+            var rule = new TextBuilder();
+            for (int p = 0; p < columns.PaneCount; p++)
+                rule.Dark((p > 0 ? "┴" : "") + new string('─', columns.Pane));
+            var width = Math.Max(columns.Width, columns.TotalWidth);
+            return rule.Length < width ? rule.Dark(new string('─', width - rule.Length)) : rule;
         }
 
         // The rows are built once, from what the user asked for, but the widths are worked out per

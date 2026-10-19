@@ -31,14 +31,15 @@ readonly record struct PaneLine(CodeVersion Version, int LineNbr)
 // what the cursor is turned into a conflict number with and what next/previous conflict move by.
 // GutterWidth is how much of the start of each pane is its gutter, a mark and a line number, which
 // stays where it is while the rest scrolls sideways, 0 for a row of no lines. Lines is the line of
-// the file each pane is, for a row of lines.
+// the file each pane is, for a row of lines. IsHunkEnd is the rule a conflict ends with.
 record ConflictRow(
     IReadOnlyList<Text> Panes,
     ConflictRowMode Mode,
     int HunkIndex,
     bool IsHunkHeader = false,
     int GutterWidth = 0,
-    IReadOnlyList<PaneLine>? Lines = null
+    IReadOnlyList<PaneLine>? Lines = null,
+    bool IsHunkEnd = false
 )
 {
     public static ConflictRow Span(Text text, int hunkIndex = -1, int gutterWidth = 0, PaneLine? line = null) =>
@@ -52,6 +53,10 @@ record ConflictRow(
 
     public static ConflictRow Header(Text text, int hunkIndex) =>
         new ConflictRow([text], ConflictRowMode.SpanAll, hunkIndex, IsHunkHeader: true);
+
+    // Drawn as wide as the panes are when it is drawn (ConflictRowService.ToRowText)
+    public static ConflictRow End(int hunkIndex) =>
+        new ConflictRow([], ConflictRowMode.Panes, hunkIndex, IsHunkEnd: true);
 
     public override string ToString() => string.Join(" │ ", Panes.Select(p => p.ToString()));
 }
