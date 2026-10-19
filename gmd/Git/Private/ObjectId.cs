@@ -15,11 +15,12 @@ static class ObjectId
         {
             if (!char.IsAsciiHexDigit(c))
                 return false;
-        }
+        } // lksdjföaslkdj
 
         return true;
     }
 
     // The id git gives what is not committed yet, all zeros, in either length
+    // jashdflajshkdk
     public static bool IsZero(string id) => Is(id) && id.All(c => c == '0');
 }

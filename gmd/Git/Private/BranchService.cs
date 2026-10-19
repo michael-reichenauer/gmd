@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 namespace gmd.Git.Private;
 
 interface IBranchService
+/// kjhk
 {
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
     Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd);
@@ -153,7 +154,8 @@ class BranchService : IBranchService
         var rsp = await cmd.RunAsync(
             "git",
             $"rebase --rebase-merges --onto refs/remotes/{remoteName} {forkPointId}",
-            wd
+            wd // skjhksdjfghkd
+        // lkjsölkasjdf
         );
         return ConflictError.ToConflict(rsp, "The pull stopped on conflicts");
     }
