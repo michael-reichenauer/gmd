@@ -834,14 +834,17 @@ Conflicts, Continue, Skip and Abort.
 
 The files are resolved one after the other. Saving a file with every
 conflict decided marks it resolved and opens the next one still conflicted,
-and `}` and `{` go to the next or previous one without saving, asking first
-if there are decisions to keep. A terminal at least 150 columns wide lists
-the files at the left, the resolved ones ticked; `Tab` moves into the list,
-where `↑` `↓` and `Enter` open another, and `l` hides it and shows it again,
-as in the diff, which the files after keep. Without the list, the header
-says which file it is, e.g. `file 1 of 3`. A file with no text to merge, such as one a
-side deleted, or a binary file, asks its question as its turn comes (see
-below), and Cancel passes it over until the resolver is opened again. Once
+and `}` and `{` go to the next or previous one without saving: the
+decisions made in a file are kept while the resolver is open, there as they
+were left when you go back to it. A terminal at least 150 columns wide lists
+the files at the left, the resolved ones ticked, and how far each file with
+decisions is; `Tab` moves into the list, where `↑` `↓` show the file they
+select, as in the diff, and `Enter` or `Tab` goes back to it, and `l` hides
+it and shows it again, which the files after keep. Without the list, the
+header says which file it is, e.g. `file 1 of 3`. A file with no text to
+merge, such as one a side deleted, or a binary file, asks its question as
+its turn comes (see below), or when `Enter` is pressed on it in the list,
+and Cancel passes it over until the resolver is opened again. Once
 no conflict is left, a box asks whether to finish: **Commit** opens the
 commit dialog for a merge, a cherry pick or a revert, and **Continue** goes
 on with a rebase. **Later** leaves it for the commit (`c`) or the repo
@@ -904,11 +907,10 @@ next and previous one from wherever the cursor is.
 | Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 
-Nothing is written until `s`, so closing without saving leaves the file as
-it was, and closing or going to another file with decisions unsaved asks
-first. A file saved with
-conflicts still undecided keeps their markers, and is marked resolved once
-none is left.
+Nothing is written until `s`, so closing without saving leaves the files as
+they were, and closing with decisions unsaved, in any of the files, asks
+first: **Save and Close** saves them all. A file saved with conflicts still
+undecided keeps their markers, and is marked resolved once none is left.
 
 `b` shows the version both sides started from in a pane of its own,
 between them, and `0` resolves the conflict *to* it, the answer when

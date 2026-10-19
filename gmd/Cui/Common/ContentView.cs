@@ -104,8 +104,9 @@ class ContentView : View
     public bool IsKeysForwarded { get; set; } = false;
 
     // Keys and mouse buttons do nothing while set, e.g. while the resolver goes on to another file,
-    // when they would act on the file it is leaving
+    // when they would act on the file it is leaving, but for the keys in KeysWhileHeld
     public bool IsInputHeld { get; set; } = false;
+    public IReadOnlySet<Key> KeysWhileHeld { get; set; } = new HashSet<Key>();
 
     public int FirstIndex => scroll.FirstIndex;
     public int TotalCount => scroll.TotalCount;
@@ -201,7 +202,7 @@ class ContentView : View
     protected override bool OnKeyDown(Key key)
     {
         // Log.Info($"Key: {key}");
-        if (IsInputHeld)
+        if (IsInputHeld && !KeysWhileHeld.Contains(key))
             return true;
 
         if (keys.TryGetValue(key, out var callback))

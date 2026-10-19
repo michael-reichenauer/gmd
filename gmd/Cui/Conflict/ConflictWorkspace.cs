@@ -88,6 +88,9 @@ class ConflictWorkspace : IConflictWorkspace
         // left, after asking what finishes the operation
         public async Task<ConflictNext> NextAsync(ConflictOutcome outcome)
         {
+            if (outcome.End == ConflictEnd.Look)
+                return await LookAsync(outcome.Path);
+
             while (true)
             {
                 if (outcome.End == ConflictEnd.Skipped)
@@ -114,6 +117,23 @@ class ConflictWorkspace : IConflictWorkspace
                 outcome = asked;
             }
         }
+
+        // A file looked at in the list, as its arrows move: opened where it has text to merge, with no
+        // read of what is left, which looking changes nothing of. One with none is left for Enter, which
+        // asks about it, rather than asked about at each arrow key that passes it.
+        async Task<ConflictNext> LookAsync(string path)
+        {
+            var conflicted = state.Files.FirstOrDefault(f => f.Path == path);
+            if (conflicted == null)
+                return ConflictNext.StayOn($"{path} is resolved");
+            if (await workspace.ReadAsync(conflicted, repoPath) is not ConflictFile file)
+                return ConflictNext.StayOn($"{path} could not be read");
+            if (!HasText(file))
+                return ConflictNext.StayOn($"{path} has no text to merge: Enter asks how to resolve it");
+
+            list = list with { Open = path };
+            return new(file, list);
+        }
     }
 
     // The open file of the list read, to be resolved in the resolver, or where it has no text to
@@ -127,24 +147,9 @@ class ConflictWorkspace : IConflictWorkspace
         var conflicted = state.Files.FirstOrDefault(f => f.Path == list.Open);
         if (conflicted == null)
             return (null, new(ConflictEnd.Done));
-
-        ConflictFile file;
-        using (progress.Show())
-        {
-            // With the common ancestor, which the sides are drawn against, and without it where it
-            // cannot be had, e.g. the file changed since git wrote the conflicts into it
-            var read = await server.GetConflictFileAsync(conflicted.Path, conflicted.Kind, true, repoPath);
-            if (read is Error)
-                read = await server.GetConflictFileAsync(conflicted.Path, conflicted.Kind, false, repoPath);
-            if (read is not ConflictFile conflictFile)
-            {
-                UI.ErrorMessage($"Failed to open {conflicted.Path}\n{read.Error.AllMessages()}");
-                return (null, new(ConflictEnd.Closed));
-            }
-            file = conflictFile;
-        }
-
-        if (!file.IsBinary && file.Hunks.Count > 0)
+        if (await ReadAsync(conflicted, repoPath) is not ConflictFile file)
+            return (null, new(ConflictEnd.Closed));
+        if (HasText(file))
             return (file, new(ConflictEnd.Done));
 
         // Cancelled, it is passed over for the next one, as long as there is another
@@ -161,6 +166,27 @@ class ConflictWorkspace : IConflictWorkspace
         }
         return (null, new(ConflictEnd.Done));
     }
+
+    // With the common ancestor, which the sides are drawn against, and without it where it cannot be
+    // had, e.g. the file changed since git wrote the conflicts into it; null where it cannot be read,
+    // which is said
+    async Task<ConflictFile?> ReadAsync(ConflictedFile conflicted, string repoPath)
+    {
+        using (progress.Show())
+        {
+            var read = await server.GetConflictFileAsync(conflicted.Path, conflicted.Kind, true, repoPath);
+            if (read is Error)
+                read = await server.GetConflictFileAsync(conflicted.Path, conflicted.Kind, false, repoPath);
+            if (read is ConflictFile file)
+                return file;
+
+            UI.ErrorMessage($"Failed to open {conflicted.Path}\n{read.Error.AllMessages()}");
+            return null;
+        }
+    }
+
+    // A file opened in the resolver, rather than asked about whole: binary, or a side deleted it
+    static bool HasText(ConflictFile file) => !file.IsBinary && file.Hunks.Count > 0;
 
     async Task<ConflictState?> ReadStateAsync(string repoPath)
     {

@@ -317,7 +317,9 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   asks to commit or continue once none is left, which the caller does. It is one view for them all:
   as a file ends, how (`ConflictOutcome`) is handed to the workspace, which says the file to open in
   it next (`ConflictNext`), since a view per file showed the log between them while git read the
-  next one. `ConflictFileList` is the list of files beside it.
+  next one. `ConflictFileList` is the list of files beside it, whose arrows show the file they
+  select, and `ConflictDecisions` the decisions not saved of the files left, kept for going back to
+  them and asked about as the resolver closes.
   `IConflictView.Show`
   is deliberately **synchronous** — the main loop's `SynchronizationContext` (`MainLoopQueue`) posts an
   await's continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is
@@ -829,7 +831,7 @@ Other things to know:
   — that is why `ContentScroll`, `ContentSelection`, `Hoover`, `ShownHistory`, `SearchMatches`, `RowSearch`, `DiffLines`, `LeftOutLines`,
   `HiddenNews`, `CurrentBranchShown`, `KeyHints`, `DiffSyntax`, `BlameSyntax`, `ConflictSyntax`, `CodeLines`, `CodeScopes`, `BranchFinder`, `FileTree`, `FileFinder`, `FileBrowseRows`, `FolderTree`, `FolderFinder`, `FolderBrowseRows`, `BranchUndo`, `ForcePushes`, `RewrittenHere`,
   `MenuDimensions`, `MenuRows`, `MenuShortcuts`, `KeyGate`, `KeyHintLine`, `LogKeys`, `TextContextMenu`, `SpellSpans`, `SpellHint`,
-  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `MergedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping` and `ConflictResolution` exist. `Text.ToString()`
+  `WorktreeRows`, `LostWorkRows`, `DeletedBranchRows`, `MergedBranchRows`, `TagRows`, `StartRows`, `LoginQuestion`, `BlameColumns`, `CommitFiles`, `CommitRewrite`, `CommitCopy`, `LineWords`, `DiffFileList`, `SideChanges`, `ConflictCombine`, `ConflictFileList`, `ConflictTyping`, `ConflictDecisions` and `ConflictResolution` exist. `Text.ToString()`
   flattens styled output to a plain string, which is how `GraphText` snapshots `GraphWriter` output
   with no driver at all.
 - Terminal.Gui 2.x can be driven headlessly, with input injection and a test driver, so drawing *is*

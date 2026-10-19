@@ -735,18 +735,14 @@ public class ConflictViewTest
     }
 
     // A click on another file in the list while typing is done typing, and what was typed a decision
-    // not saved, which going to the other file asks about. The list takes no focus, so the text view
-    // was never left, and the file was gone from with the text thrown away unasked.
+    // of the file left, kept for going back to it. The list takes no focus, so the text view was never
+    // left, and the file was gone from with the text thrown away.
     [TestMethod]
-    public async Task TestAClickOnTheListWhileTypingAsksAboutTheText()
+    public async Task TestAClickOnTheListWhileTypingKeepsTheText()
     {
         using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
         using var gmd = TmuxSession.StartGmd(repo, width: 160);
-        var bar = gmd.WaitFor("Merging: 2 conflicts");
-        var (x, y) = TmuxSession.PositionOf(bar, "Merging: 2 conflicts");
-        gmd.Click(x + 2, y);
-        gmd.WaitFor("Resolve Conflicts");
-        gmd.Send("Enter");
+        OpenTheResolverFromTheBar(gmd);
         gmd.WaitFor("─── Conflict 1");
 
         gmd.Send("e");
@@ -755,13 +751,68 @@ public class ConflictViewTest
         var screen = gmd.WaitFor("XYZ");
         var (fileX, fileY) = TmuxSession.PositionOf(screen, "Shipping.cs");
         gmd.Click(fileX + 1, fileY);
+        screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        StringAssert.Contains(ListOf(screen), " ● Pricing.cs  1 of 2", "Left with its decision");
 
-        StringAssert.Contains(gmd.WaitFor("Unsaved Decisions"), "1 of 2 conflicts of Pricing.cs have been decided");
-        gmd.Send("Enter"); // Stay, the default
-        screen = gmd.WaitUntilGone("Unsaved Decisions");
-        StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "Pricing.cs   conflict 1 of 2");
+        (fileX, fileY) = TmuxSession.PositionOf(screen, "Pricing.cs");
+        gmd.Click(fileX + 1, fileY);
+        screen = gmd.WaitFor("Pricing.cs   conflict 1 of 2");
         StringAssert.Contains(screen, "edited by hand", "The text typed is the conflict's decision");
         Assert.IsFalse(screen.Contains("Typing conflict 1"), "Done typing");
+    }
+
+    // In the list the arrows show the file they select at once, as the diff's list does, rather than
+    // once Enter is pressed, and the decisions of the file left are kept for going back to it, where
+    // going to another file asked about them. Closing asks about those of every file, and Save and
+    // Close saves them all.
+    [TestMethod]
+    public async Task TestTheListShowsTheFileItsArrowsSelect()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        OpenTheResolverFromTheBar(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("1");
+        gmd.WaitFor("1 still to resolve");
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        var screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        Assert.AreEqual(
+            """
+            Conflicts 2 left         │
+             ● Pricing.cs  1 of 2    │
+            ▌● Shipping.cs  0 of 1   │
+            """,
+            ListOf(screen),
+            "Pricing.cs left with its decision"
+        );
+        gmd.Send("2"); // dev's cost, the list still having the arrows
+        gmd.WaitFor("all resolved");
+
+        gmd.Send("Up");
+        StringAssert.Contains(
+            gmd.WaitFor("Pricing.cs   conflict 1 of 2"),
+            "1 still to resolve",
+            "Its decision as it was left"
+        );
+
+        gmd.Send("q");
+        StringAssert.Contains(
+            gmd.WaitFor("Unsaved Decisions"),
+            "Shipping.cs  1 of 1",
+            "The file left is asked about with the open one"
+        );
+        gmd.Send("Right"); // From Stay, the default, to Save and Close
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Merging: 1 conflict");
+        Assert.AreEqual("Pricing.cs", (await repo.GitAsync("diff --name-only --diff-filter=U")).Trim());
+        var pricing = await File.ReadAllTextAsync(Path.Join(repo.Path, "Pricing.cs"));
+        Assert.AreEqual(1, pricing.Split("<<<<<<<").Length - 1, "Its second conflict left");
+        StringAssert.Contains(await File.ReadAllTextAsync(Path.Join(repo.Path, "Shipping.cs")), "5m", "dev's cost");
     }
 
     // The last conflict of a rebase resolved, Continue, the default, goes on with it at once. The
