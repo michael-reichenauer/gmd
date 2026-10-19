@@ -341,6 +341,12 @@ sealed class TmuxSession : IDisposable
     // -1: a terminal sends it as a press of button 65 or 64, with no release
     public void Wheel(int x, int y, int step) => SendText($"\u001b[<{(step > 0 ? 65 : 64)};{x + 1};{y + 1}M");
 
+    // Turns the sideways wheel a notch, right for a step of 1 and left for -1: a terminal sends it as
+    // a press of button 67 or 66. With isShift it is the vertical wheel turned with Shift, which is
+    // 65 or 64 with the Shift bit, 4, that Terminal.Gui takes for the sideways wheel.
+    public void WheelSideways(int x, int y, int step, bool isShift = false) =>
+        SendText($"\u001b[<{(isShift ? 68 : 66) + (step > 0 ? 1 : 0)};{x + 1};{y + 1}M");
+
     // Where a text first is on the screen, 0-based, for clicking it. Every rune gmd draws is one cell
     // wide, so the index in the row is the column.
     public static (int X, int Y) PositionOf(string screen, string text)

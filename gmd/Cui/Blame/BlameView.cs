@@ -180,6 +180,7 @@ class BlameView : IBlameView
 
         view.RegisterKeyHandler(Key.CursorLeft, OnMoveLeft);
         view.RegisterKeyHandler(Key.CursorRight, OnMoveRight);
+        view.RegisterWheelSideways(ScrollSideways);
         view.RegisterKeyHandler(Key.C.WithCtrl, OnCopy);
 
         view.RegisterKeyHandler(Key.Enter, ToggleDetails);
@@ -266,21 +267,24 @@ class BlameView : IBlameView
 
     static string Count(int count, string noun) => $"{count} {noun}{(count == 1 ? "" : "s")}";
 
-    void OnMoveLeft()
-    {
-        if (rowStartX > 0)
-        {
-            rowStartX--;
-            contentView.SetNeedsDraw();
-        }
-    }
+    void OnMoveLeft() => ScrollSideways(-1);
 
-    void OnMoveRight()
+    void OnMoveRight() => ScrollSideways(1);
+
+    // Moves the code by the columns given, right for more than 0, no further left than the start of
+    // the lines, nor right than where the longest ends
+    void ScrollSideways(int columns)
     {
         var cw = BlameColumns.Calculate(details, contentView.ContentWidth, blameRows.Rows.Count);
-        if (blameRows.MaxLength - rowStartX > cw.Code)
+        var startX = rowStartX;
+        for (; columns < 0 && startX > 0; columns++)
+            startX--;
+        for (; columns > 0 && blameRows.MaxLength - startX > cw.Code; columns--)
+            startX++;
+
+        if (startX != rowStartX)
         {
-            rowStartX++;
+            rowStartX = startX;
             contentView.SetNeedsDraw();
         }
     }

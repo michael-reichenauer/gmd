@@ -341,6 +341,7 @@ class DiffView : IDiffView
 
         view.RegisterMouseHandler(MouseFlags.LeftButtonPressed, (x, y) => OnMouseClick(x, y));
         view.RegisterMouseHandler(MouseFlags.RightButtonPressed, (x, y) => ShowMainMenu(x - 1, y - 1));
+        view.RegisterWheelSideways(ScrollSideways);
     }
 
     private bool OnMouseClick(int x, int y)
@@ -1496,12 +1497,7 @@ class DiffView : IDiffView
             return;
         }
 
-        // Move both sides in view left
-        if (rowStartX > 0)
-        {
-            rowStartX--;
-            contentView.SetNeedsDraw();
-        }
+        ScrollSideways(-1);
     }
 
     // Move both sides in view right, or select right side text if text is selected
@@ -1514,11 +1510,23 @@ class DiffView : IDiffView
             return;
         }
 
-        // Move both sides in view right
+        ScrollSideways(1);
+    }
+
+    // Moves both sides in view by the columns given, right for more than 0, no further left than the
+    // start of the lines, nor right than where the longest ends
+    void ScrollSideways(int columns)
+    {
         int maxColumnWidth = isOneColumn ? contentView.ContentWidth : contentView.ContentWidth / 2;
-        if (diffRows!.MaxLength - rowStartX > maxColumnWidth)
+        var startX = rowStartX;
+        for (; columns < 0 && startX > 0; columns++)
+            startX--;
+        for (; columns > 0 && diffRows.MaxLength - startX > maxColumnWidth; columns--)
+            startX++;
+
+        if (startX != rowStartX)
         {
-            rowStartX++;
+            rowStartX = startX;
             contentView.SetNeedsDraw();
         }
     }

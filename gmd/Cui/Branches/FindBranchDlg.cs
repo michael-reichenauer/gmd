@@ -119,14 +119,9 @@ class FindBranchDlg : IFindBranchDlg
             Pick();
             return true;
         }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        if (Wheel.Vertical(ev.Flags) is var wheel && wheel != 0)
         {
-            listView.Scroll(1);
-            return true;
-        }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            listView.Scroll(-1);
+            listView.Scroll(wheel);
             return true;
         }
 

@@ -168,14 +168,9 @@ class FilterDlg : IFilterDlg
             return true;
         }
 
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        if (Wheel.Vertical(ev.Flags) is var wheel && wheel != 0)
         {
-            resultsView.Scroll(1);
-            return true;
-        }
-        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            resultsView.Scroll(-1);
+            resultsView.Scroll(wheel);
             return true;
         }
 
