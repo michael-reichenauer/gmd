@@ -17,6 +17,14 @@ record ConflictNames(string Ours, Text OursTitle, string Theirs, Text TheirsTitl
         var hunk = file.Hunks.FirstOrDefault();
         var (oursLabel, theirsLabel) = hunk != null ? (hunk.OursLabel, hunk.TheirsLabel) : ("ours", "theirs");
 
+        // 'git checkout --merge', which puts a file's conflicts back (Unresolve), labels the sides 'ours'
+        // and 'theirs', the very words the names are here to avoid, since during a rebase they mean the
+        // opposite of what is expected: they are named as the operation's own markers name them
+        if (oursLabel == "ours")
+            oursLabel = "HEAD";
+        if (theirsLabel == "theirs" && sides.TheirsName != "")
+            theirsLabel = sides.TheirsName;
+
         var isOnBranch = oursLabel == "HEAD" && sides.OursBranch != "";
         var ours = isOnBranch ? sides.OursBranch : oursLabel;
         var oursTitle = isOnBranch

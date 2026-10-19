@@ -301,7 +301,7 @@ public record ConflictState(GitOperation Operation, IReadOnlyList<ConflictedFile
 }
 
 // The two sides of an operation stopped on conflicts, see Git.ConflictSides
-public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject)
+public record ConflictSides(string OursBranch, string OursSubject, string TheirsSubject, string TheirsName = "")
 {
     public static readonly ConflictSides None = new("", "", "");
 }

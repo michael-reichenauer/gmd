@@ -736,7 +736,8 @@ public class ConflictViewTest
 
     // A file resolved, selected in the list, is shown as it was saved: the file shown before stayed, as
     // if it were the one selected. A key that decides a conflict says it is resolved, and Unresolve
-    // This File puts its conflicts back, to resolve it again.
+    // This File puts its conflicts back, to resolve it again, the sides named by their branches still,
+    // though git labels them 'ours' and 'theirs' as it puts them back.
     [TestMethod]
     public async Task TestAFileResolvedIsShownAsItWasSaved()
     {
@@ -775,6 +776,8 @@ public class ConflictViewTest
 
         screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
         StringAssert.Contains(ListOf(screen), "▌● Shipping.cs", "Conflicted again");
+        StringAssert.Contains(screen, "main (HEAD)", "Named as the merge named them, though git labels them");
+        Assert.IsFalse(screen.Contains("theirs"), "'ours' and 'theirs' when it puts them back:\n" + screen);
         Assert.AreEqual("Pricing.cs\nShipping.cs", (await repo.GitAsync("diff --name-only --diff-filter=U")).Trim());
     }
 

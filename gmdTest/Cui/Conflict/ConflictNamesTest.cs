@@ -69,6 +69,30 @@ public class ConflictNamesTest
         Assert.AreEqual("parent of 1a2b3c4 · Dev work", names.TheirsTitle.ToString());
     }
 
+    // A file's conflicts put back (Unresolve) are labelled 'ours' and 'theirs' by git, which are named
+    // as the operation's own markers name them: during a rebase they mean the opposite of what is
+    // expected
+    [TestMethod]
+    [DataRow("main", "Main work", "dev", "main (HEAD)", "dev")]
+    [DataRow("", "Main work", "1a2b3c4", "HEAD · Main work", "1a2b3c4 · Dev work")]
+    [DataRow("main", "Main work", "parent of 1a2b3c4", "main (HEAD)", "parent of 1a2b3c4 · Dev work")]
+    [DataRow("main", "Main work", "", "main (HEAD)", "theirs")]
+    public void TestConflictsPutBackAreNamedAsTheOperationNamesThem(
+        string oursBranch,
+        string oursSubject,
+        string theirsName,
+        string oursTitle,
+        string theirsTitle
+    )
+    {
+        var names = ConflictNames.Of(
+            FileLabelled("ours", "theirs"),
+            new ConflictSides(oursBranch, oursSubject, "Dev work", theirsName)
+        );
+
+        Assert.AreEqual((oursTitle, theirsTitle), (names.OursTitle.ToString(), names.TheirsTitle.ToString()));
+    }
+
     // With nothing known of the sides, the names git wrote, as they were
     [TestMethod]
     public void TestWithNoSidesKnownTheLabelsAreTheNames()
