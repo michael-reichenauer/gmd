@@ -433,7 +433,9 @@ class ConflictRowService : IConflictRowService
             text.Dark("   conflict ").Cyan($"{currentHunk + 1}").Dark($" of {resolution.HunkCount}");
 
         var left = resolution.UnresolvedCount;
-        text.Dark("   ").Add(left == 0 ? Text.Green("all resolved") : Text.Red($"{left} still to resolve"));
+        // A file with none, resolved, looked at in the list of files
+        var done = resolution.HunkCount == 0 ? "resolved" : "all resolved";
+        text.Dark("   ").Add(left == 0 ? Text.Green(done) : Text.Red($"{left} still to resolve"));
 
         return text;
     }

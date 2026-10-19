@@ -734,6 +734,50 @@ public class ConflictViewTest
         Assert.AreEqual("Shipping.cs is resolved, 1 file left", ScreenText.LastLine(gmd.WaitFor("is resolved")));
     }
 
+    // A file resolved, selected in the list, is shown as it was saved: the file shown before stayed, as
+    // if it were the one selected. A key that decides a conflict says it is resolved, and Unresolve
+    // This File puts its conflicts back, to resolve it again.
+    [TestMethod]
+    public async Task TestAFileResolvedIsShownAsItWasSaved()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        OpenTheResolverFromTheBar(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("}");
+        gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        gmd.Send("2"); // dev's cost
+        gmd.WaitFor("all resolved");
+        gmd.Send("s");
+        gmd.WaitFor("Pricing.cs   conflict 1 of 2");
+
+        gmd.Send("Tab");
+        gmd.WaitForStable();
+        gmd.Send("Down");
+        var screen = gmd.WaitFor("Shipping.cs   resolved");
+        StringAssert.Contains(screen, "─── Result: Shipping.cs as it was saved");
+        StringAssert.Contains(screen, "decimal Cost() => 5m;", "As saved, dev's cost");
+        Assert.IsFalse(screen.Contains("─── Conflict"), "No conflict left in it");
+        gmd.Send("1");
+        Assert.AreEqual(
+            "Shipping.cs is resolved: Unresolve This File (a) puts its conflicts back",
+            ScreenText.LastLine(gmd.WaitFor("puts its conflicts back")).Trim('─', ' ')
+        );
+
+        gmd.Send("a");
+        gmd.WaitFor("Unresolve This File");
+        gmd.SelectMenuItem("Unresolve This File");
+        gmd.Send("Enter");
+        gmd.WaitFor("Put the conflicts back into Shipping.cs?");
+        gmd.Send("Left"); // From No, the default, to Yes
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        StringAssert.Contains(ListOf(screen), "▌● Shipping.cs", "Conflicted again");
+        Assert.AreEqual("Pricing.cs\nShipping.cs", (await repo.GitAsync("diff --name-only --diff-filter=U")).Trim());
+    }
+
     // A click on another file in the list while typing is done typing, and what was typed a decision
     // of the file left, kept for going back to it. The list takes no focus, so the text view was never
     // left, and the file was gone from with the text thrown away.

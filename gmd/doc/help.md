@@ -839,8 +839,10 @@ decisions made in a file are kept while the resolver is open, there as they
 were left when you go back to it. A terminal at least 150 columns wide lists
 the files at the left, the resolved ones ticked, and how far each file with
 decisions is; `Tab` moves into the list, where `↑` `↓` show the file they
-select, as in the diff, and `Enter` or `Tab` goes back to it, and `l` hides
-it and shows it again, which the files after keep. Without the list, the
+select, as in the diff, a resolved one as it was saved, and `Enter` or `Tab`
+goes back to it, and `l` hides it and shows it again, which the files after
+keep. **Unresolve This File**, under `a`, puts the conflicts of a file back,
+a resolved one's too, to resolve it again. Without the list, the
 header says which file it is, e.g. `file 1 of 3`. A file with no text to
 merge, such as one a side deleted, or a binary file, asks its question as
 its turn comes (see below), or when `Enter` is pressed on it in the list,

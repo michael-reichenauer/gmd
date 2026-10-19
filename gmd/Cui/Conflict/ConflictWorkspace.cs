@@ -120,16 +120,26 @@ class ConflictWorkspace : IConflictWorkspace
 
         // A file looked at in the list, as its arrows move: opened where it has text to merge, with no
         // read of what is left, which looking changes nothing of. One with none is left for Enter, which
-        // asks about it, rather than asked about at each arrow key that passes it.
+        // asks about it, rather than asked about at each arrow key that passes it. A file resolved is
+        // opened as it was saved, with no conflict left in it: the last file shown stayed, as if it
+        // were the one selected. One a side deleted may be no file now, so it is only said to be
+        // resolved.
         async Task<ConflictNext> LookAsync(string path)
         {
             var conflicted = state.Files.FirstOrDefault(f => f.Path == path);
-            if (conflicted == null)
+            var resolved = conflicted == null ? files.FirstOrDefault(f => f.Path == path) : null;
+            if (resolved != null && resolved.Kind is not (ConflictKind.BothModified or ConflictKind.BothAdded))
                 return ConflictNext.StayOn($"{path} is resolved");
-            if (await workspace.ReadAsync(conflicted, repoPath) is not ConflictFile file)
+            if ((conflicted ?? resolved) is not ConflictedFile known)
+                return ConflictNext.StayOn($"{path} has no conflicts");
+            if (await workspace.ReadAsync(known, repoPath) is not ConflictFile file)
                 return ConflictNext.StayOn($"{path} could not be read");
-            if (!HasText(file))
-                return ConflictNext.StayOn($"{path} has no text to merge: Enter asks how to resolve it");
+            if (resolved != null ? file.IsBinary : !HasText(file))
+                return ConflictNext.StayOn(
+                    resolved != null
+                        ? $"{path} is resolved"
+                        : $"{path} has no text to merge: Enter asks how to resolve it"
+                );
 
             list = list with { Open = path };
             return new(file, list);
