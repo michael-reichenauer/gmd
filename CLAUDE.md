@@ -219,7 +219,10 @@ Key types and flow:
   out item gives; the help and the README write `Shift-P` in their text. Item names are
   plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
 - `Cui/Graphs/` — `GraphCreater`, `Graph` and `GraphWriter` turn a `Repo` into the drawn
-  branch graph.
+  branch graph. A branch's color is `BranchColorService`'s (`Cui/Common/`): picked the first time
+  gmd sees the branch, unlike its parent's and its siblings' (`BranchColorPicker`), and remembered in
+  the repo config, the colors of branches gone forgotten, so that nothing done around a branch, a
+  show, a push, a sibling squash merged away, changes its color. Keep it so: the user relies on it.
 - `Cui/Common/ContentView.cs` — the scrollable list of rows nearly every view is drawn in (log,
   diff, blame, conflict, menus, dialogs). Rows are either handed to the constructor or fetched while
   drawing through a `GetContentCallback`, so a large repo is never materialized as text. Such a

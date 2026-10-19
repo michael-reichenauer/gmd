@@ -810,7 +810,8 @@ Both are reworked, see proposal D.1.
    or a test pass, and its question lists what git's dry run says it deletes, so a `.env` meant to
    be kept is seen before Yes. The `5` key is gone, *Set Commit Branch Manually* stays in the
    branch menu. `g` stays, since automatic branch colors often collide and changing one is how two
-   branches are told apart; `<=` / `=>` never had keys. *And the search words (2026-10-07):* `*`
+   branches are told apart (fewer since 2026-10-19: a branch is given a color unlike its parent's and
+   its siblings', and keeps it); `<=` / `=>` never had keys. *And the search words (2026-10-07):* `*`
    and `$` are searched for as text now; *Ambiguous* in Show Branch lists the ambiguous branches,
    and `Φ` in the graph marks a commit whose branch was set by hand.
 
