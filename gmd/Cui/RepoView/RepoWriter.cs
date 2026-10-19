@@ -75,34 +75,38 @@ class RepoWriter : IRepoWriter
             // Build row
             var graphText = new TextBuilder();
             WriteGraph(graphText, repo.Graph, i, cw.GraphWidth, hooverBranchName, i == hooverIndex);
-            WriteDiffMarkOrStash(graphText, c, markedId);
-            WriteCheckoutMarker(
-                graphText,
-                c,
-                isUncommitted,
-                isBranchDetached,
-                isSelected,
-                IsTipInOtherWorktree(repo, c)
-            );
-            WriteAheadBehindMarker(graphText, c);
+            var markers = new TextBuilder();
+            WriteDiffMarkOrStash(markers, c, markedId);
+            WriteCheckoutMarker(markers, c, isUncommitted, isBranchDetached, isSelected, IsTipInOtherWorktree(repo, c));
+            WriteAheadBehindMarker(markers, c);
 
             var text = new TextBuilder();
             WriteSubjectColumn(text, cw, c, crb, branchTips);
             WriteSid(text, cw, c);
             WriteAuthor(text, cw, c);
             WriteTime(text, cw, c);
+            // The commit marked for a diff, from its mark to the end of the row, the graph left as
+            // it is, so that it is found again among the others once there is one to diff it with,
+            // and is not taken for the cursor, which the cursor's and a selection's highlights
+            // below replace on their rows
+            if (c.Id == markedId)
+            {
+                markers.Highlight(Color.MarkBg);
+                text.Highlight(Color.MarkBg);
+            }
             // The current commit, across the whole row, the graph too, so that the node it is on is
             // found without following the row across from the subject by eye. Not while a branch is
             // hoovered, since the keys then act on the branch, which the graph shows instead.
             if (i == currentIndex && hooverBranchName == "")
             {
                 graphText.Highlight();
+                markers.Highlight();
                 text.Highlight();
             }
             if (isSelected && c.BranchPrimaryName == crb.PrimaryName)
                 text.Select(); // Selected commit
 
-            rows.Add(graphText.Add(text));
+            rows.Add(graphText.Add(markers).Add(text));
         }
 
         return rows;
@@ -164,7 +168,7 @@ class RepoWriter : IRepoWriter
     {
         if (c.Id == markedId)
         {
-            text.BrightCyan(DiffMark.Marker);
+            text.Color(Color.DiffMark, DiffMark.Marker);
             return;
         }
         if (c.HasStash)

@@ -704,11 +704,11 @@ and what it would then show.
 Rows selected with `Shift-↑↓` and `d` diff the commits of a range on one
 branch: the changes they made, the oldest one's too, titled e.g. *Diff of 3
 commits*. Any two commits, wherever they are, are diffed with **Mark for
-Diff** in the commit menu of one, which marks it `±` in the log, and
-**Diff with <id>** in the menu of the other: the changes from the older of
-the two to the newer, so not the older one's own. The mark stays for diffs
-with other commits too, until another commit is marked or **Unmark for
-Diff** in its menu takes it away.
+Diff** in the commit menu of one, which marks it `±` in the log, its row
+tinted to be found again, and **Diff with <id>** in the menu of the other:
+the changes from the older of the two to the newer, so not the older one's
+own. The mark stays for diffs with other commits too, until another commit
+is marked or **Unmark for Diff** in its menu takes it away.
 
 In a view narrower than 110 columns, the diff is in one column instead,
 each change's removed lines above its added ones, as git writes them, each
