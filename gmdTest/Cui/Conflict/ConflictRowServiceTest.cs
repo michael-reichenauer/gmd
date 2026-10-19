@@ -258,13 +258,13 @@ public class ConflictRowServiceTest
         var service = new ConflictRowService();
 
         Assert.AreEqual(
-            "Merge  f.txt   conflict 1 of 1   1 still to resolve",
+            "Resolve conflicts: Merge  f.txt   conflict 1 of 1   1 still to resolve",
             service.ToHeader(file, resolution, 0, GitOperation.Merge).ToString()
         );
 
         resolution.Set(0, HunkChoice.Ours);
         Assert.AreEqual(
-            "Merge  f.txt   conflict 1 of 1   all resolved",
+            "Resolve conflicts: Merge  f.txt   conflict 1 of 1   all resolved",
             service.ToHeader(file, resolution, 0, GitOperation.Merge).ToString()
         );
     }
@@ -277,7 +277,7 @@ public class ConflictRowServiceTest
 
         StringAssert.StartsWith(
             new ConflictRowService().ToHeader(file, new ConflictResolution(file), 0, GitOperation.Rebase).ToString(),
-            "Rebase  f.txt"
+            "Resolve conflicts: Rebase  f.txt"
         );
     }
 

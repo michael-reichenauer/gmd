@@ -835,11 +835,11 @@ Conflicts, Continue, Skip and Abort.
 The files are resolved one after the other. Saving a file with every
 conflict decided marks it resolved and opens the next one still conflicted,
 and `}` and `{` go to the next or previous one without saving, asking first
-if there are decisions to keep. The header says which file it is, e.g.
-`file 1 of 3`, and a terminal at least 150 columns wide lists the files at
-the left, the resolved ones ticked; `Tab` moves into the list, where `↑`
-`↓` and `Enter` open another, and `l` hides it and shows it again, as in the
-diff, which the files after keep. A file with no text to merge, such as one a
+if there are decisions to keep. A terminal at least 150 columns wide lists
+the files at the left, the resolved ones ticked; `Tab` moves into the list,
+where `↑` `↓` and `Enter` open another, and `l` hides it and shows it again,
+as in the diff, which the files after keep. Without the list, the header
+says which file it is, e.g. `file 1 of 3`. A file with no text to merge, such as one a
 side deleted, or a binary file, asks its question as its turn comes (see
 below), and Cancel passes it over until the resolver is opened again. Once
 no conflict is left, a box asks whether to finish: **Commit** opens the

@@ -412,7 +412,7 @@ class ConflictRowService : IConflictRowService
     // 'Resolve  src/Foo.cs   conflict 2 of 5   ·  3 still to resolve'
     public Text ToHeader(ConflictFile file, ConflictResolution resolution, int currentHunk, GitOperation operation)
     {
-        var text = Text.Dark($"{OperationName(operation)}  ").White(file.Path);
+        var text = Text.Dark($"{Title(operation)}  ").White(file.Path);
 
         if (resolution.HunkCount > 0)
             text.Dark("   conflict ").Cyan($"{currentHunk + 1}").Dark($" of {resolution.HunkCount}");
@@ -423,7 +423,8 @@ class ConflictRowService : IConflictRowService
         return text;
     }
 
-    // The operation, as gmd names it elsewhere, or with none in progress what the view does
-    static string OperationName(GitOperation operation) =>
-        operation == GitOperation.None ? "Resolve" : OperationText.Name(operation);
+    // What the view does, and the operation it does it for, as gmd names it elsewhere: the operation
+    // alone, e.g. 'Merge', read as if the view were the merge rather than the resolver of its conflicts
+    static string Title(GitOperation operation) =>
+        operation == GitOperation.None ? "Resolve conflicts" : $"Resolve conflicts: {OperationText.Name(operation)}";
 }

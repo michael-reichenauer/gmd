@@ -368,10 +368,11 @@ class ConflictView : IConflictView
         listView.SetNeedsDraw(); // How far the file is
     }
 
+    // Which file of the workspace it is, unless the list beside it says, by the file marked in it
     void SetHeader()
     {
         var text = rowService.ToHeader(file, resolution, CurrentHunk, operation).ToTextBuilder();
-        if (files.Files.Count > 1)
+        if (files.Files.Count > 1 && listWidth == 0)
             text.Dark($"   file {files.IndexOfOpen + 1} of {files.Files.Count}");
         header.Text = text;
         // The Text setter sizes the label from the text it replaces, so a longer header is clipped
@@ -585,6 +586,7 @@ class ConflictView : IConflictView
 
         LayOutTyping();
         FollowCursorInResult();
+        SetHeader(); // Which file it is, with the list gone
         top.SetNeedsDraw();
     }
 

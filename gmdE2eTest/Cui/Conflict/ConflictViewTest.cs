@@ -23,7 +23,7 @@ public class ConflictViewTest
         // and the result of it in the pane below
         ScreenText.AssertEqual(
             """
-            Merge  long.txt   conflict 1 of 1   1 still to resolve
+            Resolve conflicts: Merge  long.txt   conflict 1 of 1   1 still to resolve
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
                35 line 35
                36 line 36
@@ -142,7 +142,7 @@ public class ConflictViewTest
         // what the conflict resolves to: the line as it was before either side touched it
         ScreenText.AssertEqual(
             """
-            Merge  long.txt   conflict 1 of 1   all resolved
+            Resolve conflicts: Merge  long.txt   conflict 1 of 1   all resolved
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
                35 line 35
                36 line 36
@@ -649,9 +649,10 @@ public class ConflictViewTest
         var screen = gmd.WaitFor("─── Conflict 1");
         Assert.AreEqual(
             """
-            Merge  Pricing.cs   conflict 1 of 2   2 still to resolve   file 1 of 2
+            Resolve conflicts: Merge  Pricing.cs   conflict 1 of 2   2 still to resolve
             """,
-            ScreenText.Rows(screen, repo.Path, 0, 1)
+            ScreenText.Rows(screen, repo.Path, 0, 1),
+            "Which file of the two it is, the list says"
         );
         Assert.AreEqual(
             """
@@ -664,14 +665,14 @@ public class ConflictViewTest
 
         // } goes to the other file, the one main and dev each set a cost in
         gmd.Send("}");
-        screen = gmd.WaitFor("file 2 of 2");
+        screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
         StringAssert.Contains(ScreenText.Rows(screen, repo.Path, 0, 1), "Merge  Shipping.cs   conflict 1 of 1");
         gmd.Send("1"); // main's cost
         gmd.WaitForStable();
 
         // Saved, it is ticked, and the one still conflicted opens
         gmd.Send("s");
-        screen = gmd.WaitFor("file 1 of 2");
+        screen = gmd.WaitFor("Pricing.cs   conflict 1 of 2");
         Assert.AreEqual(
             """
             Conflicts 1 left         │
