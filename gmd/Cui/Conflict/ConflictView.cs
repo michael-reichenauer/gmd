@@ -335,6 +335,7 @@ class ConflictView : IConflictView
 
         view.RegisterKeyHandler(Key.CursorLeft, () => Scroll(-1));
         view.RegisterKeyHandler(Key.CursorRight, () => Scroll(1));
+        view.RegisterWheelSideways(Scroll);
 
         // The result pane never has the focus (see where it is made), so it is scrolled from here,
         // and by the mouse wheel over it: a result longer than the pane showed its first rows only

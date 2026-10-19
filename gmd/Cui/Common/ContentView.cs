@@ -30,6 +30,7 @@ class ContentView : View
     readonly GetContentCallback? onGetContent;
     readonly Dictionary<Key, OnKeyCallbackReturn> keys = [];
     readonly Dictionary<MouseFlags, OnMouseCallbackReturn> mouses = [];
+    Action<int>? onWheelSideways;
 
     const int topBorderHeight = 1;
     const int verticalScrollbarWidth = 1;
@@ -172,6 +173,18 @@ class ContentView : View
         mouses[mouseFlags] = callback;
     }
 
+    // Scrolls the rows sideways by the columns given, right for more than 0, which a turn of a
+    // sideways wheel does, or of the vertical one with Shift (see Wheel). Over a view with none it
+    // does nothing.
+    public void RegisterWheelSideways(Action<int> scroll)
+    {
+        onWheelSideways = scroll;
+    }
+
+    // The columns a turn of the sideways wheel scrolls: one, as an arrow key does, took forty turns
+    // to get across a line of 160
+    const int WheelColumns = 4;
+
     public void ScrollToShowIndex(int index, int margin = 5)
     {
         if (scroll.ScrollToShowIndex(index, margin))
@@ -246,16 +259,21 @@ class ContentView : View
     {
         var (evX, evY) = ev.Position is Point p ? (p.X, p.Y) : (0, 0);
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
-        // A view that never takes the focus, the resolver's result pane, is scrolled by the wheel
-        // over it, the one way the mouse has to it
-        if (!HasFocus && !CanFocus && ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        var sideways = Wheel.Sideways(ev.Flags);
+        var wheel = Wheel.Vertical(ev.Flags);
+
+        // A wheel turned sideways never scrolls up or down, see Wheel
+        if (sideways != 0 && (HasFocus || !CanFocus))
         {
-            Scroll(1);
+            onWheelSideways?.Invoke(sideways * WheelColumns);
             return true;
         }
-        if (!HasFocus && !CanFocus && ev.Flags.HasFlag(MouseFlags.WheeledUp))
+
+        // A view that never takes the focus, the resolver's result pane, is scrolled by the wheel
+        // over it, the one way the mouse has to it
+        if (!HasFocus && !CanFocus && wheel != 0)
         {
-            Scroll(-1);
+            Scroll(wheel);
             return true;
         }
         // and a click on it goes to what it registered for it, e.g. the diff's list of files, which
@@ -275,14 +293,9 @@ class ContentView : View
                 return true;
         }
 
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown))
+        if (wheel != 0)
         {
-            Scroll(1);
-            return true;
-        }
-        else if (ev.Flags.HasFlag(MouseFlags.WheeledUp))
-        {
-            Scroll(-1);
+            Scroll(wheel);
             return true;
         }
 

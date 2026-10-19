@@ -357,6 +357,36 @@ public class DiffViewTest
         );
     }
 
+    // The sideways wheel some mice have by the thumb, or the vertical one turned with Shift, scrolls
+    // the lines sideways, a few columns a turn where an arrow key scrolls one, and never up or down,
+    // which it did: Terminal.Gui writes it as the vertical wheel turned with Ctrl (see Wheel)
+    [TestMethod]
+    public async Task TestTheWheelTurnedSidewaysScrollsSideways()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var words = string.Join(" ", Enumerable.Range(0, 30).Select(i => $"word{i:00}"));
+        var lines = Enumerable.Range(1, 60).Select(i => $"line {i}").Prepend(words);
+        await repo.CommitFileAtAsync("file.txt", string.Join("\n", lines) + "\n", "Add the file", TempRepo.BaseTime);
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Add the file");
+        gmd.Send("d");
+        var (x, y) = TmuxSession.PositionOf(gmd.WaitFor("word00 word01"), "word00 word01");
+
+        gmd.WheelSideways(x, y, 1);
+        Assert.AreEqual(
+            (x, y),
+            TmuxSession.PositionOf(gmd.WaitUntilGone("word00"), "…0 word01"),
+            "Four columns to the right, the first one shown a '…', on the same row"
+        );
+
+        gmd.WheelSideways(x, y, -1, isShift: true);
+        Assert.AreEqual(
+            (x, y),
+            TmuxSession.PositionOf(gmd.WaitFor("word00 word01"), "word00 word01"),
+            "Back with Shift and the wheel turned up"
+        );
+    }
+
     // On a terminal 150 wide or more, the files are listed beside the diff, the one the cursor is in
     // marked, and the diff's own list of them at its top is left out, the row counting them kept. Tab
     // moves the keys to the list, where down goes to the next file, and Esc moves them back before it

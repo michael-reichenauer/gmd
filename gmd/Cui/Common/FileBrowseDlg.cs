@@ -179,10 +179,10 @@ class FileBrowseDlg
             Activate();
             return true;
         }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) || ev.Flags.HasFlag(MouseFlags.WheeledUp))
+        if (Wheel.Vertical(ev.Flags) is var wheel && wheel != 0)
         {
             // The rows scrolled take the cursor along at the edge, which can put it on a heading
-            listView.Scroll(ev.Flags.HasFlag(MouseFlags.WheeledDown) ? 1 : -1);
+            listView.Scroll(wheel);
             if (IsTree && tree.Rows.ElementAtOrDefault(listView.CurrentIndex)?.IsHeading == true)
                 listView.SetCurrentIndex(tree.Step(listView.CurrentIndex, 0));
             return true;

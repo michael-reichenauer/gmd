@@ -748,7 +748,8 @@ cursor is on, or the lines selected, out of the next commit, or puts them
 back (see Commit in [More Commands](#more-commands)), `c` commits, `Enter` resolves
 a conflicted file, `m` or a right-click opens the menu, `←` `→` scroll the
 two columns sideways, their line numbers staying where they are, and pick
-which one a selection copies from, `Ctrl-C`
+which one a selection copies from (a mouse's sideways wheel, or `Shift` and
+the wheel, scrolls them a few columns a turn), `Ctrl-C`
 copies the selected lines, and `Esc` or `q` closes the view.
 
 `b` blames the file the cursor is in, in the commit the diff is of, with
@@ -814,7 +815,7 @@ the file again, as it was in the commit the cursor is in), `p` blames the versio
 reformat or a rename can be stepped past to the change that actually
 matters) and `Backspace` steps back out again, `g` cycles how much of each
 commit the left column names, `←` `→` scroll the code while the left column
-stays put, `i` copies the current line's commit id and `Shift-I` its
+stays put, as the sideways wheel or `Shift` and the wheel do, `i` copies the current line's commit id and `Shift-I` its
 message, as in the log, `f` or `/` searches the code and `n` and `Shift-N`
 step through what it found, as in the diff, `Ctrl-C` copies the selected
 lines, `m` opens the menu, and `Esc` or `q` closes the view.
@@ -898,7 +899,7 @@ next and previous one from wherever the cursor is.
 | Tab        | Into the list of files, and back                           |
 | l          | Hide or show the list of files                             |
 | m          | Open the menu, which lists all of these                    |
-| ←  →       | Scroll all the columns sideways                            |
+| ←  →       | Scroll the columns sideways, as the sideways wheel does    |
 | Shift-↑  ↓ | Scroll the result below, as the mouse wheel over it does   |
 | Esc, q     | Close the resolver                                         |
 

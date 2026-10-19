@@ -213,9 +213,9 @@ class FolderBrowseDlg
             }
             return true;
         }
-        if (ev.Flags.HasFlag(MouseFlags.WheeledDown) || ev.Flags.HasFlag(MouseFlags.WheeledUp))
+        if (Wheel.Vertical(ev.Flags) is var wheel && wheel != 0)
         {
-            listView.Scroll(ev.Flags.HasFlag(MouseFlags.WheeledDown) ? 1 : -1);
+            listView.Scroll(wheel);
             return true;
         }
 
