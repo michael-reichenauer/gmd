@@ -314,8 +314,10 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   saved, which keeps the colors of its lines above the first that changed as it is made anew with
   each decision and key typed (`ConflictResult.Code`). `ConflictWorkspace` is what opens it: it runs the resolver over every conflicted file of
   the operation, one after the other, from the conflict box, the repo menu and the diff's Enter, and
-  asks to commit or continue once none is left, which the caller does; how a file's view ended
-  (`ConflictOutcome`) says where it goes next, and `ConflictFileList` is the list of files beside it.
+  asks to commit or continue once none is left, which the caller does. It is one view for them all:
+  as a file ends, how (`ConflictOutcome`) is handed to the workspace, which says the file to open in
+  it next (`ConflictNext`), since a view per file showed the log between them while git read the
+  next one. `ConflictFileList` is the list of files beside it.
   `IConflictView.Show`
   is deliberately **synchronous** — the main loop's `SynchronizationContext` (`MainLoopQueue`) posts an
   await's continuation to the main loop, so awaiting there would deadlock rather than merely stall — which is

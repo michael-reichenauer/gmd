@@ -22,6 +22,13 @@ enum ConflictEnd
 
 record ConflictOutcome(ConflictEnd End, string Path = "");
 
+// What the resolver goes on to once a file ended (ConflictWorkspace): the next file to open in it,
+// with the list of the files as it is now, or none, when the resolver closes
+record ConflictNext(ConflictFile? File, ConflictFileList List)
+{
+    public static readonly ConflictNext Close = new(null, ConflictFileList.None);
+}
+
 interface IConflictView
 {
     // The file is loaded by the caller, which is what keeps this synchronous: a Terminal.Gui
@@ -29,18 +36,21 @@ interface IConflictView
     // loop on a Task here would deadlock rather than merely stall. Whatever it writes is on disk by
     // the time it returns. sides are what git knows of the two sides, which name them
     // (ConflictNames), and files the workspace's conflicted files, listed beside the resolver on a
-    // wide terminal, which } { and the list go to another of.
-    ConflictOutcome Show(
+    // wide terminal, which } { and the list go to another of. next is what it goes on to once a
+    // file ended as it did: another file, opened in the same view, or none, when it closes.
+    void Show(
         ConflictFile file,
         ConflictSides sides,
         GitOperation operation,
         string repoPath,
-        ConflictFileList files
+        ConflictFileList files,
+        Func<ConflictOutcome, Task<ConflictNext>> next
     );
 
     // For a file with no text to merge, which is resolved whole: asks how, and gives what does it,
     // null where the question was cancelled. Given rather than run, so that the workspace waits for
-    // git before it reads what is left.
+    // git before it reads what is left. Asked over the resolver where a file before it was resolved
+    // in it, so it leaves the file shown there as it is.
     Func<Task<Result>>? AskWholeFile(ConflictFile file, string repoPath);
 }
 
@@ -95,8 +105,9 @@ class ConflictView : IConflictView
     // The rows of the result at the cursor, which the result pane marks
     (int Start, int End) resultAtCursor;
 
-    // How the view ended, which Show returns
-    ConflictOutcome outcome = new(ConflictEnd.Closed);
+    // What the view goes on to once a file ended, see Show, and whether it is on its way there
+    Func<ConflictOutcome, Task<ConflictNext>> next = _ => Task.FromResult(ConflictNext.Close);
+    bool isGoingOn;
 
     // The text of a conflict being typed by hand in the result pane, null when none is: the view it is
     // typed in, which conflict, what it started as and where that came from, which the pane's title
@@ -154,36 +165,29 @@ class ConflictView : IConflictView
         }
     }
 
-    public ConflictOutcome Show(
+    public void Show(
         ConflictFile file,
         ConflictSides sides,
         GitOperation operation,
         string repoPath,
-        ConflictFileList files
+        ConflictFileList files,
+        Func<ConflictOutcome, Task<ConflictNext>> next
     )
     {
-        this.file = file;
-        this.files = files;
-        this.outcome = new(ConflictEnd.Closed);
-        this.isListFocus = false;
-        this.listSelected = Math.Max(0, files.IndexOfOpen);
-        this.sides = sides;
-        this.names = ConflictNames.Of(file, sides);
-        this.combinations.Clear();
-        this.status = new StatusLine();
-        this.operation = operation;
-        this.repoPath = repoPath;
-        this.rowStartX = 0;
-        this.isShowBase = false;
-        this.isMovedToFirstHunk = false;
-        this.resultAtCursor = (0, 0);
-        this.rows = new ConflictRows();
-        this.resolution = new ConflictResolution(file);
-
         // A file with nothing to merge as text is a whole file choice, not a three pane view: a
         // three pane view with nothing in it reads as gmd being broken. The workspace asks it.
         if (file.IsBinary || file.Hunks.Count == 0)
-            return outcome;
+            return;
+
+        this.next = next;
+        this.isGoingOn = false;
+        this.files = files;
+        this.isListFocus = false;
+        this.sides = sides;
+        this.status = new StatusLine();
+        this.operation = operation;
+        this.repoPath = repoPath;
+        this.isShowBase = false;
 
         Runnable view = new Runnable()
         {
@@ -255,19 +259,72 @@ class ConflictView : IConflictView
         // The result pane follows the cursor, so walking the file walks through the decisions
         contentView.CurrentIndexChange += OnCurrentIndexChange;
 
-        SetRows();
+        Open(file, files);
         UI.RunDialog(view);
-
         // What closes the view waits for git first, so what it changed is on disk by now
-        return outcome;
     }
 
-    // Ends the view, with how, for the workspace to go on from
+    // Opens a file in the view, as the view opens and as it goes on to another one: on its first
+    // conflict, at the start of its lines, with the common ancestor shown if it was and the file has one
+    void Open(ConflictFile file, ConflictFileList files)
+    {
+        this.file = file;
+        this.files = files;
+        this.listSelected = Math.Max(0, files.IndexOfOpen);
+        this.names = ConflictNames.Of(file, sides);
+        this.combinations.Clear();
+        this.rowStartX = 0;
+        this.isShowBase = isShowBase && (file.HasBase || file.Hunks.Any(h => h.HasBase));
+        this.resultAtCursor = (0, 0);
+        this.rows = new ConflictRows();
+        this.resolution = new ConflictResolution(file);
+        // The keys back with the file, opened from the list as it was opened when each file had a view
+        if (isListFocus)
+            ToggleListFocus();
+
+        // Before the view is laid out, as it opens, it has no height to scroll by until it is drawn
+        // (MoveToFirstHunkOnce); once it is, it is moved there at once rather than drawn first where
+        // the file before was
+        isMovedToFirstHunk = contentView.ViewHeight > 0;
+        SetRows();
+        if (isMovedToFirstHunk)
+            GotoRow(rows.IndexOfHunk(0));
+        listView.ScrollToShowIndex(listSelected + 1, 1);
+    }
+
+    // Ends the file, with how, and goes on to the file the workspace says, in this view, or closes it
+    // where there is none. Each file used to have a view of its own, closed and another opened, which
+    // showed the log between them while git read what was left and the next file. The keys and the
+    // mouse are held meanwhile, as the log dropped them then: they would act on the file being left.
     void End(ConflictOutcome how)
     {
-        outcome = how;
-        UI.Shutdown();
+        if (isGoingOn)
+            return;
+
+        EndTyping(); // Laid over the result pane, which the next file has a result of its own in
+        isGoingOn = true;
+        contentView.IsInputHeld = listView.IsInputHeld = true;
+        var path = file.Path;
+        var wasResolved = files.Resolved.Contains(path);
+        UI.RunInBackground(async () =>
+        {
+            var to = await next(how);
+            isGoingOn = false;
+            contentView.IsInputHeld = listView.IsInputHeld = false;
+            if (to.File is not ConflictFile nextFile)
+            {
+                UI.Shutdown();
+                return;
+            }
+
+            Open(nextFile, to.List);
+            // Which the list ticks, but it may be hidden, and the header names the next file now
+            if (!wasResolved && to.List.Resolved.Contains(path))
+                status.Info($"{path} is resolved, {FilesText(to.List.LeftCount)} left");
+        });
     }
+
+    static string FilesText(int count) => count == 1 ? "1 file" : $"{count} files";
 
     void RegisterShortcuts(ContentView view)
     {
@@ -1118,21 +1175,19 @@ class ConflictView : IConflictView
     // say is that it is gone.
     public Func<Task<Result>>? AskWholeFile(ConflictFile file, string repoPath)
     {
-        this.file = file;
-        this.repoPath = repoPath;
         if (!file.HasOurs && !file.HasTheirs)
-            return AskGone();
+            return AskGone(file, repoPath);
         else if (file.HasOurs != file.HasTheirs)
-            return AskKeepOrDelete();
+            return AskKeepOrDelete(file, repoPath);
         else
-            return AskSide();
+            return AskSide(file, repoPath);
     }
 
     // Both sides exist, so the question is which one to take. A binary file is the usual case.
-    Func<Task<Result>>? AskSide()
+    Func<Task<Result>>? AskSide(ConflictFile file, string repoPath)
     {
         if (!file.IsBinary)
-            return AskHandResolved();
+            return AskHandResolved(file, repoPath);
 
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -1152,7 +1207,7 @@ class ConflictView : IConflictView
     // A text file both sides changed with no markers left in it has been resolved by hand, outside
     // gmd, but not marked so. It is marked resolved as it is, or one side is taken after all: the two
     // sides were all that was offered, and either threw the hand merge away.
-    Func<Task<Result>>? AskHandResolved()
+    Func<Task<Result>>? AskHandResolved(ConflictFile file, string repoPath)
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -1172,11 +1227,11 @@ class ConflictView : IConflictView
     }
 
     // Only one side has the file, so it is kept as that side left it, or the deletion is accepted
-    Func<Task<Result>>? AskKeepOrDelete()
+    Func<Task<Result>>? AskKeepOrDelete(ConflictFile file, string repoPath)
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
-            DeleteQuestion(),
+            DeleteQuestion(file),
             2,
             ["Keep the File", "Delete It", "Cancel"]
         );
@@ -1191,7 +1246,7 @@ class ConflictView : IConflictView
 
     // Neither side has it. There is no version to keep, so 'keep' is not offered — it would run the
     // command that records the deletion, i.e. do the opposite of what it says.
-    Func<Task<Result>>? AskGone()
+    Func<Task<Result>>? AskGone(ConflictFile file, string repoPath)
     {
         var choice = UI.InfoMessage(
             $"Resolve {file.Path}",
@@ -1206,7 +1261,7 @@ class ConflictView : IConflictView
     }
 
     // Which side did what, since 'ours' and 'theirs' is exactly the wrong way round to say it here
-    string DeleteQuestion() =>
+    static string DeleteQuestion(ConflictFile file) =>
         file.Kind switch
         {
             ConflictKind.DeletedByThem => $"{file.Path} was changed here but deleted on the other side.",

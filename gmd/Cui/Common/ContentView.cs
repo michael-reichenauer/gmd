@@ -103,6 +103,10 @@ class ContentView : View
     // Terminal.Gui's focus, so IsFocus alone says whether such a view is focused.
     public bool IsKeysForwarded { get; set; } = false;
 
+    // Keys and mouse buttons do nothing while set, e.g. while the resolver goes on to another file,
+    // when they would act on the file it is leaving
+    public bool IsInputHeld { get; set; } = false;
+
     public int FirstIndex => scroll.FirstIndex;
     public int TotalCount => scroll.TotalCount;
     public int CurrentIndex => scroll.CurrentIndex;
@@ -197,6 +201,8 @@ class ContentView : View
     protected override bool OnKeyDown(Key key)
     {
         // Log.Info($"Key: {key}");
+        if (IsInputHeld)
+            return true;
 
         if (keys.TryGetValue(key, out var callback))
         {
@@ -257,6 +263,8 @@ class ContentView : View
     // The mouse's Position is relative to the viewport, which here is the frame
     protected override bool OnMouseEvent(Mouse ev)
     {
+        if (IsInputHeld)
+            return true;
         var (evX, evY) = ev.Position is Point p ? (p.X, p.Y) : (0, 0);
         //Log.Info($"Mouse: {ev}, {ev.OfX}, {ev.OfY}, {ev.X}, {ev.Y}");
         var sideways = Wheel.Sideways(ev.Flags);

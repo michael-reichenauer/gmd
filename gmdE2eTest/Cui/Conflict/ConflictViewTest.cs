@@ -189,7 +189,7 @@ public class ConflictViewTest
 
         // And saving it writes the ancestor's line back into the file
         gmd.Send("S");
-        gmd.WaitUntilGone("─── Conflict 1");
+        gmd.WaitFor("Conflicts Resolved"); // Asked over the resolver, once the file is saved
 
         var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
         StringAssert.Contains(text, "line 39\nline 40\nline 41", "Both sides' changes are undone");
@@ -323,7 +323,7 @@ public class ConflictViewTest
         gmd.Send("2");
         gmd.WaitFor("all resolved");
         gmd.Send("S");
-        gmd.WaitUntilGone("─── Conflict 1");
+        gmd.WaitFor("Conflicts Resolved"); // Asked over the resolver, once the file is saved
 
         var text = await File.ReadAllTextAsync(Path.Join(repo.Path, "long.txt"));
         Assert.IsFalse(text.Contains("<<<<<<<"), "No markers are left in it");
@@ -590,7 +590,7 @@ public class ConflictViewTest
         gmd.Send("c");
         gmd.WaitFor("all resolved");
         gmd.Send("s");
-        gmd.WaitUntilGone("all resolved");
+        gmd.WaitFor("Conflicts Resolved"); // Asked over the resolver, once the file is saved
 
         Assert.AreEqual(
             """
@@ -696,6 +696,42 @@ public class ConflictViewTest
         gmd.Send("Enter");
         StringAssert.Contains(gmd.WaitFor("Commit 1 change on 'main'"), "Merge branch 'dev'");
         Assert.AreEqual("", (await repo.GitAsync("ls-files -u")).Trim(), "Git has them resolved");
+    }
+
+    // The resolver goes on to the next file in the same view: each file had a view of its own, closed
+    // and another opened, which showed the log between them while git read the next one. So the
+    // common ancestor stays shown, and the line at the bottom says the file saved is resolved, since
+    // the header names the next one now.
+    [TestMethod]
+    public async Task TestTheResolverGoesOnToTheNextFileInTheSameView()
+    {
+        using var repo = await E2eRepo.CreateWithConflictsInTwoFilesAsync();
+        using var gmd = TmuxSession.StartGmd(repo, width: 160);
+        OpenTheResolverFromTheBar(gmd);
+        gmd.WaitFor("─── Conflict 1");
+        gmd.Send("b");
+        gmd.WaitFor("common ancestor");
+
+        gmd.Send("}");
+        var screen = gmd.WaitFor("Shipping.cs   conflict 1 of 1");
+        StringAssert.Contains(screen, "common ancestor", "Still shown");
+        gmd.Send("1");
+        gmd.WaitFor("all resolved");
+
+        // Every screen from the save until the next file is shown is the resolver's
+        List<string> headers = [];
+        gmd.Send("s");
+        screen = gmd.WaitForMoving(
+            s =>
+            {
+                headers.Add(s.Split('\n')[0]);
+                return s.Contains("Pricing.cs   conflict 1 of 2");
+            },
+            "the next file"
+        );
+        Assert.IsTrue(headers.All(h => h.StartsWith("Resolve conflicts: Merge")), string.Join("\n", headers));
+        StringAssert.Contains(screen, "common ancestor", "Still shown");
+        Assert.AreEqual("Shipping.cs is resolved, 1 file left", ScreenText.LastLine(gmd.WaitFor("is resolved")));
     }
 
     // A click on another file in the list while typing is done typing, and what was typed a decision
