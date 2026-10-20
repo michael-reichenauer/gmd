@@ -282,8 +282,9 @@ register a letter with `RegisterLetterHandler`, which takes both cases, as its m
   expressions run on a native library a release embeds and `OnigurumaLibrary` writes out and loads,
   rather than the .NET host's extraction, which can stop gmd from starting. Nothing is colored
   wherever it cannot be loaded, nor in the 16 colors.
-  `DiffContext` holds the `--unified=<n>` levels the `+`/`-` keys step through; `WholeFile` is a
-  context larger than any file, since git has no "all". `DiffSource` is what the view is given
+  `DiffContext` holds the `--unified=<n>` steps of the `+`/`-` keys, 15 lines from 6, and whether
+  a file's hunks are the whole of it, which git does not say; `WholeFile`, which the menu shows, is
+  a context larger than any file, since git has no "all". `DiffSource` is what the view is given
   rather than a commit id: it is opened from six places using five different git commands, and
   assuming an id is why refreshing a stash, a range or a file history diff fetched the wrong thing.
   It holds how to read the diff again (`DiffReload`), and what the view may do with it: step the

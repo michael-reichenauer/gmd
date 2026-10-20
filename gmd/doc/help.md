@@ -683,7 +683,7 @@ are left out of it, that row kept, while they are listed beside the diff
 (below). Each file
 starts with a row naming it, with a line in cyan after it. Where unchanged lines are
 left out between the parts that changed, a dark line with `⋯` where the line
-numbers are says so, and `Enter` on it shows more of them, as `+` does. A changed line has a bar
+numbers are says so, and `+` shows more of them. A changed line has a bar
 beside its number, red for a line removed and green for a line added, and
 where a removed line and the added line beside it are mostly alike, the
 words that differ are marked. The code is in the colors of its language, as
@@ -696,13 +696,15 @@ have none to spare for it. The cursor is the line number drawn reversed.
 A line whose line end alone changed, e.g. from LF to CRLF, has a `␍` on the
 side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
-stepping from the 6 lines of context it starts with to 15, and then to the
-whole file (and `=` does what `+` does, without the shift). It applies to
-that one file, so the rest of the commit stays as it was, and the header of
-a widened file says what it is showing. The line the cursor is on stays
-where it is on the screen, the lines coming and going around it; on the `⋯`,
-the line above it stays, and the lines left out come in below it. The menu has the same two, as
-**More Context** and **Less Context**, naming the file they would act on
+15 lines more or fewer above and below each change, from the 6 lines of
+context it starts with, until the whole file is shown (and `=` does what `+`
+does, without the shift). **Whole File** in the menu shows all of it at once,
+and `-` then goes back to the context it had. It applies to that one file, so
+the rest of the commit stays as it was, and the header of a widened file says
+what it is showing. The line the cursor is on stays where it is on the
+screen, the lines coming and going around it; on the `⋯`, the line above it
+stays, and the lines left out come in below it. The menu has `+` and `-` too,
+as **More Context** and **Less Context**, naming the file they would act on
 and what it would then show.
 
 Rows selected with `Shift-↑↓` and `d` diff the commits of a range on one
