@@ -698,13 +698,13 @@ side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
 15 lines more or fewer above and below each change, from the 6 lines of
 context it starts with, until the whole file is shown (and `=` does what `+`
-does, without the shift). **Whole File** in the menu shows all of it at once,
+does, without the shift). **Show All** in the menu shows all of it at once,
 and `-` then goes back to the context it had. It applies to that one file, so
 the rest of the commit stays as it was, and the header of a widened file says
 what it is showing. The line the cursor is on stays where it is on the
 screen, the lines coming and going around it; on the `⋯`, the line above it
 stays, and the lines left out come in below it. The menu has `+` and `-` too,
-as **More Context** and **Less Context**, naming the file they would act on
+as **Show More Context** and **Show Less Context**, naming the file they would act on
 and what it would then show.
 
 Rows selected with `Shift-↑↓` and `d` diff the commits of a range on one

@@ -402,14 +402,14 @@ class DiffView : IDiffView
                 // Named after the file they act on, since that is the part of these that is not
                 // obvious, and disabled when the cursor is on no file or that file is at an end
                 .Item(
-                    ContextItemText("More Context", 1),
+                    ContextItemText("Show More Context", 1),
                     "+",
                     () => StepContext(1),
                     () => CanStepContext(1),
                     () => WhyNotStepContext(CurrentAnchor(), 1)
                 )
                 .Item(
-                    ContextItemText("Less Context", -1),
+                    ContextItemText("Show Less Context", -1),
                     "-",
                     () => StepContext(-1),
                     () => CanStepContext(-1),
@@ -1190,11 +1190,12 @@ class DiffView : IDiffView
         return $"{name} of {path.Max(40)} ({DiffContext.ToItemText(wanted)})";
     }
 
-    // Names the file the item would show whole, as the context items do
+    // Names the file the item would show whole, as the context items do. The header then says
+    // '(whole file)'.
     string WholeFileItemText()
     {
         var anchor = CurrentAnchor();
-        return WantedWholeFile(anchor) == 0 ? "Whole File" : $"Whole File of {anchor.FilePath.Max(40)}";
+        return WantedWholeFile(anchor) == 0 ? "Show All" : $"Show All of {anchor.FilePath.Max(40)}";
     }
 
     // Re-fetches the whole diff, e.g. after undoing a file or running the merge tool. Every file
