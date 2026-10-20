@@ -201,7 +201,6 @@ public class DiffRowServiceTest
         Assert.AreEqual(
             """
             Test  2025-01-01 00:00:00
-
             2 files changed  2 modified  +1 -1  whitespace hidden
               M a.c    +1 -1
               M b.txt  whitespace only
@@ -422,7 +421,6 @@ public class DiffRowServiceTest
         Assert.AreEqual(
             """
             Test  2025-01-01 00:00:00
-
             1 file changed  1 modified
               M a.txt
 
@@ -480,12 +478,11 @@ public class DiffRowServiceTest
         Assert.AreEqual(
             """
             Test  2025-01-01 00:00:00
-
             2 files changed  2 modified  +2
 
             ▌ M a.txt  +1 ─
             """,
-            string.Join("\n", beside.Split('\n').Take(5))
+            string.Join("\n", beside.Split('\n').Take(4))
         );
         StringAssert.Contains(above, "2 files changed  2 modified  +2\n  M a.txt  +1\n  M b.txt  +1\n");
     }
