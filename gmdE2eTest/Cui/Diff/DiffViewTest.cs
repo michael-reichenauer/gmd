@@ -24,7 +24,6 @@ public class DiffViewTest
             """
             17d85ba8  Add delta ───────────────────────────────────────────────────────────────────────────────────────────────────
             Test User <test@example.com>  2024-10-15 12:06:00
-
             1 file changed  1 added  +1
               A delta.txt  +1
 
@@ -137,7 +136,7 @@ public class DiffViewTest
                 3 line 3                                               │    3 line 3                                               ┃
                 4 line 4                                               │    4 line 4                                               ┃
             """,
-            ScreenText.Rows(gmd.WaitFor("    1 line 1 "), repo.Path, 7, 5),
+            ScreenText.Rows(gmd.WaitFor("    1 line 1 "), repo.Path, 6, 5),
             repo.Path
         );
 
@@ -163,7 +162,7 @@ public class DiffViewTest
 
         void MoveIntoTheLongFile()
         {
-            for (int i = 0; i < 18; i++)
+            for (int i = 0; i < 17; i++)
             {
                 gmd.Send("Down");
                 gmd.WaitForStable();
@@ -182,7 +181,7 @@ public class DiffViewTest
         gmd.WaitFor("Change both files");
         gmd.Send("d");
         gmd.WaitFor("M long.txt");
-        for (int i = 0; i < 14; i++)
+        for (int i = 0; i < 13; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -191,7 +190,7 @@ public class DiffViewTest
         StringAssert.Contains(line, "21 line 21");
 
         gmd.Send("+");
-        gmd.WaitFor("    7 line 7 "); // Above the line, in sight once more context came in above it
+        gmd.WaitFor("    8 line 8 "); // Above the line, in sight once more context came in above it
 
         Assert.AreEqual((row, line), CursorRow(gmd, repo));
     }
@@ -400,12 +399,11 @@ public class DiffViewTest
             """
             Files 2               │ c00a3cc9  Change both files
              M long.txt  +1 -1    │ Test User <test@example.com>  2024-10-15 12:02:00
-             M short.txt  +1 -1   │
-                                    2 files changed  2 modified  +2 -2
+             M short.txt  +1 -1   │ 2 files changed  2 modified  +2 -2
 
                                     ▌ M long.txt  +1 -1
             """,
-            string.Join("\n", screen.Take(6).Select(l => l.TrimEnd('─', ' ')))
+            string.Join("\n", screen.Take(5).Select(l => l.TrimEnd('─', ' ')))
         );
 
         gmd.Send("Tab");
@@ -510,7 +508,7 @@ public class DiffViewTest
                                     ▌ C long.txt  +1
                                           1 conflict: Enter opens the resolver
             """,
-            string.Join("\n", screen.Skip(3).Take(4).Select(l => l.TrimEnd('─', ' ')))
+            string.Join("\n", screen.Skip(2).Take(4).Select(l => l.TrimEnd('─', ' ')))
         );
     }
 
@@ -539,11 +537,11 @@ public class DiffViewTest
                ⋯ ───────────────────────────────────────────────────────── ⋯ ──────────────────────────────────────────────────────
                29 line 29                                              │   29 line 29
             """,
-            ScreenText.Rows(screen, repo.Path, 17, 3)
+            ScreenText.Rows(screen, repo.Path, 16, 3)
         );
         Assert.AreEqual(
             "   D DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD D DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
-            ScreenText.ColorRows(gmd.CaptureColors(), 18, 1)
+            ScreenText.ColorRows(gmd.CaptureColors(), 17, 1)
         );
 
         gmd.Resize(100, 40);
@@ -609,7 +607,7 @@ public class DiffViewTest
 
         gmd.Send("d");
         gmd.WaitFor("M long.txt");
-        for (int i = 0; i < 18; i++)
+        for (int i = 0; i < 17; i++)
         {
             gmd.Send("Down");
             gmd.WaitForStable();
@@ -620,23 +618,23 @@ public class DiffViewTest
             """
             c00a3cc9  Change both files ───────╭ Diff Menu ─────────────────────────────────────╮──────────────────────────────────
             Test User <test@example.com>  2024-│Go to                                        s >│
-                                               │Search ...                                   f  │
-            2 files changed  2 modified  +2 -2 │Next Match                                   n  │
-              M long.txt   +1 -1               │Previous Match                              ⇧n  │
-              M short.txt  +1 -1               │Diff File                                      >│
-                                               │Resolve Conflicts                        Enter >│
-            ▌ M long.txt  +1 -1 ───────────────│Run External Merge Tool                        >│──────────────────────────────────
-               14 line 14                      │Discard Changes                              u >│
-               15 line 15                      │Refresh                                      r  │
-               16 line 16                      │Commit                                       c  │
-               17 line 17                      │Leave Out of Commit                          x  │
-               18 line 18                      │Show More Context of long.txt (21 lines)     +  │
-               19 line 19                      │Show Less Context                            -  │
-            ▌  20 line 20                      │Show All of long.txt                            │
-               21 line 21                      │Hide Whitespace Changes                      w  │
-               22 line 22                      │Show in One Column                           v  │
-               23 line 23                      │Hide the Lines of long.txt                   h  │
-               24 line 24                      │Blame long.txt at Line 25                    b  │
+            2 files changed  2 modified  +2 -2 │Search ...                                   f  │
+              M long.txt   +1 -1               │Next Match                                   n  │
+              M short.txt  +1 -1               │Previous Match                              ⇧n  │
+                                               │Diff File                                      >│
+            ▌ M long.txt  +1 -1 ───────────────│Resolve Conflicts                        Enter >│──────────────────────────────────
+               14 line 14                      │Run External Merge Tool                        >│
+               15 line 15                      │Discard Changes                              u >│
+               16 line 16                      │Refresh                                      r  │
+               17 line 17                      │Commit                                       c  │
+               18 line 18                      │Leave Out of Commit                          x  │
+               19 line 19                      │Show More Context of long.txt (21 lines)     +  │
+            ▌  20 line 20                      │Show Less Context                            -  │
+               21 line 21                      │Show All of long.txt                            │
+               22 line 22                      │Hide Whitespace Changes                      w  │
+               23 line 23                      │Show in One Column                           v  │
+               24 line 24                      │Hide the Lines of long.txt                   h  │
+               25 line 25                      │Blame long.txt at Line 25                    b  │
             """,
             ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path
@@ -775,7 +773,7 @@ public class DiffViewTest
             ▌ M beta.txt  whitespace only ─────────────────────────────────────────────────────────────────────────────────────────
                   Only whitespace changed, which is hidden
             """,
-            ScreenText.Rows(hidden, repo.Path, 3, 10)
+            ScreenText.Rows(hidden, repo.Path, 2, 10)
         );
         Assert.AreEqual("Whitespace changes hidden: w shows them", ScreenText.LastLine(hidden));
 
