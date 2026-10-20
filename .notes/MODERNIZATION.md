@@ -150,7 +150,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   a letter each and explained to someone new. Init, clone and browse start in that folder, and the
   open menu (`o`) lists and numbers the repositories the same way.
 - Blame a file: runs of one commit bracketed in the gutter, age heat, drill-down with `P`.
-- Adjustable diff context per file (`+` / `-`: 6 → 15 → the whole file).
+- Adjustable diff context per file (`+` / `-`: 15 lines at a time from 6; the whole file from the menu).
 - Merge conflict resolution: detection of merge, rebase, cherry-pick, revert and am; abort,
   continue and skip from the repo menu; a two or three pane resolver with the common ancestor
   recovered on demand; hand-edited hunks; file-level choices for delete, add and binary conflicts;

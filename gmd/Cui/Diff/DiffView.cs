@@ -62,6 +62,11 @@ class DiffView : IDiffView
     // The context lines of each file that is not at the default, keyed on path. Only the file the
     // cursor is on is ever stepped, so the others keep whatever they were last shown with.
     readonly Dictionary<string, int> fileContext = [];
+
+    // The context each file was shown at when the whole of it was shown, which '-' goes back to. It is
+    // read only while the file is shown whole and set as it is, so it is left as it is when the
+    // contexts go back to the default.
+    readonly Dictionary<string, int> contextBeforeWholeFile = [];
     readonly IHelpPage helpPage;
     int rowStartX = 0;
     Repo repo = null!;
@@ -231,7 +236,6 @@ class DiffView : IDiffView
                     isOneColumn,
                     listWidth > 0,
                     IsListHidden,
-                    IsOnHunkSeparator,
                     BlameTarget() is BlameAt
                 ),
             () => status.Current
@@ -317,16 +321,15 @@ class DiffView : IDiffView
         view.RegisterKeyHandler((Key)125, () => GoToFile(1)); // '}'
         view.RegisterKeyHandler((Key)123, () => GoToFile(-1)); // '{'
 
-        // 'Open what the cursor is on', which is what Enter means everywhere else in gmd: on the '⋯'
-        // where lines are left out between two hunks, more of them, as + shows
+        // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. On the '⋯'
+        // where lines are left out between two hunks it is nothing: + shows more of them, stepping the
+        // file it is in as anywhere else in it.
         view.RegisterKeyHandler(
             Key.Enter,
             () =>
             {
                 if (isListFocus)
                     ToggleListFocus();
-                else if (IsOnHunkSeparator)
-                    StepContext(1);
                 else
                     ResolveCurrentConflict();
             }
@@ -399,18 +402,25 @@ class DiffView : IDiffView
                 // Named after the file they act on, since that is the part of these that is not
                 // obvious, and disabled when the cursor is on no file or that file is at an end
                 .Item(
-                    ContextItemText("More Context", 1),
+                    ContextItemText("Show More Context", 1),
                     "+",
                     () => StepContext(1),
                     () => CanStepContext(1),
                     () => WhyNotStepContext(CurrentAnchor(), 1)
                 )
                 .Item(
-                    ContextItemText("Less Context", -1),
+                    ContextItemText("Show Less Context", -1),
                     "-",
                     () => StepContext(-1),
                     () => CanStepContext(-1),
                     () => WhyNotStepContext(CurrentAnchor(), -1)
+                )
+                .Item(
+                    WholeFileItemText(),
+                    "",
+                    ShowWholeFile,
+                    () => WantedWholeFile(CurrentAnchor()) != 0,
+                    () => WhyNotStepContext(CurrentAnchor(), 1)
                 )
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
                 .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
@@ -1061,18 +1071,26 @@ class DiffView : IDiffView
     }
 
     // Shows the file the cursor is on with more (step 1) or less (step -1) context around its
-    // changes. Git only has whole-diff options, so the diff is re-fetched at the new context and
-    // just this one file taken from it, leaving the other files at whatever they were shown with.
+    // changes, DiffContext.StepLines more or fewer lines
+    void StepContext(int step) => ShowContext(anchor => WantedContext(anchor, step), step);
+
+    // Shows the whole of the file the cursor is on, which '-' then goes back from
+    void ShowWholeFile() => ShowContext(WantedWholeFile, 1);
+
+    // Shows the file the cursor is on with the context wanted, or says why it is not shown with more
+    // (step 1) or less (step -1). Git only has whole-diff options, so the diff is re-fetched at the
+    // new context and just this one file taken from it, leaving the other files at whatever they were
+    // shown with.
     //
     // The line the cursor is on stays on its row of the view, so the lines come and go around it
     // rather than move it. On the '⋯' between two hunks it is the line above, and the cursor goes
     // on the row below it, where the lines that were left out come in.
-    async void StepContext(int step)
+    async void ShowContext(Func<DiffAnchor, int> wantedOf, int step)
     {
         var below = IsOnHunkSeparator ? 1 : 0;
         var anchor = diffRows.AnchorAt(contentView.CurrentIndex - below);
         var viewRow = contentView.CurrentIndex - contentView.FirstIndex;
-        var wanted = WantedContext(anchor, step);
+        var wanted = wantedOf(anchor);
         if (wanted == 0)
         {
             status.Notice(WhyNotStepContext(anchor, step));
@@ -1088,6 +1106,8 @@ class DiffView : IDiffView
                 return;
             }
 
+            if (wanted == DiffContext.WholeFile)
+                contextBeforeWholeFile[anchor.FilePath] = ContextOf(anchor.FilePath);
             fileContext[anchor.FilePath] = wanted;
             SetDiffs(DiffRowService.ReplaceFileDiff(diffs, anchor.FilePath, fetched), anchor);
             var index = diffRows.IndexOf(anchor);
@@ -1105,7 +1125,7 @@ class DiffView : IDiffView
     // The context the file would then be shown with, or 0 if the step would do nothing: the diff has
     // no context to step, there is no file under the cursor, that file has no lines shown, its changes
     // being whitespace that is hidden, its lines hidden with h, or it being in conflict, which is a
-    // row saying so, or it is already at the widest or the narrowest. Also what the menu asks to know
+    // row saying so, or it is already shown whole or at the narrowest. Also what the menu asks to know
     // whether to offer the item.
     int WantedContext(DiffAnchor anchor, int step)
     {
@@ -1117,11 +1137,19 @@ class DiffView : IDiffView
         if (IsWhitespaceOnly(anchor) || hiddenFiles.Contains(filePath) || IsInConflict(filePath))
             return 0;
 
-        var current = fileContext.GetValueOrDefault(filePath, DiffContext.Default);
-        var wanted = DiffContext.Step(current, step);
+        var current = ContextOf(filePath);
+        if (step > 0 && FileDiffOf(anchor) is FileDiff file && DiffContext.IsWholeFileShown(file, current))
+            return 0;
+        var before = contextBeforeWholeFile.GetValueOrDefault(filePath, DiffContext.Default);
+        var wanted = DiffContext.Step(current, step, before);
 
         return wanted == current ? 0 : wanted;
     }
+
+    // The whole file, or 0 where more context would do nothing, for the reasons + would not
+    int WantedWholeFile(DiffAnchor anchor) => WantedContext(anchor, 1) == 0 ? 0 : DiffContext.WholeFile;
+
+    int ContextOf(string filePath) => fileContext.GetValueOrDefault(filePath, DiffContext.Default);
 
     bool CanStepContext(int step) => WantedContext(CurrentAnchor(), step) != 0;
 
@@ -1134,14 +1162,19 @@ class DiffView : IDiffView
         : IsWhitespaceOnly(anchor) ? "Its changes are whitespace alone, which is hidden: w shows them"
         : hiddenFiles.Contains(anchor.FilePath) ? HiddenText(anchor.FilePath)
         : IsInConflict(anchor.FilePath) ? $"{anchor.FilePath} is in conflict: Enter opens it in the resolver"
+        : step > 0 && FileDiffOf(anchor)?.SectionDiffs.Count == 0 ? $"No lines of {anchor.FilePath} are in the diff"
         : step > 0 ? "The whole file is shown"
         : "The least context is shown";
 
+    // The diff of the file the anchor is in, in the commit it is in
+    FileDiff? FileDiffOf(DiffAnchor anchor) =>
+        diffs
+            .FirstOrDefault(d => anchor.CommitId == "" || d.Id == anchor.CommitId)
+            ?.FileDiffs.FirstOrDefault(f => f.PathAfter == anchor.FilePath);
+
     // Whether the file the anchor is in, in the commit it is in, has whitespace changes alone, which
     // it is listed with no lines for while whitespace is hidden
-    bool IsWhitespaceOnly(DiffAnchor anchor) =>
-        diffs.FirstOrDefault(d => anchor.CommitId == "" || d.Id == anchor.CommitId) is CommitDiff diff
-        && diff.FileDiffs.Any(f => f.PathAfter == anchor.FilePath && f.IsWhitespaceOnly);
+    bool IsWhitespaceOnly(DiffAnchor anchor) => FileDiffOf(anchor)?.IsWhitespaceOnly == true;
 
     // Names the file the item would act on and what it would then show, since 'the file the cursor
     // is on' is the part of these two commands that the name alone does not give away. Falls back
@@ -1155,6 +1188,14 @@ class DiffView : IDiffView
             return name;
 
         return $"{name} of {path.Max(40)} ({DiffContext.ToItemText(wanted)})";
+    }
+
+    // Names the file the item would show whole, as the context items do. The header then says
+    // '(whole file)'.
+    string WholeFileItemText()
+    {
+        var anchor = CurrentAnchor();
+        return WantedWholeFile(anchor) == 0 ? "Show All" : $"Show All of {anchor.FilePath.Max(40)}";
     }
 
     // Re-fetches the whole diff, e.g. after undoing a file or running the merge tool. Every file

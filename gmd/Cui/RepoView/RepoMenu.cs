@@ -145,7 +145,7 @@ class RepoMenu : IRepoMenu
 
         // Omitted rather than disabled: neither can ever apply to the operation in progress, so a
         // permanently greyed 'Continue Merge' would only suggest that continuing a merge is a thing
-        // gmd might one day do. Contrast the diff view's More/Less Context, which are disabled
+        // gmd might one day do. Contrast the diff view's Show More/Less Context, which are disabled
         // because they are meaningful in general and merely have nowhere to go just now.
         //
         // Continue is offered for whatever a commit does not finish, which is not the same as "not

@@ -99,12 +99,11 @@ public class DiffViewTest
         StringAssert.Contains(gmd.WaitUntilGone("Blame  alpha.txt"), "Change four", "Back in the diff");
     }
 
-    // '+' shows more of the file around its changes and '-' shows less, stepping 6 → 15 → the whole
-    // file. It is per file: the file the cursor is on is the one that changes. What is asserted is
-    // the file header and the first lines under it, which is where both halves show — the header
-    // names the context it is at, and the first line says how far up the file it now starts. The
-    // line the cursor is on stays where it is, see TestMoreContextKeepsTheCursorsLineInPlace, so
-    // the whole file is looked at from its top, Home.
+    // '+' shows more of the file around its changes and '-' shows less, 15 lines at a time from 6. It
+    // is per file: the file the cursor is on is the one that changes. What is asserted is the file header and the first lines under it, which
+    // is where both halves show — the header names the context it is at, and the first line says how
+    // far up the file it now starts. The line the cursor is on stays where it is, see
+    // TestMoreContextKeepsTheCursorsLineInPlace, so the whole file is looked at from its top, Home.
     //
     // The cursor has to be inside a file for the keys to mean anything, hence the Down presses;
     // each one is its own Send, since a key sent into a screen that has not settled is dropped.
@@ -126,23 +125,19 @@ public class DiffViewTest
         StringAssert.Contains(atDefault, "M long.txt");
         Assert.IsFalse(atDefault.Contains("(context"), "No context is named while it is the default");
 
+        // 21 lines either side of line 20, which are all 40 of them
         gmd.Send("+");
-        var at15 = ScreenText.Of(gmd.WaitFor("(context 15)"), repo.Path);
-        StringAssert.Contains(at15, "\n▌ M long.txt  +1 -1  (context 15) ───");
-        StringAssert.Contains(at15, "\n    5 line 5 ", "Drawn from line 5");
-
-        gmd.Send("+");
-        gmd.WaitForLog("--unified=100000");
+        gmd.WaitFor("(context 21)");
         gmd.Send("Home");
         ScreenText.AssertEqual(
             """
-            ▌ M long.txt  +1 -1  (whole file) ─────────────────────────────────────────────────────────────────────────────────────┃
+            ▌ M long.txt  +1 -1  (context 21) ─────────────────────────────────────────────────────────────────────────────────────┃
                 1 line 1                                               │    1 line 1                                               ┃
                 2 line 2                                               │    2 line 2                                               ┃
                 3 line 3                                               │    3 line 3                                               ┃
                 4 line 4                                               │    4 line 4                                               ┃
             """,
-            ScreenText.Rows(gmd.WaitFor("(whole file)"), repo.Path, 7, 5),
+            ScreenText.Rows(gmd.WaitFor("    1 line 1 "), repo.Path, 7, 5),
             repo.Path
         );
 
@@ -159,14 +154,12 @@ public class DiffViewTest
         Assert.IsFalse(unchanged.Contains("short.txt  +1 -1  ("), "Nothing to narrow");
         StringAssert.Contains(unchanged, "  40 line 40", "And the long file is still drawn to its end");
 
-        // Back onto the long file and all the way down again, which is where it started
+        // Back onto the long file and down again, which is where it started
         gmd.Send("Home");
         gmd.WaitForStable();
         MoveIntoTheLongFile();
         gmd.Send("-");
-        gmd.WaitFor("(context 15)");
-        gmd.Send("-");
-        ScreenText.AssertEqual(atDefault, gmd.WaitUntilGone("(context 15)"), repo.Path);
+        ScreenText.AssertEqual(atDefault, gmd.WaitUntilGone("(context 21)"), repo.Path);
 
         void MoveIntoTheLongFile()
         {
@@ -203,11 +196,12 @@ public class DiffViewTest
         Assert.AreEqual((row, line), CursorRow(gmd, repo));
     }
 
-    // Enter on the '⋯' where lines are left out between two hunks shows more context, as + does. The
-    // line above it stays where it was, and the lines that were left out come in below it, where the
-    // cursor is: here all of them, so the two hunks are one.
+    // + on the '⋯' where lines are left out between two hunks shows more of them. The line above it
+    // stays where it was, and the lines that were left out come in below it, where the cursor is:
+    // here all of them, so the two hunks are one, and the whole file, which + then says rather than
+    // reading the diff again. Enter there does nothing, as on any other line.
     [TestMethod]
-    public async Task TestEnterOnTheMarkOfLinesLeftOutShowsMore()
+    public async Task TestMoreContextOnTheMarkOfLinesLeftOut()
     {
         using var repo = await TempRepo.CreateAsync();
         var lines = Enumerable.Range(1, 40).Select(i => $"line {i}").ToList();
@@ -224,13 +218,16 @@ public class DiffViewTest
         gmd.Click(1, y);
         gmd.WaitUntil(() => CursorRow(gmd, repo).Row == y, "the cursor on the '⋯'");
 
-        gmd.Send("Enter");
+        gmd.Send("+");
 
-        var rows = ScreenText.Of(gmd.WaitFor("(context 15)"), repo.Path).Split('\n');
+        var rows = ScreenText.Of(gmd.WaitFor("(context 21)"), repo.Path).Split('\n');
         Assert.IsFalse(rows.Any(r => r.Contains("⋯ ─")), "The hunks are one");
         StringAssert.StartsWith(rows[y - 1], "   11 line 11 ", "The line above the '⋯' where it was");
         Assert.AreEqual(y, CursorRow(gmd, repo).Row, "The cursor where the '⋯' was");
         StringAssert.StartsWith(rows[y], "   12 line 12 ", "On the first line that was left out");
+
+        gmd.Send("+");
+        Assert.AreEqual("The whole file is shown", ScreenText.LastLine(gmd.WaitFor("The whole file is shown")));
     }
 
     // The row the cursor is on, and the text of its left side. It is drawn on a line's number, black
@@ -262,15 +259,13 @@ public class DiffViewTest
 
         // The whole of long.txt, so that its header can scroll out of sight
         gmd.Send("+");
-        gmd.WaitFor("(context 15)");
-        gmd.Send("+");
-        gmd.WaitFor("(whole file)");
+        gmd.WaitFor("(context 21)");
         gmd.Send("]");
         Assert.AreEqual("Change 1 of 2", ScreenText.LastLine(gmd.WaitFor("Change 1 of 2")));
         gmd.Send("PageDown");
         StringAssert.StartsWith(
             ScreenText.Of(gmd.WaitFor("› M long.txt"), repo.Path),
-            "c00a3cc9  Change both files › M long.txt  +1 -1  (whole file) ───"
+            "c00a3cc9  Change both files › M long.txt  +1 -1  (context 21) ───"
         );
 
         // The page down took the cursor to the last row, below the last file's header and change
@@ -623,35 +618,35 @@ public class DiffViewTest
         gmd.Send("m");
         ScreenText.AssertEqual(
             """
-            c00a3cc9  Change both files ──────────╭ Diff Menu ────────────────────────────────╮────────────────────────────────────
-            Test User <test@example.com>  2024-10-│Go to                                   s >│
-                                                  │Search ...                              f  │
-            2 files changed  2 modified  +2 -2    │Next Match                              n  │
-              M long.txt   +1 -1                  │Previous Match                         ⇧n  │
-              M short.txt  +1 -1                  │Diff File                                 >│
-                                                  │Resolve Conflicts                   Enter >│
-            ▌ M long.txt  +1 -1 ──────────────────│Run External Merge Tool                   >│────────────────────────────────────
-               14 line 14                         │Discard Changes                         u >│
-               15 line 15                         │Refresh                                 r  │
-               16 line 16                         │Commit                                  c  │
-               17 line 17                         │Leave Out of Commit                     x  │
-               18 line 18                         │More Context of long.txt (15 lines)     +  │
-               19 line 19                         │Less Context                            -  │
-            ▌  20 line 20                         │Hide Whitespace Changes                 w  │
-               21 line 21                         │Show in One Column                      v  │
-               22 line 22                         │Hide the Lines of long.txt              h  │
-               23 line 23                         │Blame long.txt at Line 25               b  │
-               24 line 24                         │Focus Left Column                       ←  │
+            c00a3cc9  Change both files ───────╭ Diff Menu ─────────────────────────────────────╮──────────────────────────────────
+            Test User <test@example.com>  2024-│Go to                                        s >│
+                                               │Search ...                                   f  │
+            2 files changed  2 modified  +2 -2 │Next Match                                   n  │
+              M long.txt   +1 -1               │Previous Match                              ⇧n  │
+              M short.txt  +1 -1               │Diff File                                      >│
+                                               │Resolve Conflicts                        Enter >│
+            ▌ M long.txt  +1 -1 ───────────────│Run External Merge Tool                        >│──────────────────────────────────
+               14 line 14                      │Discard Changes                              u >│
+               15 line 15                      │Refresh                                      r  │
+               16 line 16                      │Commit                                       c  │
+               17 line 17                      │Leave Out of Commit                          x  │
+               18 line 18                      │Show More Context of long.txt (21 lines)     +  │
+               19 line 19                      │Show Less Context                            -  │
+            ▌  20 line 20                      │Show All of long.txt                            │
+               21 line 21                      │Hide Whitespace Changes                      w  │
+               22 line 22                      │Show in One Column                           v  │
+               23 line 23                      │Hide the Lines of long.txt                   h  │
+               24 line 24                      │Blame long.txt at Line 25                    b  │
             """,
             ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path
         );
 
-        // 'Less Context' is dark, i.e. disabled, while 'More Context' is white — the file is at the
+        // 'Show Less Context' is dark, i.e. disabled, while 'Show More Context' is white — the file is at the
         // default, so there is nothing narrower to ask for
         var colors = ScreenText.ColorRows(gmd.CaptureColors(), 12, 2).Split('\n');
-        StringAssert.Contains(colors[0], "mWWWW WWWWWWW", "'More Context' and its shortcut are enabled");
-        StringAssert.Contains(colors[1], "mDDDD DDDDDDD", "'Less Context' is dark, i.e. disabled");
+        StringAssert.Contains(colors[0], "mWWWW WWWW WWWWWWW", "'Show More Context' and its shortcut are enabled");
+        StringAssert.Contains(colors[1], "mDDDD DDDD DDDDDDD", "'Show Less Context' is dark, i.e. disabled");
 
         // Three moves down from 'Go to', past 'Search ...' and 'Refresh', since the disabled
         // items in between are skipped, 'Leave Out of Commit' too, which only the uncommitted diff has
@@ -663,9 +658,47 @@ public class DiffViewTest
         gmd.Send("Enter");
 
         StringAssert.Contains(
-            ScreenText.Of(gmd.WaitFor("(context 15)"), repo.Path),
-            "▌ M long.txt  +1 -1  (context 15)",
-            "The menu item does what the '+' key does"
+            ScreenText.Of(gmd.WaitFor("(context 21)"), repo.Path),
+            "M long.txt  +1 -1  (context 21)",
+            "The menu item does what the '+' key does, the header scrolled up to the top row"
+        );
+    }
+
+    // The whole file is shown from the menu, rather than stepped to, and '-' goes back from it to the
+    // context it was shown at before. In a file of 100 lines changed in the middle, so that 21 lines
+    // around the change are not all of it.
+    [TestMethod]
+    public async Task TestTheWholeFileFromTheMenuAndBack()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        var lines = Enumerable.Range(1, 100).Select(i => $"line {i}").ToList();
+        await repo.CommitFileAtAsync("long.txt", string.Join("\n", lines) + "\n", "Add long file", TempRepo.BaseTime);
+        lines[49] = "line 50 changed";
+        var text = string.Join("\n", lines) + "\n";
+        await repo.CommitFileAtAsync("long.txt", text, "One change", TempRepo.BaseTime.AddMinutes(1));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("One change");
+        gmd.Send("d");
+        var screen = ScreenText.Of(gmd.WaitFor("line 50 changed"), repo.Path);
+        var (_, y) = TmuxSession.PositionOf(screen, "line 50 changed");
+        gmd.Click(1, y);
+        gmd.WaitUntil(() => CursorRow(gmd, repo).Row == y, "the cursor on the change");
+        gmd.Send("+");
+        gmd.WaitFor("(context 21)");
+
+        gmd.Send("m");
+        gmd.WaitFor("Show All of long.txt");
+        gmd.SelectMenuItem("Show All of long.txt");
+        gmd.Send("Enter");
+        gmd.WaitFor("(whole file)");
+        gmd.Send("+");
+        Assert.AreEqual("The whole file is shown", ScreenText.LastLine(gmd.WaitFor("The whole file is shown")));
+
+        gmd.Send("-");
+        StringAssert.Contains(
+            ScreenText.Of(gmd.WaitFor("(context 21)"), repo.Path),
+            "M long.txt  +1 -1  (context 21) ─",
+            "Back to the context it was shown at, the header in the top row"
         );
     }
 
