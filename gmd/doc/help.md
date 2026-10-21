@@ -181,6 +181,7 @@ repository.
 
 - **Start a branch:** `b` on the branch or the commit to start from.
   *Checkout* switches to the new branch, and *Publish* pushes it to origin.
+  Unticked, the branch stays here until **Publish** in its branch menu.
 - **Commit:** `c`, type the message, then `Alt-O` or OK. The dialog lists
   the changed files, new ones too, all ticked: `Tab` into the list and
   `Space` unticks the file under the cursor, which is then left as it is,
@@ -190,7 +191,8 @@ repository.
   selected with `Shift-↑↓`, out of the commit, and `x` again puts them
   back. The commit then leaves them in the working tree, uncommitted.
 - **Push and pull:** `p` and `u` for the branch you are on, or for the
-  highlighted one; `Shift-P` and `Shift-U` for every shown branch.
+  highlighted one; `Shift-P` and `Shift-U` for every shown branch. A
+  branch not on origin yet is published by **Publish** in its branch menu.
 - **Open a pull request:** `m` on the branch, then **Create Pull Request in
   Browser**, which proposes it into the branch it was made from.
 - **Bring main into your branch:** highlight main and press `e`, then
@@ -358,10 +360,15 @@ first. Switching to a branch where git would overwrite them offers to stash
 them, switch, and put them back. `Shift-P` and `Shift-U` push or update all
 shown branches.
 
+A branch not on origin yet, its *Publish* box unticked when it was made, is
+not pushed by `p`, since that would make it on origin, for everyone: its
+branch menu has **Publish** in place of **Push**, with no key, and `p` says
+so. `Shift-P` leaves it out too.
+
 A branch deleted on origin, e.g. by GitHub once its pull request was
 merged, and then by a fetch here, is said to be in the details pane,
-`(deleted on origin)`, and `p` says so rather than pushing it: **Push** in
-its branch menu makes it again on origin, after asking.
+`(deleted on origin)`, and `p` says so rather than pushing it: **Publish**
+in its branch menu makes it again on origin, after asking.
 
 Merged by a squash or a rebase first, as GitHub's squash merge and rebase
 merge do, the branch is not merged as git counts it, since what went into
@@ -683,7 +690,7 @@ are left out of it, that row kept, while they are listed beside the diff
 (below). Each file
 starts with a row naming it, with a line in cyan after it. Where unchanged lines are
 left out between the parts that changed, a dark line with `⋯` where the line
-numbers are says so, and `Enter` on it shows more of them, as `+` does. A changed line has a bar
+numbers are says so, and `+` shows more of them. A changed line has a bar
 beside its number, red for a line removed and green for a line added, and
 where a removed line and the added line beside it are mostly alike, the
 words that differ are marked. The code is in the colors of its language, as
@@ -696,13 +703,15 @@ have none to spare for it. The cursor is the line number drawn reversed.
 A line whose line end alone changed, e.g. from LF to CRLF, has a `␍` on the
 side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
-stepping from the 6 lines of context it starts with to 15, and then to the
-whole file (and `=` does what `+` does, without the shift). It applies to
-that one file, so the rest of the commit stays as it was, and the header of
-a widened file says what it is showing. The line the cursor is on stays
-where it is on the screen, the lines coming and going around it; on the `⋯`,
-the line above it stays, and the lines left out come in below it. The menu has the same two, as
-**More Context** and **Less Context**, naming the file they would act on
+15 lines more or fewer above and below each change, from the 6 lines of
+context it starts with, until the whole file is shown (and `=` does what `+`
+does, without the shift). **Show All** in the menu shows all of it at once,
+and `-` then goes back to the context it had. It applies to that one file, so
+the rest of the commit stays as it was, and the header of a widened file says
+what it is showing. The line the cursor is on stays where it is on the
+screen, the lines coming and going around it; on the `⋯`, the line above it
+stays, and the lines left out come in below it. The menu has `+` and `-` too,
+as **Show More Context** and **Show Less Context**, naming the file they would act on
 and what it would then show.
 
 Rows selected with `Shift-↑↓` and `d` diff the commits of a range on one

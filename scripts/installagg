@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Installs agg (https://github.com/asciinema/agg) and the fonts that scripts/demo renders the
+# README's animation and pictures with: JetBrains Mono, and DejaVu Sans Mono for the symbols
+# JetBrains Mono lacks. Pinned, since a new version could render the same recording differently.
+# Skips what is installed already, so a re-run downloads nothing.
+#
+# Usage: scripts/installagg <bin folder> <font folder>
+#
+# scripts/installtools installs into ~/.local/bin and ~/.local/share/fonts, scripts/cloud-setup into
+# /usr/local/bin and /usr/local/share/fonts; agg finds the fonts in either.
+set -euo pipefail
+
+AGG_VERSION="1.9.0"
+JETBRAINS_MONO_VERSION="2.304"
+DEJAVU_VERSION="2.37"
+
+if [[ $# -ne 2 ]]; then
+  echo "Usage: scripts/installagg <bin folder> <font folder>" >&2
+  exit 1
+fi
+bin="$1"
+fonts="$2"
+
+isFonts=1
+for font in JetBrainsMono-Regular.ttf JetBrainsMono-Bold.ttf DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf; do
+  [[ -f "$fonts/$font" ]] || isFonts=0
+done
+if [[ "$("$bin/agg" --version 2>/dev/null)" == "agg $AGG_VERSION" && "$isFonts" == "1" ]]; then
+  echo "agg $AGG_VERSION and its fonts are installed"
+  exit 0
+fi
+
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo "This installs agg's Linux binaries; on macOS install agg with 'brew install agg'" >&2
+  exit 1
+fi
+case "$(uname -m)" in
+  arm64|aarch64) asset="agg-aarch64-unknown-linux-gnu" ;;
+  *) asset="agg-x86_64-unknown-linux-gnu" ;;
+esac
+
+# Downloaded into a folder of its own, and into place only once all of it is there
+downloads="$(mktemp -d)"
+trap 'rm -rf "$downloads"' EXIT
+curl -fsSL -o "$downloads/agg" "https://github.com/asciinema/agg/releases/download/v$AGG_VERSION/$asset"
+curl -fsSL -o "$downloads/jetbrains.zip" \
+  "https://github.com/JetBrains/JetBrainsMono/releases/download/v$JETBRAINS_MONO_VERSION/JetBrainsMono-$JETBRAINS_MONO_VERSION.zip"
+curl -fsSL -o "$downloads/dejavu.zip" \
+  "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_${DEJAVU_VERSION//./_}/dejavu-fonts-ttf-$DEJAVU_VERSION.zip"
+
+mkdir -p "$bin" "$fonts"
+unzip -q -o -j "$downloads/jetbrains.zip" "fonts/ttf/JetBrainsMono-Regular.ttf" "fonts/ttf/JetBrainsMono-Bold.ttf" -d "$fonts"
+unzip -q -o -j "$downloads/dejavu.zip" "dejavu-fonts-ttf-$DEJAVU_VERSION/ttf/DejaVuSansMono.ttf" \
+  "dejavu-fonts-ttf-$DEJAVU_VERSION/ttf/DejaVuSansMono-Bold.ttf" -d "$fonts"
+install -m 755 "$downloads/agg" "$bin/agg"
+"$bin/agg" --version

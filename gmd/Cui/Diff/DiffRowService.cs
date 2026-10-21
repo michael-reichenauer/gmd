@@ -245,7 +245,9 @@ class DiffRowService : IDiffRowService
     // The commit: its id and subject, and who made it when, each field left out that the diff has none
     // of, e.g. the id of the uncommitted changes. The id and subject are the view's top row, where they
     // stay in sight as the diff is scrolled (TitleOf), so they are a row only in a file history, of
-    // many commits, where a rule goes above each, which is what tells one commit from the next.
+    // many commits, where a rule goes above each, which is what tells one commit from the next. The
+    // row counting the files follows with no blank row between, as part of what is said about the
+    // commit, and the blank row above the first file's header is what sets the files apart.
     static void AddCommitSummery(CommitDiff commitDiff, DiffRows rows, bool isHistory)
     {
         var title = TitleOf(commitDiff);
@@ -264,9 +266,6 @@ class DiffRowService : IDiffRowService
             by.Add(commitDiff.Time.Iso());
         if (by.Count > 0)
             rows.Add(Text.Dark(string.Join("  ", by)));
-
-        if ((isHistory && title.Length > 0) || by.Count > 0)
-            rows.Add(Text.Empty);
     }
 
     // A commit's id and subject, e.g. 'f44b73c6  VAT rate from config', or only one of them

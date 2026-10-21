@@ -74,6 +74,15 @@ Discard, Cancel the default; with no uncommitted changes it asks to delete just 
 the ignored files alone (`git clean -n -X -d`), what nothing brings back, where the old question
 listed the untracked files too, which Restore Discarded Changes does.
 
+**Publish (2026-10-21).** A branch not on origin, its *Publish* box unticked when it was made, had
+*Push `p`* in its branch menu, which published it, while `p` on the current branch said to use the
+menu, and `p` on another branch highlighted published it with no word. Making a branch on origin, for
+everyone, is not what a key pressed to send commits should do, so `p` never publishes now, and says
+where to: the branch menu has **Publish**, with no key, in place of Push, for a branch deleted on
+origin too (which asks first, *Publish Again*), and the ▲ menu's greyed Push Current Branch says so
+rather than "Nothing to push". On the way, Push in the menu of a synced branch given by its local name
+was enabled, a push of nothing.
+
 Open: **Remove Tag** beside Delete Branch, which git calls a delete for both, was left: Remove is the
 word of the whole tag feature (the Tags dialog's button, its question and its status message).
 **Merge Commit into main** and **Cherry Pick into main** are enabled on a pushed commit of main

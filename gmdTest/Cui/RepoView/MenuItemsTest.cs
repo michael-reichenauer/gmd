@@ -26,7 +26,7 @@ public class MenuItemsTest
             Merge main into dev  [⇧e]
             Rebase onto >  (disabled)
             Pull  [u]  (disabled)
-            Push  [p]
+            Publish
             ---
             Create Branch ...  [b]
             Create Worktree ...
@@ -155,7 +155,7 @@ public class MenuItemsTest
             Merge main into >  [⇧e]  (disabled)
             Rebase onto >  (disabled)
             Pull  [u]  (disabled)
-            Push  [p]
+            Push  [p]  (disabled)
             ---
             Create Branch ...  [b]
             Create Worktree ...
@@ -198,7 +198,7 @@ public class MenuItemsTest
             Merge main into dev  [⇧e]  (disabled)
             Rebase onto >  (disabled)
             Pull  [u]  (disabled)
-            Push  [p]
+            Publish
             ---
             Create Branch ...  [b]
             Create Worktree ...
@@ -261,7 +261,7 @@ public class MenuItemsTest
         var menu = BranchMenuOf(await ViewOf(Fixture()));
 
         Assert.AreEqual(12, EnabledCount(menu.GetBranchMenuItems("dev")));
-        Assert.AreEqual(5, EnabledCount(menu.GetBranchMenuItems("main")));
+        Assert.AreEqual(4, EnabledCount(menu.GetBranchMenuItems("main")));
     }
 
     [TestMethod]
@@ -663,8 +663,6 @@ public class MenuItemsTest
             E Merge main into dev
             u Pull  (says why)
             U Pull  (says why)
-            p Push
-            P Push
             b Create Branch ...
             B Create Branch ...
             d Diff Branch to
@@ -710,6 +708,22 @@ public class MenuItemsTest
         Assert.AreEqual(
             "The remote has commits to pull first (u), or 'p' asks to force the push",
             WhyNot(items, "Push Current Branch")
+        );
+    }
+
+    // A branch not on origin yet, here the current one, has Publish in place of Push, with no key,
+    // which 'p' points at; the ▲ menu says so too, where it said there was nothing to push
+    [TestMethod]
+    public async Task TestABranchNotOnOriginIsPublishedFromItsMenuWithNoKey()
+    {
+        var view = await ViewOf(BranchedFixture());
+        var items = BranchMenuOf(view).GetBranchMenuItems("dev").ToList();
+
+        StringAssert.Contains(Items(items), "Pull  [u]  (disabled)\nPublish\n---");
+        Assert.IsFalse(MenuShortcuts.Of(items).Values.Any(i => items[i].Text == "Publish"));
+        Assert.AreEqual(
+            "'dev' is not on origin yet: Publish in its branch menu publishes it",
+            WhyNot(BranchMenuOf(view).GetPushItems().ToList(), "Push Current Branch")
         );
     }
 

@@ -725,7 +725,7 @@ public class LogViewTest
                      │Merge Commit into main                 │                               │Merge main into dev            ⇧e  │
                      │Cherry Pick into main                  │                               │Rebase onto                       >│
                      │Set Commit Branch Manually ...         │                               │Pull                            u  │
-                     │───────────────────────────────────────│                               │Push                            p  │
+                     │───────────────────────────────────────│                               │Publish                            │
                      │Undo                                  >│                               │───────────────────────────────────│
                      │Stash                                 >│                               │Create Branch ...               b  │
                      │Tag                                   >│                               │Create Worktree ...                │

@@ -18,7 +18,7 @@
 #   FONT_DIR   a folder with the fonts, when they are not installed
 #
 # agg and the fonts, JetBrains Mono and DejaVu Sans Mono (for the symbols JetBrains Mono lacks),
-# are installed by scripts/installtools.
+# are installed by scripts/installagg, which scripts/installtools and scripts/cloud-setup run.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,7 +26,7 @@ out="${1:-gmd/doc/Animation.gif}"
 agg="${AGG:-agg}"
 
 if ! command -v "$agg" >/dev/null; then
-  echo "agg is not installed, run scripts/installtools (or set AGG)"
+  echo "agg is not installed, run scripts/installagg (or set AGG)"
   exit 1
 fi
 

@@ -150,7 +150,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   a letter each and explained to someone new. Init, clone and browse start in that folder, and the
   open menu (`o`) lists and numbers the repositories the same way.
 - Blame a file: runs of one commit bracketed in the gutter, age heat, drill-down with `P`.
-- Adjustable diff context per file (`+` / `-`: 6 → 15 → the whole file).
+- Adjustable diff context per file (`+` / `-`: 15 lines at a time from 6; the whole file from the menu).
 - Merge conflict resolution: detection of merge, rebase, cherry-pick, revert and am; abort,
   continue and skip from the repo menu; a two or three pane resolver with the common ancestor
   recovered on demand; hand-edited hunks; file-level choices for delete, add and binary conflicts;
@@ -1068,8 +1068,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
   Merged into dev on 2026-10-17 for pre-releases, tried by the user on Linux, Windows and macOS. The
   setting `Colors` is in the Config dialog, and help.md and the README describe the colors; the demo
-  and the README's pictures were re-recorded on 2.5 on 2026-10-18. Left: real terminals
-  beyond those (iTerm2, Terminal.app, Ghostty), and the upstream issues (a reminder on 2026-10-24).
+  and the README's pictures were re-recorded on 2.5 on 2026-10-18. Released from main in 1.13.
+  Left: real terminals beyond those (iTerm2, Terminal.app, Ghostty), and the upstream issues to
+  file (a reminder on 2026-10-24): idle CPU polling, no 256-color output, the timers lock held
+  across callbacks, GettingScheme skipped for a view with no scheme, a main loop that posted work
+  cannot wake, and a modal runnable that records Focused rather than MostFocused, so a paste went
+  to the inside of a dialog.
 
   **Syntax colors in the diff (2026-10-18)**, branch `mr/syntax-colors`. TextMateSharp is called
   directly, not through 2.x's `TextMateSyntaxHighlighter`, whose single state and theme colors fit a

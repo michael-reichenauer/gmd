@@ -150,6 +150,8 @@ class BranchMenu : IBranchMenu
         var current = repo.Repo.CurrentBranch();
         if (repo.Repo.Status.IsMerging)
             return Why.InProgress;
+        if (BranchPushPullCommands.IsUnpublished(current))
+            return BranchPushPullCommands.WhyNoPushUnpublished(repo.Repo, current);
         if (current.RemoteName != "" && repo.Repo.BranchByName[current.RemoteName].HasRemoteOnly)
             return "The remote has commits to pull first (u), or 'p' asks to force the push";
         return $"Nothing to push on '{current.NiceNameUnique}'";
@@ -185,6 +187,7 @@ class BranchMenu : IBranchMenu
         var currentName = cb.ShortNiceUniqueName();
         var step = BranchUndo.StepOf(repo.Repo, b);
         var rewrite = ForcePushes.RewriteOf(repo.Repo, b);
+        var isUnpublished = BranchPushPullCommands.IsUnpublished(b);
 
         // Grouped by what the items do: move the branch's commits, make and remove branches, look
         // at it, and how it is shown, each group under a line of its own
@@ -243,19 +246,30 @@ class BranchMenu : IBranchMenu
                 () => BranchPushPullCommands.WhyNoPullBranch(repo.Repo, b)
             )
             // The current branch on origin as 'p' pushes it, which asks whether to push it with force
-            // once it has diverged; one not on origin yet is published, which 'p' points here for
+            // once it has diverged
             .Item(
+                !isUnpublished,
                 "Push",
                 "p",
                 () =>
                 {
-                    if (isCurrent && cb.RemoteName != "")
+                    if (isCurrent)
                         commands.PushPullCmds.PushCurrentBranch();
                     else
                         commands.PushPullCmds.PushBranch(branchName);
                 },
                 () => BranchPushPullCommands.CanPushBranch(repo.Repo, b),
                 () => BranchPushPullCommands.WhyNoPushBranch(repo.Repo, b)
+            )
+            // One not on origin yet is published, with no key, which 'p' points here for, see
+            // BranchPushPullCommands.IsUnpublished
+            .Item(
+                isUnpublished,
+                "Publish",
+                "",
+                () => commands.PushPullCmds.PushBranch(branchName),
+                () => BranchPushPullCommands.CanPublishBranch(repo.Repo, b),
+                () => BranchPushPullCommands.WhyNoPublishBranch(repo.Repo, b)
             )
             // Only for a branch whose remote branch a force push rewrote, see ForcePushes
             .Item(

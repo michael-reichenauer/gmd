@@ -341,3 +341,5 @@ ASALocalRun/
 # Keep installer
 !gmdSetup.exe
 .claude/worktrees/
+# Claude Code's own per-machine settings, unlike .claude/settings.json and .claude/rules/
+.claude/settings.local.json
