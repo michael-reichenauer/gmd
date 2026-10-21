@@ -132,6 +132,24 @@ public class DiffRowsTest
         Assert.AreEqual(c2File, rows.FileHeaderOf(c2File + 1), "In c2's file");
     }
 
+    // Where a diff opens, on the commit's header and summary, the commands on a file (+, -, h) act on
+    // its first file, as in a file history on each commit's own, not on the commit's above it
+    [TestMethod]
+    public void TestTheFileOfTheRowsAboveTheFilesIsTheFirstFile()
+    {
+        var rows = TwoFiles();
+        Assert.AreEqual("", rows.AnchorAt(0).FilePath, "The commit's title is in no file");
+        Assert.IsTrue(rows.IsAboveFiles(0));
+        Assert.AreEqual(rows.AnchorAt(Header(rows, "a.txt")), rows.FileAnchorAt(0));
+        Assert.AreEqual("b.txt", rows.FileAnchorAt(Row(rows, "new")).FilePath, "In a file, its own");
+        Assert.IsFalse(rows.IsAboveFiles(Row(rows, "new")));
+
+        var history = FileHistory();
+        var c2 = history.Rows.FindIndexBy(r => r.CommitId == Id("c2"));
+        var c2File = c2 + history.Rows.Skip(c2).FindIndexBy(r => r.FilePath != "");
+        Assert.AreEqual(history.AnchorAt(c2File), history.FileAnchorAt(c2), "c2's file, not c1's above it");
+    }
+
     // a.txt with two changes and a conflict, the second change in two rows, and b.txt, a new file
     static DiffRows TwoFiles()
     {

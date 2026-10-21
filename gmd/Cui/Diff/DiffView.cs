@@ -406,25 +406,25 @@ class DiffView : IDiffView
                     "+",
                     () => StepContext(1),
                     () => CanStepContext(1),
-                    () => WhyNotStepContext(CurrentAnchor(), 1)
+                    () => WhyNotStepContext(FileAnchor(), 1)
                 )
                 .Item(
                     ContextItemText("Show Less Context", -1),
                     "-",
                     () => StepContext(-1),
                     () => CanStepContext(-1),
-                    () => WhyNotStepContext(CurrentAnchor(), -1)
+                    () => WhyNotStepContext(FileAnchor(), -1)
                 )
                 .Item(
                     WholeFileItemText(),
                     "",
                     ShowWholeFile,
-                    () => WantedWholeFile(CurrentAnchor()) != 0,
-                    () => WhyNotStepContext(CurrentAnchor(), 1)
+                    () => WantedWholeFile(FileAnchor()) != 0,
+                    () => WhyNotStepContext(FileAnchor(), 1)
                 )
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
                 .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
-                .Item(HiddenItemText(), "h", ToggleHidden, () => CurrentAnchor().FilePath != "", () => NoFile)
+                .Item(HiddenItemText(), "h", ToggleHidden, () => FileAnchor().FilePath != "", () => NoFile)
                 .Item(BlameItemText(), "b", BlameLine, () => BlameTarget() is BlameAt, WhyNotBlame)
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected && !isOneColumn)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected && !isOneColumn)
@@ -1088,8 +1088,9 @@ class DiffView : IDiffView
     async void ShowContext(Func<DiffAnchor, int> wantedOf, int step)
     {
         var below = IsOnHunkSeparator ? 1 : 0;
-        var anchor = diffRows.AnchorAt(contentView.CurrentIndex - below);
+        var anchor = diffRows.FileAnchorAt(contentView.CurrentIndex - below);
         var viewRow = contentView.CurrentIndex - contentView.FirstIndex;
+        var aboveIndex = IsAboveFiles ? contentView.CurrentIndex : -1;
         var wanted = wantedOf(anchor);
         if (wanted == 0)
         {
@@ -1111,7 +1112,9 @@ class DiffView : IDiffView
             fileContext[anchor.FilePath] = wanted;
             SetDiffs(DiffRowService.ReplaceFileDiff(diffs, anchor.FilePath, fetched), anchor);
             var index = diffRows.IndexOf(anchor);
-            if (index != -1)
+            if (aboveIndex != -1)
+                contentView.ShowIndexAt(aboveIndex, viewRow); // The rows above the files stay as they were
+            else if (index != -1)
                 contentView.ShowIndexAt(Math.Min(index + below, diffRows.Count - 1), viewRow);
         }
     }
@@ -1151,7 +1154,7 @@ class DiffView : IDiffView
 
     int ContextOf(string filePath) => fileContext.GetValueOrDefault(filePath, DiffContext.Default);
 
-    bool CanStepContext(int step) => WantedContext(CurrentAnchor(), step) != 0;
+    bool CanStepContext(int step) => WantedContext(FileAnchor(), step) != 0;
 
     bool IsInConflict(string path) => conflictState.Files.Any(c => c.Path == path);
 
@@ -1181,7 +1184,7 @@ class DiffView : IDiffView
     // to the bare name when there is nothing to step, where the item is disabled anyway.
     string ContextItemText(string name, int step)
     {
-        var anchor = CurrentAnchor();
+        var anchor = FileAnchor();
         var path = anchor.FilePath;
         var wanted = WantedContext(anchor, step);
         if (wanted == 0)
@@ -1194,7 +1197,7 @@ class DiffView : IDiffView
     // '(whole file)'.
     string WholeFileItemText()
     {
-        var anchor = CurrentAnchor();
+        var anchor = FileAnchor();
         return WantedWholeFile(anchor) == 0 ? "Show All" : $"Show All of {anchor.FilePath.Max(40)}";
     }
 
@@ -1394,7 +1397,7 @@ class DiffView : IDiffView
     // file that is generated, or shows them again, for this diff
     void ToggleHidden()
     {
-        var path = CurrentAnchor().FilePath;
+        var path = FileAnchor().FilePath;
         if (path == "")
         {
             status.Notice(NoFile);
@@ -1412,7 +1415,7 @@ class DiffView : IDiffView
 
     string HiddenItemText()
     {
-        var path = CurrentAnchor().FilePath;
+        var path = FileAnchor().FilePath;
         return path == "" ? "Hide the Lines of a File"
             : hiddenFiles.Contains(path) ? $"Show the Lines of {path.Max(40)}"
             : $"Hide the Lines of {path.Max(40)}";
@@ -1517,6 +1520,13 @@ class DiffView : IDiffView
     // Where the cursor is, expressed as content: the commit and the file it is in and the source
     // line it is on
     DiffAnchor CurrentAnchor() => diffRows.AnchorAt(contentView.CurrentIndex);
+
+    // The file the commands on a file act on: the cursor's, or the first one when the cursor is above
+    // them, where the diff opens (DiffRows.FileAnchorAt)
+    DiffAnchor FileAnchor() => diffRows.FileAnchorAt(contentView.CurrentIndex);
+
+    // Whether the cursor is above the first file, where FileAnchor is that file's rather than the cursor's
+    bool IsAboveFiles => diffRows.IsAboveFiles(contentView.CurrentIndex);
 
     // Puts the cursor back where the anchor points, or on the nearest line of that file
     void RestoreAnchor(DiffAnchor anchor)
