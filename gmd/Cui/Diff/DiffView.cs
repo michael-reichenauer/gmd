@@ -377,6 +377,12 @@ class DiffView : IDiffView
         var diffItems = GetDiffItems();
         var conflictItems = GetConflictItems();
 
+        // Grouped by what the items do, as the log's menus are: moving about, the changes to commit
+        // or discard, how the diff is shown, and the rest. What only the uncommitted changes have is
+        // left out of any other diff, where it could never be used, and so is resolving with none in
+        // conflict.
+        var isUncommitted = source.CanCommit;
+        var isConflicts = isUncommitted && conflictState.Files.Count > 0;
         Menu.Show(
             "Diff Menu",
             x,
@@ -385,20 +391,21 @@ class DiffView : IDiffView
                 .Item("Search ...", "f", () => Search())
                 .Item("Next Match", "n", () => StepMatch(1), () => search.IsActive, () => NoSearch)
                 .Item("Previous Match", "⇧n", () => StepMatch(-1), () => search.IsActive, () => NoSearch)
-                .SubMenu("Diff File", "", diffItems)
-                .SubMenu("Resolve Conflicts", "Enter", conflictItems)
-                .SubMenu("Run External Merge Tool", "", GetMergeToolItems())
-                .SubMenu("Discard Changes", "u", undoItems)
-                // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
-                .Item("Refresh", "r", () => RefreshDiff())
-                .Item("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
+                .Separator(isUncommitted || diffItems.Any())
+                .Item(isUncommitted, "Commit", "c", () => TriggerCommit(), () => undoItems.Any())
                 .Item(
+                    isUncommitted,
                     IsLeavingOut() ? "Leave Out of Commit" : "Put Back in Commit",
                     "x",
                     ToggleLeftOut,
                     () => WhyNotLeaveOut(LinesToLeaveOut()) == "",
                     () => WhyNotLeaveOut(LinesToLeaveOut())
                 )
+                .SubMenu(isUncommitted, "Discard Changes", "u", undoItems)
+                .SubMenu(diffItems.Any(), "Diff File", "", diffItems)
+                .SubMenu(isConflicts, "Resolve Conflicts", "Enter", conflictItems)
+                .SubMenu(isConflicts, "Run External Merge Tool", "", GetMergeToolItems())
+                .Separator()
                 // Named after the file they act on, since that is the part of these that is not
                 // obvious, and disabled when the cursor is on no file or that file is at an end
                 .Item(
@@ -425,9 +432,12 @@ class DiffView : IDiffView
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
                 .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
                 .Item(HiddenItemText(), "h", ToggleHidden, () => FileAnchor().FilePath != "", () => NoFile)
+                .Separator()
                 .Item(BlameItemText(), "b", BlameLine, () => BlameTarget() is BlameAt, WhyNotBlame)
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected && !isOneColumn)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected && !isOneColumn)
+                // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
+                .Item("Refresh", "r", () => RefreshDiff())
                 .Item("Close", "Esc", () => UI.Shutdown())
         );
     }
