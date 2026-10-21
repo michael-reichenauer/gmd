@@ -4,7 +4,7 @@ namespace gmd.Cui.RepoView;
 
 // What is said of a local branch whose branch on origin was deleted, e.g. by GitHub once its pull
 // request was merged, and which a fetch then pruned (Branch.GoneRemoteName). It was pushed, so it is
-// no branch to publish, as one never pushed is: a push makes it again on origin, for everyone. Plain
+// not said to be never pushed: Publish makes it again on origin, for everyone, and asks first. Plain
 // functions, so they are testable without a view.
 static class DeletedOnOrigin
 {
@@ -15,22 +15,22 @@ static class DeletedOnOrigin
     public static string MergedInto(Repo repo, Branch branch) =>
         repo.MergedOnOrigin.TryGetValue(branch.Name, out var into) ? into : "";
 
-    // Why 'p' does not push the current branch, which it would publish if it had never been pushed
+    // Why 'p' does not push it, which would publish it again, as Publish in its branch menu does
     public static string WhyNoPush(Repo repo, Branch branch) =>
         MergedInto(repo, branch) is var into && into != ""
             ? $"'{branch.NiceNameUnique}' was merged into '{into}' on origin, and deleted there: nothing to push"
             : $"'{branch.NiceNameUnique}' was deleted on origin, e.g. its pull request was merged: "
-                + "Push in its branch menu puts it back";
+                + "Publish in its branch menu puts it back";
 
-    // Asked before the branch is pushed again
-    public static string PushAgainQuestion(Repo repo, Branch branch) =>
-        $"Push '{branch.NiceNameUnique}' to origin again?\n\n"
+    // Asked before the branch is published again
+    public static string PublishAgainQuestion(Repo repo, Branch branch) =>
+        $"Publish '{branch.NiceNameUnique}' to origin again?\n\n"
         + (
             MergedInto(repo, branch) is var into && into != ""
                 ? $"'{branch.GoneRemoteName}' was merged into '{into}' on origin, by a squash\n"
-                    + "or a rebase, and deleted there. Pushing makes it again, for everyone."
+                    + "or a rebase, and deleted there. Publishing makes it again, for everyone."
                 : $"'{branch.GoneRemoteName}' was deleted on origin, e.g. when its pull\n"
-                    + "request was merged. Pushing makes it again there, for everyone."
+                    + "request was merged. Publishing makes it again there, for everyone."
         );
 }
 

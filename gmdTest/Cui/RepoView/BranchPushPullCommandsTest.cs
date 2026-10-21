@@ -127,6 +127,76 @@ public class BranchPushPullCommandsTest
         Assert.IsFalse(BranchPushPullCommands.CanPullCurrentBranch(repo));
     }
 
+    // A branch not on origin yet is published, by Publish in its branch menu, rather than pushed: its
+    // push makes it on origin, for everyone, so 'p' leaves it to Publish, and says so
+    [TestMethod]
+    public async Task TestABranchNotOnOriginIsPublishedRatherThanPushed()
+    {
+        var repo = await LocalOnly().ViewRepoAsync();
+        var main = repo.BranchByName["main"];
+
+        Assert.IsTrue(BranchPushPullCommands.IsUnpublished(main));
+        Assert.IsFalse(BranchPushPullCommands.CanPushBranch(repo, main));
+        Assert.IsTrue(BranchPushPullCommands.CanPublishBranch(repo, main));
+        Assert.AreEqual(
+            "'main' is not on origin yet: Publish in its branch menu publishes it",
+            BranchPushPullCommands.WhyNoPushUnpublished(repo, main)
+        );
+
+        var synced = await Synced().ViewRepoAsync();
+        Assert.IsFalse(BranchPushPullCommands.IsUnpublished(synced.BranchByName["main"]));
+        Assert.IsFalse(BranchPushPullCommands.IsUnpublished(synced.BranchByName["origin/main"]));
+    }
+
+    // A branch on origin given by its local name, as a right click on its column gives it, has nothing
+    // to push when it is synced: it was offered a push, of nothing, by a rule meant for the unpublished
+    [TestMethod]
+    public async Task TestASyncedBranchByItsLocalNameHasNothingToPush()
+    {
+        var repo = await Synced().ViewRepoAsync();
+
+        Assert.IsFalse(BranchPushPullCommands.CanPushBranch(repo, repo.BranchByName["main"]));
+        Assert.AreEqual(
+            "Nothing to push on 'main'",
+            BranchPushPullCommands.WhyNoPushBranch(repo, repo.BranchByName["main"])
+        );
+    }
+
+    // Neither a detached HEAD nor a branch gmd knows only from a merge message is a branch of git's,
+    // so neither can be published, and 'p' says why rather than point at Publish
+    [TestMethod]
+    public async Task TestOnlyAGitBranchIsPublished()
+    {
+        var detachedRepo = await new RepoBuilder()
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c1")
+            .DetachedHead("c2")
+            .ViewRepoAsync();
+        var detached = detachedRepo.AllBranches.Single(b => b.IsDetached);
+
+        Assert.IsFalse(BranchPushPullCommands.CanPublishBranch(detachedRepo, detached));
+        Assert.AreEqual(
+            "A detached HEAD is no branch to publish: create a branch at it first (b)",
+            BranchPushPullCommands.WhyNoPushUnpublished(detachedRepo, detached)
+        );
+
+        var mergedRepo = await new RepoBuilder()
+            .Commit("c3", "Merge branch 'feature' into main", "c2", "f1")
+            .Commit("f1", "Work on feature", "c1")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c3", isCurrent: true)
+            .ViewRepoAsync();
+        var feature = mergedRepo.AllBranches.Single(b => !b.IsGitBranch && b.NiceName == "feature");
+
+        Assert.IsFalse(BranchPushPullCommands.CanPublishBranch(mergedRepo, feature));
+        Assert.AreEqual(
+            "'feature' was deleted: gmd knows it from a merge message",
+            BranchPushPullCommands.WhyNoPushUnpublished(mergedRepo, feature)
+        );
+    }
+
     // 'Push all branches' takes one row per branch, i.e. a branch and its remote count once, and
     // it is the remote name that ends up being pushed
     [TestMethod]

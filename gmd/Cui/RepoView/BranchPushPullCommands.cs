@@ -50,15 +50,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
             if (RewrittenHere.Of(repo.Repo, branch) is LocalRewrite rewriteHere)
                 return await ForcePushRewrittenAsync(rewriteHere);
 
+            if (IsUnpublished(branch))
+                return new Notice(WhyNoPushUnpublished(repo.Repo, branch));
             if (!branch.HasLocalOnly)
-            {
-                return new Notice(
-                    DeletedOnOrigin.IsGone(branch) ? DeletedOnOrigin.WhyNoPush(repo.Repo, branch)
-                    : branch.RemoteName == ""
-                        ? $"'{branch.NiceNameUnique}' is not on origin yet: Push in its branch menu publishes it"
-                    : $"Nothing to push on '{branch.NiceNameUnique}'"
-                );
-            }
+                return new Notice($"Nothing to push on '{branch.NiceNameUnique}'");
 
             if (branch.RemoteName != "")
             { // Cannot push local branch if remote needs to be pulled first
@@ -114,6 +109,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     public void PushBranch(string name) =>
         Do(async repo =>
         {
+            var isPublish = false;
             if (repo.Repo.BranchByName.TryGetValue(name, out var branch))
             {
                 // Rewritten here after it was pushed, which only a force push replaces on origin
@@ -121,22 +117,23 @@ class BranchPushPullCommands : IBranchPushPullCommands
                     return await ForcePushRewrittenAsync(rewriteHere);
                 if (!IsPushConfirmed(branch))
                     return Result.Ok;
-                // Deleted on origin, which a push undoes, for everyone
+                // Deleted on origin, which publishing it undoes, for everyone
                 var question = DeletedOnOrigin.IsGone(branch)
-                    ? DeletedOnOrigin.PushAgainQuestion(repo.Repo, branch)
+                    ? DeletedOnOrigin.PublishAgainQuestion(repo.Repo, branch)
                     : "";
-                if (question != "" && UI.InfoMessage("Push Again", question, 1, ["Push", "Cancel"]) != 0)
+                if (question != "" && UI.InfoMessage("Publish Again", question, 1, ["Publish", "Cancel"]) != 0)
                     return Result.Ok;
+                isPublish = IsUnpublished(branch);
             }
 
-            using (status.Progress($"Pushing '{NiceName(name)}'"))
+            using (status.Progress($"{(isPublish ? "Publishing" : "Pushing")} '{NiceName(name)}'"))
             {
                 if (await server.PushBranchAsync(name, repo.Path) is Error e)
-                    return new Error($"Failed to push branch:\n{name}", e);
+                    return new Error($"Failed to {(isPublish ? "publish" : "push")} branch:\n{name}", e);
             }
 
             Refresh();
-            status.Info(Pushed($"'{NiceName(name)}'"));
+            status.Info(isPublish ? Published($"'{NiceName(name)}'") : Pushed($"'{NiceName(name)}'"));
             return Result.Ok;
         });
 
@@ -484,6 +481,11 @@ class BranchPushPullCommands : IBranchPushPullCommands
     string Pushed(string what) =>
         context.ViewRepo.Repo.Status.IsOk ? $"Pushed {what}" : $"Pushed {what}; the uncommitted changes stay local";
 
+    string Published(string what) =>
+        context.ViewRepo.Repo.Status.IsOk
+            ? $"Published {what} to origin"
+            : $"Published {what} to origin; the uncommitted changes stay local";
+
     // Up to three names, which is what fits a status line, and otherwise how many
     internal static string Names(IEnumerable<string> names)
     {
@@ -497,16 +499,37 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // it as non fast-forward.
     // Push and Pull of one branch, the one a branch menu is for or the one highlighted when 'p' or
     // 'u' is pressed: one rule for both, so the key does what the menu item says. A branch not yet
-    // on origin can be pushed, which publishes it. The current branch is pulled with 'git pull',
+    // on origin is published instead, see IsUnpublished. The current branch is pulled with 'git pull',
     // which merges, so it can be pulled even when diverged; any other branch is updated with a
     // fetch, which only fast-forwards, and not at all while it is checked out in another worktree.
     // A branch that is not current and has diverged from origin's cannot be pushed, since git refuses
     // a push that is not a fast-forward; the current one goes through PushCurrentBranch, which asks
     // whether to push it with force.
     internal static bool CanPushBranch(Repo repo, Branch b) =>
-        (b.HasLocalOnly || (!b.IsRemote && b.PullMergeParentBranchName == ""))
-        && (IsCurrent(b) || !b.HasRemoteOnly)
-        && !repo.Status.IsMerging;
+        !IsUnpublished(b) && b.HasLocalOnly && (IsCurrent(b) || !b.HasRemoteOnly) && !repo.Status.IsMerging;
+
+    // A local branch origin has none of: never pushed, its Publish box unticked when it was made, or
+    // deleted on origin since. Pushing it makes the branch on origin, for everyone, which the branch
+    // menu's Publish does and 'p' does not: 'p' pushed one that was highlighted but not the current
+    // one, while the menu's 'Push  p' published either, so the key could not do what the menu said,
+    // and a key pressed to send commits should not make a branch the user chose to keep here.
+    internal static bool IsUnpublished(Branch b) => !b.IsRemote && b.RemoteName == "";
+
+    // A branch gmd knows only from a merge message is no branch of git's to push, nor a detached HEAD
+    internal static bool CanPublishBranch(Repo repo, Branch b) =>
+        IsUnpublished(b) && b.IsGitBranch && !b.IsDetached && !repo.Status.IsMerging;
+
+    internal static string WhyNoPublishBranch(Repo repo, Branch b) =>
+        repo.Status.IsMerging ? Why.InProgress
+        : !b.IsGitBranch ? Why.Deleted(b)
+        : "A detached HEAD is no branch to publish: create a branch at it first (b)";
+
+    // Why 'p' does not push a branch origin has none of: Publish in its branch menu does, which says
+    // why not when it cannot
+    internal static string WhyNoPushUnpublished(Repo repo, Branch b) =>
+        !CanPublishBranch(repo, b) ? WhyNoPublishBranch(repo, b)
+        : DeletedOnOrigin.IsGone(b) ? DeletedOnOrigin.WhyNoPush(repo, b)
+        : $"'{b.NiceNameUnique}' is not on origin yet: Publish in its branch menu publishes it";
 
     internal static string WhyNoPushBranch(Repo repo, Branch b) =>
         repo.Status.IsMerging ? Why.InProgress

@@ -100,9 +100,9 @@ public class KeyHintsTest
         StringAssert.Contains(Hints(view), "Enter details  u pull  ←→ branch");
     }
 
-    // Another branch hoovered, named first: what the keys do to it. 'p' pushes it, as the branch
-    // menu's Push does, which for 'dev', not on origin yet, publishes it. Enter is offered since
-    // this is the tip of 'dev', off 'main': it opens the show/hide menu of the two.
+    // Another branch hoovered, named first: what the keys do to it. 'p' is not offered, since 'dev'
+    // is not on origin yet, and its branch menu's Publish publishes it. Enter is offered since this
+    // is the tip of 'dev', off 'main': it opens the show/hide menu of the two.
     [TestMethod]
     public async Task TestAHooveredBranchOffersSwitchingMergingAndHidingIt()
     {
@@ -110,7 +110,7 @@ public class KeyHintsTest
         var hoover = HooverOn(view, "dev", "d1");
 
         Assert.AreEqual(
-            "dev:  m menu  s switch  e merge into main  Enter show/hide  h hide  d diff  p push  b new branch",
+            "dev:  m menu  s switch  e merge into main  Enter show/hide  h hide  d diff  b new branch",
             Hints(view, hoover)
         );
     }
@@ -130,7 +130,7 @@ public class KeyHintsTest
     }
 
     // Merging and diffing a branch need a clean working tree, so with changes they give way to
-    // committing. Pushing it does not, which for 'feature', not on origin yet, publishes it.
+    // committing. 'feature' is not on origin yet, so it has no 'p push' either.
     [TestMethod]
     public async Task TestUncommittedChangesLeaveOutMergingAndDiffingABranch()
     {
@@ -139,7 +139,7 @@ public class KeyHintsTest
         var hoover = HooverOn(view, "feature", "d1");
 
         Assert.AreEqual(
-            "feature:  m menu  s switch  Enter show/hide  h hide  p push  c commit  b new branch",
+            "feature:  m menu  s switch  Enter show/hide  h hide  c commit  b new branch",
             Hints(view, hoover)
         );
     }
