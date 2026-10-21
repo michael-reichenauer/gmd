@@ -127,9 +127,14 @@ static class UI
 
     static Action<string>? typing;
 
+    internal static bool IsCatchingTyping => typing != null;
+
     // The text a key types, or null for one that types none, e.g. an arrow, Esc or a Ctrl key
     static string? TypedText(Key key) =>
-        !key.IsCtrl && !key.IsAlt && key.AsRune.Value >= '!' && !System.Text.Rune.IsControl(key.AsRune)
+        // Ctrl and Alt both is AltGr on Windows, which types '@', '{' and '\' on many keyboards
+        (key.IsCtrl == key.IsAlt)
+        && key.AsRune.Value >= '!'
+        && !System.Text.Rune.IsControl(key.AsRune)
             ? key.AsRune.ToString()
             : null;
 

@@ -236,6 +236,8 @@ class Menu
     // keys typed while they close too, which would otherwise each be handed on, or be keys of the log
     async void OnTypeText(string typed)
     {
+        if (UI.IsCatchingTyping)
+            return; // A key the catch let through as the menus close, e.g. one typed with AltGr
         var text = typed;
         using (UI.CatchTyping(more => text += more))
             await RootMenu.CloseAsync();

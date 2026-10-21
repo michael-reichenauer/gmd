@@ -62,7 +62,11 @@ class DiffService : IDiffService
         if (commitDiffs.Count == 0)
             return new Error("Failed to parse diff");
 
-        return commitDiffs[0];
+        // 'show --first-parent' is what makes a merge's diff the one against its first parent, which
+        // the 'Merge:' line names. A log of a file's history shows a merge with no patch, or one
+        // against both parents, so the parent is kept for this diff alone.
+        var diff = commitDiffs[0];
+        return diff with { MergeFirstParent = MergeFirstParentOf(output) };
     }
 
     // The files of the same diff as GetCommitDiffAsync, against the first parent, from two lists of
@@ -303,6 +307,16 @@ class DiffService : IDiffService
         return new CommitDiff("", "", DateTime.UtcNow, message, fileDiffs);
     }
 
+    // The first parent of the 'Merge: <first parent> <second parent>' line of a 'show', the line after
+    // 'commit <id>', or "" for a commit that is no merge
+    static string MergeFirstParentOf(string output)
+    {
+        var lines = output.Split('\n', 3);
+        return lines.Length > 1 && lines[1].StartsWith("Merge: ")
+            ? lines[1]["Merge: ".Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? ""
+            : "";
+    }
+
     // Parse diff output for possible multiple commits
     static IReadOnlyList<CommitDiff> ParseCommitDiffs(string output)
     {
@@ -337,12 +351,9 @@ class DiffService : IDiffService
 
         string commitId = lines[i++]["commit ".Length..].Trim();
 
-        // 'Merge: <first parent> <second parent>', which the diff is against the first of
-        var mergeFirstParent = "";
         if (i < lines.Length && lines[i].StartsWith("Merge: "))
-        {
-            mergeFirstParent =
-                lines[i++]["Merge: ".Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+        { // Skip Merge line, see MergeFirstParentOf
+            i++;
         }
         if (i < lines.Length && lines[i].StartsWith("Author: "))
         {
@@ -374,10 +385,7 @@ class DiffService : IDiffService
 
         (var fileDiffs, i) = ParseFileDiffs(i, lines);
 
-        var commitDiff = new CommitDiff(commitId, author, time, message, fileDiffs)
-        {
-            MergeFirstParent = mergeFirstParent,
-        };
+        var commitDiff = new CommitDiff(commitId, author, time, message, fileDiffs);
         return (commitDiff, i, true);
     }
 

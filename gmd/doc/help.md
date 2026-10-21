@@ -561,9 +561,10 @@ throw changes away ask first, and what they throw away gmd keeps, for
   message.
 - **Amend ...** (`a`) and **Amend <commit-sha> ...**:
   `a` amends the last commit: its message, and the files ticked in the
-  dialog. In the menu of another commit it is **Amend Last Commit of
-  <branch> ...**, to tell it from that commit's own. The commit menu of an older commit of the current branch has an
-  Amend of its own, with that commit's message and the changed
+  dialog. In the menu of another commit it is **Amend Last Commit of**
+  the branch, e.g. **Amend Last Commit of main ...**, to tell it from that
+  commit's own. The commit menu of an older commit of the current branch has
+  an Amend of its own, with that commit's message and the changed
   files, none ticked at first: a new message, the ticked changes, or both.
   It is git's own way: an "amend!" commit of them, folded in by
   `git rebase -i --autosquash`, with the files left unticked put aside and

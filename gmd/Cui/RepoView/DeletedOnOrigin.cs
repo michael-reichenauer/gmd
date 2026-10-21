@@ -51,9 +51,10 @@ class MergedOnOriginNotes
         {
             0 => null,
             // The command first, which a status line cut short on a narrow terminal kept the least of
-            1 => $"Delete Merged Branches (⇧m) deletes '{untold[0].Key}', merged into '{untold[0].Value}' on origin",
+            1 =>
+                $"Delete Merged Branches in the repo menu (⇧m) deletes '{untold[0].Key}', merged into '{untold[0].Value}' on origin",
             // Counted rather than named, since two long names leave the status line no room
-            _ => $"Delete Merged Branches (⇧m) deletes the {untold.Count} branches merged on origin",
+            _ => $"Delete Merged Branches in the repo menu (⇧m) deletes the {untold.Count} branches merged on origin",
         };
     }
 }

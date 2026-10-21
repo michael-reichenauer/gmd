@@ -148,6 +148,13 @@ public class DiffRowsTest
         var c2 = history.Rows.FindIndexBy(r => r.CommitId == Id("c2"));
         var c2File = c2 + history.Rows.Skip(c2).FindIndexBy(r => r.FilePath != "");
         Assert.AreEqual(history.AnchorAt(c2File), history.FileAnchorAt(c2), "c2's file, not c1's above it");
+
+        // A commit with no files, e.g. a merge in a line history, has none, not the next commit's
+        var withMerge = new DiffRowService().ToDiffRows([
+            new CommitDiff(Id("m1"), "Test", new DateTime(2025, 1, 1), "A merge", []),
+            CommitOf("c2", "older"),
+        ]);
+        Assert.AreEqual("", withMerge.FileAnchorAt(0).FilePath, "The merge's title");
     }
 
     // a.txt with two changes and a conflict, the second change in two rows, and b.txt, a new file

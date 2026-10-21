@@ -150,10 +150,11 @@ class CommitDlg : ICommitDlg
                 ? Heading(title, filesCount, isAmend, files, branchName)
                 : OlderHeading(older, files, branchName);
 
-        // The force push box, when offered, is the row above the buttons
+        // The force push box, when offered, is the row below the message
         var pushRows = forcePush == ForcePush.NotOffered ? 0 : 1;
-        // A merge's says what Ctrl-L adds, where the files would be listed
-        var isMergedHint = files == null && commits?.Count > 0;
+        // A merge's dialog says what Ctrl-L adds, below that, where the files would be listed, when
+        // it adds anything
+        var isMergedHint = files == null && commits?.Count > 0 && MergedSubjects(commits) != "";
         var hintRows = isMergedHint ? 1 : 0;
         var dlg = new UIDialog(title, 74, 18 + listHeight + pushRows + hintRows, (key) => OnKey(showDiff, key));
 
@@ -327,7 +328,7 @@ class CommitDlg : ICommitDlg
     // The list Ctrl-L adds to the message of a merge: the subjects of the merged commits, oldest
     // first, one per line. Only the subject, since whole messages made a merge message too long to
     // read. A merge git named ('Merge branch ...') says nothing in its subject, so its list is
-    // taken instead, i.e. the lines of its body that are list items, which is what Ctrl-L wrote when
+    // taken instead, i.e. the lines of its body that are list items, which is what this key wrote when
     // it was made. That is what merging dev into main carries over: the lists of the branches that
     // were merged into dev, whose own commits are not among the merged ones.
     internal static string MergedSubjects(IReadOnlyList<Server.Commit> commits) =>

@@ -51,13 +51,13 @@ public class DeletedOnOriginTest
             };
 
         Assert.AreEqual(
-            "Delete Merged Branches (⇧m) deletes 'feature', merged into 'main' on origin",
+            "Delete Merged Branches in the repo menu (⇧m) deletes 'feature', merged into 'main' on origin",
             notes.Untold(RepoWith("f2", "feature"))
         );
         Assert.IsNull(notes.Untold(RepoWith("f2", "feature")));
         Assert.IsNotNull(notes.Untold(RepoWith("f3", "feature")), "Another branch of the name");
         Assert.AreEqual(
-            "Delete Merged Branches (⇧m) deletes the 2 branches merged on origin",
+            "Delete Merged Branches in the repo menu (⇧m) deletes the 2 branches merged on origin",
             notes.Untold(RepoWith("f2", "a", "b"))
         );
     }

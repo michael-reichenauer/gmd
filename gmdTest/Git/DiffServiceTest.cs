@@ -631,6 +631,17 @@ public class DiffServiceTest
         Assert.AreEqual("Merge branch 'topic'", commitDiff.Message);
     }
 
+    // A merge in a file's history, a log with no --first-parent, is no diff against its first parent,
+    // so it names none, where the commit's own diff, a 'show --first-parent', does
+    [TestMethod]
+    public async Task TestAMergeInAFileHistoryNamesNoFirstParent()
+    {
+        var service = new DiffService(new FakeCmd(CombinedOutput));
+        var commitDiffs = AssertOk(await service.GetFileDiffAsync("both.txt", 6, "/wd"));
+
+        Assert.AreEqual("", commitDiffs[0].MergeFirstParent);
+    }
+
     // The file history is several commits in one output, newest first
     [TestMethod]
     public async Task TestParseFileDiffOfSeveralCommits()

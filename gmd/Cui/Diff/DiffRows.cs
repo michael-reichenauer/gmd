@@ -166,8 +166,15 @@ class DiffRows
         if (index < 0 || index >= rows.Count || FileHeaderOf(index) != -1)
             return AnchorAt(index);
 
-        var first = rows.FindIndex(index, r => r.FilePath != "");
-        return first == -1 ? AnchorAt(index) : AnchorAt(first);
+        // Its own commit's, never the next one's, when it has no files, e.g. a merge in a file history
+        for (var i = index; i < rows.Count; i++)
+        {
+            if (rows[i].FilePath != "")
+                return AnchorAt(i);
+            if (i > index && rows[i].CommitId != "")
+                break;
+        }
+        return AnchorAt(index);
     }
 
     // Whether a row is above the files of its commit, where FileAnchorAt is its first file's

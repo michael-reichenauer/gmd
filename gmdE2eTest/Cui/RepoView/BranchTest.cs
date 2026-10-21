@@ -804,7 +804,7 @@ public class BranchTest
         using var gmd = TmuxSession.StartGmd(repo);
 
         Assert.AreEqual(
-            "Delete Merged Branches (⇧m) deletes 'feature', merged into 'main' on origin",
+            "Delete Merged Branches in the repo menu (⇧m) deletes 'feature', merged into 'main' on origin",
             ScreenText.LastLine(gmd.WaitFor("merged into 'main' on origin"))
         );
         gmd.WaitUntilGone("merged into 'main' on origin");

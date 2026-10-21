@@ -1417,7 +1417,9 @@ class DiffView : IDiffView
         var isHidden = !hiddenFiles.Remove(path);
         if (isHidden)
             hiddenFiles.Add(path);
-        SetDiffs(diffs, CurrentAnchor());
+        // Above the files the cursor stays where it is, as for + and -: the anchor there is the file
+        // of the commit above, in a file history, which it would move to
+        SetDiffs(diffs, IsAboveFiles ? DiffAnchor.None : CurrentAnchor());
         status.Info(isHidden ? $"The lines of {path} are hidden: h shows them" : $"The lines of {path} are shown");
     }
 
