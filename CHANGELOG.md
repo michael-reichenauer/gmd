@@ -141,14 +141,13 @@ Releases with no change users notice are left out.
 
 ### Improved
 - Leave updating a Gmd installed with winget to winget, showing its command at `⇓`, to run once Gmd is closed
-- Leave the Co-Authored-By lines of merges out of the change log and the release notes
 
 ## [v1.7.1445.1049] - 2026-10-14
 
 ### New
 - Install Gmd with Homebrew on macOS and Linux, `brew install michael-reichenauer/tap/gmd`, and leave updating it to Homebrew, whose command `⇓` shows
 - Show the change log before an update, with a **Change Log** button in the question, and say before updating that Gmd quits once updated
-- Cancel an update with **Cancel** or `Esc` while it runs, up to the moment Gmd is replaced
+- Cancel an update, once asked, with **Cancel** or `Esc` while it runs, up to the moment Gmd is replaced
 
 ### Improved
 - Check a new version against its checksum, and that it runs, before it replaces Gmd

@@ -87,8 +87,13 @@ jobs:
           # A release must be newer in major.minor than the latest one, i.e. dev was raised after it
           # (or by hand, as to 2.0), or it would release the same minor again. GitHub's latest
           # release is never a preview, whereas the nearest version tag in git can be one.
-          LATEST="$(gh release view --json tagName --jq .tagName || true)"
-          if [ "${{ inputs.kind }}" = "release" ] && [ -n "$LATEST" ]; then
+          # A preview goes on without it, a release does not: unchecked, it could release the same minor
+          if [ "${{ inputs.kind }}" = "release" ]; then
+            LATEST="$(gh release view --json tagName --jq .tagName)"
+          else
+            LATEST="$(gh release view --json tagName --jq .tagName || true)"
+          fi
+          if [ "${{ inputs.kind }}" = "release" ]; then
             IFS=. read -r MAJOR MINOR _ <<< "$VERSION"
             IFS=. read -r LATEST_MAJOR LATEST_MINOR _ <<< "${LATEST#v}"
             if ! { [ "$MAJOR" -gt "$LATEST_MAJOR" ] || { [ "$MAJOR" -eq "$LATEST_MAJOR" ] && [ "$MINOR" -gt "$LATEST_MINOR" ]; }; }; then
@@ -132,10 +137,11 @@ jobs:
           scripts/changelog stamp "v$VERSION" "${BUILD_TIME%%T*}"
           git commit -m "Release v$VERSION" -- CHANGELOG.md
           RELEASE_SHA="$(git rev-parse HEAD)"
+          # Written here, from dev's script and change log, since main's have not got them yet
+          { echo "Merge branch 'dev' for v$VERSION"; echo; scripts/changelog notes "v$VERSION"; } > merge.txt
 
           git checkout -q -B main origin/main
           # The notes' '### New' headings are kept as they are, not taken for comments ('whitespace')
-          { echo "Merge branch 'dev' for v$VERSION"; echo; scripts/changelog notes "v$VERSION"; } > merge.txt
           git merge --no-ff --cleanup=whitespace "$RELEASE_SHA" -F merge.txt
           MAIN_SHA="$(git rev-parse HEAD)"
 

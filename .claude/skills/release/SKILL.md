@@ -53,6 +53,7 @@ Change the notes as they ask, and show them again if the change is more than a w
   or `gh workflow run release.yml --ref dev -f kind=<preview|release>`.
 - Follow the run to its end. When it fails, read the failed step's log, say what failed, and fix
   what is yours (the notes, the version); a release that failed before its push changed nothing and
-  can simply be run again.
+  can simply be run again. One that failed after it has moved dev and main without publishing:
+  docs/RELEASING.md says how to finish it; ask the user before doing so.
 - Report the release's link and its version. After a release, `dev` is at the next minor, and
   `origin/dev` has the workflow's two commits: pull before working on `dev` again.

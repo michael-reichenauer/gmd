@@ -6,8 +6,9 @@ asks for one, with the **Release** workflow (`.github/workflows/release.yml`). M
 
 1. **Write the notes.** Edit the `## [Unreleased]` section at the top of `CHANGELOG.md` on `dev`, in
    an editor or GitHub's web editor, and commit it to `dev`. The style is below.
-2. **Run the workflow.** On GitHub: Actions, **Release**, **Run workflow**, and pick `preview` or
-   `release`. Or from a terminal: `gh workflow run release.yml -f kind=preview` (or `kind=release`).
+2. **Run the workflow.** On GitHub: Actions, **Release**, **Run workflow**, with **Use workflow
+   from** set to `dev`, and pick `preview` or `release`. Or from a terminal:
+   `gh workflow run release.yml --ref dev -f kind=preview` (or `kind=release`).
 
 With Claude, ask it to "make a preview" or "make a release": it writes the notes from what changed
 since the latest release, shows them to you, commits them and runs the workflow (the `release`
@@ -32,7 +33,14 @@ yet is allowed, and says so in a warning.
    merge, and updates the Homebrew tap. If either branch moved meanwhile, the push fails and
    nothing is released; run it again.
 
-So `dev` never needs `main` merged back. Leave **Publish** unticked for a dry run: it builds all four
+So `dev` never needs `main` merged back. The push is made with the workflow's own token, so a branch
+protection rule on `dev` or `main` that requires pull requests needs a bypass for it.
+
+If the run fails after its push, in publishing or the Homebrew step, the branches have moved but the
+release is not out, and running it again is refused (the notes are used up). Publish it by hand from
+the run's log, which prints the version and the merge's sha:
+`gh release create v<version> --target <main's merge sha> --title "Version <version>" --notes-file <notes>`
+with the assets that `scripts/build` makes, or ask Claude to. Leave **Publish** unticked for a dry run: it builds all four
 platforms, tests, and prints the notes and the commits it would make, and changes nothing.
 
 Before a release, re-record the README's pictures on `dev` with `scripts/demo` and commit them if
