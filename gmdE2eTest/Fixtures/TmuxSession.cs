@@ -33,6 +33,9 @@ sealed class TmuxSession : IDisposable
     const int PollMs = 100;
     const int DefaultTimeoutMs = 30000;
 
+    // How long a key sent to a menu may go without moving its cursor before it is sent again
+    const int ResendKeyMs = 5000;
+
     // Only the session's own private server is ever talked to, so a leaked kill cannot reach the
     // developer's tmux
     readonly string socket;
@@ -162,9 +165,15 @@ sealed class TmuxSession : IDisposable
     // Polls until the screen differs from the one before the key and has then held for a poll. A
     // shorter wait than WaitForStable's, since a move of a menu's cursor is a redraw of a few rows
     // with no git command behind it, and a walk down a long menu is many of them.
+    //
+    // A Down that has not moved the cursor in several seconds is sent again: on CI one was lost
+    // with the menu open and gmd idle, and the walk waited out its 30 seconds. A key that was only
+    // slow and moves the cursor twice cannot pick the wrong item, since the walk stops only on the
+    // item drawn current, and the menu does not wrap, so one moved past fails at maxMoves.
     void WaitForMenuMove(string before, string text)
     {
         var clock = Stopwatch.StartNew();
+        var sent = Stopwatch.StartNew();
         var previous = before;
         while (clock.ElapsedMilliseconds < DefaultTimeoutMs)
         {
@@ -172,6 +181,11 @@ sealed class TmuxSession : IDisposable
             var screen = CaptureColors();
             if (screen != before && screen == previous)
                 return;
+            if (screen == before && sent.ElapsedMilliseconds > ResendKeyMs)
+            {
+                Send("Down");
+                sent.Restart();
+            }
             previous = screen;
         }
 
