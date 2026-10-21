@@ -93,6 +93,6 @@ static class FileBrowseRows
     internal static string CutEnd(string text, int width) =>
         text.Length <= width || width < 2 ? text : text[..(width - 1)] + "…";
 
-    static string CutStart(string text, int width) =>
+    internal static string CutStart(string text, int width) =>
         text.Length <= width || width < 2 ? text : "…" + text[(text.Length - (width - 1))..];
 }
