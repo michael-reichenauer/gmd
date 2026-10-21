@@ -1038,8 +1038,9 @@ public class DiffViewTest
         gmd.Send("x");
         gmd.WaitFor("Left 2 lines of new.txt out of the commit");
         gmd.Send("c");
-        // Moved with no 'git mv', the file is new and the old one deleted as the dialog lists them
-        StringAssert.Contains(gmd.WaitFor("2 lines left out"), "A new.txt  2 lines left out");
+        // Moved with no 'git mv', the file is new and the old one deleted as the dialog lists them.
+        // The diff says "2 lines left out" too, so wait for the dialog's own line, not that
+        gmd.WaitFor("A new.txt  2 lines left out");
         gmd.SendText("Move the lines");
         gmd.Send("Enter");
         gmd.WaitFor("Committed to 'main'");
