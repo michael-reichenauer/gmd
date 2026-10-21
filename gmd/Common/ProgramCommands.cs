@@ -1,5 +1,4 @@
 using gmd.Installation;
-using gmd.Server;
 
 namespace gmd.Common;
 
@@ -10,18 +9,13 @@ interface IProgramCommands
     Task<int?> HandleCommandsAsync(string[] args);
 }
 
-// cSpell:ignore updatechangelog
 class ProgramCommands : IProgramCommands
 {
-    const string ChangeLogHeading = "# Change Log for Gmd\n--------------------";
-
     readonly IUpdater updater;
-    readonly IServer server;
 
-    public ProgramCommands(IUpdater updater, IServer server)
+    public ProgramCommands(IUpdater updater)
     {
         this.updater = updater;
-        this.server = server;
     }
 
     public async Task<int?> HandleCommandsAsync(string[] args)
@@ -32,10 +26,6 @@ class ProgramCommands : IProgramCommands
             return ShowVersion();
         if (HasOptions(args, "--update", "-u"))
             return await UpdateAsync();
-        if (HasOptions(args, "--changelog"))
-            return await ShowChangeLogAsync();
-        if (HasOptions(args, "--updatechangelog"))
-            return await UpdateChangeLogAsync(OptionValue(args, "--updatechangelog"));
 
         return null;
     }
@@ -49,10 +39,6 @@ class ProgramCommands : IProgramCommands
             options:
               --version           Show current version
               --update|-u         Update gmd to latest version (downloading from GitHub)
-              --changelog         Show change log
-              --updatechangelog [<version>]
-                                  Update change log file CHANGELOG.md, with the commits since the
-                                  latest release headed <version> rather than Current
               -d <path>           Show repo for working folder specified by <path>
               -m                  Show the start page, even in a repository
               --help|-h|-?        Show command line help.
@@ -105,42 +91,6 @@ class ProgramCommands : IProgramCommands
         }
 
         Console.WriteLine($"Updated {currentVersion} -> {newVersion}");
-        return 0;
-    }
-
-    async Task<int> ShowChangeLogAsync()
-    {
-        Console.WriteLine(ChangeLogHeading);
-        var logResult = await server.GetChangeLogAsync();
-        if (logResult is not string log)
-        {
-            Log.Error($"Failed to get change log, {logResult.Error}");
-            Console.WriteLine($"Failed to get change log, {logResult.Error}");
-            return -1;
-        }
-
-        Console.WriteLine(log);
-        return 0;
-    }
-
-    // Fails with a non-zero exit code, since CI runs it to make the release commit on main
-    async Task<int> UpdateChangeLogAsync(string? newRelease)
-    {
-        Console.WriteLine("Generating change log ...");
-        var logResult = await server.GetChangeLogAsync(newRelease);
-        if (logResult is not string log)
-        {
-            Console.WriteLine($"Failed to get change log, {logResult.Error}");
-            return -1;
-        }
-
-        var text = $"{ChangeLogHeading}\n{log}";
-        if (Result.Catch(() => File.WriteAllText("CHANGELOG.md", text)) is Error e)
-        {
-            Console.WriteLine($"Failed to write change log, {e}");
-            return -1;
-        }
-        Console.WriteLine("Generated change log");
         return 0;
     }
 
