@@ -5,8 +5,23 @@ Releases with no change users notice are left out.
 
 ## [Unreleased]
 
+### Improved
+- Step the context with `+` and `-`, and hide a file's lines with `h`, on the first file where a diff opens, without moving to a file first
+- Group the diff menu, and leave **Commit**, **Discard Changes** and the conflict items out of the diff of a commit
+- Say in the diff of a merge that it is against its first parent
+- Name the last commit's amend **Amend Last Commit of main ...** in the menu of another commit
+- Add a merge's subjects to its message with `Ctrl-L`, as the commit dialog says, and only once; `Ctrl-A` selects all there, as in other fields
+- Cut a long folder path at its start in the folder browser, so its last folder shows
+- Start the note of a branch merged on origin with **Delete Merged Branches**, which a narrow terminal cut off before
+- Hint `d resolve…` on the uncommitted row with conflicts, since `d` asks first
+- Label the name field of **Create Branch** and **Rename Branch**
+
 ### Changed
 - Remove the `--changelog` command line option; the change log is here, and Gmd's update question links to it
+
+### Fixed
+- Typing a branch name fast after `Shift-→` opened a Find Branch dialog per letter
+- The lines of the resolver's result below an undecided conflict were numbered unlike its first side
 
 ## [v1.14.1452.819] - 2026-10-21
 
