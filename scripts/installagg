@@ -31,6 +31,10 @@ if [[ "$("$bin/agg" --version 2>/dev/null)" == "agg $AGG_VERSION" && "$isFonts" 
   exit 0
 fi
 
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo "This installs agg's Linux binaries; on macOS install agg with 'brew install agg'" >&2
+  exit 1
+fi
 case "$(uname -m)" in
   arm64|aarch64) asset="agg-aarch64-unknown-linux-gnu" ;;
   *) asset="agg-x86_64-unknown-linux-gnu" ;;

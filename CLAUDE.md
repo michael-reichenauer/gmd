@@ -979,8 +979,9 @@ message.
 ## Working agreements
 
 `.notes/` holds the working notes, kept up to date as the work goes, and `docs/` the documentation
-for contributors. The notes are deliberately not in `.claude/`, which Claude Code protects: every
-write there asks for permission.
+for contributors. The notes, long and written to all the time, are deliberately not in `.claude/`,
+which Claude Code protects: every write there asks for permission. The rules below in
+`.claude/rules/` are the exception, short and written seldom, since a session loads them by itself.
 
 - **Project knowledge** — the workflow decisions, the traps and the parked ideas found while
   working — is in `.claude/rules/`: `workflow.md` is always loaded, the others with the files they

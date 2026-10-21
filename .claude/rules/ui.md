@@ -50,6 +50,8 @@ When they are wanted: `workflow.md`, "Showing UI work". How:
 - tmux leaves out the color code at the start of a row when the row above ended in that color, so
   carry the color state from row to row (each row prefixed with the codes since the last reset)
   rather than resetting at each line end, or a colored first cell renders in the default color.
-- Render it with agg as `scripts/demo` does: the JetBrains Mono font, its Campbell theme, and
-  `--font-size 14`. Two captures side by side in one cast make a before and after picture.
+- Render it with agg and `scripts/demo`'s options, its font families, Campbell theme and
+  `--line-height 1.32` (without which the graph's box drawing leaves gaps between rows), at
+  `--font-size 14` rather than its 16. Two captures side by side in one cast make a before and
+  after picture.
 - Send it with `SendUserFile` (display: render).

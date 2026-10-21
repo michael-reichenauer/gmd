@@ -518,8 +518,10 @@ public class BinaryInstallerTest
     [TestMethod]
     public void TestAFolderThatCannotBeWrittenToCannotBeInstalledIn()
     {
-        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
-            return; // root writes to any folder
+        if (OperatingSystem.IsWindows())
+            return; // a folder's mode is Unix's
+        if (Environment.IsPrivilegedProcess)
+            Assert.Inconclusive("Root writes to any folder");
         var mode = File.GetUnixFileMode(folder);
         File.SetUnixFileMode(folder, UnixFileMode.UserRead | UnixFileMode.UserExecute);
         try

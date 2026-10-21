@@ -98,6 +98,9 @@ for pkg in ca-certificates curl git jq libicu74 openssh-client tmux unzip; do
     [[ "$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null || true)" == *"ok installed" ]] || missing+=("$pkg")
 done
 if [[ ${#missing[@]} -gt 0 ]]; then
+    # Finishes a dpkg run that was stopped, e.g. by the hook's timeout, which apt-get would refuse
+    # to go on from
+    as_root dpkg --configure -a
     as_root apt-get update -q
     as_root apt-get install -y -q --no-install-recommends "${missing[@]}"
 else
