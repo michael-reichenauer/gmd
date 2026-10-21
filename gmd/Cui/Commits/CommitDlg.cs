@@ -152,7 +152,10 @@ class CommitDlg : ICommitDlg
 
         // The force push box, when offered, is the row above the buttons
         var pushRows = forcePush == ForcePush.NotOffered ? 0 : 1;
-        var dlg = new UIDialog(title, 74, 18 + listHeight + pushRows, (key) => OnKey(showDiff, key));
+        // A merge's says what Ctrl-L adds, where the files would be listed
+        var isMergedHint = files == null && commits?.Count > 0;
+        var hintRows = isMergedHint ? 1 : 0;
+        var dlg = new UIDialog(title, 74, 18 + listHeight + pushRows + hintRows, (key) => OnKey(showDiff, key));
 
         var heading = dlg.AddLabel(1, 0, HeadingText());
         heading.Width = Dim.Fill(); // It grows as files are ticked again, see UILabel.Text
@@ -160,6 +163,8 @@ class CommitDlg : ICommitDlg
 
         message = dlg.AddMultiLineInputView(1, 4, 70, 10, messagePart, spellChecker);
         dlg.Validate(() => GetMessage(subject, message) != "", "Empty commit message");
+        if (isMergedHint)
+            dlg.AddLabel(1, 15 + pushRows, Text.Dark("Ctrl-L adds the subjects of the merged commits"));
 
         if (files != null)
         {
@@ -289,9 +294,9 @@ class CommitDlg : ICommitDlg
             showDiff();
             return true;
         }
-        // After a merge, Ctrl-A adds the merged commits' subjects; otherwise it is the message box's
-        // own, which selects all, as the edit menu says
-        if (key == Key.A.WithCtrl && commits?.Count > 0)
+        // After a merge, Ctrl-L adds the merged commits' subjects, as the dialog says. It was Ctrl-A,
+        // which selects all everywhere else, and so not in the message of a merge.
+        if (key == Key.L.WithCtrl && commits?.Count > 0)
         {
             AddMergeMessages();
             return true;
@@ -305,20 +310,24 @@ class CommitDlg : ICommitDlg
         if (commits == null || commits.Count == 0)
             return;
 
+        // Once: pressed again it would add the same list again below it
         var msg = message.Text.ToString();
+        var subjects = MergedSubjects(commits);
+        if (subjects == "" || msg.Contains(subjects))
+            return;
         if (msg != "")
         {
             msg += "\n";
         }
 
-        message.Text = $"{msg}{MergedSubjects(commits)}";
+        message.Text = $"{msg}{subjects}";
         message.SetNeedsDraw();
     }
 
-    // The list Ctrl-A adds to the message of a merge: the subjects of the merged commits, oldest
+    // The list Ctrl-L adds to the message of a merge: the subjects of the merged commits, oldest
     // first, one per line. Only the subject, since whole messages made a merge message too long to
     // read. A merge git named ('Merge branch ...') says nothing in its subject, so its list is
-    // taken instead, i.e. the lines of its body that are list items, which is what Ctrl-A wrote when
+    // taken instead, i.e. the lines of its body that are list items, which is what Ctrl-L wrote when
     // it was made. That is what merging dev into main carries over: the lists of the branches that
     // were merged into dev, whose own commits are not among the merged ones.
     internal static string MergedSubjects(IReadOnlyList<Server.Commit> commits) =>

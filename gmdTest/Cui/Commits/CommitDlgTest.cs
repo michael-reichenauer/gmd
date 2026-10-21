@@ -3,7 +3,7 @@ using gmdTest.Fixtures;
 
 namespace gmdTest.Cui.Commits;
 
-// What Ctrl-A in the commit dialog adds to the message of a merge. The commits are what a merge
+// What Ctrl-L in the commit dialog adds to the message of a merge. The commits are what a merge
 // hands the dialog: those of the merged branch, newest first, as git log lists them.
 [TestClass]
 public class CommitDlgTest
