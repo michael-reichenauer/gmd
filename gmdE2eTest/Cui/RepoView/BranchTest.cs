@@ -44,7 +44,7 @@ public class BranchTest
 
                                                   ╭ Create Branch at Commit ─────────────────╮
                                                   │ From: main at 17d85ba8                   │
-                                                  │                                          │
+                                                  │ Name:                                    │
                                                   ││                                        ││
                                                   │└────────────────────────────────────────┘│
                                                   │ ◙ Checkout                               │
@@ -248,7 +248,7 @@ public class BranchTest
             """
                                           ╭ Rename Branch ───────────────────────────────────────────╮
                                           │ From: dev                                                │
-                                          │                                                          │
+                                          │ New name:                                                │
                                           ││dev                                                     ││
                                           │└────────────────────────────────────────────────────────┘│
                                           │                                                          │

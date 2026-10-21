@@ -19,6 +19,7 @@ class CreateBranchDlg : ICreateBranchDlg
 
         var dlg = new UIDialog(title, 44, 11);
         dlg.AddLabel(1, 0, $"From: {from}");
+        dlg.AddLabel(1, 1, "Name:");
         var nameField = dlg.AddTextField(1, 2, 40, name);
         var isCheckout = dlg.AddCheckBox(1, 4, "Checkout", true);
         var isPublishBox = dlg.AddCheckBox(1, 5, "Publish", isPublish);
