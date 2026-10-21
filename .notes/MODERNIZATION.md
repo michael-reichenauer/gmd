@@ -1068,8 +1068,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
 
   Merged into dev on 2026-10-17 for pre-releases, tried by the user on Linux, Windows and macOS. The
   setting `Colors` is in the Config dialog, and help.md and the README describe the colors; the demo
-  and the README's pictures were re-recorded on 2.5 on 2026-10-18. Left: real terminals
-  beyond those (iTerm2, Terminal.app, Ghostty), and the upstream issues (a reminder on 2026-10-24).
+  and the README's pictures were re-recorded on 2.5 on 2026-10-18. Released from main in 1.13.
+  Left: real terminals beyond those (iTerm2, Terminal.app, Ghostty), and the upstream issues to
+  file (a reminder on 2026-10-24): idle CPU polling, no 256-color output, the timers lock held
+  across callbacks, GettingScheme skipped for a view with no scheme, a main loop that posted work
+  cannot wake, and a modal runnable that records Focused rather than MostFocused, so a paste went
+  to the inside of a dialog.
 
   **Syntax colors in the diff (2026-10-18)**, branch `mr/syntax-colors`. TextMateSharp is called
   directly, not through 2.x's `TextMateSyntaxHighlighter`, whose single state and theme colors fit a

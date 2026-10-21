@@ -625,7 +625,7 @@ sealed class TmuxSession : IDisposable
 
         if (!Proc.CanRun("tmux", "-V"))
             Assert.Fail(
-                "tmux is not installed, run scripts/installtools (the end-to-end UI tests drive the TUI in it)"
+                "tmux is not installed, run scripts/installtools, or scripts/cloud-setup in a cloud session (the end-to-end UI tests drive the TUI in it)"
             );
     }
 }

@@ -25,6 +25,8 @@ scripts/build -l       # linux only (x64 and arm64; much faster — use this for
 scripts/log            # tail the runtime log with lnav (~/gmd.log)
 scripts/updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
 scripts/installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
+scripts/cloud-setup    # a fresh Ubuntu 24.04 machine, e.g. a cloud session: the toolchain (see Cloud sessions)
+scripts/installagg <bin> <fonts> # agg and its fonts, for scripts/demo (installtools and cloud-setup run it)
 scripts/demo           # re-record the README's animation and log pictures in gmd/doc/ (~30 s; tmux + agg)
 scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
 ```
@@ -42,7 +44,7 @@ and `scripts/test`.
 gmd is a full-screen terminal app, so it needs a pty: started from a shell with no terminal it will
 not run at all. tmux is the way in — it parses the escape sequences and keeps a screen model, so
 `capture-pane` hands back the rendered screen as plain text, which is what makes it assertable.
-Installed by `scripts/installtools`.
+Installed by `scripts/installtools`, and by `scripts/cloud-setup` in a cloud session.
 
 ```bash
 tmux new-session -d -s gmd -x 120 -y 40 -c /path/to/some/repo  gmd/bin/Debug/net10.0/gmd
@@ -87,6 +89,39 @@ through tmux, as the end-to-end tests do.
 Runtime log: `~/gmd.log`. Log with `Log.Info/Warn/Error/Debug/Exception` (`gmd.Utils.Logging`,
 already a global using). The TUI owns stdout, so **never use `Console.WriteLine` for
 diagnostics** — only `ProgramCommands` (pre-UI command-line handling) prints to the console.
+
+## Cloud sessions
+
+Claude Code on the web (claude.ai/code and the mobile apps) runs a session in a fresh Ubuntu 24.04
+VM, x86_64 and as root, with the repo cloned at `/home/user/gmd` and without the devcontainer.
+Nothing under `~/.claude` is there, no memory and no user settings: what a session needs to know is
+in this file and in `.claude/rules/`. The SessionStart hook in `.claude/settings.json` runs
+`scripts/cloud-setup --hook`, which does nothing unless `CLAUDE_CODE_REMOTE=true`. It installs the
+SDK that `global.json` pins and the .NET 10 runtime into `/usr/share/dotnet`, tmux, ICU and
+ssh-keygen from apt, and agg with its fonts (`scripts/installagg`), then restores the dotnet tools
+and the NuGet packages, so that `scripts/test` (both tiers), `scripts/build -l` and `scripts/demo`
+work as they do locally. Its one-line result is in the session's context, and its log in
+`/tmp/cloud-setup.log`. The environment's own setup script (claude.ai, the environment's settings;
+its text is in the header of `scripts/cloud-setup`) runs the same script before the session starts,
+so the toolchain is in the environment's snapshot and the hook only checks it, in seconds. As root,
+the few tests of a file that cannot be written are inconclusive, and say why. On the VM's 4 cores the
+end-to-end tier takes about 5 minutes, as on CI's runner, rather than the devcontainer's minute:
+that is no sign of trouble.
+
+- A setup that failed on a download means the environment's network allowlist lacks a host: tell
+  the user which. It needs Custom access, the Trusted defaults plus `builds.dotnet.microsoft.com`,
+  `ci.dot.net` and `aka.ms` (dotnet-install.sh), `crl3.digicert.com`, `crl4.digicert.com` and
+  `www.microsoft.com` (the revocation checks of NuGet's package signatures), and
+  `release-assets.githubusercontent.com` (where GitHub serves agg and the fonts from). .NET's
+  telemetry (`*.applicationinsights.azure.com`, `169.254.169.254`) can stay blocked.
+- A session started on `dev` or `main` first creates a branch of its own, `mr/<topic>`, and works
+  there. The GitHub proxy does not restrict which branches a push updates, so this rule is the only
+  guard of `dev` and `main`, where a push is a release: they move only through merges, when the
+  user asks for one (`.claude/rules/workflow.md`). Push the branch at the end of each turn or larger
+  step, since an idle VM is reclaimed and the push is how the work reaches the user; not after every
+  small commit, since each push runs CI.
+- The user is on a phone or a tablet then, so a rendered screenshot is the review of UI work
+  (`.claude/rules/workflow.md`, "Showing UI work").
 
 ## Architecture
 
@@ -800,7 +835,8 @@ repository made to look like a team's. `DemoRecording` turns the settled screens
 each shown for as long as the script says rather than as long as it took, with a caption panel under
 them that says what the frames show, its keys written between backticks drawn as key caps, and each
 caption a scene numbered of how many (`9/18`), and `scripts/demo` renders that with agg, which
-`scripts/installtools` installs with its fonts. Everything is pinned, including what would differ
+`scripts/installagg` installs with its fonts (`scripts/installtools` and `scripts/cloud-setup` run
+it). Everything is pinned, including what would differ
 between runs on screen (the temp path, the uncommitted row's `DateTime.Now`), so two recordings are
 byte for byte the same and the GIF only changes when what gmd draws does. It is drawn in the dark
 palette (`TempHome.Create(colors: "dark")`), as a user sees gmd, not in the 16 colors the other
@@ -945,9 +981,14 @@ message.
 ## Working agreements
 
 `.notes/` holds the working notes, kept up to date as the work goes, and `docs/` the documentation
-for contributors. The notes are deliberately not in `.claude/`, which Claude Code protects: every
-write there asks for permission.
+for contributors. The notes, long and written to all the time, are deliberately not in `.claude/`,
+which Claude Code protects: every write there asks for permission. The rules below in
+`.claude/rules/` are the exception, short and written seldom, since a session loads them by itself.
 
+- **Project knowledge** — the workflow decisions, the traps and the parked ideas found while
+  working — is in `.claude/rules/`: `workflow.md` is always loaded, the others with the files they
+  are about (`ui.md`, `installation.md`). Record new durable knowledge there, not in a local
+  memory, so that every session, a cloud one too, has it; keep it short, since it is loaded.
 - **`.notes/MODERNIZATION.md` holds the open issues and the findings** from the modernization work:
   what is deferred and why, what is known to be wrong, and the git and Terminal.Gui traps met on the
   way. Read it before starting anything substantial, and add to it (or close items) as work lands.
@@ -958,7 +999,9 @@ write there asks for permission.
   active goal — but keep changes reviewable. Prefer a series of focused commits over one
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
-  once `scripts/test` passes, so that the git log and its diffs are the review. Push only when asked.
+  once `scripts/test` passes, so that the git log and its diffs are the review. Pushing the feature
+  branch is fine, and a cloud session pushes it as it goes ("Cloud sessions"). `dev` and `main` move
+  only through merges, made when the user asks, since a push of either publishes a release.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (which `?` opens on
   GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/App/HelpPage.cs`) needs updating
   too, and the known limits under *Is Gmd for You?* in the README when one of them is lifted. The

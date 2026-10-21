@@ -25,6 +25,9 @@ end-to-end tests use (tmux, lnav, agg). It has the GitHub CLI too, which reads t
 (`gh run view <id> --log-failed`): log it in once with `gh auth login`, and the login is kept in a
 volume across rebuilds.
 
+On a fresh Ubuntu 24.04 machine without the devcontainer, such as a Claude Code cloud session,
+`scripts/cloud-setup` installs what the build and all the tests need (CLAUDE.md, "Cloud sessions").
+
 To set up a machine yourself you need:
 
 - The **.NET 11 SDK**, a preview until .NET 11 is released and pinned in `global.json`. Its C# 15
@@ -46,6 +49,8 @@ They are in `scripts/`, and each runs at the repository root wherever it is star
 | `scripts/log`            | Follow gmd's runtime log, `~/gmd.log`, in lnav                             |
 | `scripts/updatepackages` | List outdated NuGet packages (`-u` upgrades minor versions, `-m` major versions too) |
 | `scripts/installtools`   | Set up the devcontainer: tools and dotnet local tools                      |
+| `scripts/cloud-setup`    | Set up a fresh Ubuntu 24.04 machine, such as a Claude Code cloud session: what the build and all the tests need |
+| `scripts/installagg`     | Install agg and its fonts, which `scripts/demo` renders with (run by the two above) |
 | `scripts/demo`           | Re-record the README's animation and log pictures, by a session in tmux    |
 | `scripts/brewformula <version>` | Write the Homebrew formula of a release, which the release workflow pushes to the tap |
 

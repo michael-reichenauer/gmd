@@ -1,0 +1,152 @@
+#!/bin/bash
+# Installs what building and testing gmd needs on a fresh Ubuntu 24.04 machine, such as a Claude
+# Code cloud session, which does not use the devcontainer:
+#
+#   - the .NET SDK that global.json pins, exactly, as CI installs it (its C# 15 compiler), and the
+#     .NET runtime of the projects' TargetFramework (net10.0), which the build, the tests and
+#     CSharpier run on and that SDK does not carry, both in /usr/share/dotnet as in the
+#     devcontainer, which is also where gmd's apphost looks for the runtime
+#   - tmux, which the end-to-end tests drive gmd in (they fail rather than skip without it), ICU,
+#     which .NET needs, and ssh-keygen, without which the commit signing tests are inconclusive
+#   - agg and its fonts (scripts/installagg), which scripts/demo and rendered screenshots of the
+#     UI need, and nothing else does, so a failure there is reported but is no failure of the setup
+#   - the repo's dotnet tools (CSharpier) and NuGet packages
+#
+# Not the devcontainer's comforts in scripts/installtools (mc, lnav, xsel, the time zone, claude,
+# gmd itself).
+#
+#   scripts/cloud-setup         install what is missing, safe to re-run
+#   scripts/cloud-setup --hook  the SessionStart hook in .claude/settings.json: does nothing outside
+#                               a cloud session (CLAUDE_CODE_REMOTE), logs to /tmp/cloud-setup.log
+#                               and prints one summary line, since hook output becomes Claude's
+#                               context, and never fails the session
+#
+# Each step first checks offline whether it is done (dpkg-query, dotnet --list-sdks and
+# --list-runtimes, agg --version), so no step needs a marker file and a re-run downloads nothing
+# but what the NuGet restore checks. Runs as root or through sudo. Beyond the cloud's "Trusted"
+# network defaults, the downloads need builds.dotnet.microsoft.com, ci.dot.net, aka.ms,
+# crl3.digicert.com, crl4.digicert.com, www.microsoft.com and release-assets.githubusercontent.com
+# (CLAUDE.md, "Cloud sessions").
+#
+# The cloud environment's "Setup script" (claude.ai, the environment's settings) runs this before a
+# new session starts, and when it takes less than about five minutes the result is kept in the
+# environment's snapshot, so later sessions start with the toolchain installed and the hook only
+# checks it. Its working directory is not documented, so the setup script finds the repo by path:
+#
+#   #!/bin/bash
+#   setup=$(find / -maxdepth 6 \( -path /proc -o -path /sys \) -prune -o -path '*/gmd/scripts/cloud-setup' -print -quit 2>/dev/null)
+#   [ -n "$setup" ] && "$setup" || true
+set -euo pipefail
+SCRIPT="$(realpath "$0")"
+cd "$(dirname "$SCRIPT")/.."
+
+usage() {
+    echo "Usage: scripts/cloud-setup [--hook]" >&2
+    exit 1
+}
+
+HOOK=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --hook) HOOK=1 ;;
+        *) usage ;;
+    esac
+    shift
+done
+
+if [[ "$HOOK" == "1" ]]; then
+    [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]] || exit 0
+    log=/tmp/cloud-setup.log
+    start=$SECONDS
+    # Within the hook's own timeout (900 s in .claude/settings.json), so that a download that hangs
+    # is reported here rather than the hook just being stopped
+    if timeout --kill-after=10 840 "$SCRIPT" >"$log" 2>&1; then
+        echo "Cloud toolchain ready in $((SECONDS - start)) s ($(sed -n 's/^Cloud setup done: //p' "$log")); log: $log"
+    else
+        # Never fail the session start; tell Claude what is missing instead.
+        echo "Cloud toolchain setup FAILED after $((SECONDS - start)) s (log: $log). Last lines:"
+        tail -n 15 "$log"
+        echo "A download error usually means a host missing from the environment's network allowlist (CLAUDE.md, \"Cloud sessions\")."
+    fi
+    exit 0
+fi
+
+export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 DEBIAN_FRONTEND=noninteractive
+
+as_root() {
+    if [[ "$(id -u)" == "0" ]]; then
+        "$@"
+    else
+        sudo env "PATH=$PATH" DEBIAN_FRONTEND=noninteractive "$@"
+    fi
+}
+
+step() {
+    echo ""
+    echo "=== $*"
+}
+
+# Downloads that later run as root go to a private folder, not to fixed /tmp paths.
+DOWNLOADS="$(mktemp -d)"
+trap 'rm -rf "$DOWNLOADS"' EXIT
+
+DOTNET_DIR=/usr/share/dotnet
+
+step "OS packages"
+missing=()
+for pkg in ca-certificates curl git jq libicu74 openssh-client tmux unzip; do
+    [[ "$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null || true)" == *"ok installed" ]] || missing+=("$pkg")
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+    # Finishes a dpkg run that was stopped, e.g. by the hook's timeout, which apt-get would refuse
+    # to go on from
+    as_root dpkg --configure -a
+    as_root apt-get update -q
+    as_root apt-get install -y -q --no-install-recommends "${missing[@]}"
+else
+    echo "installed"
+fi
+tmux -V
+
+SDK_VERSION="$(jq -r '.sdk.version // empty' global.json)"
+FRAMEWORKS="$(sed -n 's|.*<TargetFramework>net\([0-9][0-9.]*\)</TargetFramework>.*|\1|p' ./*/*.csproj | sort -u | xargs)"
+if [[ -z "$SDK_VERSION" || -z "$FRAMEWORKS" ]]; then
+    echo "Could not read the SDK version from global.json ('$SDK_VERSION') or the" >&2
+    echo "<TargetFramework>net<version></TargetFramework> of the projects ('$FRAMEWORKS')." >&2
+    exit 1
+fi
+
+step ".NET SDK $SDK_VERSION (global.json) and .NET runtime $FRAMEWORKS (TargetFramework)"
+installer="$DOWNLOADS/dotnet-install.sh"
+dotnet_install() {
+    [[ -f "$installer" ]] || curl -fsSL https://dot.net/v1/dotnet-install.sh -o "$installer"
+    as_root bash "$installer" --install-dir "$DOTNET_DIR" "$@"
+}
+# Lines as '11.0.100-rc.2.26504.105 [/usr/share/dotnet/sdk]'
+if ! grep -qF "$SDK_VERSION [" <<<"$("$DOTNET_DIR/dotnet" --list-sdks 2>/dev/null || true)"; then
+    dotnet_install --version "$SDK_VERSION"
+fi
+for framework in $FRAMEWORKS; do
+    # Lines as 'Microsoft.NETCore.App 10.0.10 [/usr/share/dotnet/shared/Microsoft.NETCore.App]'. The
+    # runtime the SDK carries counts too, as it would for a net11.0 project with the 11 SDK.
+    if ! grep -qF "Microsoft.NETCore.App $framework." <<<"$("$DOTNET_DIR/dotnet" --list-runtimes 2>/dev/null || true)"; then
+        dotnet_install --channel "$framework" --runtime dotnet
+    fi
+done
+as_root ln -sf "$DOTNET_DIR/dotnet" /usr/local/bin/dotnet
+dotnet --list-sdks
+dotnet --list-runtimes
+
+step "dotnet tools and NuGet packages"
+dotnet tool restore
+dotnet restore gmd.sln
+
+step "agg and its fonts (scripts/demo)"
+aggResult="agg"
+if ! as_root scripts/installagg /usr/local/bin /usr/local/share/fonts; then
+    echo "agg could not be installed; only scripts/demo and rendered screenshots need it"
+    aggResult="agg FAILED, see the log"
+fi
+
+echo ""
+echo "Cloud setup done: .NET SDK $SDK_VERSION, .NET runtime $FRAMEWORKS, tmux, $aggResult"
