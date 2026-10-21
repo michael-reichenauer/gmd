@@ -134,8 +134,9 @@ jobs:
           RELEASE_SHA="$(git rev-parse HEAD)"
 
           git checkout -q -B main origin/main
+          # The notes' '### New' headings are kept as they are, not taken for comments ('whitespace')
           { echo "Merge branch 'dev' for v$VERSION"; echo; scripts/changelog notes "v$VERSION"; } > merge.txt
-          git merge --no-ff "$RELEASE_SHA" -F merge.txt
+          git merge --no-ff --cleanup=whitespace "$RELEASE_SHA" -F merge.txt
           MAIN_SHA="$(git rev-parse HEAD)"
 
           git checkout -q -B dev "$RELEASE_SHA"
