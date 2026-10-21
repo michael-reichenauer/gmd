@@ -337,9 +337,12 @@ class DiffService : IDiffService
 
         string commitId = lines[i++]["commit ".Length..].Trim();
 
+        // 'Merge: <first parent> <second parent>', which the diff is against the first of
+        var mergeFirstParent = "";
         if (i < lines.Length && lines[i].StartsWith("Merge: "))
-        { // Skip Merge line
-            i++;
+        {
+            mergeFirstParent =
+                lines[i++]["Merge: ".Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
         }
         if (i < lines.Length && lines[i].StartsWith("Author: "))
         {
@@ -371,7 +374,10 @@ class DiffService : IDiffService
 
         (var fileDiffs, i) = ParseFileDiffs(i, lines);
 
-        var commitDiff = new CommitDiff(commitId, author, time, message, fileDiffs);
+        var commitDiff = new CommitDiff(commitId, author, time, message, fileDiffs)
+        {
+            MergeFirstParent = mergeFirstParent,
+        };
         return (commitDiff, i, true);
     }
 
