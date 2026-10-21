@@ -71,9 +71,12 @@ class CommitMenu : ICommitMenu
             .Items.Items(repoMenu.GetNewReleaseItems())
             .Item("Commit ...", "c", () => cmds.Commit(false), () => !isStatusOK, () => "Nothing to commit")
             // Enabled as the 'a' key is: the last commit can be amended with no changes too, to reword
-            // its message, also once pushed, which 'p' then pushes with force
+            // its message, also once pushed, which 'p' then pushes with force. Named so in the menu of
+            // another commit, whose 'Amend ...' read as amending that one.
             .Item(
-                "Amend ...",
+                c.IsUncommitted || c.Id == cc.Id ? "Amend ..."
+                    : cb != null ? $"Amend Last Commit of {cb.ShortNiceUniqueName()} ..."
+                    : "Amend Last Commit ...",
                 "a",
                 () => cmds.Commit(true),
                 () => CommitRewrite.WhyNotAmendLast(repo.Repo) == "",

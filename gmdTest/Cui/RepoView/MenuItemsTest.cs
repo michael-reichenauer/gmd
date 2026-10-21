@@ -88,6 +88,23 @@ public class MenuItemsTest
         );
     }
 
+    // On another commit than the last, the item with the 'a' key says it amends the last commit, of
+    // the current branch, beside the one that amends this commit. It read as amending this one.
+    [TestMethod]
+    public async Task TestTheAmendOfTheLastCommitSaysSoInTheMenuOfAnother()
+    {
+        var view = await ViewOf(Fixture());
+        var items = CommitMenuOf(view).GetCommitMenuItems(RepoBuilder.Sha("d1"));
+
+        StringAssert.Contains(
+            Items(items),
+            """
+            Amend Last Commit of main ...  [a]
+            Amend d1000000 ...  (disabled)
+            """
+        );
+    }
+
     // Its Undo: the branch's last change, then the undos of commits, the discards of uncommitted
     // changes, and what brings back what was thrown away
     [TestMethod]
