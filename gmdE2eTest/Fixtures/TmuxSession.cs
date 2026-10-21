@@ -147,16 +147,27 @@ sealed class TmuxSession : IDisposable
     public void SelectMenuItem(string text, int maxMoves = 30)
     {
         WaitForStable();
+        var isResent = false;
         for (var moves = 0; ; moves++)
         {
             var screen = CaptureColors();
             if (ScreenText.IsMenuItemCurrent(screen, text))
-                return;
+            {
+                // A Down sent again may still be on its way, if the first one was slow rather than
+                // lost, and would move past the item just before the caller's Enter
+                if (!isResent)
+                    return;
+                isResent = false;
+                WaitForStable();
+                if (ScreenText.IsMenuItemCurrent(CaptureColors(), text))
+                    return;
+                continue;
+            }
             if (moves == maxMoves)
                 break;
 
             Send("Down");
-            WaitForMenuMove(screen, text);
+            isResent |= WaitForMenuMove(screen, text);
         }
 
         Assert.Fail($"The menu item '{text}' was not reached in {maxMoves} moves\n{Diagnostics(Capture())}");
@@ -166,12 +177,14 @@ sealed class TmuxSession : IDisposable
     // shorter wait than WaitForStable's, since a move of a menu's cursor is a redraw of a few rows
     // with no git command behind it, and a walk down a long menu is many of them.
     //
-    // A Down that has not moved the cursor in several seconds is sent again: on CI one was lost
-    // with the menu open and gmd idle, and the walk waited out its 30 seconds. A key that was only
-    // slow and moves the cursor twice cannot pick the wrong item, since the walk stops only on the
-    // item drawn current, and the menu does not wrap, so one moved past fails at maxMoves.
-    void WaitForMenuMove(string before, string text)
+    // A Down that has not moved the cursor in several seconds is sent again, which it returns: on CI
+    // one was lost with the menu open and gmd idle, and the walk waited out its 30 seconds. A key
+    // that was only slow then moves the cursor twice. During the walk that cannot pick a wrong item,
+    // since the walk stops only on the item drawn current and the menu does not wrap, so one moved
+    // past fails at the bottom of the menu; on the item, SelectMenuItem waits for the screen to settle.
+    bool WaitForMenuMove(string before, string text)
     {
+        var isResent = false;
         var clock = Stopwatch.StartNew();
         var sent = Stopwatch.StartNew();
         var previous = before;
@@ -180,16 +193,18 @@ sealed class TmuxSession : IDisposable
             Thread.Sleep(PollMs);
             var screen = CaptureColors();
             if (screen != before && screen == previous)
-                return;
+                return isResent;
             if (screen == before && sent.ElapsedMilliseconds > ResendKeyMs)
             {
                 Send("Down");
                 sent.Restart();
+                isResent = true;
             }
             previous = screen;
         }
 
         Assert.Fail($"Timed out waiting for the menu cursor to move on towards '{text}'\n{Diagnostics(Capture())}");
+        return isResent; // Not reached, Fail throws
     }
 
     // Polls until a condition holds, e.g. on the colors of a capture, which WaitFor cannot look for
