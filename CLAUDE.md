@@ -104,7 +104,9 @@ work as they do locally. Its one-line result is in the session's context, and it
 `/tmp/cloud-setup.log`. The environment's own setup script (claude.ai, the environment's settings;
 its text is in the header of `scripts/cloud-setup`) runs the same script before the session starts,
 so the toolchain is in the environment's snapshot and the hook only checks it, in seconds. As root,
-the few tests of a file that cannot be written are inconclusive, and say why.
+the few tests of a file that cannot be written are inconclusive, and say why. On the VM's 4 cores the
+end-to-end tier takes about 5 minutes, as on CI's runner, rather than the devcontainer's minute:
+that is no sign of trouble.
 
 - A setup that failed on a download means the environment's network allowlist lacks a host: tell
   the user which. It needs Custom access, the Trusted defaults plus `builds.dotnet.microsoft.com`,

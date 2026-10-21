@@ -50,6 +50,14 @@ themselves, and a picture is only overhead. How to render one: `.claude/rules/ui
   what a newcomer recognizes rather than for the smallest diff, conventional C# over a clever shim.
   The idioms are in CLAUDE.md, "Errors".
 
+## Running the tests
+
+- `scripts/test` prints each failure where it happens, with its message, and the summary at the end
+  only counts them, so the tail of the output names no failed test. Keep the whole output,
+  `scripts/test 2>&1 | tee <scratchpad>/test.log`, and find the failures with
+  `grep -A12 "^  Failed " <scratchpad>/test.log`: a failure seen once and not named cannot be told
+  from a flake.
+
 ## Shell traps
 
 - `pkill -f` and `pgrep -f` match the Bash tool's own command line, so a pattern that also appears in
