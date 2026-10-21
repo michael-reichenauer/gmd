@@ -23,17 +23,17 @@ public class DeletedOnOriginTest
 
         Assert.IsTrue(DeletedOnOrigin.IsGone(feature));
         Assert.AreEqual(
-            "'feature' was deleted on origin, e.g. its pull request was merged: Push in its branch menu puts it back",
+            "'feature' was deleted on origin, e.g. its pull request was merged: Publish in its branch menu puts it back",
             DeletedOnOrigin.WhyNoPush(repo, feature)
         );
         Assert.AreEqual(
             """
-            Push 'feature' to origin again?
+            Publish 'feature' to origin again?
 
             'origin/feature' was deleted on origin, e.g. when its pull
-            request was merged. Pushing makes it again there, for everyone.
+            request was merged. Publishing makes it again there, for everyone.
             """,
-            DeletedOnOrigin.PushAgainQuestion(repo, feature)
+            DeletedOnOrigin.PublishAgainQuestion(repo, feature)
         );
     }
 

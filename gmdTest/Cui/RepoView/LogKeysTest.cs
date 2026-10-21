@@ -111,6 +111,20 @@ public class LogKeysTest
         Assert.AreEqual(new KeyAction("push"), LogKeys.Push(ahead, new Hoover()));
     }
 
+    // A highlighted branch not on origin yet is not pushed by 'p', which would make it on origin, for
+    // everyone, but by Publish in its branch menu, which 'p' says. It pushed it, while it pointed at the
+    // menu for the current one, whose menu then said 'Push  p'.
+    [TestMethod]
+    public async Task TestABranchNotOnOriginIsLeftToPublish()
+    {
+        var view = await ViewOf(Branches(), "dev");
+
+        Assert.AreEqual(
+            KeyAction.No("'dev' is not on origin yet: Publish in its branch menu publishes it"),
+            LogKeys.Push(view, HooverOn(view, "dev", "d1"))
+        );
+    }
+
     // A branch rewritten here after it was pushed has nothing to pull, and its push is a force push,
     // which the hint says, since 'p' is what it needs next
     [TestMethod]

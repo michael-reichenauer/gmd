@@ -522,8 +522,8 @@ public class PushPullTest
         );
     }
 
-    // A branch deleted on origin, e.g. once its pull request was merged there, is no branch to publish
-    // as one never pushed is: 'p' says so rather than pointing at Push, and so does the details pane
+    // A branch deleted on origin, e.g. once its pull request was merged there, is not said to be never
+    // pushed: 'p' says it was deleted, pointing at Publish, and so does the details pane
     [TestMethod]
     public async Task TestABranchDeletedOnOriginIsNotPublishedAgainByP()
     {
@@ -533,12 +533,45 @@ public class PushPullTest
 
         gmd.Send("p");
         Assert.AreEqual(
-            "'feature' was deleted on origin, e.g. its pull request was merged: Push in its branch menu puts it back",
+            "'feature' was deleted on origin, e.g. its pull request was merged: Publish in its branch menu puts it back",
             ScreenText.LastLine(gmd.WaitFor("was deleted on origin"))
         );
 
         gmd.Send("Enter");
         gmd.WaitFor("feature  (deleted on origin)");
+    }
+
+    // A branch made with Publish unticked is not on origin: 'p' does not push it, which would make it
+    // there for everyone, but says that Publish in its branch menu does, where Publish, with no key,
+    // has taken the place of Push. The menu said 'Push  p', while 'p' said to use the menu.
+    [TestMethod]
+    public async Task TestABranchNotOnOriginIsPublishedFromItsMenu()
+    {
+        using var repo = await E2eRepo.CreateWithOriginAsync();
+        await repo.GitAsync("checkout -q -b feature");
+        await repo.CommitFileAtAsync("feature.txt", "feature\n", "Feature work", TempRepo.BaseTime.AddMinutes(8));
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Feature work");
+
+        gmd.Send("p");
+        Assert.AreEqual(
+            "'feature' is not on origin yet: Publish in its branch menu publishes it",
+            ScreenText.LastLine(gmd.WaitFor("not on origin yet"))
+        );
+
+        gmd.Send("Left"); // Highlights feature, on its commit at the top
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Branch: feature");
+        StringAssert.DoesNotMatch(gmd.WaitFor("Publish"), new System.Text.RegularExpressions.Regex(@"Push\s+p"));
+        gmd.SelectMenuItem("Publish");
+        gmd.Send("Enter");
+
+        Assert.AreEqual("Published 'feature' to origin", ScreenText.LastLine(gmd.WaitFor("Published 'feature'")));
+        Assert.AreEqual(
+            (await repo.GitAsync("rev-parse feature")).Trim(),
+            (await repo.GitAsync($"-C \"{repo.Path}-origin\" rev-parse feature")).Trim()
+        );
     }
 
     // A branch squash merged on origin and deleted there, as a pull request merged by GitHub's squash

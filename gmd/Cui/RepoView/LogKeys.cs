@@ -78,6 +78,8 @@ static class LogKeys
     // 'p' pushes the highlighted branch, as the branch menu's Push does, and the current branch when
     // none is highlighted, which goes through the command that asks before a force push. A branch
     // rewritten here is pushed with force, which the hint says, since there is nothing to pull first.
+    // One not on origin yet is not pushed, but published from its branch menu, which 'p' says, see
+    // BranchPushPullCommands.IsUnpublished.
     public static KeyAction Push(IViewRepo repo, Hoover hoover)
     {
         if (Hoovered(repo, hoover) is not Branch branch || IsCurrent(branch))
@@ -87,6 +89,8 @@ static class LogKeys
             return new(RewrittenHere.Of(repo.Repo, repo.Repo.CurrentBranch()) != null ? "force push" : "push");
         }
 
+        if (BranchPushPullCommands.IsUnpublished(branch))
+            return KeyAction.No(BranchPushPullCommands.WhyNoPushUnpublished(repo.Repo, branch));
         return !BranchPushPullCommands.CanPushBranch(repo.Repo, branch)
             ? KeyAction.No(BranchPushPullCommands.WhyNoPushBranch(repo.Repo, branch))
             : new(RewrittenHere.Of(repo.Repo, branch) != null ? "force push" : "push");
