@@ -948,6 +948,10 @@ message.
 for contributors. The notes are deliberately not in `.claude/`, which Claude Code protects: every
 write there asks for permission.
 
+- **Project knowledge** — the workflow decisions, the traps and the parked ideas found while
+  working — is in `.claude/rules/`: `workflow.md` is always loaded, the others with the files they
+  are about (`ui.md`, `installation.md`). Record new durable knowledge there, not in a local
+  memory, so that every session, a cloud one too, has it; keep it short, since it is loaded.
 - **`.notes/MODERNIZATION.md` holds the open issues and the findings** from the modernization work:
   what is deferred and why, what is known to be wrong, and the git and Terminal.Gui traps met on the
   way. Read it before starting anything substantial, and add to it (or close items) as work lands.
