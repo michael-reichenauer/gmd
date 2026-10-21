@@ -195,7 +195,6 @@ interface IServer
     Task<Result<IReadOnlyList<DiscardedChange>>> GetDiscardedAsync(string wd);
     Task<Result<CommitDiff>> GetDiscardedDiffAsync(DiscardedChange change, Git.DiffOptions options, string wd);
     Task<Result> RestoreDiscardedAsync(DiscardedChange change, string wd);
-    Task<Result<string>> GetChangeLogAsync(string? newRelease = null);
     Task<Result> AddTagAsync(string name, string commitId, string wd);
     Task<Result> AddAnnotatedTagAsync(string name, string message, string commitId, string wd);
     Task<Result> RemoveTagAsync(string name, bool isOnOrigin, string wd);

@@ -746,15 +746,6 @@ class Server : IServer
         return GitConverter.ToCommitDiff(diff);
     }
 
-    public async Task<Result<string>> GetChangeLogAsync(string? newRelease = null)
-    {
-        var repoResult = await GetRepoAsync("", ["main"]);
-        if (repoResult is not Repo repo)
-            return repoResult.Error;
-
-        return ChangeLog.Create(repo, newRelease, DateTime.UtcNow);
-    }
-
     public Task<Result> AddTagAsync(string name, string commitId, string wd) =>
         Paused(() => git.AddTagAsync(name, commitId, wd));
 

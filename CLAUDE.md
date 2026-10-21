@@ -29,6 +29,7 @@ scripts/cloud-setup    # a fresh Ubuntu 24.04 machine, e.g. a cloud session: the
 scripts/installagg <bin> <fonts> # agg and its fonts, for scripts/demo (installtools and cloud-setup run it)
 scripts/demo           # re-record the README's animation and log pictures in gmd/doc/ (~30 s; tmux + agg)
 scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
+scripts/changelog unreleased # the notes of the next release in CHANGELOG.md, as the Release workflow reads them
 ```
 
 `gh` (the GitHub CLI) is in the dev container, a feature of `devcontainer.json` with its login kept
@@ -116,8 +117,8 @@ that is no sign of trouble.
   telemetry (`*.applicationinsights.azure.com`, `169.254.169.254`) can stay blocked.
 - A session started on `dev` or `main` first creates a branch of its own, `mr/<topic>`, and works
   there. The GitHub proxy does not restrict which branches a push updates, so this rule is the only
-  guard of `dev` and `main`, where a push is a release: they move only through merges, when the
-  user asks for one (`.claude/rules/workflow.md`). Push the branch at the end of each turn or larger
+  guard of `dev` and `main`: they move only through merges, when the user asks for one, and the
+  Release workflow (`.claude/rules/workflow.md`). Push the branch at the end of each turn or larger
   step, since an idle VM is reclaimed and the push is how the work reaches the user; not after every
   small commit, since each push runs CI.
 - The user is on a phone or a tablet then, so a rendered screenshot is the review of UI work
@@ -893,26 +894,24 @@ message.
 
 ## Gotchas
 
-- **`CHANGELOG.md` is generated — never hand-edit it.** CI makes it in the release commit of every
-  release from `main` (see the version bullet below), with `gmd --updatechangelog v<version>`, which
-  rewrites it from main's history: each version tag starts a release, and its notes are the lists
-  written in the merge commit messages (`Server/Private/ChangeLog.cs`).
+- **Nothing is published by a push.** A preview (from `dev`) or a release (from `main`) is made only
+  by running the Release workflow, `.github/workflows/release.yml`, by hand or with the `release`
+  skill; every push only tests (`build.yml`). docs/RELEASING.md is the process.
+- **`CHANGELOG.md` is written by hand, for users** (or by Claude, the `release` skill), never
+  generated. The notes of the next release are its `## [Unreleased]` section on `dev`, grouped
+  New, Improved, Changed and Fixed (the style is in docs/RELEASING.md); a release stamps that
+  heading with its version (`scripts/changelog`), and a release with no notes is refused.
 - **`gmd/Build.cs` contains CI placeholders.** The literals `"BUILD_TIME"` and `"BUILD_SHA"`
-  are `sed`-replaced by `.github/workflows/build-and-release.yml`. Do not rename, reformat or
+  are `sed`-replaced by `.github/workflows/release.yml`. Do not rename, reformat or
   move that file or those strings.
 - **Version lives in `gmd/Program.cs`** (`MajorVersion`/`MinorVersion`); the last two version
-  components are derived from build time in `Build.cs`. Major is hand-edited; the minor is raised by
-  CI. A push to `main` makes a **release commit** (`Release v<version>`) on top of it, which raises
-  `MinorVersion` by one and regenerates `CHANGELOG.md`, and that commit is built, tagged and
-  released, and pushed only once the tests pass. A major.minor raised by hand above the latest
-  release (as 0.97 to 1.0) is released as written, not raised again; the latest release is
-  GitHub's, read with `gh`, since a version tag in git can be a preview's. Dev releases keep the
-  minor they have. So pull
-  `main` before merging `dev` into it, and merge `main` into `dev` after a release: until then dev's
-  pre-releases are numbered below the stable release, and the updater offers a preview only when it
-  is newer. Both merges are `git merge --no-ff`: after a release `main` holds all of `dev`, so a plain
-  merge fast-forwards `dev` onto main's line, and gmd, which follows first-parent lines, then shows
-  `dev` as deleted at its old tip and made anew from the release commit.
+  components are derived from build time in `Build.cs`. `dev` holds the major.minor of the next
+  release, which its previews carry too. A release makes its version commit on `dev` (`Release
+  v<version>`, the change log heading), merges `dev` into `main` with `--no-ff`, and then raises
+  `MinorVersion` on `dev` (`Start v<major>.<minor>`), all pushed only once the tests pass; so `main`
+  is never merged back into `dev`, and `main` moves only by the workflow. A release not above the
+  latest one in major.minor is refused; a new major is set by hand on `dev`. The latest release is
+  GitHub's, read with `gh`, since a version tag in git can be a preview's.
 - **A Debug build rewrites source files** (CSharpier formatting — see above). Do not be
   surprised by a dirty working tree after `dotnet build`.
 - **No git process gmd starts can open an editor.** `Cmd.NeverOpenAnEditor` forces `GIT_EDITOR`
@@ -953,10 +952,10 @@ message.
   `gmd.exe`, kept under the original names because the built-in updater falls back to the first and
   updates Windows from the second (`ReleaseChoice.BinaryNames`), as the committed installer does
   (`Setup/gmd.iss`). Do not drop them from the release workflow. `gmd.exe` is the one the README
-  offers, since it runs as it is named. The release notes are written by the workflow
-  (`Write release notes`): main's are its section of `CHANGELOG.md`, a preview's what is new on dev.
+  offers, since it runs as it is named. The release notes on GitHub are the `Unreleased` section of
+  `CHANGELOG.md` (`Write release notes`), under a line saying it is a preview for a preview.
   Only the latest five previews are kept (`Prune old previews`), with their tags, except a tag on
-  main's first-parent line, since the change log is made from the version tags there.
+  main's first-parent line, where some older previews are.
 - **The Homebrew tap, `michael-reichenauer/homebrew-tap`, is written by the release workflow**
   for every release from `main` (`scripts/brewformula`, pushed with the deploy key in the secret
   `HOMEBREW_TAP_KEY`; docs/CONTRIBUTING.md has the setup). Its formula names the release assets
@@ -973,8 +972,8 @@ message.
   Its tests run the Windows swap too, but not on Windows, where only renaming the running exe is
   allowed: try an updater change through two dev previews, with a real update on Linux, macOS and
   Windows, before it goes to `main`.
-- Branch layout: `main` = releases, `dev` = pre-releases; pushing to either publishes a
-  GitHub release from CI. Work on feature branches and target `dev` unless told otherwise.
+- Branch layout: `main` = releases, `dev` = pre-releases, each published only by the Release
+  workflow. Work on feature branches and target `dev` unless told otherwise.
 - `Utils/GlobPatterns/` is vendored third-party-style code. CSharpier formats it like
   everything else, but do not restructure its logic; `.editorconfig` keeps analyzers quiet there.
 
@@ -1000,8 +999,9 @@ which Claude Code protects: every write there asks for permission. The rules bel
   sweeping refactor, especially around `BranchStructureService` and `RepoView`.
 - **Commit as the work gets done, without asking**: each finished subtask as a commit of its own,
   once `scripts/test` passes, so that the git log and its diffs are the review. Pushing the feature
-  branch is fine, and a cloud session pushes it as it goes ("Cloud sessions"). `dev` and `main` move
-  only through merges, made when the user asks, since a push of either publishes a release.
+  branch is fine, and a cloud session pushes it as it goes ("Cloud sessions"). `dev` moves only
+  through merges made when the user asks, and the notes of a release, and `main` only by the Release
+  workflow.
 - When behavior visible to users changes, check whether `gmd/doc/help.md` (which `?` opens on
   GitHub, at the commit gmd was built from: `Project.HelpUrl`, `Cui/App/HelpPage.cs`) needs updating
   too, and the known limits under *Is Gmd for You?* in the README when one of them is lifted. The

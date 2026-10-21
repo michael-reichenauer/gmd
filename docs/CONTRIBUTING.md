@@ -53,6 +53,7 @@ They are in `scripts/`, and each runs at the repository root wherever it is star
 | `scripts/installagg`     | Install agg and its fonts, which `scripts/demo` renders with (run by the two above) |
 | `scripts/demo`           | Re-record the README's animation and log pictures, by a session in tmux    |
 | `scripts/brewformula <version>` | Write the Homebrew formula of a release, which the release workflow pushes to the tap |
+| `scripts/changelog unreleased` | Print the notes of the next release from `CHANGELOG.md`, as the Release workflow reads them |
 
 On Windows, `scripts\run.bat`, `scripts\build.bat` (`-w` builds Windows only) and `scripts\log.bat`
 do the same.
@@ -71,15 +72,13 @@ each one into `artifacts/` under the name it is released as. The runtimes releas
 
 - **Formatting** belongs to [CSharpier](https://csharpier.com). VS Code formats on save, a Debug
   build formats the code, and CI checks it. Don't format by hand.
-- **Branches**: `main` holds the releases and `dev` the pre-releases, and CI publishes a GitHub
-  release on every push to either one. A release from `main` gets the next minor version, in a
-  release commit CI adds to `main`, so pull `main` before merging into it and merge it back into
-  `dev` afterwards. A version raised by hand in `gmd/Program.cs`, a new major, is released as it is
-  written. Work on a feature branch and target `dev`.
+- **Branches**: `main` holds the releases and `dev` the pre-releases. Pushing to them only tests;
+  a preview or a release is published with the Release workflow, run by hand, which also merges
+  `dev` into `main` ([RELEASING.md](RELEASING.md)). Work on a feature branch and target `dev`.
 - **Tests** go with every bug fix. The unit tests are in `gmdTest/`, laid out like `gmd/`, and the
   end-to-end tests, which drive the real executable in tmux, are in `gmdE2eTest/`.
-- **`CHANGELOG.md` is generated** from the git history by `gmd --updatechangelog`, in CI's release
-  commit on `main`, so don't edit it by hand.
+- **`CHANGELOG.md` is written for users**: the notes of the next release go in its
+  `## [Unreleased]` section, in the style [RELEASING.md](RELEASING.md) describes.
 - **The help** is [gmd/doc/help.md](../gmd/doc/help.md), which the `?` key opens on GitHub, at the
   commit gmd was built from (`Project.HelpUrl`). Update it with any change users can see. The diff,
   blame and conflict views open it at a heading, and its contents link to its headings, so a heading
