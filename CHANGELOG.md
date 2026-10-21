@@ -1,7 +1,15 @@
 # Change Log for Gmd
 --------------------
 
-152 releases:
+153 releases:
+
+## [v1.14.1452.819] - 2026-10-21
+- Step the diff's context 15 lines at a time with + and -, from 6, around the changes of the file the cursor is on, + saying when the whole file is shown; the diff menu's Show More Context and Show Less Context do the same, and Show All shows the whole file, - going back to the context it had
+- Show more context with + on the ⋯ between two parts of a file too, where Enter no longer does
+- Put the diff's row counting the files, e.g. '4 files changed  4 modified  +8 -8', right under who made the commit and when, one row less at the top of every diff
+- Publish a branch not on origin yet, made with its Publish box unticked, with Publish in its branch menu, in place of Push and with no key; p no longer publishes any branch, and says that Publish does
+- Put a branch deleted on origin back with Publish in its branch menu, asked first
+- Grey out Push in the branch menu of a branch with nothing to push, where it could be picked and pushed nothing
 
 ## [v1.13.1450.1146] - 2026-10-19
 - Draw in colors of gmd's own, on Terminal.Gui 2.5: twelve branch colors, a dark or a light palette picked by the terminal's background, or the terminal's own 16 colors, set with Colors in the Config dialog
