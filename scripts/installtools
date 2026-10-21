@@ -67,8 +67,8 @@ dotnet tool restore
 
 echo ""
 echo "Remove the git post commit hook that made the change log ..."
-# CI makes CHANGELOG.md now, in the release commit on main. The hook once installed here would
-# otherwise rewrite it after every commit on main, and the pull of CI's one would then conflict.
+# CHANGELOG.md is written by hand now (docs/RELEASING.md). The hook once installed here would
+# otherwise run a gmd option that is gone after every commit on main.
 if grep -qs updatechangelog ./.git/hooks/post-commit; then
   rm ./.git/hooks/post-commit
 fi

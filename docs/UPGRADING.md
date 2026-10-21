@@ -19,7 +19,7 @@ grep -rn "net10.0\|10.0.x\|dotnet:10\|--channel 11\|LangVersion\|11.0.100" \
    `dotnet-install.sh` line, so the GA SDK is installed beside the image's .NET 10.
 4. In the container: run that install line once by hand (or `scripts/installtools`), then check
    `dotnet --version` prints the GA version from `global.json`.
-5. CI (`.github/workflows/build-and-release.yml`) needs no change: `global-json-file` picks the
+5. CI (`.github/workflows/build.yml` and `release.yml`) needs no change: `global-json-file` picks the
    new pin, and the `dotnet-version: '10.0.x'` line keeps the .NET 10 runtime the tests run on.
 6. Update VS Code's C# extension; its bundled Roslyn must know unions or it flags every pattern.
 7. Verify: `dotnet build gmd.sln`, `dotnet csharpier check .`, `scripts/test` (all tiers), and a smoke

@@ -7,7 +7,7 @@ namespace gmd.Utils;
 // Build contains build time and version information (do not move file)
 static class Build
 {
-    // Do not change or move these values, they are used by CI/CD (see .github/workflows/build-and-release.yml)
+    // Do not change or move these values, they are used by CI/CD (see .github/workflows/release.yml)
     static readonly string CiCdBuildTimeText = "BUILD_TIME";
     static readonly string CiCdBuildShaText = "BUILD_SHA";
 

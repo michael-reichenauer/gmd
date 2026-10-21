@@ -1,6 +1,6 @@
 # Gmd
 
-[![Build](https://github.com/michael-reichenauer/gmd/actions/workflows/build-and-release.yml/badge.svg?branch=main)](https://github.com/michael-reichenauer/gmd/actions/workflows/build-and-release.yml)
+[![Build](https://github.com/michael-reichenauer/gmd/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/michael-reichenauer/gmd/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/michael-reichenauer/gmd)](https://github.com/michael-reichenauer/gmd/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/michael-reichenauer/gmd)](LICENSE)
 ![Linux, macOS, Windows](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)

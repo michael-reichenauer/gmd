@@ -10,12 +10,13 @@ namespace gmd;
 
 class Program
 {
-    // Current major.minor version. CI raises MinorVersion by one for every release from main, in the
-    // release commit it makes (see .github/workflows/build-and-release.yml), unless the version here
-    // is already above the latest release, i.e. raised by hand, as to 1.0. It finds both with sed,
-    // so keep them written as 'public const int MajorVersion = <n>;' and 'MinorVersion = <n>;'.
+    // The major.minor of the next release, which dev's previews carry too. The release workflow
+    // raises MinorVersion on dev right after each release (see .github/workflows/release.yml), and
+    // refuses a release not above the latest one; a new major is raised by hand, as to 2.0. It
+    // finds both with sed, so keep them written as 'public const int MajorVersion = <n>;' and
+    // 'MinorVersion = <n>;'.
     public const int MajorVersion = 1;
-    public const int MinorVersion = 14;
+    public const int MinorVersion = 15;
 
     static readonly DependencyInjection dependencyInjection = new DependencyInjection();
     readonly IMainView mainView;
