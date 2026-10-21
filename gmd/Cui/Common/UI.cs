@@ -36,6 +36,11 @@ static class UI
         {
             if (keys.IsDropping)
                 key.Handled = true;
+            else if (typing != null && TypedText(key) is string text)
+            {
+                typing(text);
+                key.Handled = true;
+            }
         };
     }
 
@@ -110,6 +115,23 @@ static class UI
     internal static void StopInput() => keys.GitStarted();
 
     internal static void StartInput() => keys.GitDone();
+
+    // Takes the text typed while it is set, rather than letting each key act where it lands, e.g. as a
+    // menu closes to hand what is typed on to a dialog: each letter typed meanwhile was handed on too,
+    // and 'loc' opened three Find Branch dialogs, the one on top with 'c' alone (Menu.OnTypeText)
+    internal static IDisposable CatchTyping(Action<string> onTyped)
+    {
+        typing = onTyped;
+        return new Disposable(() => typing = null);
+    }
+
+    static Action<string>? typing;
+
+    // The text a key types, or null for one that types none, e.g. an arrow, Esc or a Ctrl key
+    static string? TypedText(Key key) =>
+        !key.IsCtrl && !key.IsAlt && key.AsRune.Value >= '!' && !System.Text.Rune.IsControl(key.AsRune)
+            ? key.AsRune.ToString()
+            : null;
 
     // Runs the action on the main loop, after what runs now, from any thread (MainLoopQueue). Not
     // Terminal.Gui's Invoke, which runs it at once when called on the main loop: gmd posts to have it
