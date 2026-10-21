@@ -64,7 +64,7 @@ The notes are for people who use Gmd, not for its developers:
 - Describe how Gmd behaves now, in the present tense, never as an instruction to the reader: the
   group already says what kind of change it is. Under New, say what Gmd has or does ("**Publish** in
   a branch's menu publishes a branch that is not on origin yet"); under Improved and Changed, what is
-  different with "now" or "no longer" ("`+` and `-` now step the context on the first file"); under
+  different, often with "now" or "no longer" ("`+` and `-` now step the context on the first file"); under
   Fixed, how it works now ("A click on a menu's border no longer runs the item next to it"). Not
   "Show ...", "Push ...", which read as commands.
 - Leave out what users do not see: refactoring, tests, build and CI changes, and the README.

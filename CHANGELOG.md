@@ -52,7 +52,7 @@ Releases with no change users notice are left out.
 - All the conflicted files of a merge, rebase or other operation are resolved in one view, where the next file opens when one is done. Unsaved decisions are kept for each file until the view closes, `↑` and `↓` in the file list show each file at once, and **Unresolve This File** (`a`) puts a resolved file's conflicts back
 - `b` in a diff blames the file at the cursor's line and commit, and `Shift-L` in the blame shows a file's history at the line's commit; `Esc` goes back
 - **Blame File** and **File History** now pick the file in a new file browser: the files the commit changed first, then all its files as a tree, where typing any part of a path finds a file
-- Opening, cloning into, initializing or putting a worktree in a folder now picks the folder in a similar folder browser, as large as the terminal, which lists the folders of a typed path as a shell completes it
+- The folder to open, clone into, init or put a worktree in is now picked in a similar folder browser, as large as the terminal, which lists the folders of a typed path as a shell completes it
 - The commit chosen for a diff is now marked with `±` in the log, its row tinted, and **Unmark for Diff** removes the mark; a diff of selected commits says how many in its title
 
 ### Improved
@@ -63,7 +63,7 @@ Releases with no change users notice are left out.
 - A squash's message now starts with the oldest commit's message and lists the others below it, as GitHub writes a squash merge
 - Cherry picking the commits selected with `Shift-↑` and `Shift-↓` now keeps them as they were made, with their authors, and one **Undo** takes them all back
 - The commit menu's **Undo** now offers **Abort Merge**, **Abort Rebase** and so on first while one is in progress
-- A branch deleted on origin is now told from one never pushed, so `p` no longer publishes it again unasked
+- Gmd now tells a branch deleted on origin apart from one never pushed, so `p` no longer publishes it again unasked
 - `d` on the uncommitted row with conflicts now asks whether to resolve them or show the diff; `Ctrl-D` shows the diff at once
 - `Enter` on a diff's `⋯` now shows more of the lines left out, as `+` does, and the cursor's line stays in place on the screen as `+` and `-` change the context
 - A one-column diff now marks removed and added lines with `-` and `+`, and a file's header with a bright cyan line
@@ -82,9 +82,9 @@ Releases with no change users notice are left out.
 - The diff is shown in one column on a terminal narrower than 110 columns, and `v` switches between one and two columns
 - A terminal at least 150 columns wide lists the files beside a diff, with the lines added, deleted and left out of the commit, rather than at the top of the diff. `Tab` moves into the list and `l` hides it
 - `h` hides the lines of a file in the diff, e.g. a generated file
-- The files of a merge, rebase, cherry pick or revert are resolved one after the other, listed beside the resolver, from the conflict box, the top bar or the repo menu, and committed or continued once none is left
+- The files of a merge, rebase, cherry pick or revert are resolved one after the other, listed beside the resolver, from the conflict box, the top bar or the repo menu, and Gmd offers to commit or continue once none is left
 - `c` combines both sides of a conflict where they changed different words, or lines that only touch
-- `e` types a conflict's resolution by hand in the result pane, with both sides still in view
+- `e` lets you type a conflict's resolution by hand in the result pane, with both sides still in view
 
 ### Improved
 - The diff is drawn more calmly: a bar beside each changed line, whole differing words marked rather than scattered letters, a row for each file, and a `⋯` line where unchanged lines are left out, naming the function git finds the next part in
@@ -101,9 +101,9 @@ Releases with no change users notice are left out.
 - `w` hides whitespace-only changes in a diff; a file with nothing else is listed as whitespace only
 
 ### Improved
-- Some lines of a renamed file can now be committed and discarded, and it stays renamed, and so can those of a deleted file
+- Some lines of a renamed file, which stays renamed, or of a deleted file can now be committed and discarded
 - The commit a squash makes is now signed when git's config signs commits, as every other commit Gmd makes is
-- A greyed out item of the diff's or the blame's menu now says why on their own status line, rather than behind them
+- A greyed out item of the diff's or the blame's menu now says why on the diff's or the blame's own status line, rather than on the log's behind it
 
 ## [v1.10.1446.1006] - 2026-10-15
 
@@ -113,7 +113,7 @@ Releases with no change users notice are left out.
 - `Ctrl-C` in the log now asks what to copy: a commit's id, message, subject or link, or the selected rows' ids, messages or range
 - Commit ids now have eight characters rather than six, as `git log --oneline` does in all but small repositories
 - A large repository now shows its latest 50,000 commits rather than 30,000, in no more memory than before
-- A large repository's log with no commit-graph file is now read much faster, by writing one, as `git gc` would
+- Gmd now reads a large repository's log much faster when it has no commit-graph file, by writing one, as `git gc` would
 - The branches of long ambiguous stretches of history are now decided in a fraction of the time, e.g. 2 s rather than 17 s for 200,000 commits of rust
 - Main's line now goes on through a merged tag or another project's branch pulled in, e.g. git's translations and gitk
 - A deleted branch named in merge subjects is now recovered where other branches were started from it, leaving far fewer commits ambiguous
@@ -146,7 +146,7 @@ Releases with no change users notice are left out.
 
 ### New
 - Gmd installs with Homebrew on macOS and Linux, `brew install michael-reichenauer/tap/gmd`, and leaves updating to Homebrew, whose command `⇓` shows
-- The question before an update now shows the change log, with a **Change Log** button, and says that Gmd quits once updated
+- The question before an update now has a **Change Log** button, and says that Gmd quits once updated
 - An update, once asked for, can be cancelled with **Cancel** or `Esc` while it runs, up to the moment Gmd is replaced
 
 ### Improved
@@ -163,21 +163,21 @@ Releases with no change users notice are left out.
 - `b`, `d`, `m` and `Shift-E` now do what their key hints and menu items say
 - **Amend** can now give the last commit a new message alone, or with changes too, and the commit dialog names the right branch
 - **Uncommit**, **Squash** and a range **Cherry Pick** are offered only where they work, and say why not
-- The diff's file list now counts the files of each kind, and the lines added and removed, above it
+- A diff now counts the files of each kind, and the lines added and removed, above its file list
 - A line history no longer offers `+` and `-`, and blame shows an uncommitted line's diff read only
 - The resolver's result scrolls with `Shift-Up` and `Shift-Down` or the mouse wheel, expands its tabs, and keeps its cursor on its conflict when `b` shows the ancestor
 - The columns of the log, the diff, blame and the resolver now stay aligned with Chinese, Japanese and emoji text
 - Branch tips, tags and the graph are now shown whole on a narrow terminal
 - The graph is laid out faster with many branches shown
 - `g` now says why it leaves main and deleted branches their colors, and when there is nothing to merge
-- A new tag whose push failed is now said to be added
+- Gmd now says a new tag was added when only its push failed
 - **Init** no longer offers to make the home folder, or the folder of the recent repos, a repo
 - The commit and amend dialogs now open from the menu at once
 - The branch field of **Create Worktree** now has the same context menu as the other text fields
 - The help now says how to make macOS Terminal send `Shift-Up` and `Shift-Down`
 
 ### Fixed
-- Gmd no longer hangs at start on macOS, now and then, before anything is drawn
+- Gmd no longer hangs now and then at start on macOS, before anything is drawn
 - Updates no longer fail over connections slower than about 8 Mbit/s
 - An automatic update is no longer installed again every hour until Gmd is restarted
 - Updates no longer fail in a folder with a space in its path
@@ -203,7 +203,7 @@ Releases with no change users notice are left out.
 - A click on a menu's border no longer runs the item next to it, and `Esc` on a question no longer answers Yes
 - The keyboard no longer stays dead after a menu is opened by mouse during a refresh
 - In the diff: `c` is now offered only for the uncommitted changes, a copy of an added file no longer includes line numbers, and **Scroll to** a file and `+` and `-` in a file history now work
-- The diff's right side is now numbered right after conflict markers
+- The diff's right side is now numbered correctly after conflict markers
 - Clicks and the cursor now land in the right place in the conflict resolver and in blame, and no longer scroll sideways past the text
 - Clone now uses the folder browsed to, `-d` is read as the other options are, and a large file's size is shown when committing
 - A mouse drag's selection now starts where the button was pressed
@@ -252,7 +252,7 @@ Releases with no change users notice are left out.
 ## [v0.96.1439.476] - 2026-10-08
 
 ### New
-- A checklist in the commit dialog chooses which files to commit
+- The commit dialog has a checklist of the files to commit
 - Any commit not pushed yet can be amended or dropped from its commit menu, recorded for **Undo**
 - A login dialog asks git's and ssh's questions, e.g. a passphrase
 - **Stash Apply** brings a stash back and keeps it
@@ -280,7 +280,7 @@ Releases with no change users notice are left out.
 - The README's demo animation now has captions, saying what each part shows and with which key
 
 ### Fixed
-- The help now describes the lines between branch columns right
+- The help now describes the lines between branch columns correctly
 - Sorting branches no longer hangs on branch orders that contradict each other
 
 ## [v0.95.1438.449] - 2026-10-07
@@ -383,7 +383,7 @@ Releases with no change users notice are left out.
 
 ### New
 - Annotated tags with messages
-- The diff view of uncommitted changes runs the configured diff tool and merge tool
+- The diff view of uncommitted changes can run the configured diff tool and merge tool
 
 ### Fixed
 - A click below the last commit now works
@@ -433,7 +433,7 @@ Releases with no change users notice are left out.
 ## [v0.91.419.545] - 2023-12-23
 
 ### New
-- Pull with rebase
+- Pulling with rebase
 - Rebasing the current branch onto any branch
 - Uncommitting or squashing down to the current row
 - A diff of a range of commits
@@ -441,7 +441,7 @@ Releases with no change users notice are left out.
 - Named stashes, the dialog starting with the current subject
 
 ### Improved
-- A branch that is on origin is now pushed with force after a rebase, using `--force-with-lease`
+- Pushing a branch that is on origin after a rebase now pushes with force, using `--force-with-lease`
 - A branch's color is now chosen by its primary name
 - A stash whose commit no longer exists is now handled
 
@@ -510,7 +510,7 @@ Releases with no change users notice are left out.
 ## [v0.90.293.440] - 2023-08-19
 
 ### New
-- Init a repo, from the main menu
+- **Init** in the main menu makes a repo
 - The application bar and the commits show the stash status
 
 ### Improved
@@ -881,7 +881,7 @@ Releases with no change users notice are left out.
 ## [v0.50.49.509] - 2022-12-18
 
 ### New
-- Empty repos, e.g. just after init, can be opened
+- Empty repos, e.g. just after init, now work
 
 ## [v0.50.49.389] - 2022-12-18
 
