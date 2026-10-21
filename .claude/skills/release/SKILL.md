@@ -27,7 +27,9 @@ before step 5, every time, even when they asked for the release.
 
 Rewrite `## [Unreleased]` as a whole, from the whole range, rather than append to it, in the style of
 docs/RELEASING.md: grouped `### New`, `### Improved`, `### Changed`, `### Fixed`; one item per change
-a user notices; internal work left out; a later change folded into its feature's item; keys and menu
+a user notices, describing how Gmd behaves now ("X now ...", "X no longer ...") rather than an
+instruction ("Show X"), even where the merge messages it comes from are written as commands;
+internal work left out; a later change folded into its feature's item; keys and menu
 items as the help writes them; spelling checked. Compare with the latest releases in `CHANGELOG.md`
 for tone and length. Do not invent: a change you cannot place goes to the user as a question.
 
