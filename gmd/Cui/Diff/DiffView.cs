@@ -377,6 +377,12 @@ class DiffView : IDiffView
         var diffItems = GetDiffItems();
         var conflictItems = GetConflictItems();
 
+        // Grouped by what the items do, as the log's menus are: moving about, the changes to commit
+        // or discard, how the diff is shown, and the rest. What only the uncommitted changes have is
+        // left out of any other diff, where it could never be used, and so is resolving with none in
+        // conflict.
+        var isUncommitted = source.CanCommit;
+        var isConflicts = isUncommitted && conflictState.Files.Count > 0;
         Menu.Show(
             "Diff Menu",
             x,
@@ -385,20 +391,21 @@ class DiffView : IDiffView
                 .Item("Search ...", "f", () => Search())
                 .Item("Next Match", "n", () => StepMatch(1), () => search.IsActive, () => NoSearch)
                 .Item("Previous Match", "⇧n", () => StepMatch(-1), () => search.IsActive, () => NoSearch)
-                .SubMenu("Diff File", "", diffItems)
-                .SubMenu("Resolve Conflicts", "Enter", conflictItems)
-                .SubMenu("Run External Merge Tool", "", GetMergeToolItems())
-                .SubMenu("Discard Changes", "u", undoItems)
-                // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
-                .Item("Refresh", "r", () => RefreshDiff())
-                .Item("Commit", "c", () => TriggerCommit(), () => undoItems.Any())
+                .Separator(isUncommitted || diffItems.Any())
+                .Item(isUncommitted, "Commit", "c", () => TriggerCommit(), () => undoItems.Any())
                 .Item(
+                    isUncommitted,
                     IsLeavingOut() ? "Leave Out of Commit" : "Put Back in Commit",
                     "x",
                     ToggleLeftOut,
                     () => WhyNotLeaveOut(LinesToLeaveOut()) == "",
                     () => WhyNotLeaveOut(LinesToLeaveOut())
                 )
+                .SubMenu(isUncommitted, "Discard Changes", "u", undoItems)
+                .SubMenu(diffItems.Any(), "Diff File", "", diffItems)
+                .SubMenu(isConflicts, "Resolve Conflicts", "Enter", conflictItems)
+                .SubMenu(isConflicts, "Run External Merge Tool", "", GetMergeToolItems())
+                .Separator()
                 // Named after the file they act on, since that is the part of these that is not
                 // obvious, and disabled when the cursor is on no file or that file is at an end
                 .Item(
@@ -406,28 +413,31 @@ class DiffView : IDiffView
                     "+",
                     () => StepContext(1),
                     () => CanStepContext(1),
-                    () => WhyNotStepContext(CurrentAnchor(), 1)
+                    () => WhyNotStepContext(FileAnchor(), 1)
                 )
                 .Item(
                     ContextItemText("Show Less Context", -1),
                     "-",
                     () => StepContext(-1),
                     () => CanStepContext(-1),
-                    () => WhyNotStepContext(CurrentAnchor(), -1)
+                    () => WhyNotStepContext(FileAnchor(), -1)
                 )
                 .Item(
                     WholeFileItemText(),
                     "",
                     ShowWholeFile,
-                    () => WantedWholeFile(CurrentAnchor()) != 0,
-                    () => WhyNotStepContext(CurrentAnchor(), 1)
+                    () => WantedWholeFile(FileAnchor()) != 0,
+                    () => WhyNotStepContext(FileAnchor(), 1)
                 )
                 .Item(isIgnoreWhitespace ? "Show Whitespace Changes" : "Hide Whitespace Changes", "w", ToggleWhitespace)
                 .Item(isOneColumn ? "Show Side by Side" : "Show in One Column", "v", ToggleLayout)
-                .Item(HiddenItemText(), "h", ToggleHidden, () => CurrentAnchor().FilePath != "", () => NoFile)
+                .Item(HiddenItemText(), "h", ToggleHidden, () => FileAnchor().FilePath != "", () => NoFile)
+                .Separator()
                 .Item(BlameItemText(), "b", BlameLine, () => BlameTarget() is BlameAt, WhyNotBlame)
                 .Item("Focus Left Column", "←", () => OnMoveLeft(), () => IsSelected && !isOneColumn)
                 .Item("Focus Right Column", "→", () => OnMoveRight(), () => IsSelected && !isOneColumn)
+                // Refresh knows how to re-fetch whatever kind of diff this is, so it is always valid
+                .Item("Refresh", "r", () => RefreshDiff())
                 .Item("Close", "Esc", () => UI.Shutdown())
         );
     }
@@ -1088,8 +1098,9 @@ class DiffView : IDiffView
     async void ShowContext(Func<DiffAnchor, int> wantedOf, int step)
     {
         var below = IsOnHunkSeparator ? 1 : 0;
-        var anchor = diffRows.AnchorAt(contentView.CurrentIndex - below);
+        var anchor = diffRows.FileAnchorAt(contentView.CurrentIndex - below);
         var viewRow = contentView.CurrentIndex - contentView.FirstIndex;
+        var aboveIndex = IsAboveFiles ? contentView.CurrentIndex : -1;
         var wanted = wantedOf(anchor);
         if (wanted == 0)
         {
@@ -1111,7 +1122,9 @@ class DiffView : IDiffView
             fileContext[anchor.FilePath] = wanted;
             SetDiffs(DiffRowService.ReplaceFileDiff(diffs, anchor.FilePath, fetched), anchor);
             var index = diffRows.IndexOf(anchor);
-            if (index != -1)
+            if (aboveIndex != -1)
+                contentView.ShowIndexAt(aboveIndex, viewRow); // The rows above the files stay as they were
+            else if (index != -1)
                 contentView.ShowIndexAt(Math.Min(index + below, diffRows.Count - 1), viewRow);
         }
     }
@@ -1151,7 +1164,7 @@ class DiffView : IDiffView
 
     int ContextOf(string filePath) => fileContext.GetValueOrDefault(filePath, DiffContext.Default);
 
-    bool CanStepContext(int step) => WantedContext(CurrentAnchor(), step) != 0;
+    bool CanStepContext(int step) => WantedContext(FileAnchor(), step) != 0;
 
     bool IsInConflict(string path) => conflictState.Files.Any(c => c.Path == path);
 
@@ -1181,7 +1194,7 @@ class DiffView : IDiffView
     // to the bare name when there is nothing to step, where the item is disabled anyway.
     string ContextItemText(string name, int step)
     {
-        var anchor = CurrentAnchor();
+        var anchor = FileAnchor();
         var path = anchor.FilePath;
         var wanted = WantedContext(anchor, step);
         if (wanted == 0)
@@ -1194,7 +1207,7 @@ class DiffView : IDiffView
     // '(whole file)'.
     string WholeFileItemText()
     {
-        var anchor = CurrentAnchor();
+        var anchor = FileAnchor();
         return WantedWholeFile(anchor) == 0 ? "Show All" : $"Show All of {anchor.FilePath.Max(40)}";
     }
 
@@ -1394,7 +1407,7 @@ class DiffView : IDiffView
     // file that is generated, or shows them again, for this diff
     void ToggleHidden()
     {
-        var path = CurrentAnchor().FilePath;
+        var path = FileAnchor().FilePath;
         if (path == "")
         {
             status.Notice(NoFile);
@@ -1404,7 +1417,9 @@ class DiffView : IDiffView
         var isHidden = !hiddenFiles.Remove(path);
         if (isHidden)
             hiddenFiles.Add(path);
-        SetDiffs(diffs, CurrentAnchor());
+        // Above the files the cursor stays where it is, as for + and -: the anchor there is the file
+        // of the commit above, in a file history, which it would move to
+        SetDiffs(diffs, IsAboveFiles ? DiffAnchor.None : CurrentAnchor());
         status.Info(isHidden ? $"The lines of {path} are hidden: h shows them" : $"The lines of {path} are shown");
     }
 
@@ -1412,7 +1427,7 @@ class DiffView : IDiffView
 
     string HiddenItemText()
     {
-        var path = CurrentAnchor().FilePath;
+        var path = FileAnchor().FilePath;
         return path == "" ? "Hide the Lines of a File"
             : hiddenFiles.Contains(path) ? $"Show the Lines of {path.Max(40)}"
             : $"Hide the Lines of {path.Max(40)}";
@@ -1517,6 +1532,13 @@ class DiffView : IDiffView
     // Where the cursor is, expressed as content: the commit and the file it is in and the source
     // line it is on
     DiffAnchor CurrentAnchor() => diffRows.AnchorAt(contentView.CurrentIndex);
+
+    // The file the commands on a file act on: the cursor's, or the first one when the cursor is above
+    // them, where the diff opens (DiffRows.FileAnchorAt)
+    DiffAnchor FileAnchor() => diffRows.FileAnchorAt(contentView.CurrentIndex);
+
+    // Whether the cursor is above the first file, where FileAnchor is that file's rather than the cursor's
+    bool IsAboveFiles => diffRows.IsAboveFiles(contentView.CurrentIndex);
 
     // Puts the cursor back where the anchor points, or on the nearest line of that file
     void RestoreAnchor(DiffAnchor anchor)

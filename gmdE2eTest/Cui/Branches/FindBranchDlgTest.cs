@@ -45,6 +45,24 @@ public class FindBranchDlgTest
         StringAssert.Contains(gmd.WaitUntilGone("Find Branch"), "More dev work", "dev is shown");
     }
 
+    // A name typed fast, its letters arriving while the menu closes, opens one dialog with all of them.
+    // Each letter opened a dialog of its own, 'dev' three stacked, the one on top with 'v' alone.
+    [TestMethod]
+    public async Task TestANameTypedFastOpensOneDialogWithAllOfIt()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.Send("S-Right");
+        gmd.WaitFor("type to find");
+
+        gmd.SendText("dev");
+
+        gmd.WaitFor("Name: dev");
+        gmd.Send("Escape");
+        Assert.IsFalse(gmd.WaitUntilGone("Find Branch").Contains("Name:"), "No dialog left under it");
+    }
+
     // A commit made while the dialog is up is still there once the branch picked is shown. The log
     // goes on refreshing under the dialog, and the branch used to be shown in the repo as it was
     // before the dialog opened, which put that back, the commit gone until something else changed.

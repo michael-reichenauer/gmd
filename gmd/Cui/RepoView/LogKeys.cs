@@ -126,7 +126,8 @@ static class LogKeys
         if (hoover.IsBranch)
             return repo.Status.IsOk ? new("diff") : KeyAction.No(Why.Changes);
 
-        return new(IsResolve(repo, hoover, selection) ? "resolve" : "diff");
+        // "resolve…", as "abort…" is, since it asks first
+        return new(IsResolve(repo, hoover, selection) ? "resolve…" : "diff");
     }
 
     // Whether 'd' is on the uncommitted row with files in conflict, where it asks whether to resolve

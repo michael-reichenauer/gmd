@@ -32,6 +32,17 @@ public class FolderBrowseRowsTest
         Assert.AreEqual(" ▸ a-very-lon… repo ", row.ToString());
     }
 
+    // A root named by its whole path is cut at its start, where cut at its end the start folder and
+    // the folder it is in both read '/tmp/.../scratchpad/…'
+    [TestMethod]
+    public void TestARootPathTooLongIsCutAtItsStart()
+    {
+        var path = "/home/someone/work/projects/gmd";
+        var row = FolderBrowseRows.TreeRow(new(path, path, 0, false, false, true), 24);
+
+        Assert.AreEqual(" ▸ …k/projects/gmd repo ", row.ToString());
+    }
+
     // The marker is where a click opens or closes the folder, after the guides
     [TestMethod]
     public void TestTheMarkerIsAfterTheGuides()

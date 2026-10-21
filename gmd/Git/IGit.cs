@@ -368,7 +368,12 @@ public record Tag(string Name, string CommitId);
 
 public record Stash(string Id, string Name, string Branch, string ParentId, string IndexId, string Message);
 
-record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs);
+record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs)
+{
+    // The first parent of a merge, which its diff is against, as 'git show --first-parent' has it,
+    // and "" for a commit with one parent or none
+    public string MergeFirstParent { get; init; } = "";
+}
 
 // A file a commit changed: what happened to it, by git's letter ('A' added, 'M' modified, 'D'
 // deleted, 'R' renamed, 'C' copied, 'T' its type changed), its path, the path it had before a rename

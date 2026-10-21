@@ -158,6 +158,28 @@ class DiffRows
         return new DiffAnchor(Above(index, r => r.CommitId), Above(index, r => r.FilePath), rows[index].LineNbr);
     }
 
+    // The anchor of the file the commands on a file act on: the file a row is in, or on the rows of a
+    // commit above its files, its header and summary, where a diff opens, its first file. Otherwise
+    // + and - did nothing on the first key after opening the diff, even of a commit of one file.
+    internal DiffAnchor FileAnchorAt(int index)
+    {
+        if (index < 0 || index >= rows.Count || FileHeaderOf(index) != -1)
+            return AnchorAt(index);
+
+        // Its own commit's, never the next one's, when it has no files, e.g. a merge in a file history
+        for (var i = index; i < rows.Count; i++)
+        {
+            if (rows[i].FilePath != "")
+                return AnchorAt(i);
+            if (i > index && rows[i].CommitId != "")
+                break;
+        }
+        return AnchorAt(index);
+    }
+
+    // Whether a row is above the files of its commit, where FileAnchorAt is its first file's
+    internal bool IsAboveFiles(int index) => index >= 0 && index < rows.Count && FileHeaderOf(index) == -1;
+
     // The row an anchor is at, or the nearest line of its file, or -1 when the file is not there.
     // The file is looked for from the anchor's commit on, since in a file history every commit
     // shows the same path, and taking the first of them put the cursor back on the newest commit

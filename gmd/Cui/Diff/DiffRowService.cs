@@ -264,6 +264,9 @@ class DiffRowService : IDiffRowService
             by.Add(commitDiff.Author);
         if (commitDiff.Time != DateTime.MinValue)
             by.Add(commitDiff.Time.Iso());
+        // A merge's diff is what it changed of its first parent, which nothing said
+        if (commitDiff.MergeFirstParent != "")
+            by.Add($"merge, against its first parent {commitDiff.MergeFirstParent.Sid()}");
         if (by.Count > 0)
             rows.Add(Text.Dark(string.Join("  ", by)));
     }
