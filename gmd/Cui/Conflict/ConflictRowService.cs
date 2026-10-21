@@ -330,7 +330,9 @@ class ConflictRowService : IConflictRowService
     // The file as it will be saved, as the decisions so far make it: the text between conflicts, each
     // decided conflict's lines with a bar in the color of the side they came from, magenta where
     // written by hand, and each undecided one a row saying so, which a save leaves the conflict's
-    // markers in place of. Numbered as the file will be, but for those.
+    // markers in place of. Numbered as the file will be, an undecided conflict as its first side's
+    // lines, so that the lines below it keep the numbers that side gives them: counted as no lines,
+    // the line below a conflict of one line was numbered as the line above it.
     //
     // canCombine says of an undecided conflict whether Combine can be had, which its row then offers.
     public ConflictResult ToResult(
@@ -367,7 +369,10 @@ class ConflictRowService : IConflictRowService
             starts[hunk.Index] = rows.Count;
             var choice = resolution.ChoiceOf(hunk.Index);
             if (choice == HunkChoice.None)
+            {
                 AddNoLine(Undecided(hunk, names, canCombine?.Invoke(hunk) ?? false));
+                nbr += hunk.Ours.Count;
+            }
             else
             {
                 var lines = ResultLines(hunk, choice, resolution);
