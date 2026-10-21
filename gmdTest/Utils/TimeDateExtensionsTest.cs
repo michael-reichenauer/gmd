@@ -29,8 +29,8 @@ public class TimeDateExtensionsTest
 
     // These formats are ISO like, so they must not follow the user's culture. A culture with its
     // own calendar is the interesting one: 2023 is 1444 under ar-SA (Umm al-Qura), 2566 under
-    // th-TH (Buddhist) and 1401 under fa-IR (Persian). Not only cosmetic: IsoDate is written into
-    // the generated CHANGELOG.md and is what the log view filter matches a date against.
+    // th-TH (Buddhist) and 1401 under fa-IR (Persian). Not only cosmetic: IsoDate is what the log
+    // view filter matches a date against.
     [TestMethod]
     [DataRow("en-US")]
     [DataRow("sv-SE")]

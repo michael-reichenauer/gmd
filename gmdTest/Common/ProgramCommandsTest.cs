@@ -6,15 +6,15 @@ namespace gmdTest.Common;
 [TestClass]
 public class ProgramCommandsTest
 {
-    // The options the UI takes are no command, so the UI runs. The updater and the server are never
-    // reached with these.
+    // The options the UI takes are no command, so the UI runs. The updater is never reached with
+    // these.
     [TestMethod]
     [DataRow(new string[] { })]
     [DataRow(new[] { "-d", "/some/repo" })]
     [DataRow(new[] { "-m" })]
     public async Task TestUiOptionsAreNoCommand(string[] args)
     {
-        var commands = new ProgramCommands(null!, null!);
+        var commands = new ProgramCommands(null!);
 
         Assert.IsNull(await commands.HandleCommandsAsync(args));
     }
@@ -22,19 +22,19 @@ public class ProgramCommandsTest
     [TestMethod]
     public async Task TestVersionIsACommand()
     {
-        var commands = new ProgramCommands(null!, null!);
+        var commands = new ProgramCommands(null!);
 
         Assert.AreEqual(0, await commands.HandleCommandsAsync(["--version"]));
     }
 
-    // CI names the release it is about to make, 'gmd --updatechangelog v1.6.1444.518'
+    // The folder of '-d <path>'
     [TestMethod]
-    [DataRow(new[] { "--updatechangelog", "v1.6" }, "v1.6")]
-    [DataRow(new[] { "--updatechangelog" }, null)]
-    [DataRow(new[] { "--updatechangelog", "-d", "/repo" }, null)]
-    [DataRow(new[] { "-d", "/repo", "--updatechangelog", "v1.6" }, "v1.6")]
+    [DataRow(new[] { "-d", "/repo" }, "/repo")]
+    [DataRow(new[] { "-d" }, null)]
+    [DataRow(new[] { "-d", "-m" }, null)]
+    [DataRow(new[] { "-m", "-d", "/repo" }, "/repo")]
     public void TestOptionValue(string[] args, string? expected)
     {
-        Assert.AreEqual(expected, ProgramCommands.OptionValue(args, "--updatechangelog"));
+        Assert.AreEqual(expected, ProgramCommands.OptionValue(args, "-d"));
     }
 }

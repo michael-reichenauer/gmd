@@ -167,7 +167,7 @@ public class LogKeysTest
         view.CurrentIndex = 0; // The uncommitted row
 
         Assert.IsTrue(LogKeys.IsResolve(view, new Hoover(), NoSelection));
-        Assert.AreEqual(new KeyAction("resolve"), LogKeys.Diff(view, new Hoover(), NoSelection));
+        Assert.AreEqual(new KeyAction("resolve…"), LogKeys.Diff(view, new Hoover(), NoSelection));
         Assert.IsFalse(LogKeys.IsResolve(view, new Hoover(), new Selection(0, 1, 0, 2, 1)), "Rows selected");
         view.CurrentIndex = view.Repo.CommitById[RepoBuilder.Sha("c2")].ViewIndex;
         Assert.IsFalse(LogKeys.IsResolve(view, new Hoover(), NoSelection), "Another row");

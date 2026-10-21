@@ -108,7 +108,10 @@ static class GitConverter
     public static Tag ToTag(Git.Tag t) => new(t.Name, t.CommitId);
 
     public static CommitDiff ToCommitDiff(Git.CommitDiff d) =>
-        new(d.Id, d.Author, d.Time, d.Message, d.FileDiffs.Select(ToFileDiff).ToList());
+        new(d.Id, d.Author, d.Time, d.Message, d.FileDiffs.Select(ToFileDiff).ToList())
+        {
+            MergeFirstParent = d.MergeFirstParent,
+        };
 
     public static CommitDiff[] ToCommitDiffs(Git.CommitDiff[] diffs) => diffs.Select(ToCommitDiff).ToArray();
 

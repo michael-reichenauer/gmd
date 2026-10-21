@@ -427,6 +427,9 @@ public record ChangedFile(char Kind, string Path, string OldPath, int Added, int
 
 record CommitDiff(string Id, string Author, DateTime Time, string Message, IReadOnlyList<FileDiff> FileDiffs)
 {
+    // The first parent of a merge, which its diff is against, "" for any other commit
+    public string MergeFirstParent { get; init; } = "";
+
     public override string ToString() => $"Files: {FileDiffs.Count}";
 };
 

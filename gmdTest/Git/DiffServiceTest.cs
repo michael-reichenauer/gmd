@@ -618,15 +618,28 @@ public class DiffServiceTest
         Assert.AreEqual("DiffRemoved two\nDiffAdded TWO", LinesOf(commitDiff.FileDiffs[0].SectionDiffs[0]));
     }
 
-    // The 'Merge: <sha> <sha>' line of a merge commit is skipped, not read as the author
+    // The 'Merge: <sha> <sha>' line of a merge commit is not read as the author, and its first id is
+    // the parent the diff is against, which the diff view names
     [TestMethod]
     public async Task TestParseMergeCommitHeader()
     {
         var commitDiff = await GetCommitDiffAsync(CombinedOutput);
 
         Assert.AreEqual("1c6014174680fc2302e29dc5874a4ce5d39281fd", commitDiff.Id);
+        Assert.AreEqual("063d1bf", commitDiff.MergeFirstParent);
         Assert.AreEqual("Test <t@t.com>", commitDiff.Author);
         Assert.AreEqual("Merge branch 'topic'", commitDiff.Message);
+    }
+
+    // A merge in a file's history, a log with no --first-parent, is no diff against its first parent,
+    // so it names none, where the commit's own diff, a 'show --first-parent', does
+    [TestMethod]
+    public async Task TestAMergeInAFileHistoryNamesNoFirstParent()
+    {
+        var service = new DiffService(new FakeCmd(CombinedOutput));
+        var commitDiffs = AssertOk(await service.GetFileDiffAsync("both.txt", 6, "/wd"));
+
+        Assert.AreEqual("", commitDiffs[0].MergeFirstParent);
     }
 
     // The file history is several commits in one output, newest first

@@ -22,8 +22,15 @@ static class FolderBrowseRows
             : "▸ "
         );
 
+        // A root is named by its whole path, e.g. the start folder and the folder it is in, which is
+        // cut at its start, as a folder found is, since its last folder is what tells two apart
         var mark = Mark(row.IsRepo);
-        text.Cyan(FileBrowseRows.CutEnd(row.Name, width - text.Length - mark.Length - 2));
+        var nameWidth = width - text.Length - mark.Length - 2;
+        text.Cyan(
+            row.Depth == 0 && row.Name != FolderTree.Name(row.Path)
+                ? FileBrowseRows.CutStart(row.Name, nameWidth)
+                : FileBrowseRows.CutEnd(row.Name, nameWidth)
+        );
         return FileBrowseRows.WithMark(text, mark, width);
     }
 

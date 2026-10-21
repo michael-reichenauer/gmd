@@ -398,6 +398,37 @@ public class ConflictRowServiceTest
         Assert.AreEqual((0, 0), ConflictResult.None.RangeOf(new ConflictAnchor(-1, 0, false)), "Nothing");
     }
 
+    // The lines below an undecided conflict keep the numbers its first side gives them, rather than
+    // go on from the line above it: the line after a conflict of one line was numbered as that line
+    [TestMethod]
+    public void TestTheLinesBelowAnUndecidedConflictAreNumberedAsItsFirstSide()
+    {
+        var file = new ConflictFile(
+            "f.txt",
+            ConflictKind.BothModified,
+            false,
+            [
+                new ConflictSegment(Lines("a"), null),
+                new ConflictSegment([], new ConflictHunk(0, "HEAD", "", "topic", Lines("o1", "o2"), [], Lines("t1"))),
+                new ConflictSegment(Lines("b"), null),
+            ],
+            true,
+            true
+        );
+        var names = ConflictNames.Of(file, new ConflictSides("main", "", ""));
+
+        var result = new ConflictRowService().ToResult(file, new ConflictResolution(file), names);
+
+        Assert.AreEqual(
+            """
+                1 a
+            ▌      Conflict 1 is not decided: 1 main, 2 topic, 3 or 4 both, 0 neither, e edit
+                4 b
+            """,
+            string.Join("\n", result.Rows.Select(r => r.ToString()))
+        );
+    }
+
     // The color letter of a row's bar, its first rune
     static string TextColorsOfBar(gmd.Cui.Common.Text row) => gmdTest.Fixtures.TextColors.Of(row)[..1];
 

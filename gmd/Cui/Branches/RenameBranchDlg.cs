@@ -13,6 +13,7 @@ class RenameBranchDlg : IRenameBranchDlg
     {
         var dlg = new UIDialog("Rename Branch", 60, 9);
         dlg.AddLabel(1, 0, $"From: {branchName}");
+        dlg.AddLabel(1, 1, "New name:");
         var name = dlg.AddTextField(1, 2, 56, branchName);
         if (hasRemote)
         { // The remote branch is renamed as well, which deletes the old remote branch, so say so

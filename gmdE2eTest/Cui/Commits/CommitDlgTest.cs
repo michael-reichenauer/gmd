@@ -371,12 +371,13 @@ public class CommitDlgTest
         StringAssert.Contains(gmd.WaitUntilGone("▌ A epsilon.txt"), "[Subject ", "The message is as it was");
     }
 
-    // Ctrl-A after a merge adds the subjects of the merged commits to the message, oldest first,
+    // Ctrl-L after a merge adds the subjects of the merged commits to the message, oldest first,
     // and nothing else of their messages: whole messages made a merge message too long to read.
     // The merge of 'dev' into main in the fixture says nothing in its subject and lists nothing,
-    // so it adds nothing.
+    // so it adds nothing. The dialog says so, and pressed again it adds them no more. It was Ctrl-A,
+    // which selects all everywhere else, and said nowhere in the dialog.
     [TestMethod]
-    public async Task TestCtrlAAddsTheSubjectsOfTheMergedCommits()
+    public async Task TestCtrlLAddsTheSubjectsOfTheMergedCommits()
     {
         using var repo = await E2eRepo.CreateAsync();
         await repo.CommitFileAtAsync(
@@ -391,9 +392,12 @@ public class CommitDlgTest
         gmd.Send("Left"); // Hoovers main, the branch the cursor row is on
         gmd.WaitForStable();
         gmd.Send("e");
-        gmd.WaitFor("Commit 3 changes");
+        StringAssert.Contains(gmd.WaitFor("Commit 3 changes"), "Ctrl-L adds the subjects of the merged commits");
 
-        gmd.Send("C-a");
+        gmd.Send("C-l");
+        gmd.WaitFor("- Add epsilon");
+        gmd.Send("C-l");
+        gmd.WaitForStable();
         ScreenText.AssertEqual(
             """
                                    │[Merge branch 'main' into dev                      ]                    │
@@ -404,7 +408,7 @@ public class CommitDlgTest
                                    ││                                                                      ││
                                    ││                                                                      ││
             """,
-            ScreenText.Rows(gmd.WaitFor("- Add epsilon"), repo.Path, 14, 7)
+            ScreenText.Rows(gmd.WaitFor("- Add epsilon"), repo.Path, 13, 7)
         );
     }
 

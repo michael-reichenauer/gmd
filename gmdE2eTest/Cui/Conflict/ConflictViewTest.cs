@@ -54,15 +54,15 @@ public class ConflictViewTest
                38 line 38
                39 line 39
             ▌      Conflict 1 is not decided: 1 main, 2 dev, 3 or 4 both, 0 neither, e edit
-               40 line 41
-               41 line 42                                                                                                          ┃
-               42 line 43                                                                                                          ┃
-               43 line 44                                                                                                          ┃
-               44 line 45                                                                                                          ┃
-               45 line 46
-               46 line 47
-               47 line 48
-               48 line 49
+               41 line 41
+               42 line 42                                                                                                          ┃
+               43 line 43                                                                                                          ┃
+               44 line 44                                                                                                          ┃
+               45 line 45                                                                                                          ┃
+               46 line 46
+               47 line 47
+               48 line 48
+               49 line 49
             """,
             gmd.WaitFor("─── Conflict 1"),
             repo.Path
@@ -496,7 +496,7 @@ public class ConflictViewTest
         gmd.Send("1");
         gmd.WaitFor("using main");
         var (rows, first) = MarkedInResult(gmd);
-        Assert.AreEqual("▌  54 line 60 on main, 1 of 12", rows[0], "Its lines, as many as there is room for");
+        Assert.AreEqual("▌  55 line 60 on main, 1 of 12", rows[0], "Its lines, as many as there is room for");
         Assert.AreEqual((10, 4), (rows.Count, first), "From a third of the way down");
 
         // Into the text after it, past the rule it ends with, the same line, numbered as the file will be
@@ -505,7 +505,7 @@ public class ConflictViewTest
             gmd.Send("Down");
             gmd.WaitForStable();
         }
-        Assert.AreEqual("68 line 63 @4", Shown(MarkedInResult(gmd)));
+        Assert.AreEqual("69 line 63 @4", Shown(MarkedInResult(gmd)));
         Assert.AreEqual("69 line 63", CursorRowAbove(gmd), "The cursor, black on white on the number");
 
         // Scrolled on its own, and back with the cursor at its next move
@@ -514,10 +514,10 @@ public class ConflictViewTest
             gmd.Send("S-Up");
             gmd.WaitForStable();
         }
-        Assert.AreEqual("68 line 63 @7", Shown(MarkedInResult(gmd)));
+        Assert.AreEqual("69 line 63 @7", Shown(MarkedInResult(gmd)));
         gmd.Send("Down");
         gmd.WaitForStable();
-        Assert.AreEqual("69 line 64 @4", Shown(MarkedInResult(gmd)));
+        Assert.AreEqual("70 line 64 @4", Shown(MarkedInResult(gmd)));
     }
 
     // The rows of the result pane marked as at the cursor, and the first one's row in the pane, read

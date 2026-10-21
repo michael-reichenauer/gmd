@@ -68,7 +68,7 @@ public class KeyHintsTest
     {
         var view = await ViewOf(Fixture().WithStatus(conflicted: 1, operation: GitOp.Merge, isFinishedByCommit: true));
 
-        StringAssert.StartsWith(Hints(view), "changes on main:  m menu  c commit  ⇧m abort…  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "changes on main:  m menu  c commit  ⇧m abort…  d resolve…  ");
     }
 
     // A rebase is finished by continuing it, not by a commit, and 'c' offers that instead
@@ -79,7 +79,7 @@ public class KeyHintsTest
             Fixture().WithStatus(conflicted: 1, operation: GitOp.Rebase, isFinishedByCommit: false)
         );
 
-        StringAssert.StartsWith(Hints(view), "changes on main:  m menu  c continue  ⇧m abort…  d resolve  ");
+        StringAssert.StartsWith(Hints(view), "changes on main:  m menu  c continue  ⇧m abort…  d resolve…  ");
     }
 
     // 'p' and 'u' only while the current branch has something to push or pull

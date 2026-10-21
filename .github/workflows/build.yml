@@ -1,0 +1,60 @@
+name: Build
+
+# Every push gets the format check, the tests and a linux-only publish, and so does every pull request
+# into main or dev. Nothing is published from here: a preview or a release is made by hand with the
+# Release workflow (release.yml), so a merge into dev or main only tests.
+on:
+  # Every branch, so a push always gets tested and a failure always reaches the author,
+  # without needing an open pull request. '**' rather than '*', since branch names here
+  # contain slashes.
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, dev]
+
+  # Allows you to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+
+# This workflow only builds and tests, so it has no write permission. Nothing here can create a
+# release even if a step is added carelessly later.
+permissions:
+  contents: read
+
+jobs:
+  test_job:
+    runs-on: ubuntu-latest
+    name: Test and Linux Build Job
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # global.json pins the .NET 11 SDK for its C# 15 compiler (union types). '10.0.x' adds the
+      # .NET 10 runtime that the net10.0 build and its tests run on, which the 11 SDK does not carry.
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          dotnet-version: '10.0.x'
+
+      # The end-to-end UI tests drive the built binary in a tmux pane (gmdE2eTest/Fixtures/
+      # TmuxSession.cs), and they fail rather than skip when tmux is missing, deliberately, so
+      # that this tier cannot quietly stop running. ubuntu-latest ships tmux today but nothing
+      # pins that, so install it if the image ever drops it. Free when it is already there.
+      - name: Ensure tmux (end-to-end UI tests)
+        run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
+
+      # Must run before 'scripts/build': a Debug build (dotnet test) auto-formats sources via
+      # CSharpier.MsBuild, which would hide unformatted code from the Release check.
+      - name: Check formatting
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+
+      # 'scripts/build -l' runs the tests first and then publishes linux-x64 and linux-arm64 only,
+      # so a Release publish is still exercised, just not for all four platforms; a dry run of the
+      # Release workflow builds all four. The 'BUILD_TIME'/'BUILD_SHA' placeholders in gmd/Build.cs
+      # are deliberately left as they are, since nothing is released from here and the tests hold
+      # either way.
+      - name: Test and build (linux only)
+        run: scripts/build -l

@@ -286,8 +286,8 @@ In dialogs and text fields:
 | ---------- | ---------------------------------------------------------- |
 | Alt-O      | OK, e.g. to commit while typing in the message box         |
 | Ctrl-D     | Show the diff of what is committed, in the commit dialog   |
-| Ctrl-A     | After a merge, add the merged commits' subjects            |
-| Ctrl-A     | Otherwise select all; Ctrl-C, -X, -V copy, cut and paste   |
+| Ctrl-L     | After a merge, add the merged commits' subjects            |
+| Ctrl-A     | Select all; Ctrl-C, -X, -V copy, cut and paste             |
 | Ctrl-Z     | Undo typing (Ctrl-Y redo)                                  |
 | Space, a   | Untick or tick a file, or all, in the commit file list     |
 | F7         | Spelling suggestions (also Ctrl-G)                         |
@@ -556,13 +556,15 @@ throw changes away ask first, and what they throw away gmd keeps, for
   move without the edits. Not while something is in progress, nor for a
   file with conflicts, nor while whitespace is hidden (`w`); and an older
   commit cannot be amended with a file that has lines left out.
-  After a merge made in gmd, `Ctrl-A` in the dialog adds the subjects of
+  After a merge made in gmd, `Ctrl-L` in the dialog adds the subjects of
   the merged commits, one per line, and for a merged merge the list in its
   message.
 - **Amend ...** (`a`) and **Amend <commit-sha> ...**:
   `a` amends the last commit: its message, and the files ticked in the
-  dialog. The commit menu of an older commit of the current branch has an
-  Amend of its own, with that commit's message and the changed
+  dialog. In the menu of another commit it is **Amend Last Commit of**
+  the branch, e.g. **Amend Last Commit of main ...**, to tell it from that
+  commit's own. The commit menu of an older commit of the current branch has
+  an Amend of its own, with that commit's message and the changed
   files, none ticked at first: a new message, the ticked changes, or both.
   It is git's own way: an "amend!" commit of them, folded in by
   `git rebase -i --autosquash`, with the files left unticked put aside and
@@ -705,7 +707,8 @@ side with the CR. `+` shows
 more of the file the cursor is on around its changes and `-` shows less,
 15 lines more or fewer above and below each change, from the 6 lines of
 context it starts with, until the whole file is shown (and `=` does what `+`
-does, without the shift). **Show All** in the menu shows all of it at once,
+does, without the shift); above the files, where a diff opens, they act on
+the first file, as `h` does. **Show All** in the menu shows all of it at once,
 and `-` then goes back to the context it had. It applies to that one file, so
 the rest of the commit stays as it was, and the header of a widened file says
 what it is showing. The line the cursor is on stays where it is on the

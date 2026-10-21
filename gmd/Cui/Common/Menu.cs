@@ -232,11 +232,16 @@ class Menu
         return view;
     }
 
-    // Closes the menus, the parents too, as picking an item does, and hands on what was typed
+    // Closes the menus, the parents too, as picking an item does, and hands on what was typed, the
+    // keys typed while they close too, which would otherwise each be handed on, or be keys of the log
     async void OnTypeText(string typed)
     {
-        await RootMenu.CloseAsync();
-        onTypeText?.Invoke(typed);
+        if (UI.IsCatchingTyping)
+            return; // A key the catch let through as the menus close, e.g. one typed with AltGr
+        var text = typed;
+        using (UI.CatchTyping(more => text += more))
+            await RootMenu.CloseAsync();
+        onTypeText?.Invoke(text);
     }
 
     // As Enter on the item: a sub menu opens, anything else runs. The cursor is moved there first,

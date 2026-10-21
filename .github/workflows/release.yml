@@ -1,0 +1,322 @@
+name: Release
+
+# Publishes a preview from 'dev' or a release from 'main', and only when run by hand: from the Actions
+# tab (Release, Run workflow), with 'gh workflow run release.yml -f kind=preview', or by Claude. A push
+# to any branch only tests (build.yml). The notes are the '## [Unreleased]' section of CHANGELOG.md on
+# dev, written before the run, by hand or by Claude (docs/RELEASING.md).
+#
+# A preview builds dev as it is and makes no commit. A release, on dev: heads the unreleased notes
+# with the version ('Release v<version>'), merges dev into main with --no-ff, builds and tests that
+# merge, and then raises the minor version on dev ('Start v<major>.<minor + 1>'), so that dev's
+# previews are numbered for the release they lead to and nothing needs merging back from main.
+# Nothing is pushed or published until the tests have passed.
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: 'preview (from dev) or release (from main)'
+        type: choice
+        options: [preview, release]
+        default: preview
+      publish:
+        description: 'Publish; unticked, it builds, tests and shows what it would release, and changes nothing'
+        type: boolean
+        default: true
+
+# Needed to push the release commits and to create releases
+permissions:
+  contents: write
+
+# One release at a time, queued rather than cancelled, since a cancelled run can leave a release half made
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release_job:
+    runs-on: ubuntu-latest
+    name: ${{ inputs.kind == 'release' && 'Release' || 'Preview' }}${{ !inputs.publish && ' (dry run)' || '' }}
+
+    steps:
+      # dev, whatever branch the run was started on, with the whole history and the tags, which the
+      # release merges into main and the preview notes and the prune below compare with
+      - name: Checkout dev
+        uses: actions/checkout@v7
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      # global.json pins the .NET 11 SDK for its C# 15 compiler (union types). '10.0.x' adds the
+      # .NET 10 runtime that the net10.0 build and its tests run on, which the 11 SDK does not carry.
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          dotnet-version: '10.0.x'
+
+      # The end-to-end UI tests drive the built binary in a tmux pane and fail rather than skip
+      # without it, see build.yml
+      - name: Ensure tmux (end-to-end UI tests)
+        run: tmux -V || (sudo apt-get update -qq && sudo apt-get install -y -qq tmux && tmux -V)
+
+      # Must run before 'scripts/build': a Debug build (dotnet test) auto-formats sources via
+      # CSharpier.MsBuild, which would hide unformatted code from the Release check.
+      - name: Check formatting
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+
+      # The version the build will have: major.minor from gmd/Program.cs, then the days since the
+      # base time and the minutes since midnight of the build time (gmd/Build.cs). Read from a build
+      # with the build time injected, as the release build below will be, so the two cannot differ.
+      # The injection is undone at once, so the git steps below see a clean tree, and made again
+      # with the same time before the release build.
+      - name: Version
+        id: version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          sed -i "s/BUILD_TIME/$BUILD_TIME/g" gmd/Build.cs
+          dotnet build gmd/gmd.csproj -v quiet --nologo
+          VERSION="$(gmd/bin/Debug/net10.0/gmd --version)"
+          git checkout -- gmd/Build.cs
+          echo "Version: $VERSION, built $BUILD_TIME"
+
+          # A release must be newer in major.minor than the latest one, i.e. dev was raised after it
+          # (or by hand, as to 2.0), or it would release the same minor again. GitHub's latest
+          # release is never a preview, whereas the nearest version tag in git can be one.
+          # A preview goes on without it, a release does not: unchecked, it could release the same minor
+          if [ "${{ inputs.kind }}" = "release" ]; then
+            LATEST="$(gh release view --json tagName --jq .tagName)"
+          else
+            LATEST="$(gh release view --json tagName --jq .tagName || true)"
+          fi
+          if [ "${{ inputs.kind }}" = "release" ]; then
+            IFS=. read -r MAJOR MINOR _ <<< "$VERSION"
+            IFS=. read -r LATEST_MAJOR LATEST_MINOR _ <<< "${LATEST#v}"
+            if ! { [ "$MAJOR" -gt "$LATEST_MAJOR" ] || { [ "$MAJOR" -eq "$LATEST_MAJOR" ] && [ "$MINOR" -gt "$LATEST_MINOR" ]; }; }; then
+              echo "Error: $VERSION is not above the latest release $LATEST in major.minor; raise MinorVersion in gmd/Program.cs on dev"
+              exit 1
+            fi
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "buildTime=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+
+      # The notes of the next release, as written on dev. A release without any is refused, since its
+      # notes and its section of the change log would be empty. A preview may have none yet.
+      - name: Read the notes
+        shell: bash
+        run: |
+          scripts/changelog unreleased > unreleased.md
+          if [ ! -s unreleased.md ]; then
+            if [ "${{ inputs.kind }}" = "release" ]; then
+              echo "Error: no notes for the release; write them in the '## [Unreleased]' section of CHANGELOG.md on dev (docs/RELEASING.md)"
+              exit 1
+            fi
+            echo "::warning::The '## [Unreleased]' section of CHANGELOG.md has no notes, so the preview has none"
+          fi
+          cat unreleased.md
+
+      # On dev: the notes headed with the version, the 'Release v<version>' commit. On main: dev merged,
+      # with the notes as the merge message, which is what is built, tagged and released. Then on dev
+      # again: the next minor, 'Start v<major>.<minor + 1>'. All of it local until 'Push' below.
+      - name: Make the release commits
+        id: release
+        if: inputs.kind == 'release'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BUILD_TIME="${{ steps.version.outputs.buildTime }}"
+          scripts/changelog stamp "v$VERSION" "${BUILD_TIME%%T*}"
+          git commit -m "Release v$VERSION" -- CHANGELOG.md
+          RELEASE_SHA="$(git rev-parse HEAD)"
+          # Written here, from dev's script and change log, since main's have not got them yet
+          { echo "Merge branch 'dev' for v$VERSION"; echo; scripts/changelog notes "v$VERSION"; } > merge.txt
+
+          git checkout -q -B main origin/main
+          # The notes' '### New' headings are kept as they are, not taken for comments ('whitespace')
+          git merge --no-ff --cleanup=whitespace "$RELEASE_SHA" -F merge.txt
+          MAIN_SHA="$(git rev-parse HEAD)"
+
+          git checkout -q -B dev "$RELEASE_SHA"
+          MINOR="$(sed -n 's/^ *public const int MinorVersion = \([0-9]*\);.*/\1/p' gmd/Program.cs)"
+          MAJOR="$(sed -n 's/^ *public const int MajorVersion = \([0-9]*\);.*/\1/p' gmd/Program.cs)"
+          if [ -z "$MAJOR" ] || [ -z "$MINOR" ]; then
+            echo "Error: no 'public const int MajorVersion/MinorVersion = <n>;' in gmd/Program.cs"
+            exit 1
+          fi
+          sed -i "s/public const int MinorVersion = $MINOR;/public const int MinorVersion = $((MINOR + 1));/" gmd/Program.cs
+          git commit -m "Start v$MAJOR.$((MINOR + 1))" -- gmd/Program.cs
+          DEV_SHA="$(git rev-parse HEAD)"
+
+          # The release is built from main's merge
+          git checkout -q "$MAIN_SHA"
+          git log --graph --oneline -6 "$DEV_SHA" "$MAIN_SHA"
+
+          echo "mainSha=$MAIN_SHA" >> $GITHUB_OUTPUT
+          echo "devSha=$DEV_SHA" >> $GITHUB_OUTPUT
+
+      # The build time of the version above, and the sha of what is built: main's merge for a
+      # release, dev's tip for a preview. gmd/Build.cs uses both, see the comments there.
+      - name: Inject build time and sha
+        shell: bash
+        run: |
+          BUILD_SHA="$(git rev-parse HEAD)"
+          echo "Build time ${{ steps.version.outputs.buildTime }}, sha $BUILD_SHA"
+          sed -i "s/BUILD_TIME/${{ steps.version.outputs.buildTime }}/g" gmd/Build.cs
+          sed -i "s/BUILD_SHA/$BUILD_SHA/g" gmd/Build.cs
+          echo "BUILD_SHA=$BUILD_SHA" >> $GITHUB_ENV
+
+      - name: Build & Test
+        shell: bash
+        run: |
+          scripts/build
+          VERSION="$(artifacts/gmd_linux_x64 --version)"
+          echo "Version: $VERSION"
+          if [ "$VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "Error: built $VERSION, but the version was read as ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
+      # The notes on GitHub. A release's are its section of the change log, a preview's the notes
+      # written so far for the release it leads to.
+      - name: Write release notes
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ "${{ inputs.kind }}" = "release" ]; then
+            cp unreleased.md notes.md
+          else
+            echo "A preview of the next release, built from \`dev\`. Gmd offers previews when **Allow preview releases** is ticked in **Config ...**." > notes.md
+            if [ -s unreleased.md ]; then
+              printf '\nNew since %s:\n\n' "${{ steps.version.outputs.latest }}" >> notes.md
+              cat unreleased.md >> notes.md
+            fi
+          fi
+          {
+            echo ""
+            echo "\`gmd_linux\` and \`gmd_windows\` are the same files as \`gmd_linux_x64\` and \`gmd.exe\`, under the names older versions update from. \`SHA256SUMS\` has the checksums."
+            echo ""
+            echo "[Change log](https://github.com/michael-reichenauer/gmd/blob/main/CHANGELOG.md) · [Installation](https://github.com/michael-reichenauer/gmd#installation)"
+          } >> notes.md
+          cat notes.md
+
+      # After the tests and before the release, whose tag goes on main's merge. Atomic, so dev and
+      # main move together or not at all, and plain, so it fails, and nothing is released, if either
+      # has moved since this run started. Pushed with the GITHUB_TOKEN, which starts no workflow run.
+      - name: Push the release commits
+        if: inputs.publish && inputs.kind == 'release'
+        run: git push --atomic origin "${{ steps.release.outputs.devSha }}:refs/heads/dev" "${{ steps.release.outputs.mainSha }}:refs/heads/main"
+
+      # 'gmd_linux' and 'gmd_windows' are copies of 'gmd_linux_x64' and 'gmd.exe' kept under the
+      # original asset names: the built-in updater falls back to the first and updates Windows from
+      # the second (see gmd/Installation/ReleaseChoice.cs), and so does the installer (Setup/gmd.iss).
+      # 'gmd.exe' is the one to download by hand, since it runs as it is named. SHA256SUMS is the
+      # checksums of all of them, which install.sh and the updater check their downloads against
+      # (gmd/Installation/BinaryInstaller.cs), so keep its name and its format. All of them are in
+      # artifacts/, where scripts/build publishes, and SHA256SUMS is made there so that it names them
+      # by the bare asset names install.sh looks for.
+      - name: Prepare release assets
+        working-directory: artifacts
+        run: |
+          cp gmd_linux_x64 gmd_linux
+          cp ../gmd/Installation/installer/gmdSetup.exe gmdSetup.exe
+          sha256sum gmd_linux_x64 gmd_linux_arm64 gmd_osx_arm64 gmd.exe gmdSetup.exe gmd_linux gmd_windows > SHA256SUMS
+          cat SHA256SUMS
+
+      # 'target_commitish' is where the new tag is created: main's merge for a release, dev's tip
+      # for a preview. Without it, the tag would go on the tip of the default branch.
+      # The action is pinned by commit, not by tag: it is a third party's, it runs with the write
+      # permission, and what it uploads is what the updater installs, so a moved tag would ship
+      # whatever it pointed at. Dependabot moves the commit and the version comment together.
+      - name: Create release and upload assets
+        if: inputs.publish
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ env.BUILD_SHA }}
+          name: Version ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ inputs.kind == 'preview' }}
+          body_path: notes.md
+          files: |
+            artifacts/gmd_linux_x64
+            artifacts/gmd_linux_arm64
+            artifacts/gmd_osx_arm64
+            artifacts/gmd.exe
+            artifacts/gmdSetup.exe
+            artifacts/gmd_linux
+            artifacts/gmd_windows
+            artifacts/SHA256SUMS
+
+      # The updater only ever uses the newest stable release and the newest preview
+      # (gmd/Installation/GitHubReleases.cs), so the Releases page keeps the stable releases and the
+      # latest five previews. A preview's tag goes with it, unless it is on main's own line, as some
+      # older previews are, or unknown here. Tidying only, so it never fails the run.
+      - name: Prune old previews
+        if: inputs.publish
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MAIN_LINE="$(git rev-list --first-parent origin/main)"
+          gh release list --limit 1000 --exclude-drafts --json tagName,isPrerelease,createdAt \
+            --jq '[.[] | select(.isPrerelease)] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' |
+            while read -r TAG; do
+              SHA="$(git rev-parse -q --verify "$TAG^{commit}" || true)"
+              if [ -z "$SHA" ] || grep -qx "$SHA" <<< "$MAIN_LINE"; then
+                echo "Deleting the preview $TAG, keeping its tag"
+                gh release delete "$TAG" --yes || true
+              else
+                echo "Deleting the preview $TAG and its tag"
+                gh release delete "$TAG" --yes --cleanup-tag || true
+              fi
+            done
+
+      # The Homebrew formula of a release, pushed to the tap, from where
+      # 'brew install michael-reichenauer/tap/gmd' installs it (see scripts/brewformula). Not of a
+      # preview: the tap has the stable releases only, and a gmd installed from it is offered no
+      # others (gmd/Installation/PackageManager.cs). Pushed with a deploy key of the tap, the secret
+      # HOMEBREW_TAP_KEY, since the GITHUB_TOKEN reaches this repository only; with no such secret
+      # the step warns and does nothing. Last, since the release is out by now: a failure here leaves
+      # the formula at the release before, and the run red, and nothing else undone.
+      - name: Update the Homebrew tap
+        if: inputs.publish && inputs.kind == 'release'
+        shell: bash
+        env:
+          TAP_KEY: ${{ secrets.HOMEBREW_TAP_KEY }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ -z "$TAP_KEY" ]; then
+            echo "::warning::There is no HOMEBREW_TAP_KEY secret, so the Homebrew formula was not updated to $VERSION"
+            exit 0
+          fi
+          printf '%s\n' "$TAP_KEY" > "$RUNNER_TEMP/tap_key"
+          chmod 600 "$RUNNER_TEMP/tap_key"
+          # GitHub's own host key (api.github.com/meta), rather than whatever answers as github.com
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > "$RUNNER_TEMP/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/tap_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
+
+          git clone --depth 1 git@github.com:michael-reichenauer/homebrew-tap.git "$RUNNER_TEMP/tap"
+          mkdir -p "$RUNNER_TEMP/tap/Formula"
+          scripts/brewformula "$VERSION" artifacts/SHA256SUMS > "$RUNNER_TEMP/tap/Formula/gmd.rb"
+          cat "$RUNNER_TEMP/tap/Formula/gmd.rb"
+
+          cd "$RUNNER_TEMP/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/gmd.rb
+          if git diff --cached --quiet; then
+            echo "The formula is at $VERSION already"
+            exit 0
+          fi
+          git commit -m "gmd $VERSION"
+          git push origin HEAD

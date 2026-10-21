@@ -616,25 +616,25 @@ public class DiffViewTest
         gmd.Send("m");
         ScreenText.AssertEqual(
             """
-            c00a3cc9  Change both files ───────╭ Diff Menu ─────────────────────────────────────╮──────────────────────────────────
-            Test User <test@example.com>  2024-│Go to                                        s >│
-            2 files changed  2 modified  +2 -2 │Search ...                                   f  │
-              M long.txt   +1 -1               │Next Match                                   n  │
-              M short.txt  +1 -1               │Previous Match                              ⇧n  │
-                                               │Diff File                                      >│
-            ▌ M long.txt  +1 -1 ───────────────│Resolve Conflicts                        Enter >│──────────────────────────────────
-               14 line 14                      │Run External Merge Tool                        >│
-               15 line 15                      │Discard Changes                              u >│
-               16 line 16                      │Refresh                                      r  │
-               17 line 17                      │Commit                                       c  │
-               18 line 18                      │Leave Out of Commit                          x  │
-               19 line 19                      │Show More Context of long.txt (21 lines)     +  │
-            ▌  20 line 20                      │Show Less Context                            -  │
-               21 line 21                      │Show All of long.txt                            │
-               22 line 22                      │Hide Whitespace Changes                      w  │
-               23 line 23                      │Show in One Column                           v  │
-               24 line 24                      │Hide the Lines of long.txt                   h  │
-               25 line 25                      │Blame long.txt at Line 25                    b  │
+            c00a3cc9  Change both files ────────╭ Diff Menu ───────────────────────────────────╮───────────────────────────────────
+            Test User <test@example.com>  2024-1│Go to                                      s >│
+            2 files changed  2 modified  +2 -2  │Search ...                                 f  │
+              M long.txt   +1 -1                │Next Match                                 n  │
+              M short.txt  +1 -1                │Previous Match                            ⇧n  │
+                                                │──────────────────────────────────────────────│
+            ▌ M long.txt  +1 -1 ────────────────│Show More Context of long.txt (21 lines)   +  │───────────────────────────────────
+               14 line 14                       │Show Less Context                          -  │
+               15 line 15                       │Show All of long.txt                          │
+               16 line 16                       │Hide Whitespace Changes                    w  │
+               17 line 17                       │Show in One Column                         v  │
+               18 line 18                       │Hide the Lines of long.txt                 h  │
+               19 line 19                       │──────────────────────────────────────────────│
+            ▌  20 line 20                       │Blame long.txt at Line 25                  b  │
+               21 line 21                       │Focus Left Column                          ←  │
+               22 line 22                       │Focus Right Column                         →  │
+               23 line 23                       │Refresh                                    r  │
+               24 line 24                       │Close                                    Esc  │
+               25 line 25                       ╰──────────────────────────────────────────────╯
             """,
             ScreenText.Rows(gmd.WaitFor("Diff Menu"), repo.Path, 0, 19),
             repo.Path
@@ -642,17 +642,11 @@ public class DiffViewTest
 
         // 'Show Less Context' is dark, i.e. disabled, while 'Show More Context' is white — the file is at the
         // default, so there is nothing narrower to ask for
-        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 12, 2).Split('\n');
+        var colors = ScreenText.ColorRows(gmd.CaptureColors(), 6, 2).Split('\n');
         StringAssert.Contains(colors[0], "mWWWW WWWW WWWWWWW", "'Show More Context' and its shortcut are enabled");
         StringAssert.Contains(colors[1], "mDDDD DDDD DDDDDDD", "'Show Less Context' is dark, i.e. disabled");
 
-        // Three moves down from 'Go to', past 'Search ...' and 'Refresh', since the disabled
-        // items in between are skipped, 'Leave Out of Commit' too, which only the uncommitted diff has
-        for (int i = 0; i < 3; i++)
-        {
-            gmd.Send("Down");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Show More Context of long.txt (21 lines)");
         gmd.Send("Enter");
 
         StringAssert.Contains(
