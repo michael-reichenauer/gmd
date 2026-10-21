@@ -50,11 +50,10 @@ class MergedOnOriginNotes
         return untold.Count switch
         {
             0 => null,
-            1 => $"'{untold[0].Key}' was merged into '{untold[0].Value}' on origin: "
-                + "Delete Merged Branches in the repo menu deletes it here",
+            // The command first, which a status line cut short on a narrow terminal kept the least of
+            1 => $"Delete Merged Branches (⇧m) deletes '{untold[0].Key}', merged into '{untold[0].Value}' on origin",
             // Counted rather than named, since two long names leave the status line no room
-            _ => $"{untold.Count} branches were merged on origin: Delete Merged Branches in the repo menu "
-                + "deletes them here",
+            _ => $"Delete Merged Branches (⇧m) deletes the {untold.Count} branches merged on origin",
         };
     }
 }
