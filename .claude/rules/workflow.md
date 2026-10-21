@@ -12,29 +12,23 @@ of one area are in the files beside this one, which load with the files they are
   with each fix). Skip it only when those commits were reviewed already. Fix the findings that hold
   up on the branch, as commits of their own, run `scripts/test` again, and only then merge. Say what
   the review found and what was fixed, and ask the user about the findings that are judgment calls.
-- **Merge messages are release notes**, since CI makes the notes from them: a preview's are the lists
-  of dev's first-parent merges since the latest release, and a release's, with its section of
-  `CHANGELOG.md` (`Server/Private/ChangeLog.cs`), the lists of the merges on main's first-parent line.
-  A merge into main with no list (562b9ddf) made a release with no notes. So every merge into `dev`
-  and into `main` has a body of `- ` lines, one per change a user notices, written for users: each
-  starts with a verb, as `CHANGELOG.md` reads ("Publish a branch not on origin from its branch menu
-  ..."), with no class or file names and no test or refactoring items, and keys and menu items
-  written as the help writes them. The `Co-Authored-By` line stays last.
-  - Into dev: `git merge --no-ff <branch> -F <file>`, with the message written to the file first,
-    since `git merge -F -` does not read stdin. The list is what the branch changes for users.
-  - dev into main: the items of every dev merge since the latest release
-    (`git log --first-parent --merges <last tag>..dev`), as one list without duplicates, a later
-    change to a feature folded into its item, verb first even where a dev item was not.
-- **Merges between `dev` and `main` are `--no-ff` both ways**, main into dev after a release too
-  (CLAUDE.md, the version gotcha). A fast-forward once put dev on main's first-parent line, and gmd,
-  which follows those lines, then showed dev deleted at its old tip and made anew from the release
-  commit. Check that `git log --graph --first-parent dev` keeps dev's own line before pushing.
-- **A merge into main re-records the README's pictures first**, unasked: `scripts/demo` on `dev`
-  writes `gmd/doc/Animation.gif`, `GitLog.gif` and `GmdLog.gif`, committed on `dev` so that the
-  release carries them, and only if they changed (a recording is the same byte for byte while the UI
-  is). If `DemoTest` fails, say so rather than merge without them, and keep it passing when a change
-  breaks its script. Never re-record per step or at a merge into dev (it is slow, and once timed out
-  flakily); say in the report when a change alters what the demo shows.
+- **Merge messages describe the change; they are no longer the release notes.** A merge into `dev`
+  (`git merge --no-ff <branch> -F <file>`, the message written to the file first, since
+  `git merge -F -` does not read stdin) has a body of `- ` lines saying what the branch changes,
+  for users where it does, which the `release` skill reads as raw material. The `Co-Authored-By`
+  line stays last.
+- **Releases are made by the Release workflow only, when the user asks** (the `release` skill,
+  docs/RELEASING.md): it writes the notes in `CHANGELOG.md`'s `## [Unreleased]` on `dev`, gets the
+  user's go, and runs the workflow, which makes the version commits and the `--no-ff` merge into
+  `main`. Never merge into `main` or push it by hand, and never merge `main` into `dev`: the
+  workflow raises dev's minor itself, so there is nothing to bring back.
+- **A release re-records the README's pictures first**, unasked: `scripts/demo` on `dev` writes
+  `gmd/doc/Animation.gif`, `GitLog.gif` and `GmdLog.gif`, committed on `dev` before the workflow
+  runs so that the release carries them, and only if they changed (a recording is the same byte for
+  byte while the UI is). If `DemoTest` fails, say so rather than release without them, and keep it
+  passing when a change breaks its script. Never re-record per step, at a merge into dev or for a
+  preview (it is slow, and once timed out flakily); say in the report when a change alters what the
+  demo shows.
 
 ## Showing UI work
 
