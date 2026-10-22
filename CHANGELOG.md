@@ -5,6 +5,8 @@ Releases with no change users notice are left out.
 
 ## [Unreleased]
 
+## [v1.15.1453.671] - 2026-10-22
+
 ### Improved
 - `+` and `-` now step the context, and `h` hides a file's lines, on the first file where a diff opens, without moving to a file first
 - The diff menu is now grouped, and the diff of a commit no longer offers **Commit**, **Discard Changes** or the conflict items
