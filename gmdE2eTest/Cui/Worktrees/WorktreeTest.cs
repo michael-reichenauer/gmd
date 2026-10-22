@@ -318,6 +318,7 @@ public class WorktreeTest
         gmd.SelectMenuItem("Create Worktree ...");
         gmd.Send("Enter");
 
-        return gmd.WaitFor("Create Worktree");
+        // The dialog's frame, not its name alone, which the menu item still open behind Enter shows
+        return gmd.WaitFor("╭ Create Worktree");
     }
 }

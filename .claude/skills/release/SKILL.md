@@ -1,6 +1,6 @@
 ---
 name: release
-description: Make a gmd preview (from dev) or release (from main) - write the user-facing notes in CHANGELOG.md's Unreleased section, get the user's go, and run the Release workflow. Use when asked to make, publish or cut a preview, pre-release or release.
+description: Make a gmd preview (from dev) or release (from main) - write the user-facing notes in CHANGELOG.md's Unreleased section, get the user's go, and run the Release workflow. Use when asked to make, publish or cut a preview, pre-release or release, and for a dry run: when asked what is unreleased or for the draft notes of the next release, without publishing.
 ---
 
 # Make a preview or a release
@@ -11,6 +11,19 @@ version commit, the merge into main, the minor raised after), so never do it by 
 
 A preview or a release cannot be taken back once published: show the notes and get the user's go
 before step 5, every time, even when they asked for the release.
+
+## Dry run: the notes alone
+
+When the user asks what is unreleased, or for the notes of the next release without making one, do
+steps 1 and 2 and stop: change nothing, neither `CHANGELOG.md` nor `dev`, and run no workflow.
+
+- Take two ranges: since the latest release (`gh release view`, as in step 1) and since the latest
+  preview, the newest `v*` tag (`git tag --sort=-creatordate | head -1`), when that is a newer one.
+  Previews have notes on GitHub (`gh release view <tag>`) that say what they brought.
+- Show the notes of the range since the latest release as step 2 writes them, and say which of them
+  are new since the latest preview, or that nothing users notice is, naming what the merges since
+  then were instead.
+- A cloud session without `gh` reads the releases and tags with the GitHub tools.
 
 ## 1. Find what is new
 
@@ -27,7 +40,9 @@ before step 5, every time, even when they asked for the release.
 
 Rewrite `## [Unreleased]` as a whole, from the whole range, rather than append to it, in the style of
 docs/RELEASING.md: grouped `### New`, `### Improved`, `### Changed`, `### Fixed`; one item per change
-a user notices; internal work left out; a later change folded into its feature's item; keys and menu
+a user notices, describing how Gmd behaves now ("X now ...", "X no longer ...") rather than an
+instruction ("Show X"), even where the merge messages it comes from are written as commands;
+internal work left out; a later change folded into its feature's item; keys and menu
 items as the help writes them; spelling checked. Compare with the latest releases in `CHANGELOG.md`
 for tone and length. Do not invent: a change you cannot place goes to the user as a question.
 

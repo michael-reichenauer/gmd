@@ -584,14 +584,20 @@ public class LogViewTest
         Assert.AreEqual("MMMMMMMMMMMMMMMMMMMMM", LogScrollbar());
         Assert.AreEqual("D", DetailsScrollbar());
 
-        // Waited for, as a stable screen can be the one from before the key, on a loaded machine
+        // Both panes waited for, as a stable screen can be the one from before the key on a loaded
+        // machine, and a capture can be taken while the redraw is still written to the terminal: the
+        // log's rows above, already in their new color, and the details' below, not yet
         gmd.Send("Tab");
-        gmd.WaitUntil(() => LogScrollbar() == "DDDDDDDDDDDDDDDDDDDDD", "the log's scrollbar to be gray");
-        Assert.AreEqual("M", DetailsScrollbar());
+        gmd.WaitUntil(
+            () => LogScrollbar() == "DDDDDDDDDDDDDDDDDDDDD" && DetailsScrollbar() == "M",
+            "the log's scrollbar to be gray and the details' magenta"
+        );
 
         gmd.Send("Tab");
-        gmd.WaitUntil(() => LogScrollbar() == "MMMMMMMMMMMMMMMMMMMMM", "the log's scrollbar to be magenta");
-        Assert.AreEqual("D", DetailsScrollbar());
+        gmd.WaitUntil(
+            () => LogScrollbar() == "MMMMMMMMMMMMMMMMMMMMM" && DetailsScrollbar() == "D",
+            "the log's scrollbar to be magenta and the details' gray"
+        );
 
         gmd.Send("Down");
         gmd.WaitFor("M beta.txt");
