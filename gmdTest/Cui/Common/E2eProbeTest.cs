@@ -31,4 +31,14 @@ public class E2eProbeTest
         probe.KeyReceived(isDropped: false);
         Assert.AreEqual("gmd-e2e idle 1 0", probe.TitleIfChanged(isBusy: false));
     }
+
+    // Terminal.Gui writes a runnable's title as it opens or closes, over gmd's
+    [TestMethod]
+    public void TestTheTitleIsWrittenAgainOnceOverwritten()
+    {
+        var probe = new E2eProbe();
+        probe.TitleIfChanged(isBusy: false);
+
+        Assert.AreEqual("gmd-e2e idle 0 0", probe.TitleIfChanged(isBusy: false, isOverwritten: true));
+    }
 }

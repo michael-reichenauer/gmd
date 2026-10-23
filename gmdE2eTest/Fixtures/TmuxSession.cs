@@ -351,30 +351,52 @@ sealed class TmuxSession : IDisposable
     // Sends keys, e.g. "q", "Down", "Escape", "S-Right". The screen must have settled first, see
     // StableCount. Waits for gmd to take them, and sends again those it dropped, see Deliver.
     public void Send(params string[] keys) =>
-        Deliver(keys.Length, skip => Tmux(["send-keys", "-t", "gmd", .. keys[skip..]]));
+        Deliver(keys.Sum(KeyCount), keys.Length == 1, skip => Tmux(["send-keys", "-t", "gmd", .. keys[skip..]]));
 
-    // Sends the keys from 'skip' on, a count of them in all, until gmd has taken them all. gmd drops
-    // the keys typed while git works, and says how many it dropped (ProbeState): a key it dropped it
-    // never acted on, so sending it again cannot act twice. Without that a key sent just as a refresh
-    // started was lost, and the test waited out its 30 seconds on a screen that never changed. The keys
-    // dropped are the last ones, since keys are dropped from when git starts until it is done.
-    void Deliver(int count, Action<int> send)
+    // How many keys an argument of send-keys is: one for a key's name ("Enter", "S-Right", "F12",
+    // "q"), and a key per character for anything else, which tmux types as it is ("file:dev.txt")
+    static int KeyCount(string key) => key.Length == 1 || IsKeyName(key) ? 1 : key.Length;
+
+    static bool IsKeyName(string key) =>
+        System.Text.RegularExpressions.Regex.IsMatch(
+            key,
+            "^([CMS]-)*(.|Enter|Escape|Tab|BTab|BSpace|Space|Up|Down|Left|Right|Home|End|PageUp|PageDown|PPage|NPage|IC|DC|F[0-9]{1,2})$"
+        );
+
+    // Sends keys, a count of them in all, until gmd has taken them all. gmd drops the keys typed while
+    // git works, and says how many it dropped (ProbeState): a key it dropped it never acted on, so
+    // sending it again cannot act twice. Without that a key sent just as a refresh started was lost,
+    // and the test waited out its 30 seconds on a screen that never changed.
+    //
+    // Sent once gmd is idle, so the keys dropped can only be the last ones, from when git started on;
+    // with git already working as they were sent, the first ones would be. 'send' sends the keys from
+    // 'skip' on, counted as keys where 'isSkipByKey', else as the arguments they were given as, and
+    // those are then sent again only when gmd dropped them all.
+    void Deliver(int count, bool isSkipByKey, Action<int> send)
     {
-        var skip = 0;
+        if (Probe() is { IsIdle: false })
+            WaitForIdle();
+
+        var left = count;
         for (var resends = 0; ; resends++)
         {
             var before = Probe();
-            send(skip);
-            if (before == null || WaitForKeysTaken(before, count - skip) is not ProbeState after)
+            send(count - left);
+            if (before == null || WaitForKeysTaken(before, left) is not ProbeState after)
                 return;
 
-            var dropped = Math.Min(after.Dropped - before.Dropped, count - skip);
+            var dropped = Math.Min(after.Dropped - before.Dropped, left);
             if (dropped <= 0 || resends == MaxResends)
                 return;
+            if (!isSkipByKey && dropped < count)
+            {
+                Log.Warn($"gmd dropped {dropped} of {count} keys, given as more than one argument, not sent again");
+                return;
+            }
 
-            Log.Info($"gmd dropped {dropped} of {count - skip} keys, sent again once it is idle");
+            Log.Info($"gmd dropped {dropped} of {left} keys, sent again once it is idle");
             WaitForIdle();
-            skip = count - dropped;
+            left = isSkipByKey ? dropped : count;
         }
     }
 
@@ -471,7 +493,7 @@ sealed class TmuxSession : IDisposable
         if (text.Contains('\u001b') || text.Any(char.IsSurrogate))
             Tmux("send-keys", "-t", "gmd", "-l", text);
         else
-            Deliver(text.Length, skip => Tmux("send-keys", "-t", "gmd", "-l", text[skip..]));
+            Deliver(text.Length, isSkipByKey: true, skip => Tmux("send-keys", "-t", "gmd", "-l", text[skip..]));
     }
 
     // Resizes the terminal, as a user resizing the window does. Terminal.Gui 1.x eats the key after a
@@ -660,8 +682,9 @@ sealed class TmuxSession : IDisposable
         while (clock.ElapsedMilliseconds < timeoutMs)
         {
             // The title after the capture: gmd writes it after a frame, so an idle title read after a
-            // capture, the same as the one read after the capture before, says that gmd neither
-            // worked nor drew in between, and that the capture is of a whole frame
+            // capture says the frame of its change is whole. The title is written only when it
+            // changes, so the same one after the capture before does not rule out work in between,
+            // idle to busy and back; the screen unchanged for StableCount polls does.
             screen = Capture();
             var state = Probe();
             var isIdle = state == null || (state.IsIdle && state == previousState);

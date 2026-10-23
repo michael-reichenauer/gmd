@@ -33,11 +33,13 @@ class E2eProbe
             dropped++;
     }
 
-    // The title to write, or null when it is the one written last, so that an idle gmd writes nothing
-    public string? TitleIfChanged(bool isBusy)
+    // The title to write, or null when it is the one written last, so that an idle gmd writes nothing.
+    // Unless 'isOverwritten': Terminal.Gui writes the title of the runnable on top as one opens or
+    // closes, gmd's are empty, and the tests would then see no state until the next key.
+    public string? TitleIfChanged(bool isBusy, bool isOverwritten = false)
     {
         var title = Title(isBusy);
-        if (title == shown)
+        if (title == shown && !isOverwritten)
             return null;
         shown = title;
         return title;

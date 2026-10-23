@@ -383,7 +383,9 @@ class Cmd : ICmd
     // background, after the file monitor sees a change: a 'git rebase --continue' the user ran at that
     // moment failed with "Unable to create '.git/index.lock': File exists" (seen on CI). The write is
     // only a cache, which the user's own git refreshes later, and every lock a command needs, a
-    // commit's or a merge's, is taken whatever this says.
+    // commit's or a merge's, is taken whatever this says. The cost: in a large repo whose files were
+    // touched but not changed, each status gmd reads hashes them again until a command writes the
+    // index.
     static void NeverTakeOptionalLocks(ProcessStartInfo info) => info.Environment["GIT_OPTIONAL_LOCKS"] = "0";
 
     // Starts a program that may go on running, e.g. a browser, which a tool like xdg-open starts

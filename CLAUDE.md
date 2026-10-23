@@ -779,8 +779,8 @@ test must keep doing:
   keys dropped, posted work, a view to draw, the background reads marked `UI.Busy()`), the keys it had
   and how many it dropped. `TmuxSession` reads it as `#{pane_title}`: a wait takes a screen only
   while gmd is idle, and `Send` waits for gmd to take its keys and sends again those it dropped, which
-  it never acted on. The title is written after each frame on the same output, so an idle title also
-  means a whole frame. Mark new background work that changes the screen with `UI.Busy()`.
+  it never acted on. The title is written after a frame on the same output, so the frame of a change of
+  title is whole by the time tmux shows it. Mark new background work that changes the screen with `UI.Busy()`.
 - **Polling, never sleeping.** `WaitFor` waits for the text *and* for three identical captures in a
   row, while gmd says it is idle. The stability half is not optional: gmd **drops** keystrokes while
   a git command is running (`Progress.Show` → `UI.StopInput` → `KeyGate`), before the marquee shows

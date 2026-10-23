@@ -144,9 +144,15 @@ static class UI
             return;
 
         var isBusy = keys.IsDropping || Volatile.Read(ref busyCount) > 0 || queue.HasPosted || IsDrawPending();
-        if (probe.TitleIfChanged(isBusy) is string title)
+        var top = App.TopRunnableView;
+        var isOverwritten = top != probeTop;
+        probeTop = top;
+        if (probe.TitleIfChanged(isBusy, isOverwritten) is string title)
             driver.SetTerminalTitle(title);
     }
+
+    // The runnable on top when the title was last looked at, see E2eProbe.TitleIfChanged
+    static View? probeTop;
 
     // Whether a view of any runnable, the log under a dialog too, is still to be laid out or drawn
     static bool IsDrawPending() =>
