@@ -221,8 +221,9 @@ repository.
   its folder as it is. `gmd -m` shows the start page inside a repository
   too.
 - **Clean up after pull requests:** **Delete Merged Branches ...** in the repo
-  menu (`Shift-M`) lists the local branches merged into main, by a squash or
-  a rebase on GitHub too, marked `✓` in the log, and deletes them.
+  menu (`Shift-M`) lists the branches merged into main, by a squash or a
+  rebase on GitHub too, marked `✓` in the log, and deletes them, those
+  origin still has too, after asking.
 - **Committed on the wrong branch,** e.g. on main: `m` on the oldest commit
   of them, then **Move to New Branch ...**, which moves it and the newer
   ones while they are not pushed yet.
@@ -652,14 +653,22 @@ throw changes away ask first, and what they throw away gmd keeps, for
   were on goes back to the commit before them, which **Undo** in its
   branch menu takes back.
 - **Delete Merged Branches ...** (repo menu, `Shift-M`):
-  Lists the local branches with no branch on origin, deleted there or never
-  pushed, whose work is in main or an integration branch already: merged
-  as git counts it, or squash or rebase merged on origin (marked `✓`, see
-  [Remote and Local Branches](#remote-and-local-branches)). `Enter` or `d`
+  Lists the branches whose work is in main or an integration branch
+  already, with when and by whom their last commit was made, their names in
+  their colors in the log. *On* says where each one is: `here` for a local
+  branch with no branch on origin, deleted there or never pushed, merged as
+  git counts it, or squash or rebase merged on origin (marked `✓`, see
+  [Remote and Local Branches](#remote-and-local-branches)); `origin` for a
+  branch only origin has, and `both` for one with its local branch, merged
+  as git counts it into origin's main or integration branch. `Enter` or `d`
   deletes the one selected, and `a` all of them, after asking, as git's
-  `branch -D` would, which a squash merge needs. A branch checked out, here
-  or in another worktree, is listed but left. Each one deleted is kept for
-  **Restore Deleted Branch**. A branch made with no commits of its own yet
+  `branch -D` would, which a squash merge needs. A branch on origin is
+  deleted there only after a question of its own, with Cancel the default,
+  since that deletes it for everyone; deleting all of them asks whether to
+  delete those on origin too (**Also on Origin**) or leave them (**Here
+  Only**). A branch checked out, here or in another worktree, is listed but
+  left. Each one deleted is kept for **Restore Deleted Branch**, which pushes
+  one deleted on origin back. A branch made with no commits of its own yet
   is not listed, though git counts it merged.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current

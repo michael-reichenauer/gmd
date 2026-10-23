@@ -91,16 +91,20 @@ public class MergedBranchesIntegrationTest
         Assert.IsFalse(AssertOk(await repo.Git.IsMergedByContentAsync(await MainAsync(), feature, repo.Path)));
     }
 
-    // The local branches whose tips main has, main among them, and not one merged by a squash
+    // The branches whose tips main has, main among them, and not one merged by a squash: the remote
+    // ones too, as e.g. 'origin/merged', but not origin's HEAD, which only points at one of them
     [TestMethod]
     public async Task TestTheBranchesMergedAsGitCountsIt()
     {
         await FeatureAsync();
         await repo.GitAsync("branch -q merged feature~1");
         await repo.GitAsync("merge -q --no-ff -m \"Merge branch 'merged'\" merged");
+        await repo.AddOriginAsync();
+        await repo.GitAsync("push -q origin main merged feature");
+        await repo.GitAsync("remote set-head origin main");
 
         var names = AssertOk(await repo.Git.GetMergedBranchNamesAsync(await MainAsync(), repo.Path));
 
-        CollectionAssert.AreEquivalent(new[] { "main", "merged" }, names.ToArray());
+        CollectionAssert.AreEquivalent(new[] { "main", "merged", "origin/main", "origin/merged" }, names.ToArray());
     }
 }

@@ -1,3 +1,4 @@
+using gmd.Server;
 using gmd.Server.Private.Augmented.Private;
 using gmdTest.Fixtures;
 
@@ -141,5 +142,54 @@ public class MergedBranchServiceTest
             ("Validate", Id("f2"), false, ""),
             (merged[1].Subject, merged[1].TipId, merged[1].IsCurrent, merged[1].WorktreePath)
         );
+    }
+
+    // A branch origin has is listed when origin's is merged as git counts it, with its local branch,
+    // which is merged too, or alone when there is none, and with the author of its last commit. Not one
+    // whose local branch has commits not merged, nor one not merged, nor origin's main. A local branch
+    // that does not track origin's of its name is a branch of its own, and listed so.
+    [TestMethod]
+    public async Task TestTheMergedBranchesOnOriginListed()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m5", "Merge branch 'solo' into main", "m4", "s1")
+            .Commit("m4", "Merge branch 'old' into main", "m3", "o1")
+            .Commit("m3", "Merge branch 'done' into main", "m2", "d1")
+            .Commit("m2", "Merge branch 'ahead' into main", "m1", "a1")
+            .Commit("a2", "Ahead work", "a1")
+            .Commit("a1", "Pushed ahead work", "m1")
+            .Commit("o1", "Old work", "m1")
+            .Commit("s1", "Solo work", "m1")
+            .Commit("d1", "Done work", "m1")
+            .Commit("n1", "Open work", "m1")
+            .Commit("m1", "Initial")
+            .BranchWithRemote("main", "m5", isCurrent: true)
+            .BranchWithRemote("done", "d1")
+            .RemoteBranch("origin/old", "o1")
+            .LocalBranch("solo", "s1")
+            .RemoteBranch("origin/solo", "s1")
+            .BranchWithRemote("ahead", "a2", remoteTipCommit: "a1", ahead: 1)
+            .BranchWithRemote("open", "n1")
+            .ViewRepoAsync(ShowBranches.AllActive);
+        var git = new FakeGit();
+        git.MergedBranchNames[Id("m5")] =
+        [
+            "main",
+            "origin/main",
+            "done",
+            "origin/done",
+            "origin/old",
+            "origin/ahead",
+            "solo",
+            "origin/solo",
+        ];
+
+        var merged = AssertOk(await new MergedBranchService(git, new FakeRepoConfig()).GetMergedBranchesAsync(repo));
+
+        Assert.AreEqual(
+            "old (, origin/old) into main, solo (solo, ) into main, solo (, origin/solo) into main, done (done, origin/done) into main",
+            string.Join(", ", merged.Select(m => $"{m.Name} ({m.LocalName}, {m.RemoteName}) into {m.IntoName}"))
+        );
+        Assert.AreEqual(("Done work", Id("d1"), "Test Author"), (merged[3].Subject, merged[3].TipId, merged[3].Author));
     }
 }

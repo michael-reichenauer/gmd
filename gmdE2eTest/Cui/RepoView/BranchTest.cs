@@ -815,7 +815,7 @@ public class BranchTest
         gmd.Send("Enter");
 
         var dialog = gmd.WaitFor("Merged into");
-        StringAssert.Contains(dialog, "feature               main, squash or rebase    Fix feature");
+        StringAssert.Contains(dialog, "feature             here    main, squash or rebase  Test User     Fix feature");
         StringAssert.Contains(dialog, "Delete deletes 'feature' here: squash or rebase merged into 'main' on origin");
         gmd.Send("d");
 
@@ -824,6 +824,44 @@ public class BranchTest
             ScreenText.LastLine(gmd.WaitFor("Deleted 'feature'"))
         );
         Assert.AreEqual("", (await repo.GitAsync("branch --list feature")).Trim());
+    }
+
+    // A branch merged into main that origin keeps is listed too, and deleted here and on origin only
+    // after a question of its own, which Cancel, the default, leaves it from
+    [TestMethod]
+    public async Task TestDeleteAMergedBranchOnOrigin()
+    {
+        using var repo = await E2eRepo.CreateWithBranchMergedAndKeptOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Merge branch 'done'");
+
+        gmd.Send("M");
+        gmd.WaitFor("Delete Merged Branches ...");
+        gmd.SelectMenuItem("Delete Merged Branches ...");
+        gmd.Send("Enter");
+
+        var dialog = gmd.WaitFor("Merged into");
+        StringAssert.Contains(dialog, "done                both    main                    Test User     Add done");
+        StringAssert.Contains(dialog, "Delete deletes 'done' here and on origin, for everyone, after asking");
+        gmd.Send("d");
+        StringAssert.Contains(gmd.WaitFor("Delete 'done' on origin?"), "This deletes it on origin, for everyone");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Delete 'done' on origin?");
+        gmd.WaitFor("Merged into");
+        Assert.AreEqual("origin/done", (await repo.GitAsync("branch -r --list origin/done")).Trim(), "Cancelled");
+
+        gmd.Send("d");
+        gmd.WaitFor("Delete 'done' on origin?");
+        gmd.Send("Left"); // From Cancel, the default, to Delete on Origin
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Deleted 'done' here and on origin: Restore Deleted Branch in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Deleted 'done'"))
+        );
+        Assert.AreEqual("", (await repo.GitAsync("branch -a --list done origin/done")).Trim());
+        Assert.AreEqual("", (await repo.GitAsync($"-C \"{repo.Path}-origin\" branch --list done")).Trim());
     }
 
     // A commit made on main by mistake, 'Add zeta', not pushed yet, moved to a new branch, which is

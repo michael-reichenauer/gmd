@@ -84,10 +84,13 @@ class MergedBranchService : IMergedBranchService
         return WithKnown(repo);
     }
 
-    // The branches a merged branch can be listed for: deleted on origin, or never pushed, and with
-    // commits of its own, i.e. not a branch just made, whose tip is another branch's commit and so
-    // merged into it, nor main or an integration branch, which branches are merged into. Merged as git
-    // counts it into main or an integration branch, as origin has them, or by content on origin.
+    // The branches a merged branch can be listed for: a local branch with its branch on origin, if
+    // any, or a branch only origin has, with commits of their own, i.e. not a branch just made, whose
+    // tip is another branch's commit and so merged into it, nor main or an integration branch, which
+    // branches are merged into. One deleted on origin, or never pushed, is listed when it is merged as
+    // git counts it into main or an integration branch, as origin has them, or by content on origin.
+    // One origin has is listed when origin's is merged as git counts it, and so is its local branch,
+    // if any: deleting it deletes both, and its local branch is not to lose work origin has not.
     public async Task<Result<IReadOnlyList<MergedBranch>>> GetMergedBranchesAsync(Repo repo)
     {
         var updatedResult = await GetUpdatedRepoAsync(repo);
@@ -115,38 +118,71 @@ class MergedBranchService : IMergedBranchService
             }
         }
 
-        return updated
-            .AllBranches.Where(b =>
-                !b.IsRemote
-                && b.IsGitBranch
-                && !b.IsDetached
-                && b.RemoteName == ""
-                && !IsInto(b)
-                && updated.CommitById.TryGetValue(b.TipId, out var tip)
-                && tip.BranchName == b.Name
-            )
-            .Select(b =>
-                mergedInto.TryGetValue(b.Name, out var into) ? ToMerged(updated, b, into, false)
-                : updated.MergedOnOrigin.TryGetValue(b.Name, out var onOrigin) ? ToMerged(updated, b, onOrigin, true)
-                : null
-            )
-            .OfType<MergedBranch>()
-            .OrderByDescending(m => m.Time)
-            .ToList();
+        List<MergedBranch> merged = [];
+        foreach (var b in updated.AllBranches.Where(b => b.IsGitBranch && !b.IsDetached && !IsInto(b)))
+        {
+            // Each pair once, from its local branch, or from origin's when there is no local one
+            if (b.IsRemote && b.LocalName != "" && updated.BranchByName.ContainsKey(b.LocalName))
+                continue;
+            var local = b.IsRemote ? null : b;
+            var remote =
+                b.IsRemote ? b
+                : b.RemoteName != "" && updated.BranchByName.TryGetValue(b.RemoteName, out var r) && r.IsGitBranch ? r
+                : null;
+            if (!HasCommitsOfItsOwn(updated, local, remote))
+                continue;
+
+            if (remote != null)
+            {
+                if (
+                    mergedInto.TryGetValue(remote.Name, out var into)
+                    && (local == null || mergedInto.ContainsKey(local.Name))
+                )
+                    merged.Add(ToMerged(updated, local, remote, into, false));
+            }
+            else if (mergedInto.TryGetValue(b.Name, out var into))
+                merged.Add(ToMerged(updated, b, null, into, false));
+            else if (updated.MergedOnOrigin.TryGetValue(b.Name, out var onOrigin))
+                merged.Add(ToMerged(updated, b, null, onOrigin, true));
+        }
+
+        return merged.OrderByDescending(m => m.Time).ToList();
     }
 
-    static MergedBranch ToMerged(Repo repo, Branch b, string into, bool isByContent)
+    // Whether the tip of the branch, or of either branch of the pair, is a commit of the pair's own, or
+    // of a branch of the same name: a local branch that does not track origin's of its name is no pair
+    // with it, though their commits are drawn as one branch's, origin's
+    static bool HasCommitsOfItsOwn(Repo repo, Branch? local, Branch? remote)
     {
-        var tip = repo.CommitById[b.TipId];
+        var niceName = (local ?? remote)!.NiceName;
+        bool IsOwn(Branch? b) =>
+            b != null
+            && repo.CommitById.TryGetValue(b.TipId, out var tip)
+            && (
+                tip.BranchName == local?.Name
+                || tip.BranchName == remote?.Name
+                || repo.BranchByName.TryGetValue(tip.BranchName, out var tipBranch) && tipBranch.NiceName == niceName
+            );
+        return IsOwn(local) || IsOwn(remote);
+    }
+
+    // A pair's last commit is the newer of its two tips
+    static MergedBranch ToMerged(Repo repo, Branch? local, Branch? remote, string into, bool isByContent)
+    {
+        var tips = new[] { local, remote }.OfType<Branch>().Select(b => repo.CommitById[b.TipId]);
+        var tip = tips.MaxBy(c => c.AuthorTime)!;
         return new MergedBranch(
-            b.Name,
+            local?.Name ?? remote!.NiceName,
+            local?.Name ?? "",
+            remote?.Name ?? "",
             into,
             isByContent,
-            b.TipId,
+            tip.Id,
             tip.Subject,
+            tip.Author,
             tip.AuthorTime,
-            b.IsCurrent,
-            b.WorktreePath
+            local?.IsCurrent ?? false,
+            local?.WorktreePath ?? ""
         );
     }
 

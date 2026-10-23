@@ -1,4 +1,5 @@
 using gmd.Cui.Branches;
+using gmd.Cui.Common;
 using gmd.Server;
 using gmdTest.Fixtures;
 
@@ -15,30 +16,68 @@ public class MergedBranchRowsTest
         string name = "feature",
         bool isByContent = true,
         bool isCurrent = false,
-        string worktreePath = ""
-    ) => new(name, "main", isByContent, RepoBuilder.Sha("f2"), "Add login form", Time, isCurrent, worktreePath);
+        string worktreePath = "",
+        bool isLocal = true,
+        bool isOnOrigin = false
+    ) =>
+        new(
+            name,
+            isLocal ? name : "",
+            isOnOrigin ? $"origin/{name}" : "",
+            "main",
+            isByContent,
+            RepoBuilder.Sha("f2"),
+            "Add login form",
+            "Ann Lee-Svensson",
+            Time,
+            isCurrent,
+            worktreePath
+        );
+
+    static MergedBranch OnOrigin(string name = "search", bool isLocal = false) =>
+        Merged(name, isByContent: false, isLocal: isLocal, isOnOrigin: true);
 
     [TestMethod]
     public void TestHeaderAndRows()
     {
         var width = MergedBranchRows.MinWidth;
         Assert.AreEqual(
-            "Time              Branch                Merged into               Subject             ",
+            "Time              Branch              On      Merged into             Author        Subject     ",
             MergedBranchRows.Header(width).ToString()
         );
         Assert.AreEqual(
-            "2024-10-15 12:03  feature               main, squash or rebase    Add login form      ",
-            MergedBranchRows.Row(Merged(), width).ToString()
+            "2024-10-15 12:03  feature             here    main, squash or rebase  Ann Lee-Sven  Add login fo",
+            MergedBranchRows.Row(Merged(), Color.Blue, width).ToString()
         );
         Assert.AreEqual(
-            "2024-10-15 12:03  fix ●                 main                      Add login form      ",
-            MergedBranchRows.Row(Merged("fix", isByContent: false, isCurrent: true), width).ToString()
+            "2024-10-15 12:03  fix ●               here    main                    Ann Lee-Sven  Add login fo",
+            MergedBranchRows.Row(Merged("fix", isByContent: false, isCurrent: true), Color.Blue, width).ToString()
         );
         Assert.AreEqual(
-            "2024-10-15 12:03  agent ⌂               main, squash or rebase    Add login form      ",
-            MergedBranchRows.Row(Merged("agent", worktreePath: "/w/agent"), width).ToString()
+            "2024-10-15 12:03  agent ⌂             here    main, squash or rebase  Ann Lee-Sven  Add login fo",
+            MergedBranchRows.Row(Merged("agent", worktreePath: "/w/agent"), Color.Blue, width).ToString()
+        );
+        Assert.AreEqual(
+            "2024-10-15 12:03  search              origin  main                    Ann Lee-Sven  Add login fo",
+            MergedBranchRows.Row(OnOrigin(), Color.Blue, width).ToString()
+        );
+        Assert.AreEqual(
+            "2024-10-15 12:03  search              both    main                    Ann Lee-Sven  Add login fo",
+            MergedBranchRows.Row(OnOrigin(isLocal: true), Color.Blue, width).ToString()
         );
     }
+
+    // The branch's name is drawn in its color in the log, and where it is in yellow when that is origin
+    [TestMethod]
+    public void TestColors()
+    {
+        var row = MergedBranchRows.Row(OnOrigin(), Color.Green, MergedBranchRows.MinWidth);
+        Assert.AreEqual(Color.Green, ColorOf(row, "search"));
+        Assert.AreEqual(Color.Yellow, ColorOf(row, "origin"));
+        Assert.AreEqual(Color.Dark, ColorOf(MergedBranchRows.Row(Merged(), Color.Green, 100), "here"));
+    }
+
+    static Color ColorOf(Text text, string part) => text.Fragments.First(f => f.Text.Trim().StartsWith(part)).Color;
 
     // Git deletes no branch checked out, here or in another worktree, which the line below the list
     // says what to do about
@@ -63,6 +102,65 @@ public class MergedBranchRowsTest
         Assert.AreEqual(
             "'feature' is checked out in another worktree: remove that in Worktrees (w), with the branch",
             MergedBranchRows.Reason(Merged(worktreePath: "/w/feature"))
+        );
+        Assert.IsTrue(MergedBranchRows.CanDelete(OnOrigin()));
+        Assert.AreEqual(
+            "Delete deletes 'origin/search' on origin, for everyone, after asking: its commits are in 'main'",
+            MergedBranchRows.Reason(OnOrigin())
+        );
+        Assert.AreEqual(
+            "Delete deletes 'search' here and on origin, for everyone, after asking: its commits are in 'main'",
+            MergedBranchRows.Reason(OnOrigin(isLocal: true))
+        );
+    }
+
+    // Deleting a branch on origin deletes it for everyone, which is asked first, whether it has a local
+    // branch or not
+    [TestMethod]
+    public void TestDeletingOneOnOrigin()
+    {
+        Assert.AreEqual(
+            """
+            Delete 'search' on origin?
+
+              origin/search
+              search, here
+
+            This deletes it on origin, for everyone, not only here.
+            Its commits are in 'main' already, and Restore Deleted
+            Branch, in the Undo menu, pushes it back.
+            """,
+            MergedBranchRows.DeleteOnOriginQuestion(OnOrigin(isLocal: true))
+        );
+        StringAssert.StartsWith(
+            MergedBranchRows.DeleteOnOriginQuestion(OnOrigin()),
+            "Delete 'search' on origin?\n\n  origin/search\n\nThis"
+        );
+    }
+
+    // Delete All deletes those on origin there too only when asked to, which the question says
+    [TestMethod]
+    public void TestDeletingThemAllWithSomeOnOrigin()
+    {
+        Assert.AreEqual(
+            """
+            Delete 3 merged branches?
+
+              feature
+              search (on origin)
+              list (on origin)
+
+            2 of them are on origin: Here Only leaves those as they are,
+            Also on Origin deletes them there too, for everyone.
+
+            Their work is in main or an integration branch already.
+            Restore Deleted Branch, in the Undo menu, brings each back.
+            """,
+            MergedBranchRows.DeleteAllQuestion([Merged(), OnOrigin(), OnOrigin("list", isLocal: true)])
+        );
+        StringAssert.Contains(
+            MergedBranchRows.DeleteAllQuestion([OnOrigin()]),
+            "\n\nIt is on origin: Delete on Origin deletes it there, for everyone.\n\n"
         );
     }
 

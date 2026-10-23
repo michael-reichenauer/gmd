@@ -212,6 +212,23 @@ static class E2eRepo
         return repo;
     }
 
+    // 'done', pushed and merged into main with a merge commit, which is pushed too, while origin keeps
+    // 'done', as it does when a pull request is merged with no branch deleted. 'main' is current.
+    public static async Task<TempRepo> CreateWithBranchMergedAndKeptOnOriginAsync()
+    {
+        var repo = await CreateWithOriginAsync();
+        var t = TempRepo.BaseTime;
+
+        await repo.GitAsync("checkout -q -b done");
+        await repo.CommitFileAtAsync("done.txt", "done\n", "Add done", t.AddMinutes(8));
+        await repo.GitAsync("push -q --set-upstream origin done");
+        await repo.GitAsync("checkout -q main");
+        repo.GitAt(["merge", "-q", "--no-ff", "-m", "Merge branch 'done'", "done"], t.AddMinutes(9));
+        await repo.GitAsync("push -q origin main");
+
+        return repo;
+    }
+
     // The mirror of the above: everything is pushed and then the local branch is moved back a
     // commit, so origin has one the local branch has not got. That is what draws the behind marker
     // and gives 'Pull' something to do.
