@@ -4,10 +4,13 @@ using gmd.Installation;
 
 namespace gmd.Cui.App;
 
+// What a change of the config means for the repo shown: what it is read with changed, so it needs
+// reading again, or showing new branches was turned on
+record ConfigChange(bool IsReadAgain, bool IsShowNewBranchesTurnedOn);
+
 interface IConfigDlg
 {
-    // Whether what the repo is read with changed, so it needs reading again
-    bool Show(string repoPath);
+    ConfigChange Show(string repoPath);
 }
 
 class ConfigDlg : IConfigDlg
@@ -23,7 +26,7 @@ class ConfigDlg : IConfigDlg
         this.updater = updater;
     }
 
-    public bool Show(string repoPath)
+    public ConfigChange Show(string repoPath)
     {
         int width = 60;
         int height = 27;
@@ -66,7 +69,7 @@ class ConfigDlg : IConfigDlg
         );
 
         if (!dlg.ShowOkCancel())
-            return false;
+            return new ConfigChange(false, false);
 
         // Sharing pushes to origin, so what it pushes is said before it is turned on, and that what was
         // pushed stays there when it is turned off
@@ -108,7 +111,7 @@ class ConfigDlg : IConfigDlg
 
         UpdatePathVariable(isAddGmdToPath.Checked);
         updater.CheckUpdateAvailableAsync().RunInBackground();
-        return isNamesChanged;
+        return new ConfigChange(isNamesChanged, isShowNewBranches.Checked && !repoConf.ShowNewBranches);
     }
 
     internal const string ShowNewBranchesText = "Show new branches automatically";

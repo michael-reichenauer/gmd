@@ -52,7 +52,13 @@ class RepoMenu : IRepoMenu
     // The config dialog can turn the key-hint line on or off, which changes the layout
     void ShowConfig()
     {
-        if (configDlg.Show(repo.Repo.Path))
+        // Turning on showing new branches shows those that come from now on, not every one that
+        // came while it was off, which may be many in a busy repo: those are taken as seen
+        var change = configDlg.Show(repo.Repo.Path);
+        if (change.IsShowNewBranchesTurnedOn)
+            commands.View.MarkHiddenNewsSeen(repo.HiddenNews);
+
+        if (change.IsReadAgain)
         { // The integration branches changed, which the branch structure is inferred with
             commands.View.Refresh();
         }

@@ -65,7 +65,7 @@ public class ApplicationBarTest
     }
 
     // With the repo set to show new branches, as for a small team, the branch is shown as it comes,
-    // and said, rather than counted by a ✦
+    // and said, rather than counted by a ✦; and recorded for undo
     [TestMethod]
     public async Task TestANewBranchIsShownWhenTheRepoIsSetTo()
     {
@@ -79,6 +79,10 @@ public class ApplicationBarTest
         var shown = gmd.WaitFor("Showed new branch agent");
         StringAssert.Contains(shown, "(⌂ agent)");
         Assert.IsFalse(shown.Contains("✦"), "Not news, since it is shown");
+
+        // A show like any other, which Backspace undoes
+        gmd.Send("BSpace");
+        gmd.WaitUntilGone("(⌂ agent)");
     }
 
     // The same news is the New group at the top of Show Branch, and stepping into it is looking

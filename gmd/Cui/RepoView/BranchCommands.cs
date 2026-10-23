@@ -115,6 +115,14 @@ class BranchCommands : IBranchCommands
     public void ShowAllBranches(IReadOnlyList<string> names, string what)
     {
         var repo = context.ViewRepo;
+        if (names.Count > 20)
+        {
+            if (UI.InfoMessage("Show Branches", $"Do you want to show {names.Count} branches?", 1, ["Yes", "No"]) != 0)
+            {
+                return;
+            }
+        }
+
         Repo newRepo = server.SetShownBranches(repo.Repo, BranchNames(repo.Repo).Concat(names).ToList());
         RecordShown(newRepo, "Show", what, "");
         SetRepo(newRepo);
