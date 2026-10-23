@@ -5,6 +5,10 @@ Releases with no change users notice are left out.
 
 ## [Unreleased]
 
+### New
+- **Show new branches automatically** in **Config ...** shows each branch new to you as it arrives, per repo, and names it on the status line; the ✦ then counts only new commits on branches you hid
+- **Show All New** at the top of the ✦ menu and of Show Branch's **New** shows every branch listed there at once
+
 ### Improved
 - **Delete Merged Branches** now also lists the branches origin still has that are merged into its main or an integration branch, with their local branches. A column says where each one is (`here`, `origin` or `both`), and each row shows its name in its color in the log and who made its last commit and when
 - **Delete Merged Branches** now has a **Show** button (`s`), which shows the selected branch in the log behind the dialog, its last commit near the top, so it can be looked at before it is deleted; the dialog opens again on the same row
