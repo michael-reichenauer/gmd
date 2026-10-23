@@ -269,8 +269,15 @@ class BranchCreateCommands : IBranchCreateCommands
                     && mergedBranchesDlg.Show(repo.Repo, branches, selected) is MergedBranchChoice choice
                 )
                 {
+                    selected = Math.Max(0, branches.IndexOf(choice.Branch));
+                    if (choice.Action == MergedBranchAction.Show)
+                    {
+                        ShowMergedBranch(choice.Branch);
+                        continue;
+                    }
+
                     List<MergedBranch> toDelete;
-                    if (choice.IsAll)
+                    if (choice.Action == MergedBranchAction.DeleteAll)
                     {
                         var deletable = branches.Where(MergedBranchRows.CanDelete).ToList();
                         var answer = Confirm.DeleteMergedBranches(
@@ -294,7 +301,6 @@ class BranchCreateCommands : IBranchCreateCommands
                         toDelete = [choice.Branch];
                     }
 
-                    selected = Math.Max(0, branches.IndexOf(choice.Branch));
                     foreach (var b in toDelete)
                     {
                         using (status.Progress($"Deleting '{b.Name}'"))
@@ -322,6 +328,20 @@ class BranchCreateCommands : IBranchCreateCommands
                 status.Info(MergedBranchRows.Deleted(deleted.Count));
             return Result.Ok;
         });
+
+    // Shows a merged branch in the log behind the dialog, its last commit near the top, above the
+    // dialog, which is shown again over it: origin's branch of a pair, which the pair is drawn as
+    void ShowMergedBranch(MergedBranch merged)
+    {
+        var name = merged.IsOnOrigin ? merged.RemoteName : merged.LocalName;
+        if (!context.ViewRepo.Repo.BranchByName.ContainsKey(name))
+            return;
+        context.BranchCmds.ShowBranch(name, merged.TipId, MergedBranchTipRow);
+    }
+
+    // The row of the log view a merged branch's last commit is shown on, with the newer commits of
+    // main, e.g. its merge, in the rows above, and the branch below, above a dialog of most sizes
+    const int MergedBranchTipRow = 3;
 
     // A branch name can name either the local or the remote branch of a pair, and a command usually
     // needs both of them, so resolve the name to the pair it is part of (either one can be missing)

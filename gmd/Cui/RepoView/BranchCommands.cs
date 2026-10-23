@@ -9,7 +9,7 @@ namespace gmd.Cui.RepoView;
 interface IBranchCommands
 {
     void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
-    void ShowBranch(string name, string showCommitId);
+    void ShowBranch(string name, string showCommitId, int viewRow = -1);
     void FindBranch(string text);
     void HideBranch(string name, bool hideAllBranches = false);
     void UndoShowOrHide();
@@ -110,12 +110,13 @@ class BranchCommands : IBranchCommands
         SetRepo(newRepo, name);
     }
 
-    public void ShowBranch(string name, string showCommitId)
+    // Shows the branch with the cursor on the commit, on that row of the view when one is given
+    public void ShowBranch(string name, string showCommitId, int viewRow = -1)
     {
         var repo = context.ViewRepo;
         Repo newRepo = server.ShowBranch(repo.Repo, name, false);
         RecordShown(newRepo, "Show", Quoted(name), name);
-        SetRepoAttCommit(newRepo, showCommitId);
+        repoView.UpdateRepoToAtCommit(newRepo, showCommitId, viewRow);
     }
 
     // Finds a branch by name, starting from what was typed in the Show Branch menu, and shows it, as
@@ -514,8 +515,6 @@ class BranchCommands : IBranchCommands
         });
 
     void SetRepo(Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
-
-    void SetRepoAttCommit(Server.Repo newRepo, string commitId) => repoView.UpdateRepoToAtCommit(newRepo, commitId);
 
     void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
 }

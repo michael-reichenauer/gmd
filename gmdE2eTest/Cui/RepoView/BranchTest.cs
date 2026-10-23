@@ -826,6 +826,30 @@ public class BranchTest
         Assert.AreEqual("", (await repo.GitAsync("branch --list feature")).Trim());
     }
 
+    // Show shows the branch picked in the log behind the dialog, which stays open, to see what the
+    // branch holds before deleting it
+    [TestMethod]
+    public async Task TestShowAMergedBranch()
+    {
+        using var repo = await E2eRepo.CreateWithBranchMergedAndKeptOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        Assert.IsFalse(gmd.WaitFor("Merge branch 'done'").Contains("Add done"), "Hidden at first");
+
+        gmd.Send("M");
+        gmd.WaitFor("Delete Merged Branches ...");
+        gmd.SelectMenuItem("Delete Merged Branches ...");
+        gmd.Send("Enter");
+        gmd.WaitFor("Merged into");
+        gmd.Send("s");
+
+        var screen = gmd.WaitFor("Add done");
+        StringAssert.Contains(screen, "Merged into", "The dialog is shown again");
+        StringAssert.Contains(screen, "[ Show ]");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Merged into");
+        StringAssert.Contains(gmd.WaitForStable(), "Add done", "Still shown once the dialog is closed");
+    }
+
     // A branch merged into main that origin keeps is listed too, and deleted here and on origin only
     // after a question of its own, which Cancel, the default, leaves it from
     [TestMethod]

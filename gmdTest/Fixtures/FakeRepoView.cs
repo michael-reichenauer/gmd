@@ -47,7 +47,7 @@ class FakeRepoView : IRepoView
 
     public void UpdateRepoTo(Repo repo, string branchName = "") => throw Unsupported();
 
-    public void UpdateRepoToAtCommit(Repo repo, string commitId) => throw Unsupported();
+    public void UpdateRepoToAtCommit(Repo repo, string commitId, int viewRow = -1) => throw Unsupported();
 
     public void Refresh(string addName = "", string commitId = "") => throw Unsupported();
 
