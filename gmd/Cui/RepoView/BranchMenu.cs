@@ -111,10 +111,11 @@ class BranchMenu : IBranchMenu
     public IReadOnlyList<MenuItem> GetHiddenNewsItems() => ToHiddenNewsItems(repo.HiddenNews);
 
     // Each hidden branch with something not yet seen, the most recently changed first, which picking
-    // shows. Made at once rather than deferred, since listing them marks them seen, after which the
-    // news they are made from is gone.
-    IReadOnlyList<MenuItem> ToHiddenNewsItems(IReadOnlyList<HiddenBranchNews> news) =>
-        news.Select(n =>
+    // shows, after an item showing them all when there are several, as Recent has. Made at once rather
+    // than deferred, since listing them marks them seen, after which the news they are made from is gone.
+    IReadOnlyList<MenuItem> ToHiddenNewsItems(IReadOnlyList<HiddenBranchNews> news)
+    {
+        var items = news.Select(n =>
                 Menu.Item(
                     $"{n.Branch.NiceNameUnique} ({(n.IsNew ? "new branch" : $"{n.Count} new")})",
                     "",
@@ -122,6 +123,12 @@ class BranchMenu : IBranchMenu
                 )
             )
             .ToList();
+        if (news.Count < 2)
+            return items;
+
+        var names = news.Select(n => n.Branch.Name).ToList();
+        return items.Prepend(Menu.Item("Show All New", "", () => cmds.ShowAllBranches(names, "All New"))).ToList();
+    }
 
     // What the ▲ and ▼ in the application bar open. A click on either used to push or pull every
     // shown branch there and then, so a stray click changed the remote; now it offers the current

@@ -300,7 +300,8 @@ public class MenuItemsTest
     }
 
     // What the ✦ in the application bar opens: the hidden branches with new commits or that are new
-    // themselves. Listing them is seeing them, so there is no item to mark them seen.
+    // themselves, after an item showing them all. Listing them is seeing them, so there is no item to
+    // mark them seen.
     [TestMethod]
     public async Task TestTheNewsMenuListsTheHiddenBranchesWithSomethingNew()
     {
@@ -313,6 +314,7 @@ public class MenuItemsTest
 
         Assert.AreEqual(
             """
+            Show All New
             dev (2 new)
             main (new branch)
             """,
