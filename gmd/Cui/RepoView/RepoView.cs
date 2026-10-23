@@ -856,6 +856,10 @@ class RepoView : IRepoView, IRepoViewInputHost
         var commit = repo.Repo.ViewCommits.FirstOrDefault(c => c.Id == commitId);
         if (commit == null)
             return;
+
+        // The view learns how many rows the repo shown now has only as it draws, and would otherwise
+        // scroll within the count it had before, which a branch just shown has added rows to
+        commitsView.SetTotalCount(repo.Repo.ViewCommits.Count);
         if (viewRow >= 0)
             commitsView.ShowIndexAt(commit.ViewIndex, viewRow);
         else

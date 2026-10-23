@@ -842,12 +842,17 @@ public class BranchTest
         gmd.WaitFor("Merged into");
         gmd.Send("s");
 
-        var screen = gmd.WaitFor("Add done");
-        StringAssert.Contains(screen, "Merged into", "The dialog is shown again");
-        StringAssert.Contains(screen, "[ Show ]");
+        // Its last commit in the log above the dialog, on the log's second row, as near the fourth as a
+        // log this short lets it be; the dialog's own row for it has the subject too
+        gmd.WaitUntil(
+            () => ScreenText.Rows(gmd.WaitForStable(), repo.Path, 3, 1).Contains("Add done"),
+            "the branch's last commit in the log"
+        );
+        StringAssert.Contains(gmd.WaitForStable(), "[ Show ]", "The dialog is shown again");
         gmd.Send("Escape");
-        gmd.WaitUntilGone("Merged into");
-        StringAssert.Contains(gmd.WaitForStable(), "Add done", "Still shown once the dialog is closed");
+        var closed = gmd.WaitUntilGone("Merged into");
+        Assert.IsFalse(closed.Contains("Quit gmd?"), "Escape closed the dialog, not the log");
+        StringAssert.Contains(ScreenText.Rows(closed, repo.Path, 3, 1), "Add done", "Still shown once closed");
     }
 
     // A branch merged into main that origin keeps is listed too, and deleted here and on origin only
