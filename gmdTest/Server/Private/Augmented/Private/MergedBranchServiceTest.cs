@@ -192,4 +192,47 @@ public class MergedBranchServiceTest
         );
         Assert.AreEqual(("Done work", Id("d1"), "Test Author"), (merged[3].Subject, merged[3].TipId, merged[3].Author));
     }
+
+    // A local branch is deleted with origin's branch only when that is origin's of its own name: one
+    // made from 'origin/develop', which it tracks, is listed as a branch here, and 'origin/develop'
+    // never; someone else's branch of another name is listed alone, with no local branch, whose commits
+    // are drawn as that one's; and no branch of another remote, which deleting on origin cannot delete
+    [TestMethod]
+    public async Task TestOnlyOriginsBranchOfItsNameIsDeletedWithALocalBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("m3", "Merge branch 'up'", "m2", "u1")
+            .Commit("m2", "Merge branch 'mine'", "m1", "y1")
+            .Commit("y1", "Mine", "x1")
+            .Commit("u1", "Upstream work", "m1")
+            .Commit("x1", "Fix work", "d1")
+            .Commit("d1", "Develop", "m1")
+            .Commit("m1", "Initial")
+            .BranchWithRemote("main", "m3", isCurrent: true)
+            .BranchWithRemote("develop", "d1")
+            .LocalBranch("fix", "x1", remoteName: "origin/develop")
+            .LocalBranch("mine", "y1", remoteName: "origin/theirs")
+            .RemoteBranch("origin/theirs", "y1")
+            .RemoteBranch("upstream/up", "u1")
+            .ViewRepoAsync();
+        var git = new FakeGit();
+        git.MergedBranchNames[Id("m3")] =
+        [
+            "main",
+            "origin/main",
+            "develop",
+            "origin/develop",
+            "fix",
+            "mine",
+            "origin/theirs",
+            "upstream/up",
+        ];
+
+        var merged = AssertOk(await new MergedBranchService(git, new FakeRepoConfig()).GetMergedBranchesAsync(repo));
+
+        CollectionAssert.AreEquivalent(
+            new[] { "fix (fix, )", "theirs (, origin/theirs)" },
+            merged.Select(m => $"{m.Name} ({m.LocalName}, {m.RemoteName})").ToArray()
+        );
+    }
 }

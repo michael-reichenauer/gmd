@@ -121,13 +121,19 @@ class MergedBranchService : IMergedBranchService
         List<MergedBranch> merged = [];
         foreach (var b in updated.AllBranches.Where(b => b.IsGitBranch && !b.IsDetached && !IsInto(b)))
         {
+            // Only origin's remote branches, which deleting on origin deletes, not another remote's
+            if (b.IsRemote && !b.Name.StartsWith(OriginPrefix))
+                continue;
             // Each pair once, from its local branch, or from origin's when there is no local one
-            if (b.IsRemote && b.LocalName != "" && updated.BranchByName.ContainsKey(b.LocalName))
+            if (b.IsRemote && IsPair(updated, b.LocalName, b))
                 continue;
             var local = b.IsRemote ? null : b;
             var remote =
                 b.IsRemote ? b
-                : b.RemoteName != "" && updated.BranchByName.TryGetValue(b.RemoteName, out var r) && r.IsGitBranch ? r
+                : b.RemoteName != ""
+                && updated.BranchByName.TryGetValue(b.RemoteName, out var r)
+                && IsPair(updated, b.Name, r)
+                    ? r
                 : null;
             if (!HasCommitsOfItsOwn(updated, local, remote))
                 continue;
@@ -148,6 +154,19 @@ class MergedBranchService : IMergedBranchService
 
         return merged.OrderByDescending(m => m.Time).ToList();
     }
+
+    const string OriginPrefix = "origin/";
+
+    // Whether a local branch and the origin branch it tracks are deleted as one: only a branch of
+    // origin of the same name, never one that branches are merged into, e.g. 'origin/dev' tracked by a
+    // branch made from it, nor someone else's of another name, which deleting the pair would delete
+    static bool IsPair(Repo repo, string localName, Branch remote) =>
+        localName != ""
+        && repo.BranchByName.TryGetValue(localName, out var local)
+        && !local.IsRemote
+        && local.RemoteName == remote.Name
+        && remote.IsGitBranch
+        && remote.Name == OriginPrefix + localName;
 
     // Whether the tip of the branch, or of either branch of the pair, is a commit of the pair's own, or
     // of a branch of the same name: a local branch that does not track origin's of its name is no pair
