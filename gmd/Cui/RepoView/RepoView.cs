@@ -40,7 +40,10 @@ interface IRepoView
     Task<Result> ShowInitialRepoAsync(string path);
     Task<Result> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo, string branchName = "");
-    void UpdateRepoToAtCommit(Repo repo, string commitId);
+
+    // The repo shown with the cursor on the commit, on that row of the view when one is given, e.g.
+    // near the top, above a dialog over the log, rather than wherever scrolling the least puts it
+    void UpdateRepoToAtCommit(Repo repo, string commitId, int viewRow = -1);
     void Refresh(string addName = "", string commitId = "");
     Task RefreshAsync(string addName = "", string commitId = "");
     void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null);
@@ -282,12 +285,12 @@ class RepoView : IRepoView, IRepoViewInputHost
         Log.Info($"Showed {t} {serverRepo} with '{branchName}'");
     }
 
-    public void UpdateRepoToAtCommit(Server.Repo repo, string commitId)
+    public void UpdateRepoToAtCommit(Server.Repo repo, string commitId, int viewRow = -1)
     {
         var t = Timing.Start();
         ShowRepo(repo);
 
-        ScrollToCommit(commitId);
+        ScrollToCommit(commitId, viewRow);
         Log.Info($"Showed {t} {repo} with '{commitId}'");
     }
 
@@ -848,10 +851,18 @@ class RepoView : IRepoView, IRepoViewInputHost
         }
     }
 
-    void ScrollToCommit(string commitId)
+    void ScrollToCommit(string commitId, int viewRow = -1)
     {
         var commit = repo.Repo.ViewCommits.FirstOrDefault(c => c.Id == commitId);
-        if (commit != null)
+        if (commit == null)
+            return;
+
+        // The view learns how many rows the repo shown now has only as it draws, and would otherwise
+        // scroll within the count it had before, which a branch just shown has added rows to
+        commitsView.SetTotalCount(repo.Repo.ViewCommits.Count);
+        if (viewRow >= 0)
+            commitsView.ShowIndexAt(commit.ViewIndex, viewRow);
+        else
             commitsView.ShowCurrentIndex(commit.ViewIndex);
     }
 

@@ -303,7 +303,9 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   has, merged as git counts it (`git branch --all --merged`), with their local branches, which must be
   merged too: column *On* says here, origin or both, and one on origin is deleted there only after a
   question of its own with Cancel the default, or by Delete All's Also on Origin, never its default.
-  The rows show the last commit's author and the branch's color in the log. Delete, or Delete All after a question, each
+  The rows show the last commit's author and the branch's color in the log.
+  Show (`s`) shows the selected branch in the log behind the dialog, its tip on the log's fourth
+  row, above the dialog, which opens again over it. Delete, or Delete All after a question, each
   forced and recorded for Restore Deleted Branch; one checked out here or in a worktree is listed and
   left. The branch menu's Delete Branch no longer asks for force for one merged on origin.
 - Left: a branch squash merged whose origin branch was not deleted is not told, nor one whose lines

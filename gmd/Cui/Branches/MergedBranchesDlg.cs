@@ -3,8 +3,15 @@ using gmd.Server;
 
 namespace gmd.Cui.Branches;
 
-// What Delete Merged Branches was asked to do: delete the branch picked, or every one it can
-record MergedBranchChoice(MergedBranch Branch, bool IsAll);
+// What Delete Merged Branches was asked to do with the branch picked
+enum MergedBranchAction
+{
+    Delete,
+    DeleteAll, // Every one it can, after asking
+    Show, // In the log behind the dialog, which is shown again
+}
+
+record MergedBranchChoice(MergedBranch Branch, MergedBranchAction Action);
 
 interface IMergedBranchesDlg
 {
@@ -13,7 +20,8 @@ interface IMergedBranchesDlg
 
 // The branches whose work is in main or an integration branch already, one row each, see
 // MergedBranchRows, in a ListDlg: it returns what to delete and closes, and the command deletes it
-// and shows the rest again. A branch's name is in its color in the log.
+// and shows the rest again. A branch's name is in its color in the log. Show shows the branch in the
+// log behind the dialog, to see what it holds before deleting it.
 class MergedBranchesDlg : IMergedBranchesDlg
 {
     const int maxWidth = 130;
@@ -34,12 +42,13 @@ class MergedBranchesDlg : IMergedBranchesDlg
             (b, width) => MergedBranchRows.Row(b, ColorOf(repo, b), width),
             MergedBranchRows.Reason
         )
-            .Action("_Delete", b => new MergedBranchChoice(b, false), MergedBranchRows.CanDelete)
+            .Action("_Delete", b => new MergedBranchChoice(b, MergedBranchAction.Delete), MergedBranchRows.CanDelete)
             .Action(
                 "Delete _All ...",
-                b => new MergedBranchChoice(b, true),
+                b => new MergedBranchChoice(b, MergedBranchAction.DeleteAll),
                 _ => branches.Any(MergedBranchRows.CanDelete)
             )
+            .Action("_Show", b => new MergedBranchChoice(b, MergedBranchAction.Show))
             .Show(branches, selectedIndex);
 
     // The color of the branch in the log, origin's when it has one, as the pair's is drawn by it
