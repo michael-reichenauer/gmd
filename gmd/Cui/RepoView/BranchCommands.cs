@@ -10,6 +10,7 @@ interface IBranchCommands
 {
     void ShowBranch(string name, bool includeAmbiguous, ShowBranches show = ShowBranches.Specified, int count = 1);
     void ShowBranch(string name, string showCommitId);
+    void ShowAllBranches(IReadOnlyList<string> names, string what);
     void FindBranch(string text);
     void HideBranch(string name, bool hideAllBranches = false);
     void UndoShowOrHide();
@@ -108,6 +109,15 @@ class BranchCommands : IBranchCommands
         };
         RecordShown(newRepo, "Show", what, show == ShowBranches.Specified ? name : "");
         SetRepo(newRepo, name);
+    }
+
+    // Several branches at once, e.g. all the new ones, 'what' naming them for Undo
+    public void ShowAllBranches(IReadOnlyList<string> names, string what)
+    {
+        var repo = context.ViewRepo;
+        Repo newRepo = server.SetShownBranches(repo.Repo, BranchNames(repo.Repo).Concat(names).ToList());
+        RecordShown(newRepo, "Show", what, "");
+        SetRepo(newRepo);
     }
 
     public void ShowBranch(string name, string showCommitId)
