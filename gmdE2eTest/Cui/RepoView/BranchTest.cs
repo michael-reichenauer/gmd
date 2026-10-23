@@ -826,6 +826,35 @@ public class BranchTest
         Assert.AreEqual("", (await repo.GitAsync("branch --list feature")).Trim());
     }
 
+    // Show shows the branch picked in the log behind the dialog, which stays open, to see what the
+    // branch holds before deleting it
+    [TestMethod]
+    public async Task TestShowAMergedBranch()
+    {
+        using var repo = await E2eRepo.CreateWithBranchMergedAndKeptOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        Assert.IsFalse(gmd.WaitFor("Merge branch 'done'").Contains("Add done"), "Hidden at first");
+
+        gmd.Send("M");
+        gmd.WaitFor("Delete Merged Branches ...");
+        gmd.SelectMenuItem("Delete Merged Branches ...");
+        gmd.Send("Enter");
+        gmd.WaitFor("Merged into");
+        gmd.Send("s");
+
+        // Its last commit in the log above the dialog, on the log's second row, as near the fourth as a
+        // log this short lets it be; the dialog's own row for it has the subject too
+        gmd.WaitUntil(
+            () => ScreenText.Rows(gmd.WaitForStable(), repo.Path, 3, 1).Contains("Add done"),
+            "the branch's last commit in the log"
+        );
+        StringAssert.Contains(gmd.WaitForStable(), "[ Show ]", "The dialog is shown again");
+        gmd.Send("Escape");
+        var closed = gmd.WaitUntilGone("Merged into");
+        Assert.IsFalse(closed.Contains("Quit gmd?"), "Escape closed the dialog, not the log");
+        StringAssert.Contains(ScreenText.Rows(closed, repo.Path, 3, 1), "Add done", "Still shown once closed");
+    }
+
     // A branch merged into main that origin keeps is listed too, and deleted here and on origin only
     // after a question of its own, which Cancel, the default, leaves it from
     [TestMethod]

@@ -665,7 +665,9 @@ throw changes away ask first, and what they throw away gmd keeps, for
   branch only origin has, and `both` for one with its local branch, merged
   as git counts it into origin's main or integration branch. `Enter` or `d`
   deletes the one selected, and `a` all of them, after asking, as git's
-  `branch -D` would, which a squash merge needs. A branch on origin is
+  `branch -D` would, which a squash merge needs. `s` shows the one selected
+  in the log behind the dialog, its last commit near the top, to see what
+  it holds before deleting it. A branch on origin is
   deleted there only after a question of its own, with Cancel the default,
   since that deletes it for everyone; deleting all of them asks whether to
   delete those on origin too (**Also on Origin**) or leave them (**Here
