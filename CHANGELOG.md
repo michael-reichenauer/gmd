@@ -5,6 +5,13 @@ Releases with no change users notice are left out.
 
 ## [Unreleased]
 
+### Improved
+- **Delete Merged Branches** now also lists the branches origin still has that are merged into its main or an integration branch, with their local branches. A column says where each one is (`here`, `origin` or `both`), and each row shows its name in its color in the log and who made its last commit and when
+- Deleting a branch on origin from **Delete Merged Branches** now asks first, with Cancel the default, since it deletes it for everyone; **Delete All** asks whether to delete those on origin too (**Also on Origin**) or leave them (**Here Only**)
+
+### Fixed
+- A command such as continuing a rebase no longer fails with "Unable to create index.lock" when Gmd reads the status in the background at that moment
+
 ## [v1.15.1453.671] - 2026-10-22
 
 ### Improved
