@@ -32,7 +32,8 @@ interface IGit
     Task<Result<IReadOnlyList<string>>> GetFilePathsAsync(string reference, string wd);
     Task<Result<IReadOnlyList<Branch>>> GetBranchesAsync(string wd);
 
-    // The local branches whose tips the commit has, i.e. merged into it as git counts it
+    // The branches whose tips the commit has, i.e. merged into it as git counts it: the local ones by
+    // name and the remote ones as e.g. 'origin/feature'
     Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd);
     Task<Result<Status>> GetStatusAsync(string wd);
 

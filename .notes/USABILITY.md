@@ -299,13 +299,16 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   worktree list and Remove Worktree count it merged (git deletes it forced).
 - *Delete Merged Branches ...* in the repo menu: the local branches with no branch on origin whose
   work is in main or an integration branch, merged as git counts it (`git branch --merged`) or by
-  content on origin; not one with no commit of its own. Delete, or Delete All after a question, each
+  content on origin; not one with no commit of its own. Since 2026-10-23 also the branches origin
+  has, merged as git counts it (`git branch --all --merged`), with their local branches, which must be
+  merged too: column *On* says here, origin or both, and one on origin is deleted there only after a
+  question of its own with Cancel the default, or by Delete All's Also on Origin, never its default.
+  The rows show the last commit's author and the branch's color in the log. Delete, or Delete All after a question, each
   forced and recorded for Restore Deleted Branch; one checked out here or in a worktree is listed and
   left. The branch menu's Delete Branch no longer asks for force for one merged on origin.
 - Left: a branch squash merged whose origin branch was not deleted is not told, nor one whose lines
   main changed again since (the merge conflicts), nor one merged into another branch than its parent
-  or main; merged branches still on origin are not listed, since deleting them is deleting them for
-  everyone; and Delete Merged Branches does not remove the worktree of a branch with the branch.
+  or main; and Delete Merged Branches does not remove the worktree of a branch with the branch.
 
 ---
 

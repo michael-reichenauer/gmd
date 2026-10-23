@@ -96,15 +96,24 @@ class BranchService : IBranchService
         return await cmd.RunAsync("git", $"branch -m {oldName} {newName}", wd);
     }
 
-    // The local branches merged into a commit, i.e. whose tips it has: 'git branch --merged', with the
-    // format pinned to the bare name, which config could otherwise color or mark with the '*' of the
-    // current branch or the '+' of one checked out in another worktree
+    // The branches merged into a commit, i.e. whose tips it has: 'git branch --all --merged', the local
+    // ones by name and the remote ones as e.g. 'origin/feature', the format pinned to the full ref name,
+    // which config could otherwise color or mark with the '*' of the current branch or the '+' of one
+    // checked out in another worktree, and which tells a remote's HEAD, a pointer, from its branches
     public async Task<Result<IReadOnlyList<string>>> GetMergedBranchNamesAsync(string id, string wd)
     {
-        var result = await cmd.RunAsync("git", $"branch --merged {id} --format=%(refname:short)", wd);
+        var result = await cmd.RunAsync("git", $"branch --all --merged {id} --format=%(refname)", wd);
         if (result is not string output)
             return result.Error;
-        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        return output
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(refName =>
+                refName.StartsWith("refs/heads/") ? refName["refs/heads/".Length..]
+                : refName.StartsWith("refs/remotes/") && !refName.EndsWith("/HEAD") ? refName["refs/remotes/".Length..]
+                : ""
+            )
+            .Where(name => name != "")
+            .ToList();
     }
 
     public async Task<Result> DeleteLocalBranchAsync(string name, bool isForced, string wd) =>

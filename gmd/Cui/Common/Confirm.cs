@@ -34,6 +34,15 @@ enum RewriteChoice
     RewriteAndPush,
 }
 
+// What the question before Delete All in Delete Merged Branches was answered with: the branches
+// deleted here only, those on origin left as they are, or the ones on origin deleted there too
+enum MergedDeleteChoice
+{
+    Cancel,
+    HereOnly,
+    AlsoOnOrigin,
+}
+
 static class Confirm
 {
     const int MaxListedPaths = 10;
@@ -260,8 +269,29 @@ static class Confirm
         };
     }
 
-    // Deleting every merged branch listed, which Restore Deleted Branch brings back one by one
-    internal static bool DeleteMergedBranches(string question) => Ask("Delete Merged Branches", question);
+    // Deleting every merged branch listed, which Restore Deleted Branch brings back one by one, with
+    // No the default. Those on origin are deleted there only by a button of its own, which is never
+    // the default, since deleting a branch on origin deletes it for everyone: Here Only leaves them.
+    internal static MergedDeleteChoice DeleteMergedBranches(string question, bool isHere, bool isOnOrigin)
+    {
+        if (!isOnOrigin)
+            return Ask("Delete Merged Branches", question) ? MergedDeleteChoice.HereOnly : MergedDeleteChoice.Cancel;
+        if (!isHere)
+            return UI.InfoMessage("Delete Merged Branches", question, 1, ["Delete on Origin", "Cancel"]) == 0
+                ? MergedDeleteChoice.AlsoOnOrigin
+                : MergedDeleteChoice.Cancel;
+
+        return UI.InfoMessage("Delete Merged Branches", question, 2, ["Here Only", "Also on Origin", "Cancel"]) switch
+        {
+            0 => MergedDeleteChoice.HereOnly,
+            1 => MergedDeleteChoice.AlsoOnOrigin,
+            _ => MergedDeleteChoice.Cancel,
+        };
+    }
+
+    // Deleting a merged branch on origin, for everyone, with Cancel the default
+    internal static bool DeleteMergedOnOrigin(string question) =>
+        UI.InfoMessage("Delete on Origin", question, 1, ["Delete on Origin", "Cancel"]) == 0;
 
     // Putting a remote branch back as it was before a force push, which is one in turn, for everyone
     internal static bool RestoreOrigin(string remoteName, string question) => Ask($"Restore {remoteName}", question);
