@@ -23,7 +23,11 @@ static class UI
     internal static void SetApp(IApplication application)
     {
         app = application;
-        application.Iteration += (_, _) => queue.RunPosted();
+        application.Iteration += (_, _) =>
+        {
+            queue.RunPosted();
+            ShowProbe();
+        };
         application.Paste += (_, e) =>
         {
             Paste(e.Text);
@@ -34,6 +38,7 @@ static class UI
         // view gets the key, and a key marked handled there goes no further
         application.Keyboard.KeyDown += (_, key) =>
         {
+            probe?.KeyReceived(keys.IsDropping);
             if (keys.IsDropping)
                 key.Handled = true;
             else if (typing != null && TypedText(key) is string text)
@@ -111,6 +116,44 @@ static class UI
 
     // Keys are dropped while git works, but not in a dialog, see KeyGate
     static readonly KeyGate keys = new();
+
+    // What the end-to-end tests are told, when they started gmd, see E2eProbe
+    static readonly E2eProbe? probe = E2eProbe.IsOn ? new() : null;
+
+    // Work in the background that will change what is shown, e.g. the read of the branches merged on
+    // origin after a repo is shown, which no marquee says is running
+    static int busyCount;
+
+    // Says to the end-to-end tests that gmd is not idle until the work ends, see E2eProbe
+    internal static Disposable Busy()
+    {
+        Interlocked.Increment(ref busyCount);
+        var isEnded = 0;
+        return new Disposable(() =>
+        {
+            if (Interlocked.Exchange(ref isEnded, 1) == 0)
+                Interlocked.Decrement(ref busyCount);
+        });
+    }
+
+    // As an iteration starts, i.e. after the frame of the one before was written, and after what was
+    // posted ran, which may have changed views to draw in this one
+    static void ShowProbe()
+    {
+        if (probe == null || App.Driver is not IDriver driver)
+            return;
+
+        var isBusy = keys.IsDropping || Volatile.Read(ref busyCount) > 0 || queue.HasPosted || IsDrawPending();
+        if (probe.TitleIfChanged(isBusy) is string title)
+            driver.SetTerminalTitle(title);
+    }
+
+    // Whether a view of any runnable, the log under a dialog too, is still to be laid out or drawn
+    static bool IsDrawPending() =>
+        App.SessionStack?.Any(session => session.Runnable is View view && IsDrawPending(view)) == true;
+
+    static bool IsDrawPending(View view) =>
+        view.Visible && (view.NeedsLayout || view.NeedsDraw || view.SubViews.Any(IsDrawPending));
 
     internal static void StopInput() => keys.GitStarted();
 

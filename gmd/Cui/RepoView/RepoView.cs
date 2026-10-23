@@ -549,6 +549,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // changed, so an idle gmd is not redrawn every tick
     async Task ShowUpdatedWorktreesRepoAsync()
     {
+        using var busy = UI.Busy();
         var shown = repo.Repo;
         var viewRepoResult = await server.GetUpdatedWorktreesRepoAsync(shown);
         if (viewRepoResult is not Server.Repo viewRepo)
@@ -579,6 +580,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // was found and nothing else was shown meanwhile
     async Task ShowMergedOnOriginRepoAsync()
     {
+        using var busy = UI.Busy();
         var shown = repo.Repo;
         var viewRepoResult = await server.GetMergedOnOriginRepoAsync(shown);
         if (viewRepoResult is not Server.Repo viewRepo)

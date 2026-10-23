@@ -4,6 +4,11 @@
 # tests, which run in parallel (see gmdE2eTest/TestSetup.cs). Any arguments are passed on to
 # 'dotnet test' and apply to both, e.g. to skip the tests that run real git:
 #   scripts/test --filter "TestCategory!=Integration"
+#
+# 'scripts/test --stress' runs the end-to-end tier alone on two CPUs, which loads the machine as CI
+# loads its runner: eight gmd instances and their git on few cores. A flaky test fails there far more
+# often than on an idle machine, so a new or changed end-to-end test is worth a run before it is
+# pushed. About ten minutes on four cores.
 
 # At the repository root, wherever it is started from
 cd "$(dirname "$0")/.." || exit 1
@@ -11,4 +16,15 @@ cd "$(dirname "$0")/.." || exit 1
 # '-tl:false' disables the MSBuild terminal logger, which the .NET 10 SDK turns on by default
 # in an interactive terminal. It swallows the console test logger output entirely, so without
 # this the run prints nothing at all when stdout is a terminal (but everything when piped).
+if [ "$1" = "--stress" ]; then
+    shift
+    if ! command -v taskset >/dev/null; then
+        echo "--stress needs taskset (util-linux), which is Linux only" >&2
+        exit 1
+    fi
+    dotnet build gmd.sln -tl:false -v quiet --nologo || exit 1
+    exec taskset -c 0,1 dotnet test gmdE2eTest/gmdE2eTest.csproj --no-build -tl:false -v quiet --nologo \
+        -l:"console;verbosity=normal" --filter "TestCategory=E2e" "$@"
+fi
+
 dotnet test gmd.sln -tl:false -v quiet --nologo -l:"console;verbosity=normal" "$@"

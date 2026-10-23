@@ -55,6 +55,9 @@ sealed class MainLoopQueue : SynchronizationContext
 
     internal void Post(Action action) => Post(_ => action(), null);
 
+    // Whether there is work posted that has not run yet
+    internal bool HasPosted => !queue.IsEmpty;
+
     // Runs what is posted, what is posted meanwhile too, on the main loop as an iteration starts. A
     // dialog run by one of them runs the rest from its own main loop.
     internal void RunPosted()
