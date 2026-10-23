@@ -229,6 +229,7 @@ class Cmd : ICmd
                 NeverOpenAnEditor(process.StartInfo);
                 NeverAskOnTheTerminal(process.StartInfo, $"{path} {args}");
                 InEnglish(process.StartInfo);
+                NeverTakeOptionalLocks(process.StartInfo);
                 foreach (var (name, value) in environment ?? Empty)
                 {
                     process.StartInfo.Environment[name] = value;
@@ -376,6 +377,16 @@ class Cmd : ICmd
     // translation for plain 'en', so the messages are left as written. Nothing else of the locale
     // changes, the character set included. A 'C' locale ignores LANGUAGE, but is English already.
     static void InEnglish(ProcessStartInfo info) => info.Environment["LANGUAGE"] = "en";
+
+    // Never lets a git read take a lock it does not need. 'git status' refreshes the index's stat
+    // cache and writes it back, holding 'index.lock' while it does, and gmd reads the status in the
+    // background, after the file monitor sees a change: a 'git rebase --continue' the user ran at that
+    // moment failed with "Unable to create '.git/index.lock': File exists" (seen on CI). The write is
+    // only a cache, which the user's own git refreshes later, and every lock a command needs, a
+    // commit's or a merge's, is taken whatever this says. The cost: in a large repo whose files were
+    // touched but not changed, each status gmd reads hashes them again until a command writes the
+    // index.
+    static void NeverTakeOptionalLocks(ProcessStartInfo info) => info.Environment["GIT_OPTIONAL_LOCKS"] = "0";
 
     // Starts a program that may go on running, e.g. a browser, which a tool like xdg-open starts
     // for the page and which then outlives it, or which is itself what was started. Neither can be

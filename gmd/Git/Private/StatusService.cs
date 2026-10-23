@@ -25,7 +25,8 @@ class StatusService : IStatusService
     // For a worktree someone else is working in. A plain 'git status' refreshes the index and
     // writes it back, holding 'index.lock' while it does, and a 'git add' or 'commit' run there
     // at that moment fails on the lock. '--no-optional-locks' skips the write, so the read leaves
-    // no trace in the other worktree.
+    // no trace in the other worktree. Every git gmd runs has GIT_OPTIONAL_LOCKS=0 too (Cmd), which
+    // is the same; the flag says it here, where another worktree's own commands are at stake.
     public Task<Result<Status>> GetStatusWithoutLocksAsync(string wd) => GetStatusAsync("--no-optional-locks ", wd);
 
     async Task<Result<Status>> GetStatusAsync(string options, string wd)

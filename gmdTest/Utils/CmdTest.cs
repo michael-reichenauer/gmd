@@ -66,6 +66,17 @@ public class CmdTest
         Assert.AreEqual("en", AssertOk(new Cmd().Command("sh", "-c \"echo $LANGUAGE\"", "")));
     }
 
+    // No git read takes a lock it can do without, so that the status read in the background cannot
+    // hold 'index.lock' while a command the user ran needs it
+    [TestMethod]
+    public void TestCommandsTakeNoOptionalLocks()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Inconclusive("Uses sh");
+
+        Assert.AreEqual("0", AssertOk(new Cmd().Command("sh", "-c \"echo $GIT_OPTIONAL_LOCKS\"", "")));
+    }
+
     // Git is given nothing to ask the user on, since gmd owns the terminal: no git prompt, ssh's
     // questions sent to an askpass rather than /dev/tty, gmd itself unless the user has one of their
     // own, and a stdin closed at once, which is what lets 'cat' end here rather than wait for input.
