@@ -64,6 +64,23 @@ public class ApplicationBarTest
         Assert.IsFalse(closed.Contains("(⌂ agent)"), "and still hidden");
     }
 
+    // With the repo set to show new branches, as for a small team, the branch is shown as it comes,
+    // and said, rather than counted by a ✦
+    [TestMethod]
+    public async Task TestANewBranchIsShownWhenTheRepoIsSetTo()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        File.WriteAllText(Path.Join(repo.Path, ".git", ".gmdconfig"), """{"ShowNewBranches": true}""");
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial"); // Read once, which takes every tip there is as seen
+
+        await repo.AddWorktreeAsync("agent");
+
+        var shown = gmd.WaitFor("Showed new branch agent");
+        StringAssert.Contains(shown, "(⌂ agent)");
+        Assert.IsFalse(shown.Contains("✦"), "Not news, since it is shown");
+    }
+
     // The same news is the New group at the top of Show Branch, and stepping into it is looking
     [TestMethod]
     public async Task TestTheNewGroupOfShowBranchIsSeenOnOpening()

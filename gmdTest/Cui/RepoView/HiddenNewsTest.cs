@@ -67,6 +67,18 @@ public class HiddenNewsTest
         Assert.AreEqual("origin/release new 0", Text(news));
     }
 
+    // What ShowNewBranches shows: the branches new themselves, not a hidden one with new commits,
+    // which the user hid
+    [TestMethod]
+    public async Task TestTheNewBranchesAreOnlyThoseNewThemselves()
+    {
+        var repo = await Fixture().Commit("x1", "Agent work", "c1").LocalBranch("agent", "x1").ViewRepoAsync();
+
+        var names = HiddenNews.NewBranches(repo, Seen(("origin/main", "c1"), ("origin/feature", "f1")));
+
+        CollectionAssert.AreEqual(new[] { "agent" }, names.ToArray());
+    }
+
     // A branch never pushed, e.g. one Claude Code made in a worktree of its own, is news as a remote
     // branch is
     [TestMethod]

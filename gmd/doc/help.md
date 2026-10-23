@@ -169,7 +169,10 @@ hidden until it next becomes current.
   someone else or made here by another tool, e.g. in a worktree of its own.
   A click lists those branches, and **New** at the top of the Show Branch
   menu does too. Listed is seen: the ✦ goes, and the branches stay hidden
-  unless you pick one to show it.
+  unless you pick one to show it, or **Show All New** to show them all.
+  In a small team, where every branch is worth seeing, **Show new branches
+  automatically** in **Config ...** in the repo menu shows each new branch
+  as it comes, and the ✦ then counts only new commits on branches you hid.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
   the right of a branch it overlaps in the graph.
 

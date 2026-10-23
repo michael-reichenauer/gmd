@@ -26,7 +26,7 @@ class ConfigDlg : IConfigDlg
     public bool Show(string repoPath)
     {
         int width = 60;
-        int height = 26;
+        int height = 27;
 
         var repoConf = repoConfig.Get(repoPath);
         var dlg = new UIDialog("Config", width, height);
@@ -34,31 +34,32 @@ class ConfigDlg : IConfigDlg
         // Repo specific config
         dlg.AddLabel(1, 0, $"Repo '{repoPath}':");
         var isSyncMetaData = dlg.AddCheckBox(1, 1, ShareCheckBoxText, repoConf.SyncMetaData);
-        dlg.AddLabel(1, 3, "Integration branches, besides develop and dev:");
-        var integrationBranches = dlg.AddTextField(1, 5, width - 4, string.Join(", ", repoConf.IntegrationBranches));
+        var isShowNewBranches = dlg.AddCheckBox(1, 2, ShowNewBranchesText, repoConf.ShowNewBranches);
+        dlg.AddLabel(1, 4, "Integration branches, besides develop and dev:");
+        var integrationBranches = dlg.AddTextField(1, 6, width - 4, string.Join(", ", repoConf.IntegrationBranches));
 
         // General config
-        dlg.AddLine(1, 7, width - 2);
+        dlg.AddLine(1, 8, width - 2);
 
-        dlg.AddLabel(1, 8, $"General:");
-        var isCheckUpdates = dlg.AddCheckBox(1, 9, "Check for new releases", config.CheckUpdates);
+        dlg.AddLabel(1, 9, $"General:");
+        var isCheckUpdates = dlg.AddCheckBox(1, 10, "Check for new releases", config.CheckUpdates);
         var manager = updater.PackageManager;
-        var isAutoUpdate = dlg.AddCheckBox(1, 10, AutoUpdateText(manager), config.AutoUpdate);
-        var isAllowPreview = dlg.AddCheckBox(1, 11, AllowPreviewText(manager), config.AllowPreview);
+        var isAutoUpdate = dlg.AddCheckBox(1, 11, AutoUpdateText(manager), config.AutoUpdate);
+        var isAllowPreview = dlg.AddCheckBox(1, 12, AllowPreviewText(manager), config.AllowPreview);
         // A package manager updates gmd, with stable releases alone, so neither is gmd's to do then
         isAutoUpdate.Enabled = manager == null;
         isAllowPreview.Enabled = manager == null;
-        var isSpellCheck = dlg.AddCheckBox(1, 12, "Spell check commit messages", config.SpellCheck);
-        var isShowKeyHints = dlg.AddCheckBox(1, 13, "Show key hints at the bottom of the log", config.ShowKeyHints);
-        var isAddGmdToPath = dlg.AddCheckBox(1, 14, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
+        var isSpellCheck = dlg.AddCheckBox(1, 13, "Spell check commit messages", config.SpellCheck);
+        var isShowKeyHints = dlg.AddCheckBox(1, 14, "Show key hints at the bottom of the log", config.ShowKeyHints);
+        var isAddGmdToPath = dlg.AddCheckBox(1, 15, "Add gmd to PATH environment variable", IsGmdAddedToPathVariable());
         isAddGmdToPath.Visible = !Build.IsDevInstance() && Build.IsWindows;
 
         // The palette, see Palette.Choose, picked from the list or typed
-        dlg.AddLabel(1, 16, "Colors:");
-        var colors = dlg.AddComboTextField(10, 16, 10, 5, () => Palette.Settings, config.Colors);
-        dlg.AddLabel(1, 18, Text.Dark("auto picks dark or light by the terminal's background,"));
-        dlg.AddLabel(1, 19, Text.Dark("16 is the 16 colors of the terminal's theme"));
-        var isColorCode = dlg.AddCheckBox(1, 21, "Color the code by its language", config.ColorCode);
+        dlg.AddLabel(1, 17, "Colors:");
+        var colors = dlg.AddComboTextField(10, 17, 10, 5, () => Palette.Settings, config.Colors);
+        dlg.AddLabel(1, 19, Text.Dark("auto picks dark or light by the terminal's background,"));
+        dlg.AddLabel(1, 20, Text.Dark("16 is the 16 colors of the terminal's theme"));
+        var isColorCode = dlg.AddCheckBox(1, 22, "Color the code by its language", config.ColorCode);
         dlg.Validate(
             () => Palette.Settings.Contains(colors.Text),
             $"Colors is one of {string.Join(", ", Palette.Settings)}"
@@ -87,6 +88,7 @@ class ConfigDlg : IConfigDlg
             c =>
             {
                 c.SyncMetaData = isSharing;
+                c.ShowNewBranches = isShowNewBranches.Checked;
                 c.IntegrationBranches = names;
             }
         );
@@ -109,6 +111,7 @@ class ConfigDlg : IConfigDlg
         return isNamesChanged;
     }
 
+    internal const string ShowNewBranchesText = "Show new branches automatically";
     internal const string ShareCheckBoxText = "Share the branch structure with others using gmd";
     const string ShareTitle = "Share Branch Structure";
 

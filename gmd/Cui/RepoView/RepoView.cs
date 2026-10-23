@@ -633,6 +633,7 @@ class RepoView : IRepoView, IRepoViewInputHost
                 return viewRepoResult.Error;
 
             viewRepo = WithCurrentBranchShown(viewRepo);
+            viewRepo = WithNewBranchesShown(viewRepo);
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
             UpdateWorktreesStatus();
@@ -674,6 +675,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             }
 
             viewRepo = WithCurrentBranchShown(viewRepo);
+            viewRepo = WithNewBranchesShown(viewRepo);
             ShowRepo(viewRepo);
             UpdateWorktreesStatus();
             UpdateMergedOnOrigin();
@@ -751,6 +753,26 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         Log.Info($"Show '{name}', which has become current");
         return server.ShowBranch(viewRepo, name, false);
+    }
+
+    // The branches new to the user are shown as they come, when the repo is set to, rather than told
+    // of by the ✦, see RepoConfig.ShowNewBranches. Not scrolled to, as the current branch above.
+    Server.Repo WithNewBranchesShown(Server.Repo viewRepo)
+    {
+        var config = repoConfig.Get(viewRepo.Path);
+        if (!config.ShowNewBranches || viewRepo.Filter != "")
+            return viewRepo;
+
+        var seen = Cui.RepoView.HiddenNews.Seen(viewRepo, config.SeenTips, config.IsSeenTipsForAll);
+        var names = Cui.RepoView.HiddenNews.NewBranches(viewRepo, seen);
+        if (names.Count == 0)
+            return viewRepo;
+
+        Log.Info($"Show new branches: {string.Join(", ", names)}");
+        var shown = server.SetShownBranches(viewRepo, viewRepo.ViewBranches.Select(b => b.Name).Concat(names).ToList());
+        var nice = names.Select(n => viewRepo.BranchByName[n].NiceNameUnique);
+        status.Info($"Showed {(names.Count == 1 ? "new branch" : "new branches")} {string.Join(", ", nice)}");
+        return shown;
     }
 
     void ShowRepo(Server.Repo serverRepo)

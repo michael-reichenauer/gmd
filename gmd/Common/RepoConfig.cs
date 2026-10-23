@@ -11,6 +11,10 @@ class RepoConfig
     // like develop and dev: as the branches others are started from (see WellKnownBranches)
     public List<string> IntegrationBranches { get; set; } = [];
 
+    // Whether a branch new to the user is shown as it comes, rather than told of by the ✦, see
+    // HiddenNews.NewBranches. For a small team, whose every branch is worth seeing.
+    public bool ShowNewBranches { get; set; } = false;
+
     public List<string> Branches { get; set; } = [];
     public Dictionary<string, int> BranchColors { get; set; } = [];
     public List<BranchOrder> BranchOrders { get; set; } = [];
