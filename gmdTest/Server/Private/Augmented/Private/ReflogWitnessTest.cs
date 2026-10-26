@@ -67,6 +67,27 @@ public class ReflogWitnessTest
         Assert.AreEqual("main", madeOn[Id("e2")]);
     }
 
+    // A branch renamed goes on under its new name, and renaming another branch changes nothing
+    [TestMethod]
+    public void TestABranchRenamedGoesOnUnderItsNewName()
+    {
+        var madeOn = ReflogWitness.MadeOn([
+            .. Log(
+                "HEAD",
+                ("f3", "commit: Work 3"),
+                ("f2", "Branch: renamed refs/heads/other to refs/heads/else"),
+                ("f2", "commit: Work 2"),
+                ("f1", "Branch: renamed refs/heads/wip to refs/heads/feature"),
+                ("f1", "commit: Work 1"),
+                ("e1", "checkout: moving from main to wip")
+            ),
+        ]);
+
+        Assert.AreEqual("wip", madeOn[Id("f1")]);
+        Assert.AreEqual("feature", madeOn[Id("f2")]);
+        Assert.AreEqual("feature", madeOn[Id("f3")]);
+    }
+
     // A detached HEAD and a rebase are on no branch, so what is made there says nothing, until a
     // rebase finishes back on its branch
     [TestMethod]
@@ -192,7 +213,7 @@ public class ReflogWitnessTest
     }
 
     // A merge's entry names the branch merged in, as it was given to git, but not a fast-forward,
-    // which made no merge commit, nor a merge of several, of a commit id or with conflicts
+    // which made no merge commit, nor a merge of several, of a commit id, of a HEAD or with conflicts
     [TestMethod]
     public void TestWhichBranchAMergeMergedIn()
     {
@@ -200,6 +221,8 @@ public class ReflogWitnessTest
             .. Log(
                 "HEAD",
                 ("m6", "commit (merge): Merge branch 'x' into dev"),
+                ("m9", "merge FETCH_HEAD: Merge made by the 'ort' strategy."),
+                ("m8", "merge origin/HEAD: Merge made by the 'ort' strategy."),
                 ("m5", "merge 1234567890abcdef: Merge made by the 'ort' strategy."),
                 ("m4", "merge a b: Merge made by the 'octopus' strategy."),
                 ("m3", "merge feature: Fast-forward"),

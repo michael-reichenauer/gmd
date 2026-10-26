@@ -19,6 +19,7 @@ static class ReflogWitness
     const string CreatedFromPrefix = "branch: Created from ";
     const string CheckoutPrefix = "checkout: moving from ";
     const string MergePrefix = "merge ";
+    const string RenamePrefix = "Branch: renamed ";
 
     // The branch each commit is witnessed on, by commit id: the branch it was made on, and failing
     // that the branch whose commit it was when another branch was started from it, i.e. where
@@ -55,6 +56,12 @@ static class ReflogWitness
                 else if (e.Message.StartsWith("rebase") && e.Message.Contains("returning to " + BranchRefPrefix))
                 {
                     current = e.Message[(e.Message.IndexOf("returning to ") + 13 + BranchRefPrefix.Length)..];
+                }
+                else if (e.Message.StartsWith(RenamePrefix) && e.Message.Contains(" to "))
+                { // 'git branch -m', of the branch checked out or another
+                    var to = e.Message.LastIndexOf(" to ");
+                    if (BranchOrNull(e.Message[RenamePrefix.Length..to]) == current)
+                        current = BranchOrNull(e.Message[(to + 4)..]);
                 }
                 else if (e.Message.StartsWith("rebase"))
                 {
@@ -205,8 +212,11 @@ static class ReflogWitness
         foreach (var prefix in new[] { BranchRefPrefix, "refs/remotes/origin/", "origin/" })
         {
             if (name.StartsWith(prefix))
-                return name[prefix.Length..];
+            {
+                name = name[prefix.Length..];
+                break;
+            }
         }
-        return name;
+        return name == "HEAD" || name.EndsWith("_HEAD") ? null : name; // e.g. 'origin/HEAD', 'FETCH_HEAD'
     }
 }

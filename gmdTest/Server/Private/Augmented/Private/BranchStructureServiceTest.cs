@@ -1558,15 +1558,71 @@ public class BranchStructureServiceTest
         Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
     }
 
-    // Where the branch was made comes before the name it was merged by, which may be a tag's
+    // The name the branch was merged by comes before where its commits were made, which commits
+    // moved to a new branch before the merge ('git branch feature-x', 'git reset --hard') name wrong
     [TestMethod]
-    public async Task TestReflogWhereADeletedBranchWasMadeComesBeforeTheNameItWasMergedBy()
+    public async Task TestReflogMergeNamesADeletedBranchBeforeWhereItsCommitsWereMade()
     {
         var repo = await DeletedFeature()
+            .Reflog("HEAD", "c4", "merge feature-x: Merge made by the 'ort' strategy.")
+            .Reflog("HEAD", "f2", "commit: Work 2")
+            .Reflog("HEAD", "c1", "checkout: moving from main to dev")
+            .AugmentAsync();
+
+        Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // Also where they were made on the branch they were merged into, which names no deleted branch
+    [TestMethod]
+    public async Task TestReflogMergeNamesADeletedBranchMadeOnTheBranchItWasMergedInto()
+    {
+        var repo = await DeletedFeature()
+            .Reflog("HEAD", "c4", "merge feature-x: Merge made by the 'ort' strategy.")
+            .Reflog("HEAD", "f2", "commit: Work 2")
+            .Reflog("HEAD", "c1", "checkout: moving from dev to main")
+            .AugmentAsync();
+
+        Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // A tag merged names no branch, so where the commits were made does
+    [TestMethod]
+    public async Task TestReflogMergeOfATagNamesNoDeletedBranch()
+    {
+        var repo = await DeletedFeature()
+            .Tag("v1.2", "f2")
             .Reflog("HEAD", "c4", "merge v1.2: Merge made by the 'ort' strategy.")
             .Reflog("HEAD", "c1", "checkout: moving from feature-x to main")
             .Reflog("HEAD", "f2", "commit: Work 2")
             .Reflog("HEAD", "c1", "checkout: moving from main to feature-x")
+            .AugmentAsync();
+
+        Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // And with only the tag's merge in the reflog, the branch stays unnamed
+    [TestMethod]
+    public async Task TestReflogMergeOfATagAloneLeavesADeletedBranchUnnamed()
+    {
+        var repo = await DeletedFeature()
+            .Tag("v1.2", "f2")
+            .Reflog("HEAD", "c4", "merge v1.2: Merge made by the 'ort' strategy.")
+            .AugmentAsync();
+
+        Assert.AreEqual($"branch:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count);
+    }
+
+    // A branch renamed while checked out ('git branch -m') goes on under its new name
+    [TestMethod]
+    public async Task TestReflogNamesADeletedBranchByTheNameItWasRenamedTo()
+    {
+        var repo = await DeletedFeature()
+            .Reflog("HEAD", "c1", "checkout: moving from feature-x to main")
+            .Reflog("HEAD", "f2", "commit: Work 2")
+            .Reflog("HEAD", "f1", "Branch: renamed refs/heads/wip to refs/heads/feature-x")
+            .Reflog("HEAD", "f1", "commit: Work 1")
+            .Reflog("HEAD", "c1", "checkout: moving from main to wip")
             .AugmentAsync();
 
         Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));

@@ -16,7 +16,8 @@ public class MetaData
     public Dictionary<string, string> CommitBranchById { get; set; } = [];
 
     // What the reflog witnessed about a commit's branch, by the commit's full id, kept here since the
-    // reflog is local and expires (see CommitBranchRules.TryIsWitnessed). A map of its own, so that a
+    // reflog is local and expires (see CommitBranchRules.TryIsWitnessed, and DeletedBranchName for the
+    // name of a deleted branch's tip). A map of its own, so that a
     // fact never takes the place of a choice of the same commit, nor a choice the place of a fact.
     public Dictionary<string, string> WitnessedById { get; set; } = [];
 

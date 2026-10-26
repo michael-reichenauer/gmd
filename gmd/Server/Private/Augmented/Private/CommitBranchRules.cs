@@ -294,25 +294,28 @@ class CommitBranchRules : ICommitBranchRules
     }
 
     // The name of the deleted branch whose tip the commit is, as the reflog witnessed it, or "" when
-    // it does not say: the branch the commit was made on (HEAD's reflog keeps the checkouts to a
-    // branch deleted since), or failing that the branch a merge child merged in, which git writes in
-    // the merge's entry whatever the subject says. Not the branch a merge child is on, which is a
-    // pull of the branch into itself. The reflog expires, so the name is kept in the metadata
+    // it does not say: the branch a merge child merged in, which git writes in the merge's entry
+    // whatever the subject says, as the name that pointed at the commit then, or failing that the
+    // branch the commit was made on (HEAD's reflog keeps the checkouts to a branch deleted since),
+    // which a commit moved to another branch before it was merged ('git branch x', 'git reset') names
+    // wrong. Not a tag merged, and not the branch a merge child is on, which is a pull of the branch
+    // into itself or such a moved commit. The reflog expires, so the name is kept in the metadata
     // (WorkRepo.WitnessedToKeep), and a kept name comes first, as in TryIsWitnessed.
     static string WitnessedDeletedName(WorkRepo repo, GitRepo gitRepo, WorkCommit commit)
     {
         var isKept = gitRepo.MetaData.TryGetWitnessedBranch(commit.Id, out var keptName);
-        var name = isKept
-            ? keptName
-            : gitRepo.WitnessedBranchById.GetValueOrDefault(commit.Id)
-                ?? commit
-                    .MergeChildren.Select(m => gitRepo.MergedBranchById.GetValueOrDefault(m.Id))
-                    .FirstOrDefault(n => n != null)
-                ?? "";
-        if (name == "" || commit.MergeChildren.Any(m => m.Branch?.NiceName == name))
+        var merged = commit
+            .MergeChildren.Select(m => gitRepo.MergedBranchById.GetValueOrDefault(m.Id))
+            .Where(n => n != null && !gitRepo.Tags.Any(t => t.Name == n));
+        var madeOn = gitRepo.WitnessedBranchById.GetValueOrDefault(commit.Id);
+
+        IEnumerable<string?> kept = isKept ? [keptName] : [];
+        var names = kept.Concat(merged).Append(madeOn);
+        var name = names.FirstOrDefault(n => n != null && !commit.MergeChildren.Any(m => m.Branch?.NiceName == n));
+        if (name == null)
             return "";
 
-        if (!isKept)
+        if (!isKept || keptName != name)
         { // The reflog named the branch, which the metadata should keep
             repo.WitnessedToKeep.Add(new WitnessedBranch(commit.Id, name));
         }
