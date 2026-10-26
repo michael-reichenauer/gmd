@@ -57,6 +57,7 @@ public class StartRowsTest
             |                                           c  Clone a repository ...
             |                                           i  Init a repository ...
             |                                           ?  Help
+            |                                           b  Report a Bug
             |                                           a  About
             |                                           q  Quit
             """,
@@ -72,12 +73,13 @@ public class StartRowsTest
         Assert.AreEqual(
             """
             |
-            |  ▸ o  Open a folder ...        browse to a repository on this computer
-            |    c  Clone a repository ...   copy one from GitHub or another server
-            |    i  Init a repository ...    start a new, empty one
-            |    ?  Help                     how to read the log, in the browser
-            |    a  About                    the version, and where to report a problem
-            |    q  Quit
+            |    ▸ o  Open a folder ...        browse to a repository on this computer
+            |      c  Clone a repository ...   copy one from GitHub or another server
+            |      i  Init a repository ...    start a new, empty one
+            |      ?  Help                     how to read the log, in the browser
+            |      b  Report a Bug             an issue on GitHub, in the browser
+            |      a  About                    the version, and where the log is
+            |      q  Quit
             """,
             Picture(StartRows.Of(Newcomer, NoUpdate, 79, 21))
         );
@@ -169,19 +171,19 @@ public class StartRowsTest
         static string Text(StartPage page) =>
             string.Join("\n", Enumerable.Range(0, page.Count).Select(i => page.Row(i, false).ToString().Trim()));
 
-        var all = StartRows.Of(many, NoUpdate, 79, 23);
-        Assert.AreEqual(23, all.Count);
+        var all = StartRows.Of(many, NoUpdate, 79, 24);
+        Assert.AreEqual(24, all.Count);
 
-        var dense = StartRows.Of(many, NoUpdate, 79, 22);
-        Assert.AreEqual(20, dense.Count);
+        var dense = StartRows.Of(many, NoUpdate, 79, 23);
+        Assert.AreEqual(21, dense.Count);
         StringAssert.StartsWith(Text(dense), "Recent repositories\n1  r1");
         StringAssert.Contains(Text(dense), "f5        ~/Downloads/f5\n─");
 
-        var fewer = StartRows.Of(many, NoUpdate, 79, 19);
+        var fewer = StartRows.Of(many, NoUpdate, 79, 20);
         StringAssert.Contains(Text(fewer), "f3        ~/Downloads/f3\n… and 2 more\n─");
         Assert.AreEqual(6, fewer.Items.Count(i => i.Repo?.IsRecent == true));
 
-        var fewest = StartRows.Of(many, NoUpdate, 79, 10);
+        var fewest = StartRows.Of(many, NoUpdate, 79, 11);
         StringAssert.Contains(Text(fewest), "r3        ~/code/r3\n… and 3 more\nRepositories in ~/Downloads");
         StringAssert.EndsWith(Text(fewest), "q  Quit");
     }
@@ -194,7 +196,7 @@ public class StartRowsTest
         Assert.AreEqual("                       mmmmmm mmmmmmmmmmmm", TextColors.Of(page.Row(1, false)));
         Assert.AreEqual("                       C  WWWWWWWW  DDDDDDDDDDDDDDD", TextColors.Of(page.Row(3, false)));
         Assert.AreEqual("                       " + new string('m', 32), TextColors.Of(page.Row(9, false)));
-        Assert.AreEqual("                       C  WWWW", TextColors.Of(page.Row(15, false)));
+        Assert.AreEqual("                       C  WWWWW", TextColors.Of(page.Row(15, false)));
     }
 
     // The selected item is marked and has a bar behind it, as long for every item, from the marker to

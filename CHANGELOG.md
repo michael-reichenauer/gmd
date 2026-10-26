@@ -8,7 +8,7 @@ Releases with no change users notice are left out.
 ### New
 - **Show new branches automatically** in **Config ...** shows each branch new to you as it arrives, per repo, and names it on the status line; the ✦ then counts only new commits on branches you hid
 - **Show All New** at the top of the ✦ menu and of Show Branch's **New** shows every branch listed there at once
-- **Help** in the repo menu now holds **Help**, **What's New**, **Report a Bug**, **Suggest an Improvement** and **About**. Report a Bug and Suggest an Improvement open an issue on GitHub with the version, the system and terminal, and the git version filled in
+- **Help** in the repo menu now holds **Help**, **What's New**, **Report a Bug**, **Suggest an Improvement** and **About**. Report a Bug and Suggest an Improvement open an issue on GitHub with the version, the system and terminal, and the git version filled in. The start page has **Report a Bug** too (`b`)
 
 ### Improved
 - **Delete Merged Branches** now also lists the branches origin still has that are merged into its main or an integration branch, with their local branches. A column says where each one is (`here`, `origin` or `both`), and each row shows its name in its color in the log and who made its last commit and when

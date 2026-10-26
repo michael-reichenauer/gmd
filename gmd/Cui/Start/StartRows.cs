@@ -10,6 +10,7 @@ enum StartAction
     Init,
     Update,
     Help,
+    ReportBug,
     About,
     Quit,
 }
@@ -27,6 +28,7 @@ record StartItem(StartAction Action, StartRepo? Repo = null, int Number = 0)
             StartAction.Init => "i",
             StartAction.Update => "u",
             StartAction.Help => "?",
+            StartAction.ReportBug => "b",
             StartAction.About => "a",
             StartAction.Quit => "q",
             _ => "",
@@ -147,7 +149,8 @@ static class StartRows
         (StartAction.Clone, "Clone a repository ...", "copy one from GitHub or another server"),
         (StartAction.Init, "Init a repository ...", "start a new, empty one"),
         (StartAction.Help, "Help", "how to read the log, in the browser"),
-        (StartAction.About, "About", "the version, and where to report a problem"),
+        (StartAction.ReportBug, "Report a Bug", "an issue on GitHub, in the browser"),
+        (StartAction.About, "About", "the version, and where the log is"),
         (StartAction.Quit, "Quit", ""),
     ];
 
