@@ -109,14 +109,14 @@ class CommitBranchService : ICommitBranchService
             // were started from it later
             return Decided(commit, nameof(rules.TryIsPublishedTipOfLocalBranches), branch!);
         }
-        else if (rules.TryIsMergedDeletedBranchTip(repo, commit, out branch))
+        else if (rules.TryIsMergedDeletedBranchTip(repo, gitRepo, commit, out branch))
         { // Commit has no branches and no children, but has a merge child.
             // The commit is a tip of a deleted branch. It might be a deleted remote branch.
             // Lets try determine branch name based on merge child's subject
             // or use a generic branch name based on commit id
             return Decided(commit, nameof(rules.TryIsMergedDeletedBranchTip), branch!);
         }
-        else if (rules.TryIsStrangeDeletedBranchTip(repo, commit, out branch))
+        else if (rules.TryIsStrangeDeletedBranchTip(repo, gitRepo, commit, out branch))
         { // Commit has no branches and no children, but may have merge children.
             // The commit is a tip of a deleted remote branch.
             // Lets try determine branch name based on merge child's subject

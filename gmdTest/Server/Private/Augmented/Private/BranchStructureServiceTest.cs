@@ -1518,4 +1518,130 @@ public class BranchStructureServiceTest
         Assert.AreEqual("", repo.Branches["origin/x"].LocalName);
         Assert.AreEqual("origin/x", BranchOf(repo, "x2"));
     }
+
+    // A deleted branch merged with a subject of its own, which names no branch, was named by its tip's
+    // id. HEAD's reflog still has the checkout to it and the commits made after, which name it.
+    [TestMethod]
+    public async Task TestReflogNamesADeletedBranchMergedWithASubjectOfItsOwn()
+    {
+        var repo = await DeletedFeature()
+            .Reflog("HEAD", "c4", "merge feature-x: Merge made by the 'ort' strategy.")
+            .Reflog("HEAD", "c3", "commit: Main work")
+            .Reflog("HEAD", "c1", "checkout: moving from feature-x to main")
+            .Reflog("HEAD", "f2", "commit: Work 2")
+            .Reflog("HEAD", "f1", "commit: Work 1")
+            .Reflog("HEAD", "c1", "checkout: moving from main to feature-x")
+            .Reflog("HEAD", "c1", "commit (initial): Initial")
+            .AugmentAsync();
+
+        var name = $"feature-x:{CommitOf(repo, "f2").Sid}";
+        Assert.AreEqual(name, BranchOf(repo, "f2"));
+        Assert.AreEqual(name, BranchOf(repo, "f1"));
+        Assert.AreEqual("feature-x", repo.Branches[name].NiceName);
+        CollectionAssert.AreEqual(
+            new[] { new WitnessedBranch(RepoBuilder.Sha("f2"), "feature-x") },
+            repo.WitnessedToKeep.ToArray(),
+            "Kept, since the reflog expires"
+        );
+    }
+
+    // The branch's commits made elsewhere and only merged here: the merge's entry names the branch
+    // merged, whatever the subject says
+    [TestMethod]
+    public async Task TestReflogMergeNamesADeletedBranchMadeElsewhere()
+    {
+        var repo = await DeletedFeature()
+            .Reflog("HEAD", "c4", "merge origin/feature-x: Merge made by the 'ort' strategy.")
+            .Reflog("HEAD", "c3", "commit: Main work")
+            .AugmentAsync();
+
+        Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // Where the branch was made comes before the name it was merged by, which may be a tag's
+    [TestMethod]
+    public async Task TestReflogWhereADeletedBranchWasMadeComesBeforeTheNameItWasMergedBy()
+    {
+        var repo = await DeletedFeature()
+            .Reflog("HEAD", "c4", "merge v1.2: Merge made by the 'ort' strategy.")
+            .Reflog("HEAD", "c1", "checkout: moving from feature-x to main")
+            .Reflog("HEAD", "f2", "commit: Work 2")
+            .Reflog("HEAD", "c1", "checkout: moving from main to feature-x")
+            .AugmentAsync();
+
+        Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // A subject that names the branch is shared by every clone, so it comes before the reflog
+    [TestMethod]
+    public async Task TestMergeSubjectNamesADeletedBranchBeforeTheReflog()
+    {
+        var repo = await DeletedFeature("Merge branch 'feature-y'")
+            .Reflog("HEAD", "c4", "merge feature-x: Merge made by the 'ort' strategy.")
+            .AugmentAsync();
+
+        Assert.AreEqual($"feature-y:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count);
+    }
+
+    // A subject of its own can have a word where a branch name would be, a weak name, which the
+    // reflog's comes before
+    [TestMethod]
+    public async Task TestReflogNamesADeletedBranchBeforeAWeakNameInTheSubject()
+    {
+        var repo = await DeletedFeature("Merge the fix into main")
+            .Reflog("HEAD", "c4", "merge feature-x: Merge made by the 'ort' strategy.")
+            .AugmentAsync();
+
+        Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // And with nothing in the reflog, the weak name is still taken
+    [TestMethod]
+    public async Task TestWeakNameInTheSubjectNamesADeletedBranchWithNoReflog()
+    {
+        var repo = await DeletedFeature("Merge the fix into main").AugmentAsync();
+
+        Assert.AreEqual($"the:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // Once kept, the name stays after the reflog is gone, e.g. expired or in a fresh clone
+    [TestMethod]
+    public async Task TestKeptReflogNameOfADeletedBranchStaysOnceTheReflogIsGone()
+    {
+        var repo = await DeletedFeature().Witnessed("f2", "feature-x").AugmentAsync();
+
+        Assert.AreEqual($"feature-x:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+        Assert.AreEqual(0, repo.WitnessedToKeep.Count, "Kept already");
+    }
+
+    // With nothing in the reflog, the deleted branch is still named by its tip's id
+    [TestMethod]
+    public async Task TestDeletedBranchWithNoReflogIsUnnamed()
+    {
+        var repo = await DeletedFeature().AugmentAsync();
+
+        Assert.AreEqual($"branch:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // A pull of the branch into itself is no deleted branch of its name, as with a pull's subject
+    [TestMethod]
+    public async Task TestReflogMergeOfTheBranchIntoItselfNamesNoDeletedBranch()
+    {
+        var repo = await DeletedFeature()
+            .Reflog("HEAD", "c4", "merge origin/main: Merge made by the 'ort' strategy.")
+            .AugmentAsync();
+
+        Assert.AreEqual($"branch:{CommitOf(repo, "f2").Sid}", BranchOf(repo, "f2"));
+    }
+
+    // main, with a feature merged into it and deleted, the merge given a subject of its own
+    static RepoBuilder DeletedFeature(string mergeSubject = "Add the thing") =>
+        new RepoBuilder()
+            .Commit("c4", mergeSubject, "c3", "f2")
+            .Commit("c3", "Main work", "c1")
+            .Commit("f2", "Work 2", "f1")
+            .Commit("f1", "Work 1", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c4", isCurrent: true);
 }

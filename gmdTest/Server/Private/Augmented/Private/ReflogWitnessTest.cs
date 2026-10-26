@@ -190,4 +190,33 @@ public class ReflogWitnessTest
         Assert.AreEqual("feature", branches[Id("f1")]);
         Assert.AreEqual("other", branches[Id("d1")], "Made on other, by its own reflog");
     }
+
+    // A merge's entry names the branch merged in, as it was given to git, but not a fast-forward,
+    // which made no merge commit, nor a merge of several, of a commit id or with conflicts
+    [TestMethod]
+    public void TestWhichBranchAMergeMergedIn()
+    {
+        var merged = ReflogWitness.MergedBranchByMerge([
+            .. Log(
+                "HEAD",
+                ("m6", "commit (merge): Merge branch 'x' into dev"),
+                ("m5", "merge 1234567890abcdef: Merge made by the 'ort' strategy."),
+                ("m4", "merge a b: Merge made by the 'octopus' strategy."),
+                ("m3", "merge feature: Fast-forward"),
+                ("m2", "merge origin/fix: Merge made by the 'ort' strategy."),
+                ("m1", "merge feature: Merge made by the 'ort' strategy.")
+            ),
+            .. Log("refs/heads/dev", ("m7", "merge topic: Merge made by the 'recursive' strategy.")),
+        ]);
+
+        CollectionAssert.AreEquivalent(
+            new Dictionary<string, string>
+            {
+                [Id("m1")] = "feature",
+                [Id("m2")] = "fix",
+                [Id("m7")] = "topic",
+            },
+            merged.ToDictionary()
+        );
+    }
 }

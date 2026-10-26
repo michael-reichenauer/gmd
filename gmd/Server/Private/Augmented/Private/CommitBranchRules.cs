@@ -11,8 +11,8 @@ interface ICommitBranchRules
     bool TryHasMainBranch(WorkCommit commit, out WorkBranch? branch);
     bool TryIsWitnessed(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsPublishedTipOfLocalBranches(WorkCommit commit, out WorkBranch? branch);
-    bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
-    bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
+    bool TryIsMergedDeletedBranchTip(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch);
+    bool TryIsStrangeDeletedBranchTip(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch);
     bool TryIsDeletedBranchNamedInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasBranchNameInSubject(WorkRepo repo, WorkCommit commit, out WorkBranch? branch);
     bool TryHasOnlyOneChild(WorkCommit commit, out WorkBranch? branch);
@@ -215,15 +215,16 @@ class CommitBranchRules : ICommitBranchRules
     // The commit is a tip of a deleted branch. It might be a deleted remote branch.
     // Lets try determine branch name based on merge child's subject
     // or use a generic branch name based on commit id
-    public bool TryIsMergedDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    public bool TryIsMergedDeletedBranchTip(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 0 && commit.FirstChildren.Count == 0 && commit.MergeChildren.Count == 1)
         { // Commit has no branch and no children, but has a merge child. I.e. must be a
             // deleted branch that was merged into some other branch.
             // Trying to use parsed branch name from the merge children subjects e.g. like:
             // "Merge branch 'branch-name' into develop"
-            if (branchNameService.TryGetBranchName(commit.Id, out var name))
-            { // Managed to parse a branch-name
+            var name = DeletedBranchName(repo, gitRepo, commit);
+            if (name != "")
+            { // Managed to parse or witness a branch-name
                 var mergeChild = commit.MergeChildren[0];
 
                 if (branchNameService.IsPullMerge(mergeChild) && mergeChild.Branch!.NiceName == name)
@@ -254,14 +255,15 @@ class CommitBranchRules : ICommitBranchRules
     // The commit is a tip of a deleted remote branch.
     // Lets try determine branch name based on merge child's subject
     // or use a generic branch name based on commit id
-    public bool TryIsStrangeDeletedBranchTip(WorkRepo repo, WorkCommit commit, out WorkBranch? branch)
+    public bool TryIsStrangeDeletedBranchTip(WorkRepo repo, GitRepo gitRepo, WorkCommit commit, out WorkBranch? branch)
     {
         if (commit.Branches.Count == 0 && commit.FirstChildren.Count == 0)
         { // Commit has no branch, and no children, must be a deleted branch tip unusual branch
             // Trying to use parsed branch name from one of the merge children subjects e.g. Merge branch 'a' into develop
 
-            if (branchNameService.TryGetBranchName(commit.Id, out var name))
-            { // Managed to parse a branch name
+            var name = DeletedBranchName(repo, gitRepo, commit);
+            if (name != "")
+            { // Managed to parse or witness a branch name
                 branch = BranchFactory.AddNamedBranch(repo, commit, name);
                 return true;
             }
@@ -273,6 +275,48 @@ class CommitBranchRules : ICommitBranchRules
 
         branch = null;
         return false;
+    }
+
+    // The name of the deleted branch whose tip the commit is, or "" when nothing names it: a merge
+    // subject's, which every clone has, and failing that what this clone's reflog witnessed. A weak
+    // name (BranchNameService.IsWeakName), a word a subject of its own happens to have where a branch
+    // name would be, e.g. 'the' of "Merge the fix into dev", only when the reflog says nothing.
+    string DeletedBranchName(WorkRepo repo, GitRepo gitRepo, WorkCommit commit)
+    {
+        var isParsed = branchNameService.TryGetBranchName(commit.Id, out var parsed);
+        if (isParsed && !branchNameService.IsWeakName(commit.Id))
+            return parsed;
+
+        var witnessed = WitnessedDeletedName(repo, gitRepo, commit);
+        return witnessed != "" ? witnessed
+            : isParsed ? parsed
+            : "";
+    }
+
+    // The name of the deleted branch whose tip the commit is, as the reflog witnessed it, or "" when
+    // it does not say: the branch the commit was made on (HEAD's reflog keeps the checkouts to a
+    // branch deleted since), or failing that the branch a merge child merged in, which git writes in
+    // the merge's entry whatever the subject says. Not the branch a merge child is on, which is a
+    // pull of the branch into itself. The reflog expires, so the name is kept in the metadata
+    // (WorkRepo.WitnessedToKeep), and a kept name comes first, as in TryIsWitnessed.
+    static string WitnessedDeletedName(WorkRepo repo, GitRepo gitRepo, WorkCommit commit)
+    {
+        var isKept = gitRepo.MetaData.TryGetWitnessedBranch(commit.Id, out var keptName);
+        var name = isKept
+            ? keptName
+            : gitRepo.WitnessedBranchById.GetValueOrDefault(commit.Id)
+                ?? commit
+                    .MergeChildren.Select(m => gitRepo.MergedBranchById.GetValueOrDefault(m.Id))
+                    .FirstOrDefault(n => n != null)
+                ?? "";
+        if (name == "" || commit.MergeChildren.Any(m => m.Branch?.NiceName == name))
+            return "";
+
+        if (!isKept)
+        { // The reflog named the branch, which the metadata should keep
+            repo.WitnessedToKeep.Add(new WitnessedBranch(commit.Id, name));
+        }
+        return name;
     }
 
     // A subject names the branch the commit is on, and no branch the commit can be on has that name,
