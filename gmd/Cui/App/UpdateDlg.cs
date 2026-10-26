@@ -28,24 +28,15 @@ class UpdateDlg : IUpdateDlg
     readonly Config config;
     readonly IUpdater updater;
     readonly IProgress progress;
-    readonly IBrowserService browser;
-    readonly IClipboardService clipboard;
+    readonly IWebPage webPage;
     readonly IStatusLine status;
 
-    public UpdateDlg(
-        Config config,
-        IUpdater updater,
-        IProgress progress,
-        IBrowserService browser,
-        IClipboardService clipboard,
-        IStatusLine status
-    )
+    public UpdateDlg(Config config, IUpdater updater, IProgress progress, IWebPage webPage, IStatusLine status)
     {
         this.config = config;
         this.updater = updater;
         this.progress = progress;
-        this.browser = browser;
-        this.clipboard = clipboard;
+        this.webPage = webPage;
         this.status = status;
     }
 
@@ -70,7 +61,7 @@ class UpdateDlg : IUpdateDlg
             var button = UI.InfoMessage("Update Available", message, updateButton, buttons);
             if (button == changeLogButton)
             {
-                await ShowChangeLogAsync(ChangeLogUrl(releases));
+                await webPage.OpenAsync(ChangeLogUrl(releases), "the change log", "Change Log");
                 continue;
             }
             if (manager != null || button != updateButton)
@@ -169,27 +160,4 @@ class UpdateDlg : IUpdateDlg
     // preview, the notes of its release, which say what is new on dev and is not in the change log
     internal static string ChangeLogUrl(Releases releases) =>
         releases.IsPreview ? Project.ReleaseUrl(releases.LatestVersion) : Project.ChangeLogUrl;
-
-    // In the browser, or with none to open it in, e.g. over ssh, the link copied and shown
-    async Task ShowChangeLogAsync(string url)
-    {
-        if (await browser.OpenAsync(url) is not Error e)
-        {
-            status.Info("Opened the change log in the browser");
-            return;
-        }
-
-        if (clipboard.Set(url) is Error copyError)
-        {
-            UI.ErrorMessage(
-                $"{e.Message}, and the link could not be copied either:\n\n{url}\n\n{copyError.AllMessages()}"
-            );
-            return;
-        }
-
-        UI.InfoMessage(
-            "Change Log",
-            $"{e.Message}, so the link to the change log\nis copied to the clipboard:\n\n{url}"
-        );
-    }
 }
