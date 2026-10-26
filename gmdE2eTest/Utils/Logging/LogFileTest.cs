@@ -21,7 +21,7 @@ public class LogFileTest
 
         gmd.WaitFor("Initial");
         var text = gmd.WaitForLog("Starting gmd");
-        StringAssert.StartsWith(text, "A line of the last run\n");
+        StringAssert.StartsWith(text, "A line of the last run\n\n######## gmd started ");
     }
 
     // A log gmd cannot write, as one that a 'sudo gmd' leaves owned by root, used to leave gmd

@@ -43,6 +43,7 @@ static class LogFile
     {
         FilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), FileName);
         isWritten = Open(FilePath) is Success;
+        Queue(StartLine(DateTime.Now, Environment.ProcessId));
 
         // Started last, and never waited for here: the thread waits for this constructor to finish
         // before it can read a field of the class
@@ -152,6 +153,18 @@ static class LogFile
         });
         return lines is IReadOnlyList<string> l ? l : [];
     }
+
+    // The first line of each gmd process, after a blank one, which stands out in a log that goes on
+    // from run to run, so that where a run starts is found at a glance, and with the process id,
+    // which tells apart the lines of two gmds writing the log at once
+    internal static string StartLine(DateTime time, int processId)
+    {
+        var text = $"######## gmd started {time.IsoMs()}, process {processId} ";
+        return $"\n{text.PadRight(StartLineLength, '#')}";
+    }
+
+    internal const string StartLinePrefix = "######## gmd started";
+    const int StartLineLength = 120;
 
     // A line: the time, the level and the message, padded to a column, and then where it was
     // logged, as a path from the root of the repository

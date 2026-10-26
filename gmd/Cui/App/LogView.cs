@@ -160,12 +160,13 @@ class LogView : ILogView
     }
 }
 
-// How a line of the log is drawn: a warning in yellow and an error in red, by the level written
-// after its time, and the rest as is
+// How a line of the log is drawn: the start of a run in bright magenta, a warning in yellow and an
+// error in red, by the level written after its time, and the rest as is
 static class LogRows
 {
     internal static Text ToText(string line, string shown) =>
-        line.Contains(" ERROR:") ? Text.Red(shown)
+        line.StartsWith(LogFile.StartLinePrefix) ? Text.BrightMagenta(shown)
+        : line.Contains(" ERROR:") ? Text.Red(shown)
         : line.Contains(" WARN :") ? Text.Yellow(shown)
         : Text.White(shown);
 }

@@ -44,6 +44,17 @@ public class LogFileTest
         }
     }
 
+    // Each run begins with a line that stands out, after a blank one, padded with '#' to 120
+    [TestMethod]
+    public void TestStartLine()
+    {
+        var line = LogFile.StartLine(new DateTime(2026, 10, 26, 9, 37, 48, 123), 4711);
+
+        Assert.AreEqual("\n######## gmd started 2026-10-26 09:37:48.123, process 4711 " + new string('#', 61), line);
+        Assert.AreEqual(121, line.Length);
+        StringAssert.StartsWith(line[1..], LogFile.StartLinePrefix);
+    }
+
     // Every start of gmd goes on with the log, so that what went wrong in the run before is still
     // there to report
     [TestMethod]
