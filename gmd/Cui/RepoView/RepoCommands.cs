@@ -14,6 +14,8 @@ interface IRepoCommands
     void ShowWhatsNew();
     void ReportBug();
     void SuggestImprovement();
+    void ShowLog();
+    void CopyLog();
     void SearchFilterRepo();
     void ShowBrowseRepoDialog();
     void UpdateRelease();
@@ -58,6 +60,7 @@ class RepoCommands : IRepoCommands
     readonly IHelpPage helpPage;
     readonly IWebPage webPage;
     readonly IIssueReport issueReport;
+    readonly ILogView logView;
     readonly Config config;
     readonly IUpdateDlg updateDlg;
     readonly IClipboardService clipboard;
@@ -72,6 +75,7 @@ class RepoCommands : IRepoCommands
         IHelpPage helpPage,
         IWebPage webPage,
         IIssueReport issueReport,
+        ILogView logView,
         Config config,
         IUpdateDlg updateDlg,
         IClipboardService clipboard,
@@ -91,6 +95,7 @@ class RepoCommands : IRepoCommands
         this.helpPage = helpPage;
         this.webPage = webPage;
         this.issueReport = issueReport;
+        this.logView = logView;
         this.config = config;
         this.updateDlg = updateDlg;
         this.clipboard = clipboard;
@@ -146,6 +151,27 @@ class RepoCommands : IRepoCommands
     public void ReportBug() => issueReport.OpenAsync(IssueKind.Bug).RunInBackground();
 
     public void SuggestImprovement() => issueReport.OpenAsync(IssueKind.Suggestion).RunInBackground();
+
+    public void ShowLog() => logView.Show();
+
+    // As much of the end of the log as a bug report takes, see LogFile.MaxCopyLength, which is the
+    // whole of it unless it has grown large
+    public void CopyLog() =>
+        Do(async repo =>
+        {
+            await Task.Yield();
+            var lines = LogFile.ReadLines();
+            var (text, count) = LogFile.Tail(lines, LogFile.MaxCopyLength);
+            if (clipboard.Set(text) is Error e)
+                return new Error("Failed to copy the log", e);
+
+            status.Info(
+                count == lines.Count
+                    ? "Copied the log, to paste into a bug report"
+                    : $"Copied the last {count} lines of the log, as many as a bug report takes"
+            );
+            return Result.Ok;
+        });
 
     public void Clone() =>
         Do(async repo =>

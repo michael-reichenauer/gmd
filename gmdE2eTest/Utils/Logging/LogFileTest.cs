@@ -8,9 +8,25 @@ namespace gmdE2eTest.Utils.Logging;
 [TestClass]
 public class LogFileTest
 {
+    // A start of gmd goes on with the log of the run before, which a bug report wants
+    [TestMethod]
+    public async Task TestGmdKeepsTheLogOfTheRunBefore()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        var home = TempHome.Create();
+        var log = Path.Join(home.Path, "gmd.log");
+        File.WriteAllText(log, "A line of the last run\n");
+
+        using var gmd = TmuxSession.StartGmd(home, repo.Path);
+
+        gmd.WaitFor("Initial");
+        var text = gmd.WaitForLog("Starting gmd");
+        StringAssert.StartsWith(text, "A line of the last run\n\n######## gmd started ");
+    }
+
     // A log gmd cannot write, as one that a 'sudo gmd' leaves owned by root, used to leave gmd
     // hanging on a blank screen, its first log line deadlocked against the log's own constructor.
-    // It is replaced instead, and gmd starts and logs as ever.
+    // It is rotated aside instead, to gmd.1.log, and gmd starts and logs as ever.
     [TestMethod]
     public async Task TestGmdStartsWhenItsLogIsReadOnly()
     {
@@ -29,5 +45,6 @@ public class LogFileTest
         var text = File.ReadAllText(log);
         StringAssert.Contains(text, "Starting gmd");
         Assert.IsFalse(text.Contains("A line of the last run"), "Begun anew");
+        Assert.AreEqual("A line of the last run\n", File.ReadAllText(Path.Join(home.Path, "gmd.1.log")));
     }
 }

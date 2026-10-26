@@ -116,7 +116,8 @@ class RepoMenu : IRepoMenu
     }
 
     // Where to learn about gmd and to tell about it: the help, what is new in this version, a bug
-    // report or a suggestion as a GitHub issue with the version and system filled in, and About
+    // report or a suggestion as a GitHub issue with the version and system filled in, the log a bug
+    // report wants, to read or to copy into it, and About
     IEnumerable<MenuItem> GetHelpItems() =>
         Menu
             .Items.Item("Help", "?, F1", () => cmds.ShowHelp())
@@ -124,6 +125,9 @@ class RepoMenu : IRepoMenu
             .Separator()
             .Item("Report a Bug", "", () => cmds.ReportBug())
             .Item("Suggest an Improvement", "", () => cmds.SuggestImprovement())
+            .Separator()
+            .Item("View Log", "", () => cmds.ShowLog())
+            .Item("Copy Log", "", () => cmds.CopyLog())
             .Separator()
             .Item("About", "", () => cmds.ShowAbout());
 

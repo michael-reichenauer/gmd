@@ -44,26 +44,88 @@ public class LogFileTest
         }
     }
 
-    // Every start of gmd begins the log anew
+    // Each run begins with a line that stands out, after a blank one, padded with '#' to 120
     [TestMethod]
-    public void TestOpenEmptiesTheLog()
+    public void TestStartLine()
+    {
+        var line = LogFile.StartLine(new DateTime(2026, 10, 26, 9, 37, 48, 123), 4711);
+
+        Assert.AreEqual("\n######## gmd started 2026-10-26 09:37:48.123, process 4711 " + new string('#', 61), line);
+        Assert.AreEqual(121, line.Length);
+        StringAssert.StartsWith(line[1..], LogFile.StartLinePrefix);
+    }
+
+    // Every start of gmd goes on with the log, so that what went wrong in the run before is still
+    // there to report
+    [TestMethod]
+    public void TestOpenGoesOnWithTheLog()
     {
         using var folder = new TempFolder();
         var path = folder.File("gmd.log", "A line of the last run\n");
 
         AssertOk(LogFile.Open(path));
 
-        Assert.AreEqual("", File.ReadAllText(path));
+        Assert.AreEqual("A line of the last run\n", File.ReadAllText(path));
         Assert.IsTrue(LogFile.Open(folder.Path("new.log")) is Success, "A missing log is created");
+        Assert.IsTrue(File.Exists(folder.Path("new.log")));
     }
 
-    // A file gmd cannot write, as one that a 'sudo gmd' left owned by root, is replaced, which takes
-    // only the right to write the folder. It used to stop gmd on a blank screen.
+    // A log grown past its 1 MB is rotated as gmd starts, to gmd.1.log, and gmd begins a new one
     [TestMethod]
-    public void TestOpenReplacesALogThatCannotBeWritten()
+    public void TestOpenRotatesATooLargeLog()
+    {
+        using var folder = new TempFolder();
+        var large = new string('x', 1024 * 1024 + 1);
+        var path = folder.File("gmd.log", large);
+
+        AssertOk(LogFile.Open(path));
+
+        Assert.AreEqual("", File.ReadAllText(path));
+        Assert.AreEqual(large, File.ReadAllText(folder.Path("gmd.1.log")));
+    }
+
+    // Two rotated files are kept, the newest as gmd.1.log, and the oldest goes
+    [TestMethod]
+    public void TestRotateKeepsTwoRotatedFiles()
+    {
+        using var folder = new TempFolder();
+        var path = folder.File("gmd.log", "Third");
+        folder.File("gmd.1.log", "Second");
+        folder.File("gmd.2.log", "First");
+
+        LogFile.Rotate(path);
+
+        Assert.IsFalse(File.Exists(path), "The log begins anew with its next line");
+        Assert.AreEqual("Third", File.ReadAllText(folder.Path("gmd.1.log")));
+        Assert.AreEqual("Second", File.ReadAllText(folder.Path("gmd.2.log")));
+        CollectionAssert.AreEquivalent(
+            new[] { "gmd.1.log", "gmd.2.log" },
+            Directory.GetFiles(folder.Path("")).Select(Path.GetFileName).ToArray(),
+            "'First' is gone"
+        );
+    }
+
+    // The file an older gmd moved its large log to, gmd.log.2.log, which nothing reads any more
+    [TestMethod]
+    public void TestOpenRemovesTheRotatedFileOfAnOlderGmd()
+    {
+        using var folder = new TempFolder();
+        var path = folder.File("gmd.log", "");
+        folder.File("gmd.log.2.log", "Old");
+
+        AssertOk(LogFile.Open(path));
+
+        Assert.IsFalse(File.Exists(folder.Path("gmd.log.2.log")));
+    }
+
+    // A file gmd cannot write, as one that a 'sudo gmd' left owned by root, is rotated aside, which
+    // takes only the right to write the folder, so its lines are kept. It used to stop gmd on a blank
+    // screen.
+    [TestMethod]
+    public void TestOpenRotatesALogThatCannotBeWritten()
     {
         if (OperatingSystem.IsWindows())
-            Assert.Inconclusive("A read-only file cannot be deleted on Windows either");
+            Assert.Inconclusive("A read-only file cannot be moved on Windows either");
         if (Environment.IsPrivilegedProcess)
             Assert.Inconclusive("Root writes a read-only file all the same");
         using var folder = new TempFolder();
@@ -74,7 +136,20 @@ public class LogFileTest
         AssertOk(LogFile.Open(path));
 
         Assert.AreEqual("", File.ReadAllText(path));
+        Assert.AreEqual("A line of the last run\n", File.ReadAllText(folder.Path("gmd.1.log")));
         File.AppendAllText(path, "Written");
+    }
+
+    // Copy Log copies the last whole lines that fit, which may be all of them
+    [TestMethod]
+    public void TestTail()
+    {
+        string[] lines = ["one", "two", "three"];
+
+        Assert.AreEqual(("one\ntwo\nthree", 3), LogFile.Tail(lines, 100));
+        Assert.AreEqual(("two\nthree", 2), LogFile.Tail(lines, 10), "'two\\nthree\\n' is 10");
+        Assert.AreEqual(("", 0), LogFile.Tail(lines, 5), "No part of a line");
+        Assert.AreEqual(("", 0), LogFile.Tail([], 100));
     }
 
     // Where not even that works, the log is an error, which leaves gmd logging nowhere rather than

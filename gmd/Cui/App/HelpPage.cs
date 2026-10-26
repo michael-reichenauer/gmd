@@ -17,6 +17,7 @@ class HelpPage : IHelpPage
     // The sections the side views open the help at, so it starts at what is about them
     internal const string DiffSection = "Diff and Blame";
     internal const string ConflictSection = "Resolving Conflicts";
+    internal const string ProblemsSection = "Problems and Feedback";
 
     readonly IWebPage webPage;
 

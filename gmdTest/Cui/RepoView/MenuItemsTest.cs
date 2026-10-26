@@ -505,6 +505,9 @@ public class MenuItemsTest
             Report a Bug
             Suggest an Improvement
             ---
+            View Log
+            Copy Log
+            ---
             About
             """,
             Items(help.Children)
@@ -877,6 +880,7 @@ public class MenuItemsTest
         var commands = FakeRepoView.Context(view);
         commands.RepoCmds = new RepoCommands(
             commands,
+            null!,
             null!,
             null!,
             null!,

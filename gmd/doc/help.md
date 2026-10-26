@@ -1099,10 +1099,15 @@ an issue on
 with the version, the system and terminal, and the git version filled in;
 look them over and remove what you would rather not share. The start page
 has Report a Bug too (`b`), for when a repository does not open. Report a
-Bug says where the log is, to add it to the report, and so does **About**. The
-log is begun anew on every start of gmd, so copy it before starting gmd
-again. **What's New** in the same menu shows the change log of the version
-you run.
+Bug says where the log is, to add it to the report, and so does **About**.
+**View Log** in the same menu shows the log, the run before the current one
+too, at its end, where `c` copies it, or the lines selected (`Shift` and the
+arrows), and `r` reads it again; **Copy Log** copies it straight away. A
+large log is copied from its end, as much as a GitHub issue takes. The log
+is kept from one start of gmd to the next, each start beginning with a
+line of `#` that says when, and moved to `gmd.1.log` and then `gmd.2.log`
+once it grows past 1 MB. **What's New** in the same menu shows the change
+log of the version you run.
 
 When git needs a password, a passphrase or whether to trust a host, gmd
 asks in a dialog, for a push, a pull or a fetch (`r`) you asked for. The
