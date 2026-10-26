@@ -28,6 +28,19 @@ public class ProjectTest
     }
 
     [TestMethod]
+    public void TestChangeLogUrlIsAtTheCommitBuilt()
+    {
+        Assert.AreEqual(
+            $"https://github.com/michael-reichenauer/gmd/blob/{Sha}/CHANGELOG.md",
+            Project.ChangeLogUrlOf(Sha)
+        );
+        Assert.AreEqual(
+            "https://github.com/michael-reichenauer/gmd/blob/main/CHANGELOG.md",
+            Project.ChangeLogUrlOf("")
+        );
+    }
+
+    [TestMethod]
     public void TestHelpUrlIsAtTheSection()
     {
         Assert.AreEqual(
