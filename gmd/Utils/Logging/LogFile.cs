@@ -3,20 +3,34 @@ using System.Runtime.CompilerServices;
 
 namespace gmd.Utils.Logging;
 
-// The log file, ~/gmd.log, which every start of gmd begins anew. Lines are queued by whichever
+// The log file, ~/gmd.log, which every start of gmd goes on with, so that what went wrong in the
+// run before is still there when gmd is started again to report it. Lines are queued by whichever
 // thread logs and written in batches by a thread of their own, so that logging never waits for
-// the disk. A file grown past MaxSize is moved aside to gmd.log.2.log, replacing the one before.
+// the disk.
+//
+// A file grown past MaxSize is rotated: moved aside to gmd.1.log, which moves to gmd.2.log, and the
+// one there goes, so the logs take 3 MB at most. Rotated rather than trimmed to its last part, since
+// trimming rewrites a file that another gmd, in another terminal, may be appending to at the same
+// moment, which would lose its lines or cut one in half, where a rename is one step for the file
+// system, and the other gmd's next line simply starts the new file. And a rotation keeps the run
+// before whole, as a trim would not.
 //
 // A log that cannot be written must never stop gmd, since the log is where a failure is told. A
-// file that cannot be emptied, e.g. one that a 'sudo gmd' left owned by root, is replaced, and
-// when not even that works, gmd logs nowhere. A read-only gmd.log used to leave gmd hanging on a
+// file that cannot be appended to, e.g. one that a 'sudo gmd' left owned by root, is rotated
+// aside, which takes only the right to write the folder, and when not even that works, gmd logs
+// nowhere. A read-only gmd.log used to leave gmd hanging on a
 // blank screen: this constructor asserted, the assert waited for the log to close, i.e. for the
 // writing thread, and that thread waited for this constructor to finish.
 static class LogFile
 {
     const string FileName = "gmd.log";
     const string LevelInfo = "INFO ";
-    const int MaxSize = 2000000;
+    const int MaxSize = 1024 * 1024;
+    const int RotatedCount = 2;
+
+    // What Copy Log copies at most: what GitHub takes in an issue's field, whose whole body takes
+    // 65536 characters, and the terminal's copy, which takes some 75 KB (TerminalClipboard)
+    internal const int MaxCopyLength = 60000;
     const int WriteAttempts = 10;
     const int WriteRetryDelayMs = 30;
 
@@ -53,11 +67,39 @@ static class LogFile
         }
     }
 
-    // Empties the file, or else replaces it, which takes only the right to write the folder, so a
-    // file that cannot be written, as one left by a 'sudo gmd' cannot, is no reason to log nowhere
+    // The log's lines as written so far, those of the file rotated last first, so that the run
+    // before the current one is there too, for the log view (Help › View Log)
+    public static IReadOnlyList<string> ReadLines() => [.. ReadLines(RotatedPath(FilePath, 1)), .. ReadLines(FilePath)];
+
+    // The last whole lines that together take at most maxLength characters, as Copy Log copies them,
+    // and how many they are
+    internal static (string Text, int Count) Tail(IReadOnlyList<string> lines, int maxLength)
+    {
+        var length = 0;
+        var count = 0;
+        for (var i = lines.Count - 1; i >= 0 && length + lines[i].Length + 1 <= maxLength; i--)
+        {
+            length += lines[i].Length + 1;
+            count++;
+        }
+        return (string.Join("\n", lines.Skip(lines.Count - count)), count);
+    }
+
+    // Goes on with the file, rotating it first when it is too large. A file that cannot be written,
+    // as one left by a 'sudo gmd' cannot, is rotated aside, or else replaced, both of which take only
+    // the right to write the folder, so it is no reason to log nowhere.
     internal static Result Open(string path)
     {
-        if (Result.Catch(() => File.WriteAllText(path, "")) is Success)
+        // Where an older gmd moved its large log, which none reads any more
+        Result.Catch(() => File.Delete($"{path}.2.log"));
+
+        if (IsTooLarge(path))
+            Rotate(path);
+        if (Result.Catch(() => File.AppendAllText(path, "")) is Success)
+            return Result.Ok;
+
+        Rotate(path);
+        if (Result.Catch(() => File.AppendAllText(path, "")) is Success)
             return Result.Ok;
 
         return Result.Catch(() =>
@@ -65,6 +107,50 @@ static class LogFile
             File.Delete(path);
             File.WriteAllText(path, "");
         });
+    }
+
+    // gmd.1.log for 1, the file rotated last, and gmd.2.log for 2, the one before it
+    internal static string RotatedPath(string path, int number) => Path.ChangeExtension(path, $"{number}.log");
+
+    // Moves each rotated file one up, the last one away, and the log to the first. Two gmds that find
+    // the log too large at the same moment can both rotate it, the second moving the first's new and
+    // nearly empty file aside, which costs the oldest rotated file and nothing more.
+    internal static void Rotate(string path)
+    {
+        for (var number = RotatedCount; number > 1; number--)
+        {
+            var from = RotatedPath(path, number - 1);
+            Result.Catch(() =>
+            {
+                if (File.Exists(from))
+                    File.Move(from, RotatedPath(path, number), overwrite: true);
+            });
+        }
+        Result.Catch(() => File.Move(path, RotatedPath(path, 1), overwrite: true));
+    }
+
+    static bool IsTooLarge(string path) =>
+        Result.Catch(() => File.Exists(path) && new FileInfo(path).Length > MaxSize) is true;
+
+    // Read while another gmd may be writing it, which it is allowed to go on with, so a line it is
+    // writing may be read in part, and a file that is not there is no lines
+    static IReadOnlyList<string> ReadLines(string path)
+    {
+        var lines = Result.Catch(() =>
+        {
+            using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete
+            );
+            using var reader = new StreamReader(stream);
+            List<string> read = [];
+            while (reader.ReadLine() is string line)
+                read.Add(line);
+            return (IReadOnlyList<string>)read;
+        });
+        return lines is IReadOnlyList<string> l ? l : [];
     }
 
     // A line: the time, the level and the message, padded to a column, and then where it was
@@ -128,11 +214,8 @@ static class LogFile
             Thread.Sleep(WriteRetryDelayMs);
         }
 
-        Result.Catch(() =>
-        {
-            if (new FileInfo(FilePath).Length > MaxSize)
-                File.Move(FilePath, $"{FilePath}.2.log", overwrite: true);
-        });
+        if (IsTooLarge(FilePath))
+            Rotate(FilePath);
     }
 
     // The length of the path to the root of the repository, which is cut off the source file of a

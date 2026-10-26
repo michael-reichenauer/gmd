@@ -50,8 +50,8 @@ body:
     attributes:
       label: The log
       description: |
-        `~/gmd.log`, whose path About shows, and Report a Bug says. gmd begins it anew on every
-        start, so copy it before starting gmd again. It holds the paths of your repositories, the names of branches
+        `~/gmd.log`, which Help › Copy Log in the repo menu copies, and Help › View Log shows. A
+        problem of an earlier run may be in `~/gmd.1.log`, where a large log is moved. It holds the paths of your repositories, the names of branches
         and the git commands gmd ran; leave out what you would rather not share.
       render: text
   - type: textarea

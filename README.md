@@ -341,8 +341,8 @@ update check off, update automatically, or allow preview releases, which are bui
 In your home folder:
 
 - `~/.gmdconfig`: your settings and recent repositories.
-- `~/gmd.log`: a log of what gmd does, started afresh each time it runs (and moved to
-  `gmd.log.2.log` if it grows large).
+- `~/gmd.log`: a log of what gmd does, kept from one run to the next. Past 1 MB it is moved to
+  `gmd.1.log`, and that one to `gmd.2.log`, so the logs take 3 MB at most.
 - The library that colors code, written out of the gmd executable into a `gmd` folder of your local
   app data, e.g. `~/.local/share/gmd` on Linux.
 
@@ -385,8 +385,8 @@ or [suggest something](https://github.com/michael-reichenauer/gmd/issues/new?tem
 in the issues, where the forms ask for what helps: for a problem, the version and the log. **Help** ›
 **Report a Bug** and **Suggest an Improvement** in the repo menu open the form with the version, the
 system and git filled in. `~/gmd.log` is the first place to look when something goes
-wrong; **About** shows where it is, and if gmd itself fails, it says so when it ends, with the same
-links. The log is begun anew on every start, so copy it before starting gmd again.
+wrong; **Help** › **View Log** shows it and **Copy Log** copies it, for pasting into the report,
+**About** shows where it is, and if gmd itself fails, it says so when it ends, with the same links.
 
 ## Contributing
 

@@ -45,7 +45,7 @@ namespace gmdE2eTest;
 
 // Runs once for the whole test assembly, before any test. The same throwaway HOME as
 // gmdTest/TestSetup.cs gives its test process, and for the same reason: the fixtures run git
-// through gmd.Utils.Cmd, which logs, and the first log line of a process truncates ~/gmd.log.
+// through gmd.Utils.Cmd, which logs, and the log of a process goes into ~/gmd.log.
 //
 // And more thread pool threads than the default, which parallel tests need. A running test holds
 // a pool thread for all of its run, since TmuxSession polls with Thread.Sleep once the fixture's

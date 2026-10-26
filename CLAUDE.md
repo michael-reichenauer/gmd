@@ -63,7 +63,7 @@ at this working tree; use a throwaway repo, exactly as `TempRepo` does.
 
 **Redirect `HOME` whenever you start gmd yourself.** A gmd run does not merely read the developer's
 home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`) and
-**truncates `~/gmd.log`**. Neither path can be redirected — `ConfigService` and `LogFile` both
+**appends to `~/gmd.log`**, rotating it to `gmd.1.log` and `gmd.2.log` past 1 MB. Neither path can be redirected — `ConfigService` and `LogFile` both
 anchor on `SpecialFolder.UserProfile` with no override — so `HOME` is the only lever, and on Unix
 it also isolates `~/.gitconfig` from the git commands gmd runs. Seed `{"CheckUpdates": false}` into
 that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` looks for
@@ -217,7 +217,7 @@ Key types and flow:
   `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
   details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
   `Worktrees/` and `Login/`, with `Common/` for the widgets and services they share and `App/` for
-  the parts of the shell the views use (`ApplicationBar`, About, Config, Update, the help page).
+  the parts of the shell the views use (`ApplicationBar`, About, Config, Update, the help page, the log view).
   `MainView`, which puts the views together, is alone in `Cui/` itself. The folders depend on each
   other one way only, from `RepoView/` down to `Common/`, with no cycle: keep it so, since a type in
   `gmd.Cui` is in scope in every folder below it without a using, so nothing else goes there. A
@@ -864,9 +864,9 @@ Other things to know:
   `internal` types are visible to tests, so services can be constructed directly
   (`new BranchNameService()`) — no DI.
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
-  (`[AssemblyInitialize]`) before anything can log — otherwise `scripts/test` truncates the
-  developer's `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
-  `LogFile` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
+  (`[AssemblyInitialize]`) before anything can log — otherwise `scripts/test` buries the
+  developer's `~/gmd.log` under its lines and rotates it away, since any test running a git command
+  goes through `Cmd`, which logs. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
   `gmdE2eTest/TestSetup.cs` does the same for its own process, since each test assembly runs its own
   `[AssemblyInitialize]`.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:

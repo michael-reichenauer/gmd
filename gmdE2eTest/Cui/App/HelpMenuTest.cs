@@ -50,6 +50,44 @@ public class HelpMenuTest
         Assert.IsFalse(link.Contains("&system="), "Only the version");
     }
 
+    // The log, the run before this one first, at its end, which 'c' copies for a bug report
+    [TestMethod]
+    public async Task TestViewLogShowsAndCopiesTheLog()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.WaitForLog("Starting gmd");
+        OpenHelpMenu(gmd);
+        gmd.SelectMenuItem("View Log");
+        gmd.Send("Enter");
+
+        var screen = gmd.WaitFor("Log  ~/gmd.log");
+        StringAssert.Contains(screen, " INFO :\"", "Its lines, from the end, where the start is above");
+        gmd.Send("c");
+        gmd.WaitFor("Copied the log");
+        StringAssert.Contains(gmd.Clipboard(), "Starting gmd");
+
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Log  ~/gmd.log");
+    }
+
+    // Copy Log copies it straight from the menu, to paste into a bug report
+    [TestMethod]
+    public async Task TestCopyLogCopiesTheLog()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+        gmd.WaitForLog("Starting gmd");
+        OpenHelpMenu(gmd);
+        gmd.SelectMenuItem("Copy Log");
+        gmd.Send("Enter");
+
+        gmd.WaitFor("Copied the log, to paste into a bug report");
+        StringAssert.Contains(gmd.Clipboard(), "Starting gmd");
+    }
+
     // The Help submenu, at the bottom of the repo menu, open with its items showing
     internal static void OpenHelpMenu(TmuxSession gmd)
     {
