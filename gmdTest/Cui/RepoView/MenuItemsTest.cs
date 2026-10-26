@@ -481,11 +481,33 @@ public class MenuItemsTest
             Open Repository in Browser
             Open, Clone or Init Repo >  [o]
             Config ...
-            Help  [?, F1]
-            About
+            Help >
             Quit  [q, Esc]
             """,
             Items(RepoMenuOf(await ViewOf(Fixture())).GetRepoMenuItems())
+        );
+    }
+
+    // Where to learn about gmd and tell about it, the help first, which '?' opens too
+    [TestMethod]
+    public async Task TestTheHelpMenu()
+    {
+        var help = RepoMenuOf(await ViewOf(Fixture()))
+            .GetRepoMenuItems()
+            .OfType<SubMenu>()
+            .Single(m => m.Text == "Help");
+
+        Assert.AreEqual(
+            """
+            Help  [?, F1]
+            What's New
+            ---
+            Report a Bug
+            Suggest an Improvement
+            ---
+            About
+            """,
+            Items(help.Children)
         );
     }
 
@@ -855,6 +877,8 @@ public class MenuItemsTest
         var commands = FakeRepoView.Context(view);
         commands.RepoCmds = new RepoCommands(
             commands,
+            null!,
+            null!,
             null!,
             null!,
             null!,

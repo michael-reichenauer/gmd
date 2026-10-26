@@ -11,6 +11,9 @@ interface IRepoCommands
 {
     void ShowAbout();
     void ShowHelp();
+    void ShowWhatsNew();
+    void ReportBug();
+    void SuggestImprovement();
     void SearchFilterRepo();
     void ShowBrowseRepoDialog();
     void UpdateRelease();
@@ -53,6 +56,8 @@ class RepoCommands : IRepoCommands
     readonly IInitRepoDlg initRepoDlg;
     readonly IAboutDlg aboutDlg;
     readonly IHelpPage helpPage;
+    readonly IWebPage webPage;
+    readonly IIssueReport issueReport;
     readonly Config config;
     readonly IUpdateDlg updateDlg;
     readonly IClipboardService clipboard;
@@ -65,6 +70,8 @@ class RepoCommands : IRepoCommands
         IInitRepoDlg initRepoDlg,
         IAboutDlg aboutDlg,
         IHelpPage helpPage,
+        IWebPage webPage,
+        IIssueReport issueReport,
         Config config,
         IUpdateDlg updateDlg,
         IClipboardService clipboard,
@@ -82,6 +89,8 @@ class RepoCommands : IRepoCommands
         this.initRepoDlg = initRepoDlg;
         this.aboutDlg = aboutDlg;
         this.helpPage = helpPage;
+        this.webPage = webPage;
+        this.issueReport = issueReport;
         this.config = config;
         this.updateDlg = updateDlg;
         this.clipboard = clipboard;
@@ -130,6 +139,13 @@ class RepoCommands : IRepoCommands
     public void ShowAbout() => aboutDlg.Show();
 
     public void ShowHelp() => helpPage.ShowAsync().RunInBackground();
+
+    public void ShowWhatsNew() =>
+        webPage.OpenAsync(Project.ChangeLogUrlOfBuild(), "the change log", "What's New").RunInBackground();
+
+    public void ReportBug() => issueReport.OpenAsync(IssueKind.Bug).RunInBackground();
+
+    public void SuggestImprovement() => issueReport.OpenAsync(IssueKind.Suggestion).RunInBackground();
 
     public void Clone() =>
         Do(async repo =>
