@@ -373,7 +373,7 @@ class FakeGit : IGit
 
     public Task<Result> UndoUncommittedFileAsync(string path, string wd) => throw new NotSupportedException();
 
-    public Task<Result> CleanWorkingFolderAsync(string wd) => throw new NotSupportedException();
+    public Task<Result> DeleteIgnoredFilesAsync(string wd) => throw new NotSupportedException();
 
     public Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd) => throw new NotSupportedException();
 

@@ -159,7 +159,7 @@ interface IServer
     // Takes the chosen lines of a file's uncommitted changes back in the working tree, the rest of its
     // changes left as they are; refused when the file has changed since the lines were shown
     Task<Result> DiscardLinesAsync(string path, IReadOnlyList<ChosenLine> lines, string wd);
-    Task<Result> CleanWorkingFolderAsync(string wd);
+    Task<Result> DeleteIgnoredFilesAsync(string wd);
     Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd);
     Task<Result> UndoCommitAsync(string id, int parent, string wd);
     Task<Result> UncommitLastCommitAsync(string wd);

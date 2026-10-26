@@ -647,11 +647,9 @@ class Server : IServer
         return await git.ApplyPatchReversedAsync(discard, wd);
     }
 
-    // The ignored files it deletes are not kept, being the ones the uncommitted diff leaves out
-    public Task<Result> CleanWorkingFolderAsync(string wd) =>
-        Paused(() =>
-            discarded.DiscardAsync("All changes, not the ignored files", () => git.CleanWorkingFolderAsync(wd), wd)
-        );
+    // Not kept for Restore Discarded Changes, as the discards are, since the uncommitted diff, which
+    // those keep, leaves the ignored files out
+    public Task<Result> DeleteIgnoredFilesAsync(string wd) => Paused(() => git.DeleteIgnoredFilesAsync(wd));
 
     public Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd) => git.GetIgnoredFilesAsync(wd);
 

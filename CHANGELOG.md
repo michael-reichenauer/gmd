@@ -21,6 +21,9 @@ what is merged but in no preview yet. The next release heads it with its version
 - **Delete Merged Branches** now has a **Show** button (`s`), which shows the selected branch in the log behind the dialog, its last commit near the top, so it can be looked at before it is deleted; the dialog opens again on the same row
 - Deleting a branch on origin from **Delete Merged Branches** now asks first, with Cancel the default, since it deletes it for everyone; **Delete All** asks whether to delete those on origin too (**Also on Origin**) or leave them (**Here Only**)
 
+### Changed
+- **Discard All Changes** now lists every changed file it discards, in a list that scrolls, and no longer offers to delete the files git ignores. **Clean Working Folder ...** in the repo menu deletes those, listing them all first, and keeps the uncommitted changes
+
 ### Fixed
 - Showing a branch at a commit no longer scrolls the log by its row count from before the branch was shown
 - A command such as continuing a rebase no longer fails with "Unable to create index.lock" when Gmd reads the status in the background at that moment

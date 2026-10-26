@@ -236,15 +236,16 @@ public class CommitServiceTest
         CollectionAssert.AreEqual(new[] { "reset --hard", "clean -fd" }, ArgsOf(cmd));
     }
 
-    // Cleaning the working folder also removes ignored files, i.e. build output
+    // Only the ignored files, e.g. build output, with the uncommitted changes left as they are: the
+    // clean whose dry run lists them
     [TestMethod]
-    public async Task TestCleanWorkingFolder()
+    public async Task TestDeleteIgnoredFiles()
     {
         var cmd = new FakeCmd("");
 
-        await new CommitService(cmd).CleanWorkingFolderAsync(wd);
+        await new CommitService(cmd).DeleteIgnoredFilesAsync(wd);
 
-        CollectionAssert.AreEqual(new[] { "reset --hard", "clean -fxd" }, ArgsOf(cmd));
+        CollectionAssert.AreEqual(new[] { "clean -f -X -d" }, ArgsOf(cmd));
     }
 
     // The ignored files are git's dry run of a clean of them alone, a folder once rather than its files

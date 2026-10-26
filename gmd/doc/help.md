@@ -531,15 +531,10 @@ throw changes away ask first, and what they throw away gmd keeps, for
   changes, and **Discard Changes**, `git reset --keep`, takes the files back
   to the commit too, which git refuses rather than overwrite an uncommitted
   change. Undo takes it back, and Recover Lost Commits finds the commits.
-- **Discard All Changes ...**: `git reset --hard` and `git clean -fd`. When
-  there are files git ignores, the question lists them and offers
-  **Discard and Delete Ignored** too, `git clean -fxd`, i.e. the folder as a
-  fresh clone of the last commit has it, to check that nothing left over
-  makes a build or a test pass. Those go also when kept on purpose, such as
-  a .env file of secrets, and Restore Discarded Changes brings back the
-  changes but not them. With no uncommitted changes, it asks to delete just
-  the ignored files.
-
+- **Discard All Changes ...**: `git reset --hard` and `git clean -fd`,
+  after a question that lists every changed file, with Cancel the default.
+  The files git ignores are left alone: **Clean Working Folder ...** in the
+  repo menu deletes those.
 
 ## More Commands
 
@@ -675,6 +670,13 @@ throw changes away ask first, and what they throw away gmd keeps, for
   left. Each one deleted is kept for **Restore Deleted Branch**, which pushes
   one deleted on origin back. A branch made with no commits of its own yet
   is not listed, though git counts it merged.
+- **Clean Working Folder ...** (repo menu):
+  Deletes the files git ignores, `git clean -fXd`, e.g. build output and
+  dependencies, after a question that lists them all, with Cancel the
+  default. The uncommitted changes are kept, so with none the folder is then
+  as a fresh clone of the last commit has it, to check that nothing left
+  over makes a build or a test pass. Files kept on purpose go too, such as a
+  .env file of secrets, and nothing brings them back.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on

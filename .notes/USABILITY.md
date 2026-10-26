@@ -74,6 +74,15 @@ Discard, Cancel the default; with no uncommitted changes it asks to delete just 
 the ignored files alone (`git clean -n -X -d`), what nothing brings back, where the old question
 listed the untracked files too, which Restore Discarded Changes does.
 
+**Discard All Changes and Clean Working Folder split again (2026-10-26).** The merged question did
+not work in use: it listed up to ten ignored files and never the changed ones, so the files being
+discarded could not be checked, and the long list of what nothing brings back made both answers
+intimidating. Discard All Changes ... now lists every changed file in a scrolled list
+(`ConfirmListDlg`), and nothing else; **Clean Working Folder ...** is in the repo menu, not Undo,
+since it is no undo, and deletes the ignored files alone (`git clean -fXd`), every one listed, the
+uncommitted changes kept. Two commands that each do one thing, in different menus and named apart,
+rather than two near twins side by side.
+
 **Publish (2026-10-21).** A branch not on origin, its *Publish* box unticked when it was made, had
 *Push `p`* in its branch menu, which published it, while `p` on the current branch said to use the
 menu, and `p` on another branch highlighted published it with no word. Making a branch on origin, for

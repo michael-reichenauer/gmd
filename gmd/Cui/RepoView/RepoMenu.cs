@@ -108,6 +108,8 @@ class RepoMenu : IRepoMenu
             .Item("Refresh", "r", () => cmds.RefreshAndFetch())
             .Item("Worktrees ...", "w", () => commands.WorktreeCmds.ShowWorktrees())
             .Item("Delete Merged Branches ...", "", () => commands.CreateCmds.DeleteMergedBranches())
+            // The files git ignores, the uncommitted changes kept: Discard All Changes, in Undo, is those
+            .Item("Clean Working Folder ...", "", () => cmds.CleanWorkingFolder())
             .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
             .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
             .Item("Config ...", "", () => ShowConfig())
