@@ -384,9 +384,10 @@ and `git push origin :refs/gmd-metadata-key-value/data` removes it from origin.
 or [suggest something](https://github.com/michael-reichenauer/gmd/issues/new?template=suggestion.yml)
 in the issues, where the forms ask for what helps: for a problem, the version and the log. **Help** ›
 **Report a Bug** and **Suggest an Improvement** in the repo menu open the form with the version, the
-system and git filled in. `~/gmd.log` is the first place to look when something goes
-wrong; **Help** › **View Log** shows it and **Copy Log** copies it, for pasting into the report,
-**About** shows where it is, and if gmd itself fails, it says so when it ends, with the same links.
+system and git filled in, and so does **Report a Bug** (`b`) on the start page. `~/gmd.log` is the
+first place to look when something goes wrong; **Help** › **View Log** shows it and **Copy Log**
+copies it, for pasting into the report, **About** shows where it is, and if gmd itself fails, it says
+so when it ends, with the same links.
 
 ## Contributing
 

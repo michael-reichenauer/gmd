@@ -57,12 +57,12 @@ class Program
     }
 
     // What a crash says, once the terminal is given back, where gmd used to end without a word, as
-    // if it had simply quit. The log is begun anew on every start, so it is to be copied first.
+    // if it had simply quit.
     internal static string CrashMessage(string failure, string logPath) =>
         $"""
             gmd stopped on an unexpected error, sorry: {failure}
 
-            What happened is in the log, which the next start of gmd begins anew, so copy it first:
+            What happened is in the log, which Copy Log in the Help menu also copies:
               {logPath}
             Please report the problem, with the log and the version (gmd --version), at:
               {Project.ProblemUrl}

@@ -19,7 +19,7 @@ public class ProgramTest
             """
             gmd stopped on an unexpected error, sorry: NullReferenceException: Object reference not set to an instance of an object.
 
-            What happened is in the log, which the next start of gmd begins anew, so copy it first:
+            What happened is in the log, which Copy Log in the Help menu also copies:
               /home/anna/gmd.log
             Please report the problem, with the log and the version (gmd --version), at:
               https://github.com/michael-reichenauer/gmd/issues/new?template=bug_report.yml
