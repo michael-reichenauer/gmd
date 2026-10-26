@@ -174,7 +174,9 @@ Key types and flow:
     themselves are `CommitBranchRules`, and `BranchFactory` / `BranchAmbiguity` are what they
     call when a branch has to be invented or a commit given up on as ambiguous. The reflog is
     evidence too: `ReflogWitness` turns it into where commits were made and branches started, which
-    decides right after the main branch rule and is kept in the metadata (`MetaData.SetWitnessed`).
+    decides right after the main branch rule and is kept in the metadata (`MetaData.SetWitnessed`),
+    and into the names of the deleted branches no merge subject names, from HEAD's checkouts and the
+    merges' own entries (`CommitBranchRules.DeletedBranchName`), kept there too.
     `CommitGraphService` also swaps the parents of pull merges and foxtrot merges; the server
     `Commit.IsParentsSwapped` says so, for the commands that need git's order.
   - `BranchHierarchyService` — the last three stages, which relate the branches to each other.

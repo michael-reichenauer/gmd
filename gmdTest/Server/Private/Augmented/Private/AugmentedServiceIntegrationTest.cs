@@ -106,6 +106,29 @@ public class AugmentedServiceIntegrationTest
         Assert.AreEqual("base", augRepo.CommitById[b1].BranchName);
     }
 
+    // A branch merged with a subject of its own and deleted: the subject names no branch, and git
+    // deleted the branch's reflog with it, but HEAD's still has the checkout to it and its rename
+    // ('git branch -m'), and the merge's entry, which name it
+    [TestMethod]
+    public async Task TestReflogOfARealRepoNamesADeletedBranch()
+    {
+        await repo.CommitFileAsync("file.txt", "one\n", "Initial");
+        await repo.GitAsync("checkout -b wip");
+        await repo.CommitFileAsync("wip.txt", "one\n", "Started");
+        await repo.GitAsync("branch -m feature-x");
+        var f1 = await repo.CommitFileAsync("feature.txt", "one\n", "Feature work");
+        await repo.GitAsync("checkout main");
+        await repo.CommitFileAsync("main.txt", "main\n", "Main work");
+        await repo.GitAsync("merge --no-ff feature-x -m \"Add the feature\"");
+        await repo.GitAsync("branch -D feature-x");
+
+        var service = RepoBuilder.NewAugmentedService(repo.Git, new FakeMetaDataService(new MetaData()));
+        var augRepo = AssertOk(await service.GetRepoAsync(repo.Path));
+
+        var branch = augRepo.BranchByName[augRepo.CommitById[f1].BranchName];
+        Assert.AreEqual("feature-x", branch.NiceName);
+    }
+
     // The integration branches configured for the repo are read with it: staging, where a feature
     // started, goes on below the branch point
     [TestMethod]

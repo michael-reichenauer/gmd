@@ -1065,7 +1065,10 @@ keep a column of its own:
   a file of gmd's in the `.git` folder, `gmd-metadata.json`, for when the
   reflog has expired.
 - Merge messages name the branches that were merged, e.g. "Merge branch
-  'dev' into main", which brings back branches deleted long ago.
+  'dev' into main", which brings back branches deleted long ago. A branch
+  merged with a message of its own and deleted is named by the reflog
+  instead, while it still has the branch's commits or its merge, and the
+  name is kept as well.
 - Otherwise, where branches meet, the one the others were started from
   goes on: main, master or trunk, then an integration branch such as
   develop or dev, then a release, hotfix or support branch, then a branch

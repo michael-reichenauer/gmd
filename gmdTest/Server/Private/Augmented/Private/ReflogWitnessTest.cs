@@ -67,6 +67,27 @@ public class ReflogWitnessTest
         Assert.AreEqual("main", madeOn[Id("e2")]);
     }
 
+    // A branch renamed goes on under its new name, and renaming another branch changes nothing
+    [TestMethod]
+    public void TestABranchRenamedGoesOnUnderItsNewName()
+    {
+        var madeOn = ReflogWitness.MadeOn([
+            .. Log(
+                "HEAD",
+                ("f3", "commit: Work 3"),
+                ("f2", "Branch: renamed refs/heads/other to refs/heads/else"),
+                ("f2", "commit: Work 2"),
+                ("f1", "Branch: renamed refs/heads/wip to refs/heads/feature"),
+                ("f1", "commit: Work 1"),
+                ("e1", "checkout: moving from main to wip")
+            ),
+        ]);
+
+        Assert.AreEqual("wip", madeOn[Id("f1")]);
+        Assert.AreEqual("feature", madeOn[Id("f2")]);
+        Assert.AreEqual("feature", madeOn[Id("f3")]);
+    }
+
     // A detached HEAD and a rebase are on no branch, so what is made there says nothing, until a
     // rebase finishes back on its branch
     [TestMethod]
@@ -189,5 +210,36 @@ public class ReflogWitnessTest
 
         Assert.AreEqual("feature", branches[Id("f1")]);
         Assert.AreEqual("other", branches[Id("d1")], "Made on other, by its own reflog");
+    }
+
+    // A merge's entry names the branch merged in, as it was given to git, but not a fast-forward,
+    // which made no merge commit, nor a merge of several, of a commit id, of a HEAD or with conflicts
+    [TestMethod]
+    public void TestWhichBranchAMergeMergedIn()
+    {
+        var merged = ReflogWitness.MergedBranchByMerge([
+            .. Log(
+                "HEAD",
+                ("m6", "commit (merge): Merge branch 'x' into dev"),
+                ("m9", "merge FETCH_HEAD: Merge made by the 'ort' strategy."),
+                ("m8", "merge origin/HEAD: Merge made by the 'ort' strategy."),
+                ("m5", "merge 1234567890abcdef: Merge made by the 'ort' strategy."),
+                ("m4", "merge a b: Merge made by the 'octopus' strategy."),
+                ("m3", "merge feature: Fast-forward"),
+                ("m2", "merge origin/fix: Merge made by the 'ort' strategy."),
+                ("m1", "merge feature: Merge made by the 'ort' strategy.")
+            ),
+            .. Log("refs/heads/dev", ("m7", "merge topic: Merge made by the 'recursive' strategy.")),
+        ]);
+
+        CollectionAssert.AreEquivalent(
+            new Dictionary<string, string>
+            {
+                [Id("m1")] = "feature",
+                [Id("m2")] = "fix",
+                [Id("m7")] = "topic",
+            },
+            merged.ToDictionary()
+        );
     }
 }
