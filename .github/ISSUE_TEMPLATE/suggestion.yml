@@ -20,3 +20,8 @@ body:
       description: |
         If it bears on it: how branches come back into main (merge commits, squash or rebase
         merges), forks, how many branches at once, AI coding agents in worktrees, and so on.
+  - type: input
+    id: version
+    attributes:
+      label: gmd version
+      description: Filled in by Help › Suggest an Improvement in the repo menu (Shift-M).

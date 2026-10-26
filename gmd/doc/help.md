@@ -1092,12 +1092,16 @@ removes it.
 ## Problems and Feedback
 
 Gmd writes what it does to `gmd.log` in your home folder, which is the
-first place to look when something goes wrong. Report a problem, or
-suggest something, at
-[github.com/michael-reichenauer/gmd/issues](https://github.com/michael-reichenauer/gmd/issues),
-with the version, from **About** in the repo menu or `gmd --version`. About
-shows where the log is, too. The log is begun anew on every start of gmd,
-so copy it before starting gmd again.
+first place to look when something goes wrong. **Help** in the repo menu
+(`Shift-M`) has **Report a Bug** and **Suggest an Improvement**, which open
+an issue on
+[github.com/michael-reichenauer/gmd/issues](https://github.com/michael-reichenauer/gmd/issues)
+with the version, the system and terminal, and the git version filled in;
+look them over and remove what you would rather not share. Report a Bug
+says where the log is, to add it to the report, and so does **About**. The
+log is begun anew on every start of gmd, so copy it before starting gmd
+again. **What's New** in the same menu shows the change log of the version
+you run.
 
 When git needs a password, a passphrase or whether to trust a host, gmd
 asks in a dialog, for a push, a pull or a fetch (`r`) you asked for. The

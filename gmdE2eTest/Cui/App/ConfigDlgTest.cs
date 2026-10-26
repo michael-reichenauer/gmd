@@ -77,18 +77,11 @@ public class ConfigDlgTest
     static bool IsSharing(TempRepo repo) =>
         File.ReadAllText(Path.Join(repo.Path, ".git", ".gmdconfig")).Contains("\"SyncMetaData\": true");
 
-    // Config is the fourth item from the end of the repo menu: Config, Help, About and Quit
     static void OpenConfig(TmuxSession gmd)
     {
         gmd.Send("M");
         gmd.WaitFor("Repo Menu");
-        gmd.Send("End");
-        gmd.WaitForStable();
-        for (var i = 0; i < 3; i++)
-        {
-            gmd.Send("Up");
-            gmd.WaitForStable();
-        }
+        gmd.SelectMenuItem("Config ...");
         gmd.Send("Enter");
         gmd.WaitFor("General:");
     }

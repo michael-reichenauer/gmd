@@ -111,10 +111,21 @@ class RepoMenu : IRepoMenu
             .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
             .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
             .Item("Config ...", "", () => ShowConfig())
-            .Item("Help", "?, F1", () => cmds.ShowHelp())
-            .Item("About", "", () => cmds.ShowAbout())
+            .SubMenu("Help", "", GetHelpItems())
             .Item("Quit", "q, Esc", () => UI.Shutdown());
     }
+
+    // Where to learn about gmd and to tell about it: the help, what is new in this version, a bug
+    // report or a suggestion as a GitHub issue with the version and system filled in, and About
+    IEnumerable<MenuItem> GetHelpItems() =>
+        Menu
+            .Items.Item("Help", "?, F1", () => cmds.ShowHelp())
+            .Item("What's New", "", () => cmds.ShowWhatsNew())
+            .Separator()
+            .Item("Report a Bug", "", () => cmds.ReportBug())
+            .Item("Suggest an Improvement", "", () => cmds.SuggestImprovement())
+            .Separator()
+            .Item("About", "", () => cmds.ShowAbout());
 
     const string NoSearch = "Search with f and pick a commit first";
 

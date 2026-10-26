@@ -367,7 +367,9 @@ And two refs of gmd's own in each repository, which git pushes only when told to
 Over the network, gmd runs git's own fetches and pushes to origin (a fetch every five minutes, to
 keep the ▼ counts current), and asks GitHub for the latest release every hour, which **Config ...**
 turns off. With the shared branch structure on, it shares the branch metadata through origin too,
-as below. Nothing else is sent: there is no telemetry.
+as below. Nothing else is sent: there is no telemetry. **Report a Bug** and **Suggest an Improvement**
+put the version, the system and terminal, and the git version into the link of the issue form they
+open in your browser, where nothing is sent until you submit it.
 
 The **shared branch structure** is off unless you turn it on for a repository, in **Config ...**,
 which first says what it shares. The entries of `gmd-metadata.json` for the commits origin has are
@@ -380,8 +382,9 @@ and `git push origin :refs/gmd-metadata-key-value/data` removes it from origin.
 
 [Report a problem](https://github.com/michael-reichenauer/gmd/issues/new?template=bug_report.yml)
 or [suggest something](https://github.com/michael-reichenauer/gmd/issues/new?template=suggestion.yml)
-in the issues, where the forms ask for what helps: for a problem, the version from **About** in the
-repo menu or from `gmd --version`, and the log. `~/gmd.log` is the first place to look when something goes
+in the issues, where the forms ask for what helps: for a problem, the version and the log. **Help** ›
+**Report a Bug** and **Suggest an Improvement** in the repo menu open the form with the version, the
+system and git filled in. `~/gmd.log` is the first place to look when something goes
 wrong; **About** shows where it is, and if gmd itself fails, it says so when it ends, with the same
 links. The log is begun anew on every start, so copy it before starting gmd again.
 
