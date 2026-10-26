@@ -3,6 +3,9 @@
 What changed for users in each release, newest first. A release includes the previews before it.
 Releases with no change users notice are left out.
 
+**Unreleased** is what has changed since the latest release: what the previews since then have, and
+what is merged but in no preview yet. The next release heads it with its version and date.
+
 ## [Unreleased]
 
 ### New

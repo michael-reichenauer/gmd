@@ -5,7 +5,9 @@ asks for one, with the **Release** workflow (`.github/workflows/release.yml`). M
 `main` only runs the tests. Anyone with write access can release, from a browser if need be:
 
 1. **Write the notes.** Edit the `## [Unreleased]` section at the top of `CHANGELOG.md` on `dev`, in
-   an editor or GitHub's web editor, and commit it to `dev`. The style is below.
+   an editor or GitHub's web editor, and commit it to `dev`. The style is below. Everything under
+   the heading, up to the next `## `, is the notes, so what the section means is said in the
+   paragraph above it, not under it.
 2. **Run the workflow.** On GitHub: Actions, **Release**, **Run workflow**, with **Use workflow
    from** set to `dev`, and pick `preview` or `release`. Or from a terminal:
    `gh workflow run release.yml --ref dev -f kind=preview` (or `kind=release`).
