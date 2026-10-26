@@ -20,9 +20,21 @@ steps 1 and 2 and stop: change nothing, neither `CHANGELOG.md` nor `dev`, and ru
 - Take two ranges: since the latest release (`gh release view`, as in step 1) and since the latest
   preview, the newest `v*` tag (`git tag --sort=-creatordate | head -1`), when that is a newer one.
   Previews have notes on GitHub (`gh release view <tag>`) that say what they brought.
-- Show the notes of the range since the latest release as step 2 writes them, and say which of them
-  are new since the latest preview, or that nothing users notice is, naming what the merges since
-  then were instead.
+- Answer in two sections, each a heading of its own, so the two are never read as one list:
+
+  ```
+  ## Next preview: new since the preview v<tag>
+  <the items of the merges since that preview, grouped as step 2 groups them>
+
+  ## Next release: new since the release v<tag>
+  <the whole notes of the range since the latest release, as step 2 writes them>
+  ```
+
+  The first is what the next preview would add, the second what the next release would publish,
+  the first section's items included. When the latest preview is older than the latest release,
+  or nothing users notice came since it, the first section says so in one line (naming what the
+  merges since then were instead) rather than being left out. End with one line on what is not yet
+  in `## [Unreleased]` on `dev`, if anything.
 - A cloud session without `gh` reads the releases and tags with the GitHub tools.
 
 ## 1. Find what is new

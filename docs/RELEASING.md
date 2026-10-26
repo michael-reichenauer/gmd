@@ -12,8 +12,9 @@ asks for one, with the **Release** workflow (`.github/workflows/release.yml`). M
 
 With Claude, ask it to "make a preview" or "make a release": it writes the notes from what changed
 since the latest release, shows them to you, commits them and runs the workflow (the `release`
-skill, `.claude/skills/release/SKILL.md`). Ask it "what's unreleased?" for the notes alone, as they
-would be written now and what is new since the latest preview, with nothing committed or published.
+skill, `.claude/skills/release/SKILL.md`). Ask it "what's unreleased?" for the notes alone, with nothing
+committed or published, in two sections: what is new since the latest preview (the next preview's),
+and the whole notes since the latest release (the next release's).
 
 ## What the workflow does
 
