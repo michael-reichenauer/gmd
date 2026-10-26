@@ -1097,8 +1097,9 @@ first place to look when something goes wrong. **Help** in the repo menu
 an issue on
 [github.com/michael-reichenauer/gmd/issues](https://github.com/michael-reichenauer/gmd/issues)
 with the version, the system and terminal, and the git version filled in;
-look them over and remove what you would rather not share. Report a Bug
-says where the log is, to add it to the report, and so does **About**. The
+look them over and remove what you would rather not share. The start page
+has Report a Bug too (`b`), for when a repository does not open. Report a
+Bug says where the log is, to add it to the report, and so does **About**. The
 log is begun anew on every start of gmd, so copy it before starting gmd
 again. **What's New** in the same menu shows the change log of the version
 you run.

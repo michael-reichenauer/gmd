@@ -40,6 +40,7 @@ class StartView : IStartView
     readonly IInitRepoDlg initRepoDlg;
     readonly IHelpPage helpPage;
     readonly IAboutDlg aboutDlg;
+    readonly IIssueReport issueReport;
     readonly IServer server;
     readonly IProgress progress;
     readonly IUpdater updater;
@@ -62,6 +63,7 @@ class StartView : IStartView
         IInitRepoDlg initRepoDlg,
         IHelpPage helpPage,
         IAboutDlg aboutDlg,
+        IIssueReport issueReport,
         IServer server,
         IProgress progress,
         IUpdater updater,
@@ -74,6 +76,7 @@ class StartView : IStartView
         this.initRepoDlg = initRepoDlg;
         this.helpPage = helpPage;
         this.aboutDlg = aboutDlg;
+        this.issueReport = issueReport;
         this.server = server;
         this.progress = progress;
         this.updater = updater;
@@ -157,6 +160,7 @@ class StartView : IStartView
         view.RegisterLetterHandler(Key.O, () => Act(StartAction.OpenFolder));
         view.RegisterLetterHandler(Key.C, () => Act(StartAction.Clone));
         view.RegisterLetterHandler(Key.I, () => Act(StartAction.Init));
+        view.RegisterLetterHandler(Key.B, () => Act(StartAction.ReportBug));
         view.RegisterLetterHandler(Key.A, () => Act(StartAction.About));
         view.RegisterLetterHandler(Key.Q, () => Act(StartAction.Quit));
         view.RegisterLetterHandler(Key.U, OnKeyU);
@@ -287,6 +291,9 @@ class StartView : IStartView
             case StartAction.Help:
                 HelpAsync().RunInBackground();
                 break;
+            case StartAction.ReportBug:
+                ReportBugAsync().RunInBackground();
+                break;
             case StartAction.About:
                 aboutDlg.Show();
                 view.SetFocus();
@@ -399,6 +406,14 @@ class StartView : IStartView
     async Task HelpAsync()
     {
         await helpPage.ShowAsync();
+        view.SetFocus();
+    }
+
+    // Here too, since the page is where gmd is left when a repository fails to open, a likely moment
+    // to report one. The form opens in the browser, or its link is copied in a box that says so.
+    async Task ReportBugAsync()
+    {
+        await issueReport.OpenAsync(IssueKind.Bug);
         view.SetFocus();
     }
 
