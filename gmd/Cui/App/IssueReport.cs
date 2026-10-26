@@ -39,7 +39,7 @@ class IssueReport : IIssueReport
     public async Task OpenAsync(IssueKind kind)
     {
         var running = RunningGmd.Current;
-        var version = VersionText(Build.Version(), Build.Sha(), running.IsDevInstance, running.PackageManager);
+        var version = VersionText(Build.Version(), Build.CommitSha(), running.IsDevInstance, running.PackageManager);
         var system = SystemText(
             OsName(),
             RuntimeInformation.OSArchitecture.ToString(),
@@ -50,9 +50,10 @@ class IssueReport : IIssueReport
         var url = Url(kind, version, system, config.GitVersion);
 
         var name = kind == IssueKind.Bug ? "a bug report" : "a suggestion";
-        await webPage.OpenAsync(url, name, kind == IssueKind.Bug ? "Report a Bug" : "Suggest an Improvement", false);
-        if (kind == IssueKind.Bug)
-            status.Info($"Add the log to the report, {Files.ShortHomePath(LogFile.FilePath, Files.HomePath)}");
+        var title = kind == IssueKind.Bug ? "Report a Bug" : "Suggest an Improvement";
+        var note =
+            kind == IssueKind.Bug ? $"add the log to it, {Files.ShortHomePath(LogFile.FilePath, Files.HomePath)}" : "";
+        await webPage.OpenAsync(url, name, title, false, note);
     }
 
     // GitHub fills a field of an issue form from the query parameter named as the field's id
@@ -72,15 +73,17 @@ class IssueReport : IIssueReport
             _ => throw Asserter.Fail($"Unknown issue kind {kind}"),
         };
 
-    // The version and the commit it was built from, and how it got here, since a gmd a package
-    // manager installed is updated by that, and a dev build is no release at all
+    // The version and the commit it was built from, which a build that is not CI's does not know, and
+    // how it got here, since a gmd a package manager installed is updated by that, and a dev build is
+    // no release at all
     internal static string VersionText(Version version, string sha, bool isDevInstance, PackageManager? manager)
     {
+        var commit = sha != "" ? $" ({sha[..Math.Min(7, sha.Length)]})" : "";
         var how =
             isDevInstance ? ", a dev build"
             : manager != null ? $", installed with {manager.Name}"
             : "";
-        return $"{version.Txt()} ({sha}){how}";
+        return $"{version.Txt()}{commit}{how}";
     }
 
     // The operating system, the terminal, and what is between them, which is where most problems of
@@ -138,17 +141,21 @@ class IssueReport : IIssueReport
         };
     }
 
-    // The name a user knows the system by rather than the kernel's: the distribution on Linux, and
-    // the version of macOS or Windows, which .NET reports as it is, not as the kernel's
+    // The name a user knows the system by rather than the kernel's: the distribution on Linux, the
+    // version of macOS, which .NET reports as it is, and Windows, whose 11 still says 10.0, its builds
+    // from 22000 on
     static string OsName()
     {
         if (Build.IsWindows)
-            return $"Windows {Environment.OSVersion.Version}";
+            return WindowsName(Environment.OSVersion.Version);
         if (Build.IsMacOS)
             return $"macOS {Environment.OSVersion.Version}";
         return LinuxName(Result.Catch(() => File.ReadAllText("/etc/os-release")) is string text ? text : "")
             ?? RuntimeInformation.OSDescription;
     }
+
+    internal static string WindowsName(Version version) =>
+        version.Major == 10 && version.Build >= 22000 ? $"Windows 11 ({version})" : $"Windows {version}";
 
     // PRETTY_NAME of /etc/os-release, e.g. 'Ubuntu 24.04.1 LTS', null when it has none
     internal static string? LinuxName(string osRelease)

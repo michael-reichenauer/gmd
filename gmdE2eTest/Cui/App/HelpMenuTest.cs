@@ -22,6 +22,7 @@ public class HelpMenuTest
 
         var screen = gmd.WaitFor("is copied to the clipboard.");
         StringAssert.Contains(screen, "the link to a bug report");
+        StringAssert.Contains(screen, "Add the log to it, ~/gmd.log.");
 
         var link = gmd.Clipboard();
         StringAssert.StartsWith(link, "https://github.com/michael-reichenauer/gmd/issues/new?template=bug_report.yml");

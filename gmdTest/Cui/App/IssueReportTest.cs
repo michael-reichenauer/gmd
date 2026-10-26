@@ -52,6 +52,22 @@ public class IssueReportTest
     }
 
     [TestMethod]
+    public void TestTheVersionOfABuildNotCisHasNoCommit()
+    {
+        Assert.AreEqual(
+            "1.15 (1453.671), a dev build",
+            IssueReport.VersionText(new Version(1, 15, 1453, 671), "", true, null)
+        );
+    }
+
+    [TestMethod]
+    public void TestWindows11IsNamedSo()
+    {
+        Assert.AreEqual("Windows 11 (10.0.22631.0)", IssueReport.WindowsName(new Version(10, 0, 22631, 0)));
+        Assert.AreEqual("Windows 10.0.19045.0", IssueReport.WindowsName(new Version(10, 0, 19045, 0)));
+    }
+
+    [TestMethod]
     public void TestTheVersionSaysHowGmdWasInstalled()
     {
         var version = new Version(1, 15, 1453, 671);
