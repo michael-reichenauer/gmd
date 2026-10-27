@@ -6,7 +6,7 @@ interface ICommitService
     Task<Result> CommitFilesAsync(string message, bool isAmend, IReadOnlyList<string> paths, string wd);
     Task<Result> UndoAllUncommittedChangesAsync(string wd);
     Task<Result> UndoUncommittedFileAsync(string path, string wd);
-    Task<Result> CleanWorkingFolderAsync(string wd);
+    Task<Result> DeleteIgnoredFilesAsync(string wd);
     Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd);
     Task<Result> AutosquashAsync(string baseId, string wd);
     Task<Result> DropCommitAsync(string id, string wd);
@@ -141,17 +141,12 @@ class CommitService : ICommitService
         return Result.Ok;
     }
 
-    public async Task<Result> CleanWorkingFolderAsync(string wd)
-    {
-        if (await cmd.RunAsync("git", "reset --hard", wd) is Error e)
-            return e;
+    // The files git ignores, and only those: the uncommitted changes are left as they are, which
+    // makes the folder as a fresh clone of the last commit has it when there are none
+    public async Task<Result> DeleteIgnoredFilesAsync(string wd) => await cmd.RunAsync("git", "clean -f -X -d", wd);
 
-        return await cmd.RunAsync("git", "clean -fxd", wd);
-    }
-
-    // The files git ignores in the working tree, which CleanWorkingFolderAsync deletes as well as
-    // what UndoAllUncommittedChangesAsync does, as git's dry run of a clean of them alone lists them:
-    // a folder named once rather than its files. A path is quoted when it needs it (QuotedPath).
+    // The files git ignores in the working tree, which DeleteIgnoredFilesAsync deletes, as git's dry
+    // run of that clean lists them: a folder named once rather than its files. A path is quoted when it needs it (QuotedPath).
     public async Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd)
     {
         var result = await cmd.RunAsync("git", "clean -n -X -d", wd);

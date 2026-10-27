@@ -2350,6 +2350,27 @@ public class GitIntegrationTest
         CollectionAssert.AreEquivalent(new[] { ".env", "bin/" }, files.ToArray());
     }
 
+    // Deleting the ignored files deletes those alone: a change, a new file and the tracked files stay
+    [TestMethod]
+    public async Task TestDeleteIgnoredFilesLeavesTheUncommittedChanges()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAsync(".gitignore", ".env\nbin/\n", "Ignore");
+        await repo.CommitFileAsync("file.txt", "one\n", "Add file");
+        File.WriteAllText(Path.Join(repo.Path, ".env"), "TOKEN=secret\n");
+        Directory.CreateDirectory(Path.Join(repo.Path, "bin"));
+        File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
+        File.WriteAllText(Path.Join(repo.Path, "file.txt"), "two\n");
+        File.WriteAllText(Path.Join(repo.Path, "notes.txt"), "untracked\n");
+
+        Ok(await repo.Git.DeleteIgnoredFilesAsync(repo.Path));
+
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".env")));
+        Assert.IsFalse(Directory.Exists(Path.Join(repo.Path, "bin")));
+        Assert.AreEqual("two\n", File.ReadAllText(Path.Join(repo.Path, "file.txt")));
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, "notes.txt")));
+    }
+
     // A commit of some files only, as the commit dialog's checklist makes it: the ticked files are
     // committed, a new one and a deleted one as well, and every other change is left uncommitted.
     // A path is literal: 'file*.txt' would match 'file1.txt' too as a pattern.

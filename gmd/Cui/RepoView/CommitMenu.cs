@@ -251,10 +251,15 @@ class CommitMenu : ICommitMenu
                 () => binaryPaths.Any(),
                 () => "There are no uncommitted binary files"
             )
-            // The question offers to delete the files git ignores too, the folder then as a fresh
-            // clone has it. Enabled with no changes as well, since deleting those is reason enough,
-            // and which there are is read only once it is picked.
-            .Item("Discard All Changes ...", "", () => commands.RepoCmds.DiscardAllChanges())
+            // Every changed file listed in the question. The files git ignores stay: Clean Working
+            // Folder, in the repo menu, deletes those.
+            .Item(
+                "Discard All Changes ...",
+                "",
+                () => commands.RepoCmds.DiscardAllChanges(),
+                () => cmds.CanUndoUncommitted(),
+                () => "There are no uncommitted changes to discard"
+            )
             .Separator()
             // The work no branch has any more, which the reflogs still know of
             .Item("Recover Lost Commits ...", "", () => commands.UndoCmds.RecoverLostCommits())

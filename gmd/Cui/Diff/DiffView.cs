@@ -1063,7 +1063,11 @@ class DiffView : IDiffView
 
     async void UndoAll()
     {
-        if (!Confirm.UndoAllUncommitted())
+        var files = diffs
+            .SelectMany(d => d.FileDiffs)
+            .Select(fd => ChangedFileText.Row(DiffRowService.KindOf(fd), DiffRowService.PathOf(fd)))
+            .ToList();
+        if (!Confirm.DiscardAll(files))
             return;
 
         using (progress.Show())

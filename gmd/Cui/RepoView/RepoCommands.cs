@@ -26,6 +26,7 @@ interface IRepoCommands
     void RefreshAndFetch(string addName = "", string commitId = "");
 
     void DiscardAllChanges();
+    void CleanWorkingFolder();
 
     string OperationName();
     string OperationSummary();
@@ -219,41 +220,47 @@ class RepoCommands : IRepoCommands
             return Result.Ok;
         });
 
-    // Discard All Changes, in the commit menu's Undo: the uncommitted changes, and the files git
-    // ignores too when the question is answered so, which it offers when there are any (see
-    // Confirm.DiscardAll). Enabled whatever the status, since the ignored files are read only here.
+    // Discard All Changes, in the commit menu's Undo: the uncommitted changes, every changed file
+    // listed in the question (Confirm.DiscardAll). The files git ignores stay, which Clean Working
+    // Folder deletes.
     public void DiscardAllChanges() =>
+        Do(async repo =>
+        {
+            if (repo.Repo.Status.IsOk)
+                return new Notice("There are no uncommitted changes to discard");
+            if (!Confirm.DiscardAll(ChangedFileText.Rows(repo.Repo.Status)))
+                return Result.Ok;
+
+            if (await server.UndoAllUncommittedChangesAsync(repo.Path) is Error e)
+                return new Error("Failed to undo all changes", e);
+
+            Refresh();
+            status.Info(Confirm.Discarded("all changes"));
+            return Result.Ok;
+        });
+
+    // Clean Working Folder, in the repo menu: the files git ignores deleted, every one listed in the
+    // question (Confirm.DeleteIgnored), and the uncommitted changes kept. Enabled whatever the status,
+    // since which files git ignores is read only here.
+    public void CleanWorkingFolder() =>
         Do(async repo =>
         {
             var ignoredResult = await server.GetIgnoredFilesAsync(repo.Path);
             if (ignoredResult is not IReadOnlyList<string> ignored)
                 return new Error("Failed to list the ignored files", ignoredResult.Error);
-            var isChanges = !repo.Repo.Status.IsOk;
-            if (!isChanges && ignored.Count == 0)
-                return new Notice("There are no uncommitted changes, nor files git ignores, to discard");
-
-            var choice = Confirm.DiscardAll(isChanges, ignored);
-            if (choice == DiscardChoice.Cancel)
+            if (ignored.Count == 0)
+                return new Notice("There are no files git ignores to delete");
+            if (!Confirm.DeleteIgnored(ignored))
                 return Result.Ok;
 
-            if (choice == DiscardChoice.Changes)
-            {
-                if (await server.UndoAllUncommittedChangesAsync(repo.Path) is Error undoError)
-                    return new Error("Failed to undo all changes", undoError);
-
-                Refresh();
-                status.Info(Confirm.Discarded("all changes"));
-                return Result.Ok;
-            }
-
-            if (await server.CleanWorkingFolderAsync(repo.Path) is Error cleanError)
-                return new Error("Failed to clean the working folder", cleanError);
+            if (await server.DeleteIgnoredFilesAsync(repo.Path) is Error e)
+                return new Error("Failed to delete the ignored files", e);
 
             Refresh();
             status.Info(
-                isChanges
-                    ? "Discarded all changes and deleted the ignored files: Restore Discarded Changes in the Undo menu brings back the changes"
-                    : "Deleted the files git ignores, as a fresh clone has the folder"
+                repo.Repo.Status.IsOk
+                    ? "Deleted the files git ignores: the folder is as a fresh clone has it"
+                    : "Deleted the files git ignores, and kept the uncommitted changes"
             );
             return Result.Ok;
         });
