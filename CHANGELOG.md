@@ -8,6 +8,8 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+## [v1.16.1460.412] - 2026-10-29
+
 ### New
 - **Show new branches automatically** in **Config ...** shows each branch new to you as it arrives, per repo, and names it on the status line; the ✦ then counts only new commits on branches you hid
 - **Show All New** at the top of the ✦ menu and of Show Branch's **New** shows every branch listed there at once
