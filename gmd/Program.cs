@@ -16,7 +16,7 @@ class Program
     // finds both with sed, so keep them written as 'public const int MajorVersion = <n>;' and
     // 'MinorVersion = <n>;'.
     public const int MajorVersion = 1;
-    public const int MinorVersion = 16;
+    public const int MinorVersion = 17;
 
     static readonly DependencyInjection dependencyInjection = new DependencyInjection();
     readonly IMainView mainView;
