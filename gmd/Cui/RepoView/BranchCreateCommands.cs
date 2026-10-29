@@ -239,11 +239,13 @@ class BranchCreateCommands : IBranchCreateCommands
             return Result.Ok;
         });
 
-    // The local branches with no branch on origin whose work is in main or an integration branch
-    // already, merged as git counts it or squash or rebase merged on origin, listed to delete one at
-    // a time, or all at once after asking. Shown again after each delete with the ones left, until
-    // closed. Each is deleted forced, since gmd told it merged and git may not (a squash merge, or a
-    // merge into main when another branch is checked out), and recorded for Restore Deleted Branch.
+    // The branches whose work is in main or an integration branch already, the local ones merged as
+    // git counts it or squash or rebase merged on origin and those origin has merged as git counts it,
+    // listed to delete one at a time, or all at once after asking. Shown again after each delete with
+    // the ones left, until closed. Each is deleted forced, since gmd told it merged and git may not (a
+    // squash merge, or a merge into main when another branch is checked out), and recorded for Restore
+    // Deleted Branch. One on origin is deleted there only after a question of its own, with Cancel the
+    // default, or by Delete All's Also on Origin, since that deletes it for everyone.
     public void DeleteMergedBranches() =>
         Do(async repo =>
         {
@@ -258,25 +260,55 @@ class BranchCreateCommands : IBranchCreateCommands
                 return new Notice(MergedBranchRows.NoneToDelete);
 
             var branches = found.ToList();
-            var deletedNames = new List<string>();
+            List<MergedBranch> deleted = [];
             try
             {
                 var selected = 0;
-                while (branches.Count > 0 && mergedBranchesDlg.Show(branches, selected) is MergedBranchChoice choice)
+                while (
+                    branches.Count > 0
+                    && mergedBranchesDlg.Show(repo.Repo, branches, selected) is MergedBranchChoice choice
+                )
                 {
-                    var toDelete = choice.IsAll ? branches.Where(MergedBranchRows.CanDelete).ToList() : [choice.Branch];
-                    if (choice.IsAll && !Confirm.DeleteMergedBranches(MergedBranchRows.DeleteAllQuestion(branches)))
-                        continue;
-
                     selected = Math.Max(0, branches.IndexOf(choice.Branch));
+                    if (choice.Action == MergedBranchAction.Show)
+                    {
+                        ShowMergedBranch(choice.Branch);
+                        continue;
+                    }
+
+                    List<MergedBranch> toDelete;
+                    if (choice.Action == MergedBranchAction.DeleteAll)
+                    {
+                        var deletable = branches.Where(MergedBranchRows.CanDelete).ToList();
+                        var answer = Confirm.DeleteMergedBranches(
+                            MergedBranchRows.DeleteAllQuestion(branches),
+                            deletable.Any(b => !b.IsOnOrigin),
+                            deletable.Any(b => b.IsOnOrigin)
+                        );
+                        if (answer == MergedDeleteChoice.Cancel)
+                            continue;
+                        toDelete = deletable
+                            .Where(b => answer == MergedDeleteChoice.AlsoOnOrigin || !b.IsOnOrigin)
+                            .ToList();
+                    }
+                    else
+                    {
+                        if (
+                            choice.Branch.IsOnOrigin
+                            && !Confirm.DeleteMergedOnOrigin(MergedBranchRows.DeleteOnOriginQuestion(choice.Branch))
+                        )
+                            continue;
+                        toDelete = [choice.Branch];
+                    }
+
                     foreach (var b in toDelete)
                     {
                         using (status.Progress($"Deleting '{b.Name}'"))
                         {
-                            if (await server.DeleteBranchAsync(repo.Repo, b.Name, "", true) is Error e)
+                            if (await server.DeleteBranchAsync(repo.Repo, b.LocalName, b.RemoteName, true) is Error e)
                                 return new Error($"Failed to delete '{b.Name}'", e);
                         }
-                        deletedNames.Add(b.Name);
+                        deleted.Add(b);
                         branches.Remove(b);
                     }
                     selected = Math.Min(selected, Math.Max(0, branches.Count - 1));
@@ -284,16 +316,32 @@ class BranchCreateCommands : IBranchCreateCommands
             }
             finally
             {
-                if (deletedNames.Count > 0)
+                if (deleted.Count > 0)
                     Refresh();
             }
 
-            if (deletedNames.Count == 1)
-                status.Info(DeletedBranchRows.Deleted(deletedNames[0], false));
-            else if (deletedNames.Count > 1)
-                status.Info(MergedBranchRows.Deleted(deletedNames.Count));
+            if (deleted is [var one])
+                status.Info(
+                    DeletedBranchRows.Deleted(one.IsLocal ? one.Name : one.RemoteName, one.IsLocal && one.IsOnOrigin)
+                );
+            else if (deleted.Count > 1)
+                status.Info(MergedBranchRows.Deleted(deleted.Count));
             return Result.Ok;
         });
+
+    // Shows a merged branch in the log behind the dialog, its last commit near the top, above the
+    // dialog, which is shown again over it: origin's branch of a pair, which the pair is drawn as
+    void ShowMergedBranch(MergedBranch merged)
+    {
+        var name = merged.IsOnOrigin ? merged.RemoteName : merged.LocalName;
+        if (!context.ViewRepo.Repo.BranchByName.ContainsKey(name))
+            return;
+        context.BranchCmds.ShowBranch(name, merged.TipId, MergedBranchTipRow);
+    }
+
+    // The row of the log view a merged branch's last commit is shown on, with the newer commits of
+    // main, e.g. its merge, in the rows above, and the branch below, above a dialog of most sizes
+    const int MergedBranchTipRow = 3;
 
     // A branch name can name either the local or the remote branch of a pair, and a command usually
     // needs both of them, so resolve the name to the pair it is part of (either one can be missing)

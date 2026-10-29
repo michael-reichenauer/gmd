@@ -52,7 +52,13 @@ class RepoMenu : IRepoMenu
     // The config dialog can turn the key-hint line on or off, which changes the layout
     void ShowConfig()
     {
-        if (configDlg.Show(repo.Repo.Path))
+        // Turning on showing new branches shows those that come from now on, not every one that
+        // came while it was off, which may be many in a busy repo: those are taken as seen
+        var change = configDlg.Show(repo.Repo.Path);
+        if (change.IsShowNewBranchesTurnedOn)
+            commands.View.MarkHiddenNewsSeen(repo.HiddenNews);
+
+        if (change.IsReadAgain)
         { // The integration branches changed, which the branch structure is inferred with
             commands.View.Refresh();
         }
@@ -102,13 +108,30 @@ class RepoMenu : IRepoMenu
             .Item("Refresh", "r", () => cmds.RefreshAndFetch())
             .Item("Worktrees ...", "w", () => commands.WorktreeCmds.ShowWorktrees())
             .Item("Delete Merged Branches ...", "", () => commands.CreateCmds.DeleteMergedBranches())
+            // The files git ignores, the uncommitted changes kept: Discard All Changes, in Undo, is those
+            .Item("Clean Working Folder ...", "", () => cmds.CleanWorkingFolder())
             .Item("Open Repository in Browser", "", () => cmds.OpenRepoInBrowser())
             .SubMenu("Open, Clone or Init Repo", "o", GetOpenRepoItems())
             .Item("Config ...", "", () => ShowConfig())
-            .Item("Help", "?, F1", () => cmds.ShowHelp())
-            .Item("About", "", () => cmds.ShowAbout())
+            .SubMenu("Help", "", GetHelpItems())
             .Item("Quit", "q, Esc", () => UI.Shutdown());
     }
+
+    // Where to learn about gmd and to tell about it: the help, what is new in this version, a bug
+    // report or a suggestion as a GitHub issue with the version and system filled in, the log a bug
+    // report wants, to read or to copy into it, and About
+    IEnumerable<MenuItem> GetHelpItems() =>
+        Menu
+            .Items.Item("Help", "?, F1", () => cmds.ShowHelp())
+            .Item("What's New", "", () => cmds.ShowWhatsNew())
+            .Separator()
+            .Item("Report a Bug", "", () => cmds.ReportBug())
+            .Item("Suggest an Improvement", "", () => cmds.SuggestImprovement())
+            .Separator()
+            .Item("View Log", "", () => cmds.ShowLog())
+            .Item("Copy Log", "", () => cmds.CopyLog())
+            .Separator()
+            .Item("About", "", () => cmds.ShowAbout());
 
     const string NoSearch = "Search with f and pick a commit first";
 

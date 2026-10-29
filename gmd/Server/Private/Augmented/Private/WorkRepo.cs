@@ -33,8 +33,8 @@ class WorkRepo
     // The names of the repo's own integration branches, beside the well known ones, see WellKnownBranches
     public IReadOnlyCollection<string> IntegrationNames { get; }
 
-    // The branches the reflog witnessed that decided a commit between branches, and that the metadata
-    // does not keep yet. Kept there after the repo is read, since the reflog expires.
+    // The branches the reflog witnessed that decided a commit between branches, or named a deleted
+    // branch whose tip it is, and that the metadata does not keep yet. Kept there after the repo is read, since the reflog expires.
     public List<WitnessedBranch> WitnessedToKeep { get; } = [];
 
     // The last change of each local branch, which Undo takes back, by branch name, see ReflogSteps

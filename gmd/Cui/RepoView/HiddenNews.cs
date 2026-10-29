@@ -47,6 +47,11 @@ static class HiddenNews
             .ToList();
     }
 
+    // The hidden branches that are new themselves, which RepoConfig.ShowNewBranches shows as they come.
+    // Not the hidden ones with new commits, which the user hid, and which showing would undo that.
+    public static IReadOnlyList<string> NewBranches(Repo repo, IReadOnlyDictionary<string, string> seenTips) =>
+        Of(repo, seenTips).Where(n => n.IsNew).Select(n => n.Branch.Name).ToList();
+
     // What is remembered as seen once this repo is shown: the tips of the shown branches and the
     // current one, and the first time every tip. A branch that is gone is forgotten, so that one made
     // again later with the same name is new rather than compared with a tip it never had.

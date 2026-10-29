@@ -28,12 +28,13 @@ public class MainViewTest
              Gmd                                                                                                                ? X
             ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-                                  ▸ o  Open a folder ...        browse to a repository on this computer
-                                    c  Clone a repository ...   copy one from GitHub or another server
-                                    i  Init a repository ...    start a new, empty one
-                                    ?  Help                     how to read the log, in the browser
-                                    a  About                    the version, and where to report a problem
-                                    q  Quit
+                                    ▸ o  Open a folder ...        browse to a repository on this computer
+                                      c  Clone a repository ...   copy one from GitHub or another server
+                                      i  Init a repository ...    start a new, empty one
+                                      ?  Help                     how to read the log, in the browser
+                                      b  Report a Bug             an issue on GitHub, in the browser
+                                      a  About                    the version, and where the log is
+                                      q  Quit
             """,
             gmd.WaitFor("Quit")
         );
@@ -73,10 +74,29 @@ public class MainViewTest
                                                          c  Clone a repository ...
                                                          i  Init a repository ...
                                                          ?  Help
+                                                         b  Report a Bug
                                                          a  About
                                                          q  Quit
             """,
             gmd.WaitFor("Quit")
+        );
+    }
+
+    // Where gmd is left when a repository fails to open, so a bug can be reported from it too. With no
+    // browser in the tests, the link of the filled in form is copied, which is how it is read back.
+    [TestMethod]
+    public void TestBReportsABugFromTheStartPage()
+    {
+        var home = Home();
+        using var gmd = TmuxSession.StartGmd(home, In(home, "Downloads"));
+        gmd.WaitFor("Quit");
+
+        gmd.Send("b");
+
+        StringAssert.Contains(gmd.WaitFor("is copied to the clipboard."), "the link to a bug report");
+        StringAssert.StartsWith(
+            gmd.Clipboard(),
+            "https://github.com/michael-reichenauer/gmd/issues/new?template=bug_report.yml&version="
         );
     }
 

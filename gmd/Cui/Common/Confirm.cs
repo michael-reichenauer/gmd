@@ -17,21 +17,21 @@ enum ResetChoice
     DiscardChanges,
 }
 
-// What the question before Discard All Changes was answered with: the uncommitted changes discarded,
-// or the files git ignores deleted too
-enum DiscardChoice
-{
-    Cancel,
-    Changes,
-    ChangesAndIgnored,
-}
-
 // What the question before a rewrite of commits, a drop or a rebase, was answered with
 enum RewriteChoice
 {
     Cancel,
     Rewrite,
     RewriteAndPush,
+}
+
+// What the question before Delete All in Delete Merged Branches was answered with: the branches
+// deleted here only, those on origin left as they are, or the ones on origin deleted there too
+enum MergedDeleteChoice
+{
+    Cancel,
+    HereOnly,
+    AlsoOnOrigin,
 }
 
 static class Confirm
@@ -44,63 +44,41 @@ static class Confirm
     internal static string Discarded(string what) =>
         $"Discarded {what}: Restore Discarded Changes in the Undo menu brings it back";
 
-    const string UndoAllQuestion = """
-        Discard all uncommitted changes?
-
-        Every changed file is reset to the last commit,
-        and every new file is deleted.
-        Restore Discarded Changes, in the Undo menu,
-        brings them back.
-        """;
-
-    internal static bool UndoAllUncommitted() => Ask("Discard All Changes", UndoAllQuestion);
-
-    // Discard All Changes in the Undo menu, which offers to delete the files git ignores too, when
-    // there are any: the folder then as a fresh clone of the last commit has it, so that no leftover
-    // file can make a build or a test pass that would fail elsewhere. Those are also files a user
-    // may mean to keep, e.g. a .env file of secrets, and the ones least in view, and nothing brings
-    // them back, so the question lists them rather than only naming the kinds. With no uncommitted
-    // changes, deleting them is all there is to ask about.
-    internal static DiscardChoice DiscardAll(bool isChanges, IReadOnlyList<string> ignored)
-    {
-        if (ignored.Count == 0)
-            return UndoAllUncommitted() ? DiscardChoice.Changes : DiscardChoice.Cancel;
-
-        var listed = ignored.Take(MaxListedPaths).Select(p => $"  {p}");
-        string[] more = ignored.Count > MaxListedPaths ? [$"  ... and {ignored.Count - MaxListedPaths} more"] : [];
-        var paths = string.Join("\n", listed.Concat(more));
-
-        if (!isChanges)
-            return Ask(
-                "Delete Ignored Files",
-                "There are no uncommitted changes. Delete the files git ignores,\n"
-                    + "as a fresh clone of the last commit has the folder?\n\n"
-                    + paths
-                    + "\n\nThey may be meant to stay: secrets such as .env files, local\n"
-                    + "settings, dependencies, build output. Nothing brings them back."
-            )
-                ? DiscardChoice.ChangesAndIgnored
-                : DiscardChoice.Cancel;
-
-        var choice = UI.InfoMessage(
+    // Discard All Changes, with every changed file listed, each with its letter (ChangedFileText), so
+    // that what is discarded can be checked: the files git ignores are left alone, and deleted only by
+    // Clean Working Folder, a command of its own (DeleteIgnored). Cancel is the default.
+    internal static bool DiscardAll(IReadOnlyList<Text> files) =>
+        ConfirmListDlg.Show(
             "Discard All Changes",
-            UndoAllQuestion
-                + "\n\nThe files git ignores are kept: secrets such as\n"
-                + ".env files, local settings, dependencies, build\n"
-                + "output. Discard and Delete Ignored deletes them\n"
-                + "too, as a fresh clone has the folder, and nothing\n"
-                + "brings them back:\n\n"
-                + paths,
-            2,
-            ["Discard and Delete _Ignored", "_Discard", "Cancel"]
-        );
-        return choice switch
-        {
-            0 => DiscardChoice.ChangesAndIgnored,
-            1 => DiscardChoice.Changes,
-            _ => DiscardChoice.Cancel,
-        };
-    }
+            $"Discard the uncommitted changes of {Count(files.Count, "file")}?",
+            files,
+            "Changed files are reset to the last commit, and new files deleted.\n"
+                + "Restore Discarded Changes, in the Undo menu, brings them back.",
+            1,
+            "_Discard",
+            "Cancel"
+        ) == 0;
+
+    // Clean Working Folder, in the repo menu: the files git ignores deleted, every one listed, since
+    // they are also files a user may mean to keep, e.g. a .env file of secrets, the ones least in view,
+    // and nothing brings them back. The uncommitted changes stay, so that this question never has to be
+    // read for them too; with none, the folder is then as a fresh clone of the last commit has it, and
+    // no leftover file can make a build or a test pass that would fail elsewhere. Cancel is the default.
+    internal static bool DeleteIgnored(IReadOnlyList<string> ignored) =>
+        ConfirmListDlg.Show(
+            "Clean Working Folder",
+            $"Delete the {Count(ignored.Count, "file or folder", "files and folders")} git ignores?\n"
+                + "The uncommitted changes are kept.",
+            ignored.Select(p => (Text)Text.White(p)).ToList(),
+            "They may be meant to stay: secrets such as .env files, local settings,\n"
+                + "dependencies, build output. Nothing brings them back.",
+            1,
+            "_Delete",
+            "Cancel"
+        ) == 0;
+
+    static string Count(int count, string one, string? many = null) =>
+        count == 1 ? $"1 {one}" : $"{count} {many ?? one + "s"}";
 
     internal static bool UndoFile(string path, bool isNew) =>
         isNew
@@ -260,8 +238,29 @@ static class Confirm
         };
     }
 
-    // Deleting every merged branch listed, which Restore Deleted Branch brings back one by one
-    internal static bool DeleteMergedBranches(string question) => Ask("Delete Merged Branches", question);
+    // Deleting every merged branch listed, which Restore Deleted Branch brings back one by one, with
+    // No the default. Those on origin are deleted there only by a button of its own, which is never
+    // the default, since deleting a branch on origin deletes it for everyone: Here Only leaves them.
+    internal static MergedDeleteChoice DeleteMergedBranches(string question, bool isHere, bool isOnOrigin)
+    {
+        if (!isOnOrigin)
+            return Ask("Delete Merged Branches", question) ? MergedDeleteChoice.HereOnly : MergedDeleteChoice.Cancel;
+        if (!isHere)
+            return UI.InfoMessage("Delete Merged Branches", question, 1, ["Delete on Origin", "Cancel"]) == 0
+                ? MergedDeleteChoice.AlsoOnOrigin
+                : MergedDeleteChoice.Cancel;
+
+        return UI.InfoMessage("Delete Merged Branches", question, 2, ["Here Only", "Also on Origin", "Cancel"]) switch
+        {
+            0 => MergedDeleteChoice.HereOnly,
+            1 => MergedDeleteChoice.AlsoOnOrigin,
+            _ => MergedDeleteChoice.Cancel,
+        };
+    }
+
+    // Deleting a merged branch on origin, for everyone, with Cancel the default
+    internal static bool DeleteMergedOnOrigin(string question) =>
+        UI.InfoMessage("Delete on Origin", question, 1, ["Delete on Origin", "Cancel"]) == 0;
 
     // Putting a remote branch back as it was before a force push, which is one in turn, for everyone
     internal static bool RestoreOrigin(string remoteName, string question) => Ask($"Restore {remoteName}", question);

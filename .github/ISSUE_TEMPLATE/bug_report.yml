@@ -26,7 +26,9 @@ body:
     id: version
     attributes:
       label: gmd version
-      description: From About in the repo menu (Shift-M), or from `gmd --version`.
+      description: |
+        Filled in by Help › Report a Bug in the repo menu (Shift-M). Otherwise from About there, or
+        from `gmd --version`.
       placeholder: 0.95.1438.449
     validations:
       required: true
@@ -34,20 +36,22 @@ body:
     id: system
     attributes:
       label: System and terminal
-      description: The operating system, the terminal and whether over ssh or in a container.
+      description: |
+        Filled in by Help › Report a Bug; remove what you would rather not share. Otherwise the
+        operating system, the terminal and whether over ssh or in a container.
       placeholder: Ubuntu 24.04, Windows Terminal, over ssh
   - type: input
     id: git
     attributes:
       label: git version
-      description: From `git --version`.
+      description: Filled in by Help › Report a Bug. Otherwise from `git --version`.
   - type: textarea
     id: log
     attributes:
       label: The log
       description: |
-        `~/gmd.log`, which About shows the path of. gmd begins it anew on every start, so copy it
-        before starting gmd again. It holds the paths of your repositories, the names of branches
+        `~/gmd.log`, which Help › Copy Log in the repo menu copies, and Help › View Log shows. A
+        problem of an earlier run may be in `~/gmd.1.log`, where a large log is moved. It holds the paths of your repositories, the names of branches
         and the git commands gmd ran; leave out what you would rather not share.
       render: text
   - type: textarea

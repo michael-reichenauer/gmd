@@ -169,7 +169,10 @@ hidden until it next becomes current.
   someone else or made here by another tool, e.g. in a worktree of its own.
   A click lists those branches, and **New** at the top of the Show Branch
   menu does too. Listed is seen: the ✦ goes, and the branches stay hidden
-  unless you pick one to show it.
+  unless you pick one to show it, or **Show All New** to show them all.
+  In a small team, where every branch is worth seeing, **Show new branches
+  automatically** in **Config ...** in the repo menu shows each new branch
+  as it comes, and the ✦ then counts only new commits on branches you hid.
 - The `<=` and `=>` items in a branch menu move the branch to the left or
   the right of a branch it overlaps in the graph.
 
@@ -221,8 +224,9 @@ repository.
   its folder as it is. `gmd -m` shows the start page inside a repository
   too.
 - **Clean up after pull requests:** **Delete Merged Branches ...** in the repo
-  menu (`Shift-M`) lists the local branches merged into main, by a squash or
-  a rebase on GitHub too, marked `✓` in the log, and deletes them.
+  menu (`Shift-M`) lists the branches merged into main, by a squash or a
+  rebase on GitHub too, marked `✓` in the log, and deletes them, those
+  origin still has too, after asking.
 - **Committed on the wrong branch,** e.g. on main: `m` on the oldest commit
   of them, then **Move to New Branch ...**, which moves it and the newer
   ones while they are not pushed yet.
@@ -527,15 +531,10 @@ throw changes away ask first, and what they throw away gmd keeps, for
   changes, and **Discard Changes**, `git reset --keep`, takes the files back
   to the commit too, which git refuses rather than overwrite an uncommitted
   change. Undo takes it back, and Recover Lost Commits finds the commits.
-- **Discard All Changes ...**: `git reset --hard` and `git clean -fd`. When
-  there are files git ignores, the question lists them and offers
-  **Discard and Delete Ignored** too, `git clean -fxd`, i.e. the folder as a
-  fresh clone of the last commit has it, to check that nothing left over
-  makes a build or a test pass. Those go also when kept on purpose, such as
-  a .env file of secrets, and Restore Discarded Changes brings back the
-  changes but not them. With no uncommitted changes, it asks to delete just
-  the ignored files.
-
+- **Discard All Changes ...**: `git reset --hard` and `git clean -fd`,
+  after a question that lists every changed file, with Cancel the default.
+  The files git ignores are left alone: **Clean Working Folder ...** in the
+  repo menu deletes those.
 
 ## More Commands
 
@@ -652,15 +651,32 @@ throw changes away ask first, and what they throw away gmd keeps, for
   were on goes back to the commit before them, which **Undo** in its
   branch menu takes back.
 - **Delete Merged Branches ...** (repo menu, `Shift-M`):
-  Lists the local branches with no branch on origin, deleted there or never
-  pushed, whose work is in main or an integration branch already: merged
-  as git counts it, or squash or rebase merged on origin (marked `✓`, see
-  [Remote and Local Branches](#remote-and-local-branches)). `Enter` or `d`
+  Lists the branches whose work is in main or an integration branch
+  already, with when and by whom their last commit was made, their names in
+  their colors in the log. *On* says where each one is: `here` for a local
+  branch with no branch on origin, deleted there or never pushed, merged as
+  git counts it, or squash or rebase merged on origin (marked `✓`, see
+  [Remote and Local Branches](#remote-and-local-branches)); `origin` for a
+  branch only origin has, and `both` for one with its local branch, merged
+  as git counts it into origin's main or integration branch. `Enter` or `d`
   deletes the one selected, and `a` all of them, after asking, as git's
-  `branch -D` would, which a squash merge needs. A branch checked out, here
-  or in another worktree, is listed but left. Each one deleted is kept for
-  **Restore Deleted Branch**. A branch made with no commits of its own yet
+  `branch -D` would, which a squash merge needs. `s` shows the one selected
+  in the log behind the dialog, its last commit near the top, to see what
+  it holds before deleting it. A branch on origin is
+  deleted there only after a question of its own, with Cancel the default,
+  since that deletes it for everyone; deleting all of them asks whether to
+  delete those on origin too (**Also on Origin**) or leave them (**Here
+  Only**). A branch checked out, here or in another worktree, is listed but
+  left. Each one deleted is kept for **Restore Deleted Branch**, which pushes
+  one deleted on origin back. A branch made with no commits of its own yet
   is not listed, though git counts it merged.
+- **Clean Working Folder ...** (repo menu):
+  Deletes the files git ignores, `git clean -fXd`, e.g. build output and
+  dependencies, after a question that lists them all, with Cancel the
+  default. The uncommitted changes are kept, so with none the folder is then
+  as a fresh clone of the last commit has it, to check that nothing left
+  over makes a build or a test pass. Files kept on purpose go too, such as a
+  .env file of secrets, and nothing brings them back.
 - **Rename Branch ...**:
   Renames the branch with `git branch -m`, which also works on the current
   branch, without checking anything out. A published branch is renamed on
@@ -1051,7 +1067,10 @@ keep a column of its own:
   a file of gmd's in the `.git` folder, `gmd-metadata.json`, for when the
   reflog has expired.
 - Merge messages name the branches that were merged, e.g. "Merge branch
-  'dev' into main", which brings back branches deleted long ago.
+  'dev' into main", which brings back branches deleted long ago. A branch
+  merged with a message of its own and deleted is named by the reflog
+  instead, while it still has the branch's commits or its merge, and the
+  name is kept as well.
 - Otherwise, where branches meet, the one the others were started from
   goes on: main, master or trunk, then an integration branch such as
   develop or dev, then a release, hotfix or support branch, then a branch
@@ -1078,12 +1097,22 @@ removes it.
 ## Problems and Feedback
 
 Gmd writes what it does to `gmd.log` in your home folder, which is the
-first place to look when something goes wrong. Report a problem, or
-suggest something, at
-[github.com/michael-reichenauer/gmd/issues](https://github.com/michael-reichenauer/gmd/issues),
-with the version, from **About** in the repo menu or `gmd --version`. About
-shows where the log is, too. The log is begun anew on every start of gmd,
-so copy it before starting gmd again.
+first place to look when something goes wrong. **Help** in the repo menu
+(`Shift-M`) has **Report a Bug** and **Suggest an Improvement**, which open
+an issue on
+[github.com/michael-reichenauer/gmd/issues](https://github.com/michael-reichenauer/gmd/issues)
+with the version, the system and terminal, and the git version filled in;
+look them over and remove what you would rather not share. The start page
+has Report a Bug too (`b`), for when a repository does not open. Report a
+Bug says where the log is, to add it to the report, and so does **About**.
+**View Log** in the same menu shows the log, the run before the current one
+too, at its end, where `c` copies it, or the lines selected (`Shift` and the
+arrows), and `r` reads it again; **Copy Log** copies it straight away. A
+large log is copied from its end, as much as a GitHub issue takes. The log
+is kept from one start of gmd to the next, each start beginning with a
+line of `#` that says when, and moved to `gmd.1.log` and then `gmd.2.log`
+once it grows past 1 MB. **What's New** in the same menu shows the change
+log of the version you run.
 
 When git needs a password, a passphrase or whether to trust a host, gmd
 asks in a dialog, for a push, a pull or a fetch (`r`) you asked for. The

@@ -14,6 +14,14 @@ static class Project
     // What changed in every release, newest first, which CI writes from main's history at a release
     public const string ChangeLogUrl = Url + "/blob/main/CHANGELOG.md";
 
+    // The change log as it was at the commit gmd was built from, which for a preview starts with what
+    // is new on dev since the last release (its 'Unreleased' section), and for a release with its own
+    // notes: what is new in the version that runs, rather than in the latest. On main for a build
+    // that is not CI's, which knows no commit.
+    public static string ChangeLogUrlOfBuild() => ChangeLogUrlOf(Build.CommitSha());
+
+    internal static string ChangeLogUrlOf(string sha) => $"{Url}/blob/{(sha != "" ? sha : "main")}/CHANGELOG.md";
+
     // The page of a release, with its notes: for a preview, what is new on dev since the last release,
     // which the change log does not have until the next release
     public static string ReleaseUrl(string version) => $"{Url}/releases/tag/v{version}";

@@ -33,8 +33,13 @@ sealed class TmuxSession : IDisposable
     const int PollMs = 100;
     const int DefaultTimeoutMs = 30000;
 
-    // How long a key sent to a menu may go without moving its cursor before it is sent again
+    // How long a key sent to a menu may go without moving its cursor before it is sent again, for a
+    // gmd that does not say which keys it took (ProbeState)
     const int ResendKeyMs = 5000;
+
+    // How long gmd may take to take the keys sent, and how often the keys it dropped are sent again
+    const int KeysTakenMs = 10000;
+    const int MaxResends = 3;
 
     // Only the session's own private server is ever talked to, so a leaked kill cannot reach the
     // developer's tmux
@@ -194,7 +199,7 @@ sealed class TmuxSession : IDisposable
             var screen = CaptureColors();
             if (screen != before && screen == previous)
                 return isResent;
-            if (screen == before && sent.ElapsedMilliseconds > ResendKeyMs)
+            if (screen == before && sent.ElapsedMilliseconds > ResendKeyMs && Probe() == null)
             {
                 Send("Down");
                 sent.Restart();
@@ -213,7 +218,7 @@ sealed class TmuxSession : IDisposable
         var clock = Stopwatch.StartNew();
         while (clock.ElapsedMilliseconds < timeoutMs)
         {
-            if (isDone())
+            if (Probe() is not { IsIdle: false } && isDone())
                 return;
 
             Thread.Sleep(PollMs);
@@ -344,8 +349,92 @@ sealed class TmuxSession : IDisposable
     }
 
     // Sends keys, e.g. "q", "Down", "Escape", "S-Right". The screen must have settled first, see
-    // StableCount.
-    public void Send(params string[] keys) => Tmux(["send-keys", "-t", "gmd", .. keys]);
+    // StableCount. Waits for gmd to take them, and sends again those it dropped, see Deliver.
+    public void Send(params string[] keys) =>
+        Deliver(keys.Sum(KeyCount), keys.Length == 1, skip => Tmux(["send-keys", "-t", "gmd", .. keys[skip..]]));
+
+    // How many keys an argument of send-keys is: one for a key's name ("Enter", "S-Right", "F12",
+    // "q"), and a key per character for anything else, which tmux types as it is ("file:dev.txt")
+    static int KeyCount(string key) => key.Length == 1 || IsKeyName(key) ? 1 : key.Length;
+
+    static bool IsKeyName(string key) =>
+        System.Text.RegularExpressions.Regex.IsMatch(
+            key,
+            "^([CMS]-)*(.|Enter|Escape|Tab|BTab|BSpace|Space|Up|Down|Left|Right|Home|End|PageUp|PageDown|PPage|NPage|IC|DC|F[0-9]{1,2})$"
+        );
+
+    // Sends keys, a count of them in all, until gmd has taken them all. gmd drops the keys typed while
+    // git works, and says how many it dropped (ProbeState): a key it dropped it never acted on, so
+    // sending it again cannot act twice. Without that a key sent just as a refresh started was lost,
+    // and the test waited out its 30 seconds on a screen that never changed.
+    //
+    // Sent once gmd is idle, so the keys dropped can only be the last ones, from when git started on;
+    // with git already working as they were sent, the first ones would be. 'send' sends the keys from
+    // 'skip' on, counted as keys where 'isSkipByKey', else as the arguments they were given as, and
+    // those are then sent again only when gmd dropped them all.
+    void Deliver(int count, bool isSkipByKey, Action<int> send)
+    {
+        if (Probe() is { IsIdle: false })
+            WaitForIdle();
+
+        var left = count;
+        for (var resends = 0; ; resends++)
+        {
+            var before = Probe();
+            send(count - left);
+            if (before == null || WaitForKeysTaken(before, left) is not ProbeState after)
+                return;
+
+            var dropped = Math.Min(after.Dropped - before.Dropped, left);
+            if (dropped <= 0 || resends == MaxResends)
+                return;
+            if (!isSkipByKey && dropped < count)
+            {
+                Log.Warn($"gmd dropped {dropped} of {count} keys, given as more than one argument, not sent again");
+                return;
+            }
+
+            Log.Info($"gmd dropped {dropped} of {left} keys, sent again once it is idle");
+            WaitForIdle();
+            left = isSkipByKey ? dropped : count;
+        }
+    }
+
+    // The state once gmd has had the keys, or null when it did not have them all in time, e.g. as it
+    // quits, or for a key that does not reach it as a key
+    ProbeState? WaitForKeysTaken(ProbeState before, int count)
+    {
+        var clock = Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < KeysTakenMs && IsRunning)
+        {
+            if (Probe() is ProbeState state && state.Keys - before.Keys >= count)
+                return state;
+            Thread.Sleep(PollMs / 4);
+        }
+        return null;
+    }
+
+    void WaitForIdle()
+    {
+        var clock = Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < DefaultTimeoutMs && IsRunning && Probe() is { IsIdle: false })
+            Thread.Sleep(PollMs);
+    }
+
+    // What gmd says of itself as the terminal's title, when it is started by the tests (GMD_E2E, see
+    // gmd's E2eProbe): 'gmd-e2e idle 12 1', idle or busy, the keys it had and how many it dropped. Null
+    // until it has said, or from a gmd that does not.
+    ProbeState? Probe() => ProbeState.Parse(Display("#{pane_title}"));
+
+    sealed record ProbeState(bool IsIdle, int Keys, int Dropped)
+    {
+        public static ProbeState? Parse(string title) =>
+            title.Split(' ') is ["gmd-e2e", var state, var keys, var dropped]
+            && int.TryParse(keys, out var k)
+            && int.TryParse(dropped, out var d)
+                ? new ProbeState(state == "idle", k, d)
+                : null;
+    }
 
     // Clicks a cell, given 0-based as the rows and columns of a capture are, by typing the SGR mouse
     // sequences a terminal sends for a press and a release. gmd turns mouse reporting on, and tmux
@@ -397,8 +486,15 @@ sealed class TmuxSession : IDisposable
     public void Paste(string text) => SendText($"\u001b[200~{text.Replace("\n", "\r")}\u001b[201~");
 
     // Sends text literally, for typing into a dialog, so that e.g. "Down" is five characters
-    // rather than a cursor key
-    public void SendText(string text) => Tmux("send-keys", "-t", "gmd", "-l", text);
+    // rather than a cursor key. Typed text is a key per character, which gmd may drop as it does
+    // keys, see Deliver; an escape sequence, a click's or a paste's, is not.
+    public void SendText(string text)
+    {
+        if (text.Contains('\u001b') || text.Any(char.IsSurrogate))
+            Tmux("send-keys", "-t", "gmd", "-l", text);
+        else
+            Deliver(text.Length, isSkipByKey: true, skip => Tmux("send-keys", "-t", "gmd", "-l", text[skip..]));
+    }
 
     // Resizes the terminal, as a user resizing the window does. Terminal.Gui 1.x eats the key after a
     // resize, whatever it is, so an F12, which nothing in gmd is bound to, goes first for it to eat.
@@ -546,6 +642,9 @@ sealed class TmuxSession : IDisposable
             // than by gmd itself (Cmd.NeverAskOnTheTerminal). Empty reads as unset to both.
             "SSH_ASKPASS=",
             "GIT_ASKPASS=",
+            // gmd says as the terminal's title whether it is idle and which keys it took, which the
+            // waits and Send read (ProbeState)
+            "GMD_E2E=1",
         ];
 
         // A commit gmd makes itself would otherwise be dated 'now', so its sid and its row in the
@@ -578,12 +677,20 @@ sealed class TmuxSession : IDisposable
         var screen = "";
         var previous = "";
         var stable = 0;
+        ProbeState? previousState = null;
 
         while (clock.ElapsedMilliseconds < timeoutMs)
         {
+            // The title after the capture: gmd writes it after a frame, so an idle title read after a
+            // capture says the frame of its change is whole. The title is written only when it
+            // changes, so the same one after the capture before does not rule out work in between,
+            // idle to busy and back; the screen unchanged for StableCount polls does.
             screen = Capture();
-            stable = screen == previous ? stable + 1 : 0;
+            var state = Probe();
+            var isIdle = state == null || (state.IsIdle && state == previousState);
+            stable = screen == previous && isIdle ? stable + 1 : 0;
             previous = screen;
+            previousState = state;
 
             if (isDone(screen) && stable >= StableCount)
                 return screen;
@@ -605,6 +712,7 @@ sealed class TmuxSession : IDisposable
         var rule = new string('-', width);
         return new StringBuilder()
             .AppendLine($"Pane: dead={Display("#{pane_dead}")} status={Display("#{pane_dead_status}")}")
+            .AppendLine($"Title: {Display("#{pane_title}")}")
             .AppendLine($"Screen ({width}x{height}):")
             .AppendLine(rule)
             .AppendLine(screen)

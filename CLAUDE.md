@@ -20,6 +20,7 @@ scripts/run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
 scripts/test [args]    # dotnet test gmd.sln "$@": gmdTest and gmdE2eTest (~1 min with the build)
                        #   --filter "TestCategory!=Integration"  fast tests only (~1100 tests, ~1 s)
                        #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~55 s)
+                       #   --stress   the end-to-end tier on two CPUs, loaded as CI is, to find flaky tests
 scripts/build          # full release: test + package audit + publish all platforms into artifacts/
 scripts/build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 scripts/log            # tail the runtime log with lnav (~/gmd.log)
@@ -62,7 +63,7 @@ at this working tree; use a throwaway repo, exactly as `TempRepo` does.
 
 **Redirect `HOME` whenever you start gmd yourself.** A gmd run does not merely read the developer's
 home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `RecentFolders`) and
-**truncates `~/gmd.log`**. Neither path can be redirected — `ConfigService` and `LogFile` both
+**appends to `~/gmd.log`**, rotating it to `gmd.1.log` and `gmd.2.log` past 1 MB. Neither path can be redirected — `ConfigService` and `LogFile` both
 anchor on `SpecialFolder.UserProfile` with no override — so `HOME` is the only lever, and on Unix
 it also isolates `~/.gitconfig` from the git commands gmd runs. Seed `{"CheckUpdates": false}` into
 that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` looks for
@@ -173,7 +174,9 @@ Key types and flow:
     themselves are `CommitBranchRules`, and `BranchFactory` / `BranchAmbiguity` are what they
     call when a branch has to be invented or a commit given up on as ambiguous. The reflog is
     evidence too: `ReflogWitness` turns it into where commits were made and branches started, which
-    decides right after the main branch rule and is kept in the metadata (`MetaData.SetWitnessed`).
+    decides right after the main branch rule and is kept in the metadata (`MetaData.SetWitnessed`),
+    and into the names of the deleted branches no merge subject names, from HEAD's checkouts and the
+    merges' own entries (`CommitBranchRules.DeletedBranchName`), kept there too.
     `CommitGraphService` also swaps the parents of pull merges and foxtrot merges; the server
     `Commit.IsParentsSwapped` says so, for the commands that need git's order.
   - `BranchHierarchyService` — the last three stages, which relate the branches to each other.
@@ -216,7 +219,7 @@ Key types and flow:
   `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
   details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
   `Worktrees/` and `Login/`, with `Common/` for the widgets and services they share and `App/` for
-  the parts of the shell the views use (`ApplicationBar`, About, Config, Update, the help page).
+  the parts of the shell the views use (`ApplicationBar`, About, Config, Update, the help page, the log view).
   `MainView`, which puts the views together, is alone in `Cui/` itself. The folders depend on each
   other one way only, from `RepoView/` down to `Common/`, with no cycle: keep it so, since a type in
   `gmd.Cui` is in scope in every folder below it without a using, so nothing else goes there. A
@@ -755,7 +758,7 @@ filter above excludes them. They run **in parallel**, eight at a time (`[assembl
 a test is nearly all waiting for a screen to settle, not CPU. It has since grown to some 160 tests
 and about a minute, so a run is bound by the total spread over eight workers again rather than by
 its longest test, the thirty second worktree re-read. `-- MSTest.Parallelize.Workers=1` after the
-other arguments runs them one at a time again. Eight things they do that matter, and that a new
+other arguments runs them one at a time again. Nine things they do that matter, and that a new
 test must keep doing:
 
 - **A throwaway `$HOME` per session**, seeded with `CheckUpdates: false` — see the `HOME` paragraph
@@ -773,10 +776,18 @@ test must keep doing:
   culture, and the UI is drawn with `● ┣ ┅ Ϙ`.
 - **A private tmux server** (`-L <socket> -f <conf>`, socket inside the temp home) so the
   developer's `~/.tmux.conf` and running server cannot change a capture or be disturbed by one.
+- **gmd says when it is idle (`GMD_E2E=1`).** Started by the tests, gmd writes its state as the
+  terminal's title, `gmd-e2e idle 12 1` (`Cui/Common/E2eProbe.cs`): idle or busy (git working with
+  keys dropped, posted work, a view to draw, the background reads marked `UI.Busy()`), the keys it had
+  and how many it dropped. `TmuxSession` reads it as `#{pane_title}`: a wait takes a screen only
+  while gmd is idle, and `Send` waits for gmd to take its keys and sends again those it dropped, which
+  it never acted on. The title is written after a frame on the same output, so the frame of a change of
+  title is whole by the time tmux shows it. Mark new background work that changes the screen with `UI.Busy()`.
 - **Polling, never sleeping.** `WaitFor` waits for the text *and* for three identical captures in a
-  row. The stability half is not optional: gmd **drops** keystrokes while a git command is running
-  (`Progress.Show` → `UI.StopInput` → `RootKeyEvent = _ => true`), so a key sent into a moving
-  screen is silently lost, not queued. And before asserting what a key changed, wait for the change
+  row, while gmd says it is idle. The stability half is not optional: gmd **drops** keystrokes while
+  a git command is running (`Progress.Show` → `UI.StopInput` → `KeyGate`), before the marquee shows
+  that it does, so a key sent into a moving screen is lost, not queued; `Send` sends again what gmd
+  says it dropped, but a key meant for one screen can still land on the next. And before asserting what a key changed, wait for the change
   itself (`WaitFor` its text, `WaitUntil` for a color), not for a stable screen: one unchanged for
   three polls is also the screen from before a key that a loaded machine, as CI is, has not acted on
   yet. Three tests flaked in CI that way.
@@ -855,9 +866,9 @@ Other things to know:
   `internal` types are visible to tests, so services can be constructed directly
   (`new BranchNameService()`) — no DI.
 - **The test process runs under a throwaway `$HOME`**, set by `gmdTest/TestSetup.cs`
-  (`[AssemblyInitialize]`) before anything can log — otherwise `scripts/test` truncates the
-  developer's `~/gmd.log`, since any test running a git command goes through `Cmd`, which logs, and
-  `LogFile` truncates on first use. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
+  (`[AssemblyInitialize]`) before anything can log — otherwise `scripts/test` buries the
+  developer's `~/gmd.log` under its lines and rotates it away, since any test running a git command
+  goes through `Cmd`, which logs. `~/gmd.log` during a run is at `/tmp/gmdTest-home-*/gmd.log`.
   `gmdE2eTest/TestSetup.cs` does the same for its own process, since each test assembly runs its own
   `[AssemblyInitialize]`.
 - The whole inference chain is constructible by hand and touches no git, disk or terminal:
@@ -919,6 +930,10 @@ message.
   call, because a `rebase --continue` opening the user's editor would hang gmd behind the terminal
   it owns. It is done there and not per command line because `GIT_EDITOR` beats
   `-c core.editor=…`, so a flag is silently ineffective for any user who has that set.
+- **No git process gmd starts takes a lock it can do without.** `Cmd.NeverTakeOptionalLocks` sets
+  `GIT_OPTIONAL_LOCKS=0`: the status gmd reads in the background, after the file monitor sees a
+  change, otherwise rewrote the index under `index.lock`, and a `rebase --continue` the user ran at
+  that moment failed on the lock.
 - **No git process gmd starts can ask on the terminal either.** `Cmd.NeverAskOnTheTerminal` sets
   `GIT_TERMINAL_PROMPT=0` and `SSH_ASKPASS_REQUIRE=force` with gmd itself as `SSH_ASKPASS`, and
   stdin is a pipe closed at once: a passphrase prompt drawn over the UI took the keys typed for gmd.

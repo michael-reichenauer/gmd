@@ -283,7 +283,7 @@ internal class Git : IGit
     public Task<Result> UndoUncommittedFileAsync(string path, string wd) =>
         commitService.UndoUncommittedFileAsync(path, wd);
 
-    public Task<Result> CleanWorkingFolderAsync(string wd) => commitService.CleanWorkingFolderAsync(wd);
+    public Task<Result> DeleteIgnoredFilesAsync(string wd) => commitService.DeleteIgnoredFilesAsync(wd);
 
     public Task<Result<IReadOnlyList<string>>> GetIgnoredFilesAsync(string wd) =>
         commitService.GetIgnoredFilesAsync(wd);

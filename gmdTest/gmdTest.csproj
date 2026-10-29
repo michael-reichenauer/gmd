@@ -32,4 +32,9 @@
   <ItemGroup>
     <None Include="..\gmd\doc\help.md" Link="help.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!-- The issue forms, whose field ids the links of Report a Bug and Suggest an Improvement fill -->
+  <ItemGroup>
+    <None Include="..\.github\ISSUE_TEMPLATE\*.yml" LinkBase="ISSUE_TEMPLATE" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

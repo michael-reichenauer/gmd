@@ -2,7 +2,7 @@ using gmdE2eTest.Fixtures;
 
 namespace gmdE2eTest.Cui.App;
 
-// The About dialog, from the repo menu
+// The About dialog, from the Help menu in the repo menu
 //
 // What every end-to-end test must keep doing is at the top of gmdE2eTest/TestSetup.cs.
 [TestClass]
@@ -16,13 +16,8 @@ public class AboutDlgTest
         using var repo = await E2eRepo.CreateAsync();
         using var gmd = TmuxSession.StartGmd(repo);
         gmd.WaitFor("Initial");
-        gmd.Send("M");
-        gmd.WaitFor("Repo Menu");
-        gmd.Send("End");
-        gmd.WaitForStable();
-        gmd.Send("Up");
-        gmd.WaitForStable();
-
+        HelpMenuTest.OpenHelpMenu(gmd);
+        gmd.SelectMenuItem("About");
         gmd.Send("Enter");
 
         var screen = gmd.WaitFor("Version:");

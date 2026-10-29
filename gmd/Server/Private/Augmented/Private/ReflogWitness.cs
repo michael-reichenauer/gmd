@@ -3,7 +3,8 @@ using gmd.Git;
 namespace gmd.Server.Private.Augmented.Private;
 
 // What the reflog witnessed about the branches of commits, which git records nowhere else: the
-// branch a commit was made on, and the branch a branch was started from. Only what the reflog says
+// branch a commit was made on, the branch a branch was started from, and the branch a merge merged
+// in, which names a deleted branch its merge subject does not (see CommitBranchRules). Only what the reflog says
 // for certain, as far back as it goes: it is local and expires, so most commits have no fact at all.
 //
 // A branch's own reflog says it for the commits made on it ('commit: ...', 'merge x: Merge made by
@@ -17,6 +18,8 @@ static class ReflogWitness
     const string BranchRefPrefix = "refs/heads/";
     const string CreatedFromPrefix = "branch: Created from ";
     const string CheckoutPrefix = "checkout: moving from ";
+    const string MergePrefix = "merge ";
+    const string RenamePrefix = "Branch: renamed ";
 
     // The branch each commit is witnessed on, by commit id: the branch it was made on, and failing
     // that the branch whose commit it was when another branch was started from it, i.e. where
@@ -53,6 +56,12 @@ static class ReflogWitness
                 else if (e.Message.StartsWith("rebase") && e.Message.Contains("returning to " + BranchRefPrefix))
                 {
                     current = e.Message[(e.Message.IndexOf("returning to ") + 13 + BranchRefPrefix.Length)..];
+                }
+                else if (e.Message.StartsWith(RenamePrefix) && e.Message.Contains(" to "))
+                { // 'git branch -m', of the branch checked out or another
+                    var to = e.Message.LastIndexOf(" to ");
+                    if (BranchOrNull(e.Message[RenamePrefix.Length..to]) == current)
+                        current = BranchOrNull(e.Message[(to + 4)..]);
                 }
                 else if (e.Message.StartsWith("rebase"))
                 {
@@ -92,6 +101,26 @@ static class ReflogWitness
             sources.TryAdd(c.Branch, c.Source);
         }
         return sources;
+    }
+
+    // The branch each merge commit merged in, by the merge's id, from the entry 'git merge feature'
+    // writes ('merge feature: Merge made by the 'ort' strategy.'), which names the branch as it was
+    // given to git, whatever the subject says. Not a merge of several ('merge a b: ...'), nor of a
+    // commit id, and not a merge with conflicts, whose entry is the commit's ('commit (merge): ...').
+    public static IReadOnlyDictionary<string, string> MergedBranchByMerge(IReadOnlyList<ReflogEntry> entries)
+    {
+        Dictionary<string, string> merged = [];
+        foreach (var e in entries.Where(e => e.Message.StartsWith(MergePrefix)))
+        {
+            var end = e.Message.IndexOf(": Merge made by");
+            if (end < MergePrefix.Length)
+                continue;
+
+            var name = BranchOrNull(e.Message[MergePrefix.Length..end]);
+            if (name != null)
+                merged.TryAdd(e.Id, name);
+        }
+        return merged;
     }
 
     // A branch started at a commit from another branch, by name
@@ -183,8 +212,11 @@ static class ReflogWitness
         foreach (var prefix in new[] { BranchRefPrefix, "refs/remotes/origin/", "origin/" })
         {
             if (name.StartsWith(prefix))
-                return name[prefix.Length..];
+            {
+                name = name[prefix.Length..];
+                break;
+            }
         }
-        return name;
+        return name == "HEAD" || name.EndsWith("_HEAD") ? null : name; // e.g. 'origin/HEAD', 'FETCH_HEAD'
     }
 }

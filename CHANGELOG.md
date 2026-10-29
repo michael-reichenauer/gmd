@@ -3,7 +3,32 @@
 What changed for users in each release, newest first. A release includes the previews before it.
 Releases with no change users notice are left out.
 
+**Unreleased** is what has changed since the latest release: what the previews since then have, and
+what is merged but in no preview yet. The next release heads it with its version and date.
+
 ## [Unreleased]
+
+## [v1.16.1460.412] - 2026-10-29
+
+### New
+- **Show new branches automatically** in **Config ...** shows each branch new to you as it arrives, per repo, and names it on the status line; the ✦ then counts only new commits on branches you hid
+- **Show All New** at the top of the ✦ menu and of Show Branch's **New** shows every branch listed there at once
+- **Help** in the repo menu now holds **Help**, **What's New**, **Report a Bug**, **Suggest an Improvement** and **About**. Report a Bug and Suggest an Improvement open an issue on GitHub with the version, the system and terminal, and the git version filled in. The start page has **Report a Bug** too (`b`)
+- **View Log** and **Copy Log** in **Help** show the log, the run before the current one too, where `c` copies it or the lines selected, and copy it straight away, from its end as much as a GitHub issue takes
+
+### Improved
+- The log `~/gmd.log` is now kept from one start of Gmd to the next, so the log of a run that went wrong is still there to report. Each start begins with a line of `#` saying when, and past 1 MB it is moved to `gmd.1.log` and then `gmd.2.log`
+- A deleted branch merged with a message of its own, which used to show as `branch@<id>` or as a stray word of the message, is now named from the reflog, and the name is kept after the reflog expires
+- **Delete Merged Branches** now also lists the branches origin still has that are merged into its main or an integration branch, with their local branches. A column says where each one is (`here`, `origin` or `both`), and each row shows its name in its color in the log and who made its last commit and when
+- **Delete Merged Branches** now has a **Show** button (`s`), which shows the selected branch in the log behind the dialog, its last commit near the top, so it can be looked at before it is deleted; the dialog opens again on the same row
+- Deleting a branch on origin from **Delete Merged Branches** now asks first, with Cancel the default, since it deletes it for everyone; **Delete All** asks whether to delete those on origin too (**Also on Origin**) or leave them (**Here Only**)
+
+### Changed
+- **Discard All Changes** now lists every changed file it discards, in a list that scrolls, and no longer offers to delete the files git ignores. **Clean Working Folder ...** in the repo menu deletes those, listing them all first, and keeps the uncommitted changes
+
+### Fixed
+- Showing a branch at a commit no longer scrolls the log by its row count from before the branch was shown
+- A command such as continuing a rebase no longer fails with "Unable to create index.lock" when Gmd reads the status in the background at that moment
 
 ## [v1.15.1453.671] - 2026-10-22
 

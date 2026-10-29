@@ -815,7 +815,7 @@ public class BranchTest
         gmd.Send("Enter");
 
         var dialog = gmd.WaitFor("Merged into");
-        StringAssert.Contains(dialog, "feature               main, squash or rebase    Fix feature");
+        StringAssert.Contains(dialog, "feature             here    main, squash or rebase  Test User     Fix feature");
         StringAssert.Contains(dialog, "Delete deletes 'feature' here: squash or rebase merged into 'main' on origin");
         gmd.Send("d");
 
@@ -824,6 +824,73 @@ public class BranchTest
             ScreenText.LastLine(gmd.WaitFor("Deleted 'feature'"))
         );
         Assert.AreEqual("", (await repo.GitAsync("branch --list feature")).Trim());
+    }
+
+    // Show shows the branch picked in the log behind the dialog, which stays open, to see what the
+    // branch holds before deleting it
+    [TestMethod]
+    public async Task TestShowAMergedBranch()
+    {
+        using var repo = await E2eRepo.CreateWithBranchMergedAndKeptOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        Assert.IsFalse(gmd.WaitFor("Merge branch 'done'").Contains("Add done"), "Hidden at first");
+
+        gmd.Send("M");
+        gmd.WaitFor("Delete Merged Branches ...");
+        gmd.SelectMenuItem("Delete Merged Branches ...");
+        gmd.Send("Enter");
+        gmd.WaitFor("Merged into");
+        gmd.Send("s");
+
+        // Its last commit in the log above the dialog, on the log's second row, as near the fourth as a
+        // log this short lets it be; the dialog's own row for it has the subject too
+        gmd.WaitUntil(
+            () => ScreenText.Rows(gmd.WaitForStable(), repo.Path, 3, 1).Contains("Add done"),
+            "the branch's last commit in the log"
+        );
+        StringAssert.Contains(gmd.WaitForStable(), "[ Show ]", "The dialog is shown again");
+        gmd.Send("Escape");
+        var closed = gmd.WaitUntilGone("Merged into");
+        Assert.IsFalse(closed.Contains("Quit gmd?"), "Escape closed the dialog, not the log");
+        StringAssert.Contains(ScreenText.Rows(closed, repo.Path, 3, 1), "Add done", "Still shown once closed");
+    }
+
+    // A branch merged into main that origin keeps is listed too, and deleted here and on origin only
+    // after a question of its own, which Cancel, the default, leaves it from
+    [TestMethod]
+    public async Task TestDeleteAMergedBranchOnOrigin()
+    {
+        using var repo = await E2eRepo.CreateWithBranchMergedAndKeptOnOriginAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Merge branch 'done'");
+
+        gmd.Send("M");
+        gmd.WaitFor("Delete Merged Branches ...");
+        gmd.SelectMenuItem("Delete Merged Branches ...");
+        gmd.Send("Enter");
+
+        var dialog = gmd.WaitFor("Merged into");
+        StringAssert.Contains(dialog, "done                both    main                    Test User     Add done");
+        StringAssert.Contains(dialog, "Delete deletes 'done' here and on origin, for everyone, after asking");
+        gmd.Send("d");
+        StringAssert.Contains(gmd.WaitFor("Delete 'done' on origin?"), "This deletes it on origin, for everyone");
+        gmd.Send("Enter");
+        gmd.WaitUntilGone("Delete 'done' on origin?");
+        gmd.WaitFor("Merged into");
+        Assert.AreEqual("origin/done", (await repo.GitAsync("branch -r --list origin/done")).Trim(), "Cancelled");
+
+        gmd.Send("d");
+        gmd.WaitFor("Delete 'done' on origin?");
+        gmd.Send("Left"); // From Cancel, the default, to Delete on Origin
+        gmd.WaitForStable();
+        gmd.Send("Enter");
+
+        Assert.AreEqual(
+            "Deleted 'done' here and on origin: Restore Deleted Branch in the Undo menu brings it back",
+            ScreenText.LastLine(gmd.WaitFor("Deleted 'done'"))
+        );
+        Assert.AreEqual("", (await repo.GitAsync("branch -a --list done origin/done")).Trim());
+        Assert.AreEqual("", (await repo.GitAsync($"-C \"{repo.Path}-origin\" branch --list done")).Trim());
     }
 
     // A commit made on main by mistake, 'Add zeta', not pushed yet, moved to a new branch, which is

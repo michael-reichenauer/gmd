@@ -40,7 +40,10 @@ interface IRepoView
     Task<Result> ShowInitialRepoAsync(string path);
     Task<Result> ShowRepoAsync(string path);
     void UpdateRepoTo(Repo repo, string branchName = "");
-    void UpdateRepoToAtCommit(Repo repo, string commitId);
+
+    // The repo shown with the cursor on the commit, on that row of the view when one is given, e.g.
+    // near the top, above a dialog over the log, rather than wherever scrolling the least puts it
+    void UpdateRepoToAtCommit(Repo repo, string commitId, int viewRow = -1);
     void Refresh(string addName = "", string commitId = "");
     Task RefreshAsync(string addName = "", string commitId = "");
     void RefreshAndCommit(string addName = "", string commitId = "", IReadOnlyList<Server.Commit>? commits = null);
@@ -100,6 +103,10 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly IRepoWriter repoWriter;
     readonly Hoover hoover = new Hoover();
     readonly ShownHistory shownHistory = new();
+
+    // What WithNewBranchesShown showed, said with the notes of the repo it is shown in
+    string? newBranchesNote;
+    const int MaxNewBranchesShown = 20;
     readonly SearchMatches searchMatches = new();
     readonly CurrentBranchShown currentBranchShown = new();
     readonly ForcePushNotes forcePushNotes = new();
@@ -282,12 +289,12 @@ class RepoView : IRepoView, IRepoViewInputHost
         Log.Info($"Showed {t} {serverRepo} with '{branchName}'");
     }
 
-    public void UpdateRepoToAtCommit(Server.Repo repo, string commitId)
+    public void UpdateRepoToAtCommit(Server.Repo repo, string commitId, int viewRow = -1)
     {
         var t = Timing.Start();
         ShowRepo(repo);
 
-        ScrollToCommit(commitId);
+        ScrollToCommit(commitId, viewRow);
         Log.Info($"Showed {t} {repo} with '{commitId}'");
     }
 
@@ -549,6 +556,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // changed, so an idle gmd is not redrawn every tick
     async Task ShowUpdatedWorktreesRepoAsync()
     {
+        using var busy = UI.Busy();
         var shown = repo.Repo;
         var viewRepoResult = await server.GetUpdatedWorktreesRepoAsync(shown);
         if (viewRepoResult is not Server.Repo viewRepo)
@@ -579,6 +587,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     // was found and nothing else was shown meanwhile
     async Task ShowMergedOnOriginRepoAsync()
     {
+        using var busy = UI.Busy();
         var shown = repo.Repo;
         var viewRepoResult = await server.GetMergedOnOriginRepoAsync(shown);
         if (viewRepoResult is not Server.Repo viewRepo)
@@ -631,6 +640,7 @@ class RepoView : IRepoView, IRepoViewInputHost
                 return viewRepoResult.Error;
 
             viewRepo = WithCurrentBranchShown(viewRepo);
+            viewRepo = WithNewBranchesShown(viewRepo);
             ShowRepo(viewRepo);
             Log.Info($"Showed {t} {viewRepo}");
             UpdateWorktreesStatus();
@@ -672,6 +682,7 @@ class RepoView : IRepoView, IRepoViewInputHost
             }
 
             viewRepo = WithCurrentBranchShown(viewRepo);
+            viewRepo = WithNewBranchesShown(viewRepo);
             ShowRepo(viewRepo);
             UpdateWorktreesStatus();
             UpdateMergedOnOrigin();
@@ -751,6 +762,35 @@ class RepoView : IRepoView, IRepoViewInputHost
         return server.ShowBranch(viewRepo, name, false);
     }
 
+    // The branches new to the user are shown as they come, when the repo is set to, rather than told
+    // of by the ✦, see RepoConfig.ShowNewBranches. Not scrolled to, as the current branch above, but
+    // recorded for undo, so that Backspace hides them again, and said, with the notes of ShowRepo,
+    // which would otherwise write over it. More than a log can take at once are left to the ✦, as
+    // news, rather than shown unasked.
+    Server.Repo WithNewBranchesShown(Server.Repo viewRepo)
+    {
+        var config = repoConfig.Get(viewRepo.Path);
+        if (!config.ShowNewBranches || viewRepo.Filter != "")
+            return viewRepo;
+
+        var seen = Cui.RepoView.HiddenNews.Seen(viewRepo, config.SeenTips, config.IsSeenTipsForAll);
+        var names = Cui.RepoView.HiddenNews.NewBranches(viewRepo, seen);
+        if (names.Count == 0 || names.Count > MaxNewBranchesShown)
+            return viewRepo;
+
+        Log.Info($"Show new branches: {string.Join(", ", names)}");
+        var before = viewRepo.ViewBranches.Select(b => b.Name).ToList();
+        var shown = server.SetShownBranches(viewRepo, before.Concat(names).ToList());
+        var after = shown.ViewBranches.Select(b => b.Name).ToList();
+        var nice = names.Select(n => viewRepo.BranchByName[n].NiceNameUnique).ToList();
+        shownHistory.Add(before, after, "Show", nice.Count == 1 ? $"New '{nice[0]}'" : "New Branches");
+        newBranchesNote =
+            nice.Count == 1 ? $"Showed new branch {nice[0]}"
+            : nice.Count <= 3 ? $"Showed new branches {string.Join(", ", nice)}"
+            : $"Showed {nice.Count} new branches";
+        return shown;
+    }
+
     void ShowRepo(Server.Repo serverRepo)
     {
         reads.Shown();
@@ -778,9 +818,10 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         // A force push on origin looks like new commits on both sides, and a branch squash merged on
         // origin like one not merged, so each is said, once
-        var notes = new[] { forcePushNotes.Untold(serverRepo), mergedOnOriginNotes.Untold(serverRepo) }
+        var notes = new[] { newBranchesNote, forcePushNotes.Untold(serverRepo), mergedOnOriginNotes.Untold(serverRepo) }
             .OfType<string>()
             .ToList();
+        newBranchesNote = null;
         if (notes.Count > 0)
             status.Info(string.Join("; ", notes));
 
@@ -846,10 +887,18 @@ class RepoView : IRepoView, IRepoViewInputHost
         }
     }
 
-    void ScrollToCommit(string commitId)
+    void ScrollToCommit(string commitId, int viewRow = -1)
     {
         var commit = repo.Repo.ViewCommits.FirstOrDefault(c => c.Id == commitId);
-        if (commit != null)
+        if (commit == null)
+            return;
+
+        // The view learns how many rows the repo shown now has only as it draws, and would otherwise
+        // scroll within the count it had before, which a branch just shown has added rows to
+        commitsView.SetTotalCount(repo.Repo.ViewCommits.Count);
+        if (viewRow >= 0)
+            commitsView.ShowIndexAt(commit.ViewIndex, viewRow);
+        else
             commitsView.ShowCurrentIndex(commit.ViewIndex);
     }
 

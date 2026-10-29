@@ -974,10 +974,10 @@ public class DiffViewTest
         gmd.Send("End");
         gmd.WaitForStable();
         gmd.Send("Enter");
-        StringAssert.Contains(gmd.WaitFor("Discard all uncommitted changes?"), "Restore Discarded Changes");
-        gmd.Send("Left"); // From No, the default, to Yes
-        gmd.WaitForStable();
-        gmd.Send("Enter");
+        var question = gmd.WaitFor("Discard the uncommitted changes of 2 files?");
+        StringAssert.Contains(question, "│ A epsilon.txt ");
+        StringAssert.Contains(question, "Restore Discarded Changes");
+        gmd.Send("d"); // Discard's letter, Cancel being the default
         Assert.AreEqual(
             "Discarded all changes: Restore Discarded Changes in the Undo menu brings it back",
             ScreenText.LastLine(gmd.WaitFor("Discarded all changes"))
@@ -1107,7 +1107,7 @@ public class DiffViewTest
     // with no way to get it back. The question says which of the two it is.
     [TestMethod]
     [DataRow("Down", "Delete the new file?")]
-    [DataRow("End", "Discard all uncommitted changes?")]
+    [DataRow("End", "Discard the uncommitted changes of 2 files?")]
     public async Task TestUndoFromTheDiffAsksFirst(string move, string question)
     {
         using var repo = await E2eRepo.CreateWithChangesAsync();

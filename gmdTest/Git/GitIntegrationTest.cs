@@ -231,10 +231,12 @@ public class GitIntegrationTest
     }
 
     // The other worktrees are read with '--no-optional-locks', which neither takes the index lock
-    // a commit run there would fail on, nor rewrites the index. The control is a plain status,
-    // which does write it once a tracked file's stat data is stale, that being what the flag is for.
+    // a commit run there would fail on, nor rewrites the index. The plain status does neither either,
+    // since every git gmd runs has GIT_OPTIONAL_LOCKS=0 (Cmd), though it would write it once a tracked
+    // file's stat data is stale: the status read in the background held the lock while the user's
+    // 'rebase --continue' needed it.
     [TestMethod]
-    public async Task TestStatusWithoutLocksLeavesTheOtherWorktreesIndexAlone()
+    public async Task TestStatusLeavesTheIndexAlone()
     {
         await repo.CommitFileAsync("file.txt", "text\n", "Initial");
         var path = repo.WorktreePath("dev");
@@ -253,7 +255,11 @@ public class GitIntegrationTest
         CollectionAssert.AreEqual(before, File.ReadAllBytes(index), "The lock-free read wrote the index");
 
         Value(await repo.Git.GetStatusAsync(path));
-        CollectionAssert.AreNotEqual(before, File.ReadAllBytes(index), "The plain status did not write the index");
+        CollectionAssert.AreEqual(before, File.ReadAllBytes(index), "The plain status wrote the index");
+
+        // The control: git started without gmd's Cmd, so with optional locks, does write it
+        Proc.Ok("git", ["status", "--porcelain"], path);
+        CollectionAssert.AreNotEqual(before, File.ReadAllBytes(index), "git did not write the index");
     }
 
     // A worktree whose folder was deleted by hand is still registered, as prunable, until pruned
@@ -2342,6 +2348,27 @@ public class GitIntegrationTest
         var files = Value(await repo.Git.GetIgnoredFilesAsync(repo.Path));
 
         CollectionAssert.AreEquivalent(new[] { ".env", "bin/" }, files.ToArray());
+    }
+
+    // Deleting the ignored files deletes those alone: a change, a new file and the tracked files stay
+    [TestMethod]
+    public async Task TestDeleteIgnoredFilesLeavesTheUncommittedChanges()
+    {
+        using var repo = await TempRepo.CreateAsync();
+        await repo.CommitFileAsync(".gitignore", ".env\nbin/\n", "Ignore");
+        await repo.CommitFileAsync("file.txt", "one\n", "Add file");
+        File.WriteAllText(Path.Join(repo.Path, ".env"), "TOKEN=secret\n");
+        Directory.CreateDirectory(Path.Join(repo.Path, "bin"));
+        File.WriteAllText(Path.Join(repo.Path, "bin", "out.dll"), "x");
+        File.WriteAllText(Path.Join(repo.Path, "file.txt"), "two\n");
+        File.WriteAllText(Path.Join(repo.Path, "notes.txt"), "untracked\n");
+
+        Ok(await repo.Git.DeleteIgnoredFilesAsync(repo.Path));
+
+        Assert.IsFalse(File.Exists(Path.Join(repo.Path, ".env")));
+        Assert.IsFalse(Directory.Exists(Path.Join(repo.Path, "bin")));
+        Assert.AreEqual("two\n", File.ReadAllText(Path.Join(repo.Path, "file.txt")));
+        Assert.IsTrue(File.Exists(Path.Join(repo.Path, "notes.txt")));
     }
 
     // A commit of some files only, as the commit dialog's checklist makes it: the ticked files are

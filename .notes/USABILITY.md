@@ -74,6 +74,15 @@ Discard, Cancel the default; with no uncommitted changes it asks to delete just 
 the ignored files alone (`git clean -n -X -d`), what nothing brings back, where the old question
 listed the untracked files too, which Restore Discarded Changes does.
 
+**Discard All Changes and Clean Working Folder split again (2026-10-26).** The merged question did
+not work in use: it listed up to ten ignored files and never the changed ones, so the files being
+discarded could not be checked, and the long list of what nothing brings back made both answers
+intimidating. Discard All Changes ... now lists every changed file in a scrolled list
+(`ConfirmListDlg`), and nothing else; **Clean Working Folder ...** is in the repo menu, not Undo,
+since it is no undo, and deletes the ignored files alone (`git clean -fXd`), every one listed, the
+uncommitted changes kept. Two commands that each do one thing, in different menus and named apart,
+rather than two near twins side by side.
+
 **Publish (2026-10-21).** A branch not on origin, its *Publish* box unticked when it was made, had
 *Push `p`* in its branch menu, which published it, while `p` on the current branch said to use the
 menu, and `p` on another branch highlighted published it with no word. Making a branch on origin, for
@@ -299,13 +308,18 @@ GitHub's squash merge and rebase merge (a second clone that merges and deletes t
   worktree list and Remove Worktree count it merged (git deletes it forced).
 - *Delete Merged Branches ...* in the repo menu: the local branches with no branch on origin whose
   work is in main or an integration branch, merged as git counts it (`git branch --merged`) or by
-  content on origin; not one with no commit of its own. Delete, or Delete All after a question, each
+  content on origin; not one with no commit of its own. Since 2026-10-23 also the branches origin
+  has, merged as git counts it (`git branch --all --merged`), with their local branches, which must be
+  merged too: column *On* says here, origin or both, and one on origin is deleted there only after a
+  question of its own with Cancel the default, or by Delete All's Also on Origin, never its default.
+  The rows show the last commit's author and the branch's color in the log.
+  Show (`s`) shows the selected branch in the log behind the dialog, its tip on the log's fourth
+  row, above the dialog, which opens again over it. Delete, or Delete All after a question, each
   forced and recorded for Restore Deleted Branch; one checked out here or in a worktree is listed and
   left. The branch menu's Delete Branch no longer asks for force for one merged on origin.
 - Left: a branch squash merged whose origin branch was not deleted is not told, nor one whose lines
   main changed again since (the merge conflicts), nor one merged into another branch than its parent
-  or main; merged branches still on origin are not listed, since deleting them is deleting them for
-  everyone; and Delete Merged Branches does not remove the worktree of a branch with the branch.
+  or main; and Delete Merged Branches does not remove the worktree of a branch with the branch.
 
 ---
 
