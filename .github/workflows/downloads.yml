@@ -1,0 +1,49 @@
+name: Downloads
+
+# Once a week, a snapshot of how many times each release asset has been downloaded, kept on the
+# branch 'stats' (snapshots/<date>.jsonl and totals.csv), since GitHub keeps only the total so far:
+# what a week brought is the difference of two snapshots, which 'scripts/downloads report' shows.
+# Only the default branch's schedule runs, so this starts once it is released to main.
+on:
+  schedule:
+    - cron: '17 5 * * 1' # Mondays, 05:17 UTC
+  workflow_dispatch:
+
+# Writes only the branch 'stats'. A push made with the workflow's own token starts no workflow, so
+# the Build workflow does not test the stats branch.
+permissions:
+  contents: write
+
+concurrency:
+  group: downloads
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check out the stats branch
+        run: |
+          if git fetch --depth=1 origin stats; then
+            git worktree add -B stats stats-data FETCH_HEAD
+          else
+            git worktree add --orphan -b stats stats-data
+          fi
+
+      - name: Take a snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          scripts/downloads snapshot stats-data
+          { echo '```'; scripts/downloads report stats-data; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Push it
+        working-directory: stats-data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -q -m "Downloads $(date -u +%Y-%m-%d)"
+          git push origin stats
