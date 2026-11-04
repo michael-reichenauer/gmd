@@ -31,6 +31,8 @@ scripts/installagg <bin> <fonts> # agg and its fonts, for scripts/demo (installt
 scripts/demo           # re-record the README's animation and log pictures in gmd/doc/ (~30 s; tmux + agg)
 scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
 scripts/changelog unreleased # the notes of the next release in CHANGELOG.md, as the Release workflow reads them
+scripts/downloads report <dir> # release downloads per platform and week, from the snapshots the Downloads
+                       #   workflow keeps on the branch 'stats' (git worktree add <dir> origin/stats)
 ```
 
 `gh` (the GitHub CLI) is in the dev container, a feature of `devcontainer.json` with its login kept

@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# Counts the downloads of gmd's release assets, the one sign of how many use gmd that needs nothing
+# of the app: gmd sends no ping of its own. GitHub keeps one total per asset, counted since the asset
+# was uploaded, so what was downloaded in a week is the difference of two snapshots. The Downloads
+# workflow (.github/workflows/downloads.yml) takes one a week and keeps them on the 'stats' branch.
+#   scripts/downloads snapshot <dir>   Writes <dir>/snapshots/<date>.jsonl, a line per release with
+#                                      its count per asset
+#   scripts/downloads report <dir>     The downloads per platform between the snapshots in <dir>
+# Needs jq, and gh for a snapshot, logged in or with GH_TOKEN set.
+#
+# What the counts include besides people installing gmd: the updater's install of an update (the
+# binary and SHA256SUMS; checking for one reads only the releases API, which counts nothing),
+# install.sh, a Homebrew install, every build of a dev container with the gmd feature, the feature's
+# own tests in CI (a linux_x64 and a linux_arm64 each time the feature changes), and crawlers, which
+# fetch an asset of every release now and then.
+
+REPO="michael-reichenauer/gmd"
+
+usage() {
+  echo "usage: scripts/downloads snapshot <dir> | report <dir>" >&2
+  exit 1
+}
+
+snapshot() {
+  local dir="$1" date file
+  date="$(date -u +%Y-%m-%d)"
+  file="$dir/snapshots/$date.jsonl"
+  mkdir -p "$dir/snapshots" || exit 1
+
+  # A line per release, newest first: its tag, date, whether a preview, and its counts by asset. A
+  # second snapshot on the same day replaces the first.
+  if ! gh api "repos/$REPO/releases?per_page=100" --paginate \
+    | jq -s -c 'add | .[] | {tag: .tag_name, published: .published_at, preview: .prerelease,
+        assets: (.assets | map({(.name): .download_count}) | add // {})}' > "$file.tmp"; then
+    rm -f "$file.tmp"
+    echo "Failed to read the releases of $REPO" >&2
+    exit 1
+  fi
+  mv -f "$file.tmp" "$file"
+  echo "Snapshot $date: $(jq -s '[.[].assets[]] | add' "$file") downloads in all"
+}
+
+# A row per snapshot: the downloads per platform since the snapshot before, the first row all of
+# them so far. Only the previews are deleted, the old ones (release.yml, 'Prune old previews'), and a
+# release missing from a snapshot is left out of its difference rather than counted as a drop.
+report() {
+  local files=("$1"/snapshots/*.jsonl)
+  [ -f "${files[0]}" ] || { echo "No snapshots in $1/snapshots" >&2; exit 1; }
+
+  local file
+  for file in "${files[@]}"; do
+    jq -c --arg date "$(basename "$file" .jsonl)" '{date: $date, tag, assets}' "$file"
+  done | jq -s -r '
+    # The platform an asset is for, by its name, older names included
+    def platform: if . == "gmd_osx_arm64" or . == "gmd_osx" or . == "gmd_mac" then "macos"
+      elif . == "gmd_linux_arm64" then "linux-arm64"
+      elif . == "gmd_linux_x64" or . == "gmd_linux" then "linux-x64"
+      elif . == "gmd.exe" or . == "gmd_windows" or . == "gmdSetup.exe" then "windows"
+      elif . == "SHA256SUMS" then "checksums" else "other" end;
+    ["macos", "linux-arm64", "linux-x64", "windows", "checksums", "other"] as $platforms
+    | group_by(.date) | map({date: .[0].date, releases: map({key: .tag, value: .assets}) | from_entries})
+    | . as $snapshots
+    | (["since"] + $platforms + ["all", "to"] | @tsv),
+      (range(0; length) as $i | $snapshots[$i] as $now
+        | (if $i == 0 then {} else $snapshots[$i - 1].releases end) as $was
+        | [$now.releases | to_entries[] | .key as $tag | .value | to_entries[]
+            | {platform: (.key | platform), count: (.value - ($was[$tag][.key] // 0))}] as $deltas
+        | [$platforms[] as $p | [$deltas[] | select(.platform == $p) | .count] | add // 0] as $row
+        | [if $i == 0 then "start" else $snapshots[$i - 1].date end] + $row + [($row | add), $now.date]
+        | @tsv)' | awk -F'\t' '{ printf "%-12s", $1; for (i = 2; i < NF; i++) printf "%12s", $i; printf "  %s\n", $NF }'
+}
+
+case "$1" in
+  snapshot) [ -n "$2" ] || usage; snapshot "$2" ;;
+  report) [ -n "$2" ] || usage; report "$2" ;;
+  *) usage ;;
+esac
