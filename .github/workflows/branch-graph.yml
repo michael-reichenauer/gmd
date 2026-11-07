@@ -1,0 +1,77 @@
+name: Branch graph
+
+# Publishes gmd's branch graph of this repository as a web page on GitHub Pages, to follow what is
+# going on across the branches from a phone or a tablet, where gmd cannot run. The page is written by
+# gmd itself ('gmd --web-log', gmd/Cui/WebLog/), with all active branches shown, each commit linked to
+# its page on GitHub and each branch to its open pull request.
+#
+# Needs, once, in the repository's settings: Pages, Source "GitHub Actions"; and in Environments,
+# github-pages, the deployment branches widened from the default branch alone, since a push to any
+# branch updates the page.
+on:
+  push:
+    branches: ['**']
+  # A pull request opened or closed changes the page without a push
+  pull_request:
+    types: [opened, closed, reopened, ready_for_review, converted_to_draft]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  pages: write
+  id-token: write
+
+# One page: a newer run replaces the one still going
+concurrency:
+  group: branch-graph
+  cancel-in-progress: true
+
+jobs:
+  page:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      # Every branch, with its whole history, as the graph needs
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          dotnet-version: '10.0.x'
+
+      # Formatting is the Build workflow's to check
+      - name: Build gmd
+        run: dotnet build gmd/gmd.csproj -c Release -p:CSharpier_Bypass=true -o "$RUNNER_TEMP/gmd"
+
+      - name: Read the open pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr list --state open --limit 100 --json number,title,headRefName,url,isDraft > "$RUNNER_TEMP/prs.json"
+
+      # A throwaway HOME, since gmd writes its config and log there. The checkout is of the main
+      # branch, so that no detached HEAD is drawn as a branch of its own.
+      - name: Write the page
+        run: |
+          git checkout -q -B main origin/main
+          mkdir -p "$RUNNER_TEMP/home" site
+          echo '{"CheckUpdates": false}' > "$RUNNER_TEMP/home/.gmdconfig"
+          HOME="$RUNNER_TEMP/home" "$RUNNER_TEMP/gmd/gmd" --web-log site/index.html --prs "$RUNNER_TEMP/prs.json" --max 400
+
+      - name: Upload the page
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Publish the page
+        id: deploy
+        uses: actions/deploy-pages@v4
