@@ -14,7 +14,7 @@ public class ProgramCommandsTest
     [DataRow(new[] { "-m" })]
     public async Task TestUiOptionsAreNoCommand(string[] args)
     {
-        var commands = new ProgramCommands(null!);
+        var commands = new ProgramCommands(null!, null!);
 
         Assert.IsNull(await commands.HandleCommandsAsync(args));
     }
@@ -22,7 +22,7 @@ public class ProgramCommandsTest
     [TestMethod]
     public async Task TestVersionIsACommand()
     {
-        var commands = new ProgramCommands(null!);
+        var commands = new ProgramCommands(null!, null!);
 
         Assert.AreEqual(0, await commands.HandleCommandsAsync(["--version"]));
     }
