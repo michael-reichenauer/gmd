@@ -35,6 +35,17 @@ static class WebLogPage
     // The guide to the page, what it shows and how it is made
     const string GuideUrl = Project.Url + "/blob/dev/docs/BRANCH-GRAPH.md";
 
+    // A row's two lines of text, the subject and below it the author, time and id, are moved down
+    // from the middle of the row by half a line, so that the subject is beside the commit's dot,
+    // as it is in the terminal, rather than the two lines around it
+    const int LineHeight = 18;
+    const int SubjectShift = LineHeight / 2;
+
+    const int MaxExcerpt = 150;
+    static readonly Regex Trailer = new(
+        @"^(Co-Authored-By|Signed-off-by|Reviewed-by|Acked-by|Claude-Session|Change-Id): ",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase
+    );
     static readonly Regex PullRequestMerge = new(@"^Merge pull request #(\d+)", RegexOptions.Compiled);
 
     public static string Html(
@@ -154,7 +165,7 @@ static class WebLogPage
             var dotIndex = graph.HasBranch(c.BranchName) ? graph.BranchByName(c.BranchName).X * 2 : -1;
 
             html.Append($"<div class=\"r\" id=\"{c.Sid}\">")
-                .Append(GraphSvg.Row(graphRow, dotIndex, graph.Width))
+                .Append(GraphSvg.Row(graphRow, dotIndex, graph.Width, graph.GetRow(c.ViewIndex)))
                 .Append("<div class=\"t\"><div class=\"s\">");
 
             if (tips.TryGetValue(c.Id, out var tipBranches))
@@ -174,7 +185,14 @@ static class WebLogPage
                 }
             }
             foreach (var tag in c.Tags)
-                html.Append($"<span class=\"tag\">{E(tag.Name)}</span>");
+            {
+                // A tag opens its release, e.g. of a version
+                html.Append(
+                    links?.Tag(tag.Name) is string page
+                        ? $"<a class=\"tag\" href=\"{E(page)}\">{E(tag.Name)}</a>"
+                        : $"<span class=\"tag\">{E(tag.Name)}</span>"
+                );
+            }
 
             html.Append(SubjectHtml(c, links)).Append("</div>");
             html.Append($"<div class=\"m\">{E(c.Author)} · {TimeTag(c.AuthorTime)} · ");
@@ -183,12 +201,26 @@ static class WebLogPage
                     ? $"<a class=\"sid\" href=\"{E(commitPage)}\">{c.Sid}</a>"
                     : $"<span class=\"sid\">{c.Sid}</span>"
             );
+            if (MessageExcerpt(c) is { Length: > 0 } excerpt)
+                html.Append($" · <span class=\"x\">{E(excerpt)}</span>");
             html.Append("</div></div></div>\n");
         }
         var more = repo.ViewCommits.Count(c => c.Id != Repo.UncommittedId) - commits.Count;
         if (more > 0)
             html.Append($"<p class=\"meta more\">… and {more} older commits</p>\n");
         html.Append("</div></section>\n");
+    }
+
+    // The start of the commit's message below its subject, on one line: its lines joined, with no
+    // blank lines and no trailers, e.g. 'Co-Authored-By: ...', and cut at MaxExcerpt characters.
+    // It says what a merge is of, whose subject only names the branch or the pull request.
+    internal static string MessageExcerpt(Commit c)
+    {
+        var lines = c.Message.Split('\n').Skip(1).Select(l => l.Trim()).Where(l => l != "" && !Trailer.IsMatch(l));
+        // A list's first mark is left out, since it says nothing right after the commit's id
+        var text = Regex.Replace(string.Join(' ', lines), @"\s+", " ");
+        text = Regex.Replace(text, @"^[-*] ", "");
+        return text.Length <= MaxExcerpt ? text : text[..MaxExcerpt].TrimEnd() + "…";
     }
 
     // The subject, linked to the commit's page, and a pull request's merge to the pull request
@@ -250,19 +282,20 @@ static class WebLogPage
             .bm{margin-left:auto;color:var(--dim);font-size:12px;white-space:nowrap}
             .ext{color:var(--dim);font-size:12px}
             .log{padding-right:0}
-            .rows{overflow-x:auto;-webkit-overflow-scrolling:touch}
+            .rows{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:{{{SubjectShift}}}px}
             .r{display:flex;align-items:center;height:{{{GraphSvg.RowHeight}}}px;scroll-margin-top:40px}
             .r:target{background:var(--chip)}
             .g{flex:none;display:block}
-            .t{flex:1;min-width:0;padding:0 16px 0 6px;line-height:18px}
+            .t{flex:1;min-width:0;padding:0 16px 0 6px;line-height:{{{LineHeight}}}px;position:relative;top:{{{SubjectShift}}}px}
             .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
             .subj{text-decoration:none}
             .m{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
             .sid{font-family:ui-monospace,Menlo,monospace;text-decoration:none}
+            .x{opacity:.8}
             .tip{display:inline-block;font-size:12px;font-weight:600;padding:0 6px;margin-right:4px;border:1px solid currentColor;border-radius:9px;text-decoration:none}
             .pr{display:inline-block;font-size:12px;font-weight:600;padding:0 6px;margin-right:4px;border-radius:9px;background:#238636;color:#fff;text-decoration:none}
             .pr.draft{background:#6e7681}
-            .tag{display:inline-block;font-size:12px;padding:0 6px;margin-right:4px;border-radius:9px;background:var(--chip);color:var(--c-Green)}
+            .tag{display:inline-block;font-size:12px;padding:0 6px;margin-right:4px;border-radius:9px;background:var(--chip);color:var(--c-Green);text-decoration:none}
             .more{padding:12px 16px}
             .about{margin:8px 0 0;font-size:14px;color:var(--dim)}
             .about summary{cursor:pointer}

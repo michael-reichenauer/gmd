@@ -111,4 +111,97 @@ public class WebLogPageTest
         StringAssert.Contains(html, "<a class=\"subj\" href=\"https://github.com/owner/repo/pull/7\">");
         Assert.IsFalse(html.Contains("prefers-color-scheme"), "The page is dark whatever the device's mode");
     }
+
+    [TestMethod]
+    public async Task LinksATagToItsRelease()
+    {
+        var html = await PageOf(FeatureRepo().Tag("v1.2", "c3"));
+
+        StringAssert.Contains(
+            html,
+            "<a class=\"tag\" href=\"https://github.com/owner/repo/releases/tag/v1.2\">v1.2</a>"
+        );
+    }
+
+    [TestMethod]
+    public async Task PutsTheSubjectBesideTheCommitsDot()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        // The two lines of text are moved down by half a line from the middle of the row
+        StringAssert.Contains(html, "line-height:18px;position:relative;top:9px}");
+    }
+
+    [TestMethod]
+    public void ShowsTheStartOfTheMessageBelowTheSubjectOnOneLine()
+    {
+        Assert.AreEqual("", WebLogPage.MessageExcerpt(CommitOf("Subject only")));
+        Assert.AreEqual(
+            "The page now links tags. A second paragraph",
+            WebLogPage.MessageExcerpt(
+                CommitOf(
+                    "Subject\n\n- The page now links\n  tags.\n\nA second paragraph\n\n"
+                        + "Co-Authored-By: Someone <s@example.com>\nClaude-Session: https://example.com/s"
+                )
+            )
+        );
+
+        var cut = WebLogPage.MessageExcerpt(CommitOf("Subject\n\n" + new string('a', 200)));
+        Assert.AreEqual(new string('a', 150) + "…", cut);
+    }
+
+    static gmd.Server.Commit CommitOf(string message) =>
+        new RepoBuilder()
+            .Commit("c1", "x")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .ViewRepoAsync()
+            .Result.ViewCommits[0] with
+        {
+            Message = message,
+        };
+
+    [TestMethod]
+    public async Task HidesTheLocalBranchesAtTheirRemoteBranchsCommit()
+    {
+        var repo = await FeatureRepo().ViewRepoAsync(gmd.Server.ShowBranches.AllActive);
+        Assert.AreEqual(
+            """
+                ┣─┺  More feature work
+            ┣─┺╮┃    Merge pull request #7 from owner/feature
+            ┃  ├┺    Feature <work>
+            ┣  │     Second
+            ┗──╯     Initial
+            """,
+            GraphText.WithSubjects(repo)
+        );
+
+        // Neither local branch's tip beside its remote branch's, and a column less for each
+        var hidden = WebLogExport.HideSyncedLocalBranches(repo);
+        Assert.AreEqual(
+            """
+              ┣  More feature work
+            ┣╮┃  Merge pull request #7 from owner/feature
+            ┃├┺  Feature <work>
+            ┣│   Second
+            ┗╯   Initial
+            """,
+            GraphText.WithSubjects(hidden)
+        );
+        CollectionAssert.AreEqual(
+            new[] { "origin/main", "origin/feature" },
+            hidden.ViewBranches.Select(b => b.Name).ToList()
+        );
+    }
+
+    [TestMethod]
+    public async Task KeepsALocalBranchWithCommitsNotOnItsRemoteBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Not pushed", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c1", ahead: 1)
+            .ViewRepoAsync(gmd.Server.ShowBranches.AllActive);
+
+        Assert.AreSame(repo, WebLogExport.HideSyncedLocalBranches(repo));
+    }
 }

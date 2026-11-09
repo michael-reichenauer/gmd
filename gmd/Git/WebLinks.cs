@@ -70,6 +70,17 @@ record WebLinks(string RepoUrl, WebHost Host)
             _ => null,
         };
 
+    // The page of a tag: on GitHub and Gitea its release, which shows the tag alone when it has none
+    public string? Tag(string name) =>
+        Host switch
+        {
+            WebHost.GitHub or WebHost.Gitea => $"{RepoUrl}/releases/tag/{Path(name)}",
+            WebHost.GitLab => $"{RepoUrl}/-/tags/{Path(name)}",
+            WebHost.Bitbucket => $"{RepoUrl}/src/{Path(name)}",
+            WebHost.AzureDevOps => $"{RepoUrl}?version=GT{Query(name)}",
+            _ => null,
+        };
+
     // The page for opening a pull request (a merge request on GitLab) of a branch into another,
     // with both filled in, so that the base is the branch it was made from rather than whatever the
     // service defaults to

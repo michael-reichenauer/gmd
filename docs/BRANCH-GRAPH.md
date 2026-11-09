@@ -25,10 +25,19 @@ draft; one from a fork is left out); `↗` opens the branch on GitHub when it ha
   to the right of the branch it came from. A dot is a commit on that branch.
 - An arc into a line is a merge: the branch on the right was merged into the line it joins. An arc
   out of a line is where a branch started.
+- Where a branch is merged in and another branches out at the same commit, or lines otherwise
+  share a stretch, each keeps its own color and the lines run side by side, the one going up
+  above the one coming from below. The terminal has one character for such a place, so it draws
+  it white there.
 - The short grey arcs are branches gmd does not show, for example ones that were merged and
   deleted long ago: where they were merged in or branched out.
+- A short line above a branch's latest commit says the branch is open for more commits.
 - A colored outlined label is a branch's tip, its latest commit, and a green label beside it its
-  open pull request. A label with green text on grey is a tag, such as a release version.
+  open pull request. A label with green text on grey is a tag, such as a release version, and opens
+  its release on GitHub.
+- A commit's subject is beside its dot, with the author, the time and the id on the line below,
+  followed by the start of the rest of the commit's message, as far as the width allows (150
+  characters at most). For a merge that is what it merged, which its subject seldom says.
 - The subject opens the commit's diff on GitHub, or, for a "Merge pull request #n" commit, that
   pull request. The short id at the end of the second line opens the commit too.
 - Times are shown as how long ago; older than a month, as the date.
@@ -46,9 +55,11 @@ Nothing runs on a server: the page is one static HTML file, rebuilt and publishe
 Action.
 
 1. **The workflow**, `.github/workflows/branch-graph.yml` ("Branch graph"), runs on every push
-   to any branch, whenever a pull request is opened, closed or changes draft state, every hour
-   (GitHub runs scheduled workflows from the default branch only, so this starts once the
-   workflow is on `main`), and by hand from the Actions tab (`Run workflow`).
+   to any branch, whenever a pull request is opened, closed or changes draft state, when the
+   Release workflow ends (whose pushes to `dev` and `main`, made with the workflow's own token,
+   start no run themselves), every hour, and by hand from the Actions tab (`Run workflow`).
+   GitHub runs the hourly and the after-release runs from the default branch's workflow file only,
+   so those two start once the workflow is on `main`.
 2. It checks out the repository with its whole history and every branch, and builds gmd.
 3. It reads the open pull requests with `gh pr list` into a JSON file.
 4. It runs gmd, which writes the page and exits, with no terminal and no UI:
@@ -69,14 +80,18 @@ A run takes about a minute, mostly building gmd, so the page is a minute or two 
 The command is in `gmd/Common/ProgramCommands.cs`, and the page is made in `gmd/Cui/WebLog/`:
 
 - `WebLogExport` reads the repo through the server, as the log view does, shows all active branches,
-  hides the branches `--hide` names, and builds gmd's graph of it with `GraphCreater`.
+  hides the branches `--hide` names, leaves out each local branch that is at its remote branch's
+  commit (the terminal draws it as a tip of its own beside the remote branch's, which on the page
+  only takes a column), and builds gmd's graph of it with `GraphCreater`.
 - `WebLogPage` writes the HTML: the branch list, a row per commit with its labels and links, the
   colors of gmd's dark palette as CSS, and a few lines of script that turn the times into
   "how long ago". It makes the GitHub links with `Git/WebLinks.cs`, which also knows GitLab,
   Bitbucket, Azure DevOps and Gitea, so the page works for repositories hosted there too.
 - `GraphSvg` draws each row of the graph. It takes the very runes the terminal shows, `┣ ┃ ╭ ╯ ─`,
   from `GraphWriter`, and draws each as the lines it is made of: heavy for a branch, light for a
-  merge, with the corners as arcs and the commit as a dot. Text cannot be used as it is, since a
+  merge, with the corners as arcs and the commit as a dot. Where lines of several colors share a
+  rune, which the terminal draws white, it draws them from the graph's own parts instead (each
+  `GraphColumn` keeps every line with its color), each in its color and side by side. Text cannot be used as it is, since a
   browser does not join one row of box-drawing characters to the next the way a terminal does.
 
 The page is the terminal's graph under a new coat, so any improvement to gmd's graph shows on the

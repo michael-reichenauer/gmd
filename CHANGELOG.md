@@ -8,6 +8,15 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+## [v1.18.1471.1270] - 2026-11-09
+
+### Improved
+- The branch graph web page (`gmd --web-log`) now shows the start of each commit's message after its id, up to 150 characters, which for a merge says what was merged
+- A commit's subject on the branch graph web page is now beside its dot, with the author, the time and the id on the line below, rather than the two lines centered around the dot
+- A tag on the branch graph web page now opens its release on GitHub (the tag's page on other hosts)
+- The branch graph web page now draws lines that share one character in the terminal apart, each in its own color: a branch merged in and another branched out at the same commit no longer share one white line
+- The branch graph web page no longer draws a local branch that is at its remote branch's commit as a tip of its own, so the graph is a column narrower for each, and the line above an active branch's latest commit is now half as long
+
 ## [v1.17.1471.546] - 2026-11-09
 
 ### New
