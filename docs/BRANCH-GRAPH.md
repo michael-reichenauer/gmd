@@ -33,7 +33,7 @@ draft; one from a fork is left out); `↗` opens the branch on GitHub when it ha
   pull request. The short id at the end of the second line opens the commit too.
 - Times are shown as how long ago; older than a month, as the date.
 
-The page follows the device's dark or light mode, in gmd's own colors. It shows the latest 400
+The page is dark, in the colors of gmd's dark palette, whatever the device's mode, as gmd is best known. It shows the latest 400
 commits.
 
 Which commit belongs to which branch is not something git records. gmd infers it from the shape
@@ -71,7 +71,7 @@ The command is in `gmd/Common/ProgramCommands.cs`, and the page is made in `gmd/
 - `WebLogExport` reads the repo through the server, as the log view does, shows all active branches,
   hides the branches `--hide` names, and builds gmd's graph of it with `GraphCreater`.
 - `WebLogPage` writes the HTML: the branch list, a row per commit with its labels and links, the
-  colors of gmd's dark and light palettes as CSS, and a few lines of script that turn the times into
+  colors of gmd's dark palette as CSS, and a few lines of script that turn the times into
   "how long ago". It makes the GitHub links with `Git/WebLinks.cs`, which also knows GitLab,
   Bitbucket, Azure DevOps and Gitea, so the page works for repositories hosted there too.
 - `GraphSvg` draws each row of the graph. It takes the very runes the terminal shows, `┣ ┃ ╭ ╯ ─`,

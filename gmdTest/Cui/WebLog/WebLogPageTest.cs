@@ -21,7 +21,7 @@ public class WebLogPageTest
             b => colors.GetColor(repo, b),
             WebLinks.From("git@github.com:owner/repo.git"),
             prs ?? [],
-            "owner/repo",
+            "repo Branch Graph",
             new DateTime(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc),
             maxRows
         );
@@ -99,5 +99,16 @@ public class WebLogPageTest
             "href=\"https://github.com/owner/repo/tree/main\"><span class=\"dot\"></span>main</a>"
         );
         StringAssert.Contains(html, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+    }
+
+    [TestMethod]
+    public async Task TitlesThePageAndShowsEverySubjectAlike()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(html, "<title>repo Branch Graph</title>");
+        StringAssert.Contains(html, "<h1><a href=\"https://github.com/owner/repo\">repo Branch Graph</a></h1>");
+        StringAssert.Contains(html, "<a class=\"subj\" href=\"https://github.com/owner/repo/pull/7\">");
+        Assert.IsFalse(html.Contains("prefers-color-scheme"), "The page is dark whatever the device's mode");
     }
 }

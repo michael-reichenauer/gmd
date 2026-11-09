@@ -59,7 +59,9 @@ class WebLogExport : IWebLogExport
             return pullRequestsResult.Error;
 
         var links = await server.GetRemoteUrlAsync(repo.Path) is string url ? WebLinks.From(url) : null;
-        var title = links != null ? new Uri(links.RepoUrl).AbsolutePath.Trim('/') : Path.GetFileName(repo.Path);
+        // The repository's own name, e.g. 'gmd' of 'owner/gmd'
+        var name = links != null ? new Uri(links.RepoUrl).AbsolutePath.Trim('/').Split('/')[^1] : "";
+        var title = $"{(name != "" ? name : Path.GetFileName(repo.Path))} Branch Graph";
 
         var graph = graphCreater.Create(repo);
         var html = WebLogPage.Html(

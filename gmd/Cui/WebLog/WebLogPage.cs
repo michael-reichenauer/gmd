@@ -26,7 +26,7 @@ record PullRequest(
 // and its open pull request, and above it the branches, the one changed last first. Made for a phone
 // or a tablet, to see what is going on in a repo where gmd cannot run, e.g. by a GitHub Action
 // publishing it to GitHub Pages. It is the log view's own graph, GraphCreater's and GraphWriter's,
-// drawn as SVG by GraphSvg, in the colors of gmd's own dark and light palettes.
+// drawn as SVG by GraphSvg, in the colors of gmd's own dark palette, as gmd is best known, whatever the device's mode.
 //
 // This is string work on a view repo and its graph, with no git or view, so it is tested with
 // RepoBuilder.
@@ -72,7 +72,7 @@ static class WebLogPage
             <body>
             <header>
             <h1>{{RepoLink(links, title)}}</h1>
-            <p class="meta">Branch graph by gmd, updated <time data-t="{{Iso(
+            <p class="meta">Made by gmd, updated <time data-t="{{Iso(
                 generated
             )}}">{{generated:yyyy-MM-dd HH:mm}} UTC</time></p>
             <details class="about"><summary>About this page</summary>
@@ -195,7 +195,7 @@ static class WebLogPage
     static string SubjectHtml(Commit c, WebLinks? links)
     {
         var subject = E(c.Subject);
-        var cls = c.ParentIds.Count > 1 ? "subj merge" : "subj";
+        const string cls = "subj";
         if (links?.Host == WebHost.GitHub && PullRequestMerge.Match(c.Subject) is { Success: true } m)
             return $"<a class=\"{cls}\" href=\"{E(links.RepoUrl)}/pull/{m.Groups[1].Value}\">{subject}</a>";
         if (links?.Commit(c.Id) is string page)
@@ -228,14 +228,13 @@ static class WebLogPage
 
     static string E(string text) => WebUtility.HtmlEncode(text);
 
-    // The colors of gmd's dark palette, and of its light one for a light page
+    // The colors of gmd's dark palette
     static string Style()
     {
         var css = new StringBuilder();
         css.Append(
             $$$"""
-            :root{color-scheme:dark light;--bg:#0c0c0c;--fg:#e6e6e6;--dim:#8a8a8a;--line:#262626;--chip:#1c1c1c}
-            @media (prefers-color-scheme: light){:root{--bg:#ffffff;--fg:#1a1a1a;--dim:#6b6b6b;--line:#e6e6e6;--chip:#f2f2f2}}
+            :root{color-scheme:dark;--bg:#0c0c0c;--fg:#e6e6e6;--dim:#8a8a8a;--line:#262626;--chip:#1c1c1c}
             *{box-sizing:border-box}
             body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
             header,section{padding:0 16px}
@@ -258,7 +257,6 @@ static class WebLogPage
             .t{flex:1;min-width:0;padding:0 16px 0 6px;line-height:18px}
             .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
             .subj{text-decoration:none}
-            .subj.merge{color:var(--dim)}
             .m{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
             .sid{font-family:ui-monospace,Menlo,monospace;text-decoration:none}
             .tip{display:inline-block;font-size:12px;font-weight:600;padding:0 6px;margin-right:4px;border:1px solid currentColor;border-radius:9px;text-decoration:none}
@@ -274,7 +272,6 @@ static class WebLogPage
         );
         css.Append(GraphSvg.Style);
         css.Append(PaletteCss(Palette.Dark)).Append('\n');
-        css.Append("@media (prefers-color-scheme: light){").Append(PaletteCss(Palette.Light)).Append("}\n");
         return css.ToString();
     }
 
