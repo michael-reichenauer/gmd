@@ -159,4 +159,49 @@ public class WebLogPageTest
         {
             Message = message,
         };
+
+    [TestMethod]
+    public async Task HidesTheLocalBranchesAtTheirRemoteBranchsCommit()
+    {
+        var repo = await FeatureRepo().ViewRepoAsync(gmd.Server.ShowBranches.AllActive);
+        Assert.AreEqual(
+            """
+                ┣─┺  More feature work
+            ┣─┺╮┃    Merge pull request #7 from owner/feature
+            ┃  ├┺    Feature <work>
+            ┣  │     Second
+            ┗──╯     Initial
+            """,
+            GraphText.WithSubjects(repo)
+        );
+
+        // Neither local branch's tip beside its remote branch's, and a column less for each
+        var hidden = WebLogExport.HideSyncedLocalBranches(repo);
+        Assert.AreEqual(
+            """
+              ┣  More feature work
+            ┣╮┃  Merge pull request #7 from owner/feature
+            ┃├┺  Feature <work>
+            ┣│   Second
+            ┗╯   Initial
+            """,
+            GraphText.WithSubjects(hidden)
+        );
+        CollectionAssert.AreEqual(
+            new[] { "origin/main", "origin/feature" },
+            hidden.ViewBranches.Select(b => b.Name).ToList()
+        );
+    }
+
+    [TestMethod]
+    public async Task KeepsALocalBranchWithCommitsNotOnItsRemoteBranch()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("c2", "Not pushed", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c1", ahead: 1)
+            .ViewRepoAsync(gmd.Server.ShowBranches.AllActive);
+
+        Assert.AreSame(repo, WebLogExport.HideSyncedLocalBranches(repo));
+    }
 }
