@@ -8,6 +8,8 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+## [v1.18.1471.1270] - 2026-11-09
+
 ### Improved
 - The branch graph web page (`gmd --web-log`) now shows the start of each commit's message after its id, up to 150 characters, which for a merge says what was merged
 - A commit's subject on the branch graph web page is now beside its dot, with the author, the time and the id on the line below, rather than the two lines centered around the dot
