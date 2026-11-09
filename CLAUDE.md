@@ -31,6 +31,8 @@ scripts/installagg <bin> <fonts> # agg and its fonts, for scripts/demo (installt
 scripts/demo           # re-record the README's animation and log pictures in gmd/doc/ (~30 s; tmux + agg)
 scripts/brewformula <v> # the Homebrew formula of release <v>, which CI pushes to the tap
 scripts/changelog unreleased # the notes of the next release in CHANGELOG.md, as the Release workflow reads them
+scripts/downloads report <dir> # release downloads per platform and week, from the snapshots the Downloads
+                       #   workflow keeps on the branch 'stats' (git worktree add <dir> origin/stats)
 ```
 
 `gh` (the GitHub CLI) is in the dev container, a feature of `devcontainer.json` with its login kept
@@ -218,7 +220,8 @@ Key types and flow:
 - `Cui/` is grouped by feature, a namespace per folder: `RepoView/` (the log), `Diff/`, `Blame/`,
   `Conflict/`, `Start/`, `Graphs/`, `Commits/` (the commit, amend, squash and stash dialogs and the
   details pane), `Branches/`, `Tags/`, `Recovery/` (Recover Lost Commits, Restore Deleted Branch),
-  `Worktrees/` and `Login/`, with `Common/` for the widgets and services they share and `App/` for
+  `Worktrees/`, `Login/` and `WebLog/` (the log as a web page, `gmd --web-log`, which the Branch graph
+  workflow publishes to GitHub Pages), with `Common/` for the widgets and services they share and `App/` for
   the parts of the shell the views use (`ApplicationBar`, About, Config, Update, the help page, the log view).
   `MainView`, which puts the views together, is alone in `Cui/` itself. The folders depend on each
   other one way only, from `RepoView/` down to `Common/`, with no cycle: keep it so, since a type in
