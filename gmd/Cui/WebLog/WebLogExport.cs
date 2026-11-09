@@ -53,6 +53,7 @@ class WebLogExport : IWebLogExport
             return new Error($"Failed to read the repo in {repoPath}", readResult.Error);
         var repo = server.ShowBranch(read, "", false, ShowBranches.AllActive);
         repo = HideBranches(repo, hiddenBranches);
+        repo = HideSyncedLocalBranches(repo);
 
         var pullRequestsResult = ReadPullRequests(pullRequestsPath);
         if (pullRequestsResult is not IReadOnlyList<PullRequest> pullRequests)
@@ -97,6 +98,35 @@ class WebLogExport : IWebLogExport
                 repo = server.HideBranch(repo, branch.Name);
         }
         return repo;
+    }
+
+    // The repo without the local branches that are at their remote branch's commit: the page is of
+    // what is on the remote, and the checkout it is made from has a local branch or two only since
+    // git needs one checked out, each drawn as a tip of its own beside its remote branch's and
+    // taking a column. The server always shows a branch with its local one, so they are taken out
+    // of the view repo here, and the remote branch is left as one with no local branch.
+    internal static Server.Repo HideSyncedLocalBranches(Server.Repo repo)
+    {
+        var shown = repo.ViewBranches.ToDictionary(b => b.Name);
+        var hidden = repo
+            .ViewBranches.Where(b =>
+                !b.IsRemote
+                && shown.TryGetValue(b.RemoteName, out var remote)
+                && remote.TipId == b.TipId
+                && !repo.ViewCommits.Any(c => c.BranchName == b.Name)
+            )
+            .Select(b => b.Name)
+            .ToHashSet();
+        if (hidden.Count == 0)
+            return repo;
+
+        return repo with
+        {
+            ViewBranches = repo
+                .ViewBranches.Where(b => !hidden.Contains(b.Name))
+                .Select(b => hidden.Contains(b.LocalName) ? b with { LocalName = "" } : b)
+                .ToList(),
+        };
     }
 
     // The open pull requests, as 'gh pr list --json number,title,headRefName,url,isDraft,isCrossRepository' writes
