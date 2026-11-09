@@ -11,7 +11,13 @@ namespace gmd.Cui.WebLog;
 // log view, read as gmd reads the repo, with no terminal.
 interface IWebLogExport
 {
-    Task<Result> WriteAsync(string repoPath, string outPath, string pullRequestsPath, int maxRows);
+    Task<Result> WriteAsync(
+        string repoPath,
+        string outPath,
+        string pullRequestsPath,
+        int maxRows,
+        IReadOnlyList<string> hiddenBranches
+    );
 }
 
 class WebLogExport : IWebLogExport
@@ -34,12 +40,19 @@ class WebLogExport : IWebLogExport
         this.branchColorService = branchColorService;
     }
 
-    public async Task<Result> WriteAsync(string repoPath, string outPath, string pullRequestsPath, int maxRows)
+    public async Task<Result> WriteAsync(
+        string repoPath,
+        string outPath,
+        string pullRequestsPath,
+        int maxRows,
+        IReadOnlyList<string> hiddenBranches
+    )
     {
         var readResult = await server.GetRepoAsync(repoPath, []);
         if (readResult is not Server.Repo read)
             return new Error($"Failed to read the repo in {repoPath}", readResult.Error);
         var repo = server.ShowBranch(read, "", false, ShowBranches.AllActive);
+        repo = HideBranches(repo, hiddenBranches);
 
         var pullRequestsResult = ReadPullRequests(pullRequestsPath);
         if (pullRequestsResult is not IReadOnlyList<PullRequest> pullRequests)
@@ -67,6 +80,21 @@ class WebLogExport : IWebLogExport
                 Directory.CreateDirectory(folder);
             File.WriteAllText(outPath, html);
         });
+    }
+
+    // The repo with these branches hidden, named as on the remote or locally, e.g. a branch of data
+    // that is no work of anyone's; a name of no branch shown is passed over
+    Server.Repo HideBranches(Server.Repo repo, IReadOnlyList<string> names)
+    {
+        foreach (var name in names)
+        {
+            var branch = repo.ViewBranches.FirstOrDefault(b =>
+                b.Name == name || (b.IsRemote && b.Name[(b.Name.IndexOf('/') + 1)..] == name)
+            );
+            if (branch != null && !branch.IsMainBranch)
+                repo = server.HideBranch(repo, branch.Name);
+        }
+        return repo;
     }
 
     // The open pull requests, as 'gh pr list --json number,title,headRefName,url,isDraft' writes

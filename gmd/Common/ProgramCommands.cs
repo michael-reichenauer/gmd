@@ -51,6 +51,7 @@ class ProgramCommands : IProgramCommands
                 --prs <file>      ... with the open pull requests 'gh pr list --json
                                   number,title,headRefName,url,isDraft' wrote to <file>
                 --max <n>         ... with at most <n> commits (default 500)
+                --hide <names>    ... without these branches, a comma separated list
               --help|-h|-?        Show command line help.
 
             The help on using gmd, which ? opens in gmd:
@@ -115,7 +116,12 @@ class ProgramCommands : IProgramCommands
         var pullRequestsPath = OptionValue(args, "--prs") ?? "";
         var maxRows = int.TryParse(OptionValue(args, "--max"), out var max) && max > 0 ? max : 500;
 
-        if (await webLogExport.WriteAsync(repoPath, outPath, pullRequestsPath, maxRows) is Error e)
+        var hidden = (OptionValue(args, "--hide") ?? "").Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
+
+        if (await webLogExport.WriteAsync(repoPath, outPath, pullRequestsPath, maxRows, hidden) is Error e)
         {
             Console.Error.WriteLine($"Failed to write the web log: {e.AllMessages()}");
             return -1;

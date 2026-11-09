@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using gmd.Common;
 using gmd.Cui.Common;
 using gmd.Cui.Graphs;
 using gmd.Server;
@@ -23,6 +24,9 @@ record PullRequest(int Number, string Title, string HeadRefName, string Url, boo
 // RepoBuilder.
 static class WebLogPage
 {
+    // The guide to the page, what it shows and how it is made
+    const string GuideUrl = Project.Url + "/blob/dev/docs/BRANCH-GRAPH.md";
+
     static readonly Regex PullRequestMerge = new(@"^Merge pull request #(\d+)", RegexOptions.Compiled);
 
     public static string Html(
@@ -59,6 +63,15 @@ static class WebLogPage
             <p class="meta">Branch graph by gmd, updated <time data-t="{{Iso(
                 generated
             )}}">{{generated:yyyy-MM-dd HH:mm}} UTC</time></p>
+            <details class="about"><summary>About this page</summary>
+            <p>What everyone is working on, across the branches: gmd's branch graph of this repo, made anew
+            by a GitHub Action on every push. <b>Branches</b> lists the active branches, the latest changed
+            first, with their open pull requests. In <b>Commits</b>, each branch is a line in its own color,
+            main on the left, every branch to the right of the branch it came from; a dot is a commit, an
+            arc in is a merge and an arc out is where a branch started, and the short grey arcs are branches
+            not shown. Tap a subject for the commit's diff, or a pull request's merge for the pull request.</p>
+            <p><a href="{{GuideUrl}}">How it works</a></p>
+            </details>
             </header>
 
             """
@@ -233,6 +246,9 @@ static class WebLogPage
             .pr.draft{background:#6e7681}
             .tag{display:inline-block;font-size:12px;padding:0 6px;margin-right:4px;border-radius:9px;background:var(--chip);color:var(--c-Green)}
             .more{padding:12px 16px}
+            .about{margin:8px 0 0;font-size:14px;color:var(--dim)}
+            .about summary{cursor:pointer}
+            .about p{margin:6px 0}
 
             """
         );

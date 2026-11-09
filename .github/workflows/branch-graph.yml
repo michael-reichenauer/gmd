@@ -58,14 +58,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh pr list --state open --limit 100 --json number,title,headRefName,url,isDraft > "$RUNNER_TEMP/prs.json"
 
-      # A throwaway HOME, since gmd writes its config and log there. The checkout is of the main
+      # A throwaway HOME, since gmd writes its config and log there. 'stats' is left out, being
+      # the download snapshots (downloads.yml) rather than work. The checkout is of the main
       # branch, so that no detached HEAD is drawn as a branch of its own.
       - name: Write the page
         run: |
           git checkout -q -B main origin/main
           mkdir -p "$RUNNER_TEMP/home" site
           echo '{"CheckUpdates": false}' > "$RUNNER_TEMP/home/.gmdconfig"
-          HOME="$RUNNER_TEMP/home" "$RUNNER_TEMP/gmd/gmd" --web-log site/index.html --prs "$RUNNER_TEMP/prs.json" --max 400
+          HOME="$RUNNER_TEMP/home" "$RUNNER_TEMP/gmd/gmd" --web-log site/index.html --prs "$RUNNER_TEMP/prs.json" --max 400 --hide stats
 
       - name: Upload the page
         uses: actions/upload-pages-artifact@v3
