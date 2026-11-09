@@ -154,7 +154,7 @@ static class WebLogPage
             var dotIndex = graph.HasBranch(c.BranchName) ? graph.BranchByName(c.BranchName).X * 2 : -1;
 
             html.Append($"<div class=\"r\" id=\"{c.Sid}\">")
-                .Append(GraphSvg.Row(graphRow, dotIndex, graph.Width))
+                .Append(GraphSvg.Row(graphRow, dotIndex, graph.Width, graph.GetRow(c.ViewIndex)))
                 .Append("<div class=\"t\"><div class=\"s\">");
 
             if (tips.TryGetValue(c.Id, out var tipBranches))
