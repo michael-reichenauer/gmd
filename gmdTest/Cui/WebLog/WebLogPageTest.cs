@@ -122,4 +122,13 @@ public class WebLogPageTest
             "<a class=\"tag\" href=\"https://github.com/owner/repo/releases/tag/v1.2\">v1.2</a>"
         );
     }
+
+    [TestMethod]
+    public async Task PutsTheSubjectBesideTheCommitsDot()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        // The two lines of text are moved down by half a line from the middle of the row
+        StringAssert.Contains(html, "line-height:18px;position:relative;top:9px}");
+    }
 }
