@@ -21,6 +21,9 @@ static class GraphSvg
     const double LightWidth = 1.5;
     const double DotRadius = 4.5;
 
+    // Where the line above an active branch's tip starts, half way up to the top of the row
+    const double ActiveTipTop = RowHeight / 4.0;
+
     [Flags]
     enum Arm
     {
@@ -86,13 +89,16 @@ static class GraphSvg
                 // The commit's own color, white when its branch is ambiguous or set by the user ('Φ')
                 if (index == dotIndex)
                     dotColor = color;
-                if (parts != null && parts.IsDrawn(svg, index, rune))
+                // The line above the latest commit of a branch that may get more, which the terminal
+                // has as the upper half of its rune (┣), is drawn half as long, as a mark of it
+                var top = graphRow != null && IsActiveTip(graphRow, index) ? ActiveTipTop : 0;
+                if (parts != null && parts.IsDrawn(svg, index, rune, top))
                 {
                     index++;
                     continue;
                 }
                 if (Shapes.TryGetValue(rune, out var shape))
-                    AppendShape(svg, shape, index, color);
+                    AppendShape(svg, shape, index, color, top);
                 index++;
             }
         }
@@ -178,7 +184,7 @@ static class GraphSvg
                 .ToList();
 
         // Whether the cell at the rune index is drawn from its parts, which it then is
-        public bool IsDrawn(System.Text.StringBuilder svg, int index, char rune)
+        public bool IsDrawn(System.Text.StringBuilder svg, int index, char rune, double top)
         {
             // A column is a connect rune (but the first) followed by its branch rune
             var column = row[(index + 1) / 2];
@@ -240,7 +246,7 @@ static class GraphSvg
                 Line(svg, ColorClass(color), $"M{N(from)} {N(ym + offsets.GetValueOrDefault(color))}H{N(to)}");
             }
             if (Shapes.TryGetValue(rune, out var shape))
-                AppendArms(svg, shape.Heavy, "h", ColorClass(column.BranchColor), x0, x1, xm, ym);
+                AppendArms(svg, shape.Heavy, "h", ColorClass(column.BranchColor), x0, x1, xm, ym, top);
             return true;
         }
 
@@ -251,7 +257,14 @@ static class GraphSvg
     // The CSS class of a color, e.g. "c-Branch3", as gmd names its colors
     public static string ColorClass(Color color) => $"c-{color.Foreground}";
 
-    static void AppendShape(System.Text.StringBuilder svg, Shape shape, int index, string color)
+    // Whether the rune at the index is of the tip of a branch that may get more commits
+    static bool IsActiveTip(GraphRow row, int index) =>
+        index % 2 == 0
+        && index / 2 < row.Width
+        && row[index / 2].BranchSign.HasFlag(Sign.Tip)
+        && row[index / 2].BranchSign.HasFlag(Sign.ActiveTip);
+
+    static void AppendShape(System.Text.StringBuilder svg, Shape shape, int index, string color, double top = 0)
     {
         double x0 = index * CellWidth;
         double x1 = x0 + CellWidth;
@@ -268,7 +281,7 @@ static class GraphSvg
         }
 
         AppendArms(svg, shape.Light, "l", color, x0, x1, xm, ym);
-        AppendArms(svg, shape.Heavy, "h", color, x0, x1, xm, ym);
+        AppendArms(svg, shape.Heavy, "h", color, x0, x1, xm, ym, top);
     }
 
     static void AppendArms(
@@ -279,7 +292,8 @@ static class GraphSvg
         double x0,
         double x1,
         double xm,
-        double ym
+        double ym,
+        double top = 0
     )
     {
         if (arms == Arm.None)
@@ -287,9 +301,9 @@ static class GraphSvg
         var d = new System.Text.StringBuilder();
         // A line straight through is drawn as one, so that no join shows where the two halves meet
         if (arms.HasFlag(Arm.Up) && arms.HasFlag(Arm.Down))
-            d.Append($"M{N(xm)} 0V{RowHeight}");
+            d.Append($"M{N(xm)} {N(top)}V{RowHeight}");
         else if (arms.HasFlag(Arm.Up))
-            d.Append($"M{N(xm)} 0V{N(ym)}");
+            d.Append($"M{N(xm)} {N(top)}V{N(ym)}");
         else if (arms.HasFlag(Arm.Down))
             d.Append($"M{N(xm)} {N(ym)}V{RowHeight}");
 

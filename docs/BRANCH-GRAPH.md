@@ -31,6 +31,7 @@ draft; one from a fork is left out); `↗` opens the branch on GitHub when it ha
   it white there.
 - The short grey arcs are branches gmd does not show, for example ones that were merged and
   deleted long ago: where they were merged in or branched out.
+- A short line above a branch's latest commit says the branch is open for more commits.
 - A colored outlined label is a branch's tip, its latest commit, and a green label beside it its
   open pull request. A label with green text on grey is a tag, such as a release version, and opens
   its release on GitHub.

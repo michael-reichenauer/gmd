@@ -148,4 +148,25 @@ public class GraphSvgTest
         StringAssert.Contains(svg, "<path class=\"l c-Blue\" d=\"M18 20H13.5\"/>");
         Assert.IsFalse(svg.Contains("c-Blue\" d=\"M9 20H18"), svg);
     }
+
+    [TestMethod]
+    public void DrawsTheLineAboveAnActiveBranchsTipHalfAsLong()
+    {
+        var branch = new GraphBranch(null!, 0);
+        var row = new GraphRow(1);
+        row.SetBranch(0, Sign.Tip | Sign.ActiveTip, Color.Blue, branch);
+
+        var svg = GraphSvg.Row(Text.Color(Color.Blue, "┣"), 0, 1, row);
+
+        // From half way up to the row's top, not from the top, and down to the next row as ever
+        StringAssert.Contains(svg, "<path class=\"h c-Blue\" d=\"M4.5 10V40\"/>");
+
+        // A commit within a branch has the whole line
+        var within = new GraphRow(1);
+        within.SetBranch(0, Sign.Commit, Color.Blue, branch);
+        StringAssert.Contains(
+            GraphSvg.Row(Text.Color(Color.Blue, "┣"), 0, 1, within),
+            "<path class=\"h c-Blue\" d=\"M4.5 0V40\"/>"
+        );
+    }
 }
