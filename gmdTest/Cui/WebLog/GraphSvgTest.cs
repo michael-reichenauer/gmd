@@ -108,4 +108,44 @@ public class GraphSvgTest
 
         Assert.AreEqual(GraphSvg.Row(text, 0, 3), GraphSvg.Row(text, 0, 3, row));
     }
+
+    [TestMethod]
+    public void DrawsABranchMergedInBesideOneBranchedOutFurtherRightApart()
+    {
+        // ┣┬┃╯: blue merged in from the column beside, green branched out from one further right,
+        // its line passing over blue's turn
+        var row = new GraphRow(3);
+        row.SetConnect(1, Sign.MergeFromRight, Color.Blue);
+        row.SetGraphBranchPass(1, Sign.Pass, Color.Green);
+        row.SetGraphPass(1, Sign.Pass, Color.Green);
+        row.SetConnect(2, Sign.BranchToRight, Color.Green);
+
+        var svg = GraphSvg.Row(
+            Text.Color(Color.Magenta, "┣").White("┬").Green("─╯").Color(Color.Black, " "),
+            0,
+            5,
+            row
+        );
+
+        StringAssert.Contains(svg, "<path class=\"l c-Blue\" d=\"M9 22Q13.5 22 13.5 40\"/>");
+        StringAssert.Contains(svg, "<path class=\"l c-Green\" d=\"M9 18H18\"/>");
+        StringAssert.Contains(svg, "<path class=\"l c-Green\" d=\"M18 18H27\"/>");
+        StringAssert.Contains(svg, "<path class=\"l c-Green\" d=\"M27 18Q31.5 18 31.5 0\"/>");
+    }
+
+    [TestMethod]
+    public void DrawsNoLineLeftOfABranchOutToTheLeft()
+    {
+        // ┃╰┣: a blue branch out to the left of a green commit, its line passing the turn's cell
+        // as it is set, where a red line runs too
+        var row = new GraphRow(2);
+        row.SetConnect(1, Sign.BranchToLeft, Color.Blue);
+        row.SetGraphPass(1, Sign.Pass, Color.Blue);
+        row.SetConnect(1, Sign.ConnectLine, Color.Red);
+
+        var svg = GraphSvg.Row(Text.Color(Color.Magenta, "┃").White("┼").Green("┣"), 2, 3, row);
+
+        StringAssert.Contains(svg, "<path class=\"l c-Blue\" d=\"M18 20H13.5\"/>");
+        Assert.IsFalse(svg.Contains("c-Blue\" d=\"M9 20H18"), svg);
+    }
 }

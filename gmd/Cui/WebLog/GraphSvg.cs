@@ -126,18 +126,11 @@ static class GraphSvg
         {
             this.row = row;
 
-            // The colors that share a horizontal line somewhere in the row, or turn in one cell
+            // The colors that share a horizontal line somewhere in the row, passing or turning in one cell
             var shared = new List<Color>();
             for (int x = 0; x < row.Width; x++)
             {
-                foreach (
-                    var colors in new[]
-                    {
-                        PassColors(row[x]),
-                        TurnColors(row[x]),
-                        row[x].BranchPassColors.Distinct().ToList(),
-                    }
-                )
+                foreach (var colors in new[] { LineColors(row[x]), row[x].BranchPassColors.Distinct().ToList() })
                 {
                     if (colors.Count > 1)
                         shared.AddRange(colors.Where(c => !shared.Contains(c)));
@@ -167,14 +160,21 @@ static class GraphSvg
             return 0;
         }
 
-        static List<Color> PassColors(GraphColumn column) =>
-            column.ConnectParts.Where(p => p.Sign == Sign.Pass).Select(p => p.Color).Distinct().ToList();
+        // The colors of the horizontal lines of a connect cell, passing or turning, not vertical
+        static List<Color> LineColors(GraphColumn column) =>
+            DrawnParts(column).Where(p => p.Sign != Sign.ConnectLine).Select(p => p.Color).Distinct().ToList();
 
-        static List<Color> TurnColors(GraphColumn column) =>
+        // The parts of a connect cell as drawn: a horizontal line that starts with a turn to the
+        // right of the cell (╰ ╭) is set as passing that cell too, which the terminal leaves out
+        static List<(Sign Sign, Color Color)> DrawnParts(GraphColumn column) =>
             column
-                .ConnectParts.Where(p => p.Sign != Sign.Pass && p.Sign != Sign.ConnectLine)
-                .Select(p => p.Color)
-                .Distinct()
+                .ConnectParts.Distinct()
+                .Where(p =>
+                    p.Sign != Sign.Pass
+                    || !column.ConnectParts.Any(t =>
+                        t.Color == p.Color && (t.Sign == Sign.BranchToLeft || t.Sign == Sign.MergeFromLeft)
+                    )
+                )
                 .ToList();
 
         // Whether the cell at the rune index is drawn from its parts, which it then is
@@ -190,7 +190,7 @@ static class GraphSvg
 
             if (isConnect)
             {
-                var cellParts = column.ConnectParts;
+                var cellParts = DrawnParts(column);
                 var colors = cellParts.Select(p => p.Color).Distinct().ToList();
                 if (colors.Count < 2 && !colors.Any(offsets.ContainsKey))
                     return false;
@@ -198,7 +198,7 @@ static class GraphSvg
                 // A turn into a line of another color that runs through the cell joins it straight,
                 // since its arc up or down would run along that line
                 bool hasLine = cellParts.Any(p => p.Sign == Sign.ConnectLine);
-                foreach (var (sign, color) in cellParts.Distinct())
+                foreach (var (sign, color) in cellParts)
                 {
                     var c = ColorClass(color);
                     var y = ym + offsets.GetValueOrDefault(color);
@@ -230,8 +230,15 @@ static class GraphSvg
             if (passColors.Count < 2 && !passColors.Any(offsets.ContainsKey))
                 return false;
 
+            // A line that ends in the cell, at a commit or a branch's line, ends in its middle; the
+            // connect cell to its left is the column's own, the one to its right the next column's
+            var right = (index + 2) / 2 < row.Width ? row[(index + 2) / 2] : null;
             foreach (var color in passColors)
-                Line(svg, ColorClass(color), $"M{N(x0)} {N(ym + offsets.GetValueOrDefault(color))}H{N(x1)}");
+            {
+                var from = LineColors(column).Contains(color) ? x0 : xm;
+                var to = right != null && LineColors(right).Contains(color) ? x1 : xm;
+                Line(svg, ColorClass(color), $"M{N(from)} {N(ym + offsets.GetValueOrDefault(color))}H{N(to)}");
+            }
             if (Shapes.TryGetValue(rune, out var shape))
                 AppendArms(svg, shape.Heavy, "h", ColorClass(column.BranchColor), x0, x1, xm, ym);
             return true;
