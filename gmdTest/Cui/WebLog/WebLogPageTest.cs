@@ -131,4 +131,32 @@ public class WebLogPageTest
         // The two lines of text are moved down by half a line from the middle of the row
         StringAssert.Contains(html, "line-height:18px;position:relative;top:9px}");
     }
+
+    [TestMethod]
+    public void ShowsTheStartOfTheMessageBelowTheSubjectOnOneLine()
+    {
+        Assert.AreEqual("", WebLogPage.MessageExcerpt(CommitOf("Subject only")));
+        Assert.AreEqual(
+            "The page now links tags. A second paragraph",
+            WebLogPage.MessageExcerpt(
+                CommitOf(
+                    "Subject\n\n- The page now links\n  tags.\n\nA second paragraph\n\n"
+                        + "Co-Authored-By: Someone <s@example.com>\nClaude-Session: https://example.com/s"
+                )
+            )
+        );
+
+        var cut = WebLogPage.MessageExcerpt(CommitOf("Subject\n\n" + new string('a', 200)));
+        Assert.AreEqual(new string('a', 150) + "…", cut);
+    }
+
+    static gmd.Server.Commit CommitOf(string message) =>
+        new RepoBuilder()
+            .Commit("c1", "x")
+            .BranchWithRemote("main", "c1", isCurrent: true)
+            .ViewRepoAsync()
+            .Result.ViewCommits[0] with
+        {
+            Message = message,
+        };
 }
