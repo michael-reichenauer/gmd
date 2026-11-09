@@ -35,6 +35,12 @@ static class WebLogPage
     // The guide to the page, what it shows and how it is made
     const string GuideUrl = Project.Url + "/blob/dev/docs/BRANCH-GRAPH.md";
 
+    // A row's two lines of text, the subject and below it the author, time and id, are moved down
+    // from the middle of the row by half a line, so that the subject is beside the commit's dot,
+    // as it is in the terminal, rather than the two lines around it
+    const int LineHeight = 18;
+    const int SubjectShift = LineHeight / 2;
+
     static readonly Regex PullRequestMerge = new(@"^Merge pull request #(\d+)", RegexOptions.Compiled);
 
     public static string Html(
@@ -257,11 +263,11 @@ static class WebLogPage
             .bm{margin-left:auto;color:var(--dim);font-size:12px;white-space:nowrap}
             .ext{color:var(--dim);font-size:12px}
             .log{padding-right:0}
-            .rows{overflow-x:auto;-webkit-overflow-scrolling:touch}
+            .rows{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:{{{SubjectShift}}}px}
             .r{display:flex;align-items:center;height:{{{GraphSvg.RowHeight}}}px;scroll-margin-top:40px}
             .r:target{background:var(--chip)}
             .g{flex:none;display:block}
-            .t{flex:1;min-width:0;padding:0 16px 0 6px;line-height:18px}
+            .t{flex:1;min-width:0;padding:0 16px 0 6px;line-height:{{{LineHeight}}}px;position:relative;top:{{{SubjectShift}}}px}
             .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
             .subj{text-decoration:none}
             .m{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
