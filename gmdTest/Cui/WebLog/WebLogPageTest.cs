@@ -111,4 +111,15 @@ public class WebLogPageTest
         StringAssert.Contains(html, "<a class=\"subj\" href=\"https://github.com/owner/repo/pull/7\">");
         Assert.IsFalse(html.Contains("prefers-color-scheme"), "The page is dark whatever the device's mode");
     }
+
+    [TestMethod]
+    public async Task LinksATagToItsRelease()
+    {
+        var html = await PageOf(FeatureRepo().Tag("v1.2", "c3"));
+
+        StringAssert.Contains(
+            html,
+            "<a class=\"tag\" href=\"https://github.com/owner/repo/releases/tag/v1.2\">v1.2</a>"
+        );
+    }
 }
