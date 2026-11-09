@@ -174,7 +174,14 @@ static class WebLogPage
                 }
             }
             foreach (var tag in c.Tags)
-                html.Append($"<span class=\"tag\">{E(tag.Name)}</span>");
+            {
+                // A tag opens its release, e.g. of a version
+                html.Append(
+                    links?.Tag(tag.Name) is string page
+                        ? $"<a class=\"tag\" href=\"{E(page)}\">{E(tag.Name)}</a>"
+                        : $"<span class=\"tag\">{E(tag.Name)}</span>"
+                );
+            }
 
             html.Append(SubjectHtml(c, links)).Append("</div>");
             html.Append($"<div class=\"m\">{E(c.Author)} · {TimeTag(c.AuthorTime)} · ");
@@ -262,7 +269,7 @@ static class WebLogPage
             .tip{display:inline-block;font-size:12px;font-weight:600;padding:0 6px;margin-right:4px;border:1px solid currentColor;border-radius:9px;text-decoration:none}
             .pr{display:inline-block;font-size:12px;font-weight:600;padding:0 6px;margin-right:4px;border-radius:9px;background:#238636;color:#fff;text-decoration:none}
             .pr.draft{background:#6e7681}
-            .tag{display:inline-block;font-size:12px;padding:0 6px;margin-right:4px;border-radius:9px;background:var(--chip);color:var(--c-Green)}
+            .tag{display:inline-block;font-size:12px;padding:0 6px;margin-right:4px;border-radius:9px;background:var(--chip);color:var(--c-Green);text-decoration:none}
             .more{padding:12px 16px}
             .about{margin:8px 0 0;font-size:14px;color:var(--dim)}
             .about summary{cursor:pointer}
