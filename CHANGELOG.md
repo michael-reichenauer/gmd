@@ -8,6 +8,9 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+### New
+- `gmd --web-log <file>` writes the branch graph of all active branches as a web page to read on a phone or a tablet, where Gmd cannot run: the same graph as in Gmd, each commit linked to its diff and each branch to its open pull request on GitHub, the branch changed last listed first. `--prs`, `--max` and `--hide` choose what it shows, and [the guide](https://github.com/michael-reichenauer/gmd/blob/main/docs/BRANCH-GRAPH.md) has how to publish it to GitHub Pages with a GitHub Action
+
 ## [v1.16.1460.412] - 2026-10-29
 
 ### New
