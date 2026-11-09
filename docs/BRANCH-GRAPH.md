@@ -34,7 +34,9 @@ draft; one from a fork is left out); `↗` opens the branch on GitHub when it ha
 - A colored outlined label is a branch's tip, its latest commit, and a green label beside it its
   open pull request. A label with green text on grey is a tag, such as a release version, and opens
   its release on GitHub.
-- A commit's subject is beside its dot, with the author, the time and the id on the line below.
+- A commit's subject is beside its dot, with the author, the time and the id on the line below,
+  followed by the start of the rest of the commit's message, as far as the width allows (150
+  characters at most). For a merge that is what it merged, which its subject seldom says.
 - The subject opens the commit's diff on GitHub, or, for a "Merge pull request #n" commit, that
   pull request. The short id at the end of the second line opens the commit too.
 - Times are shown as how long ago; older than a month, as the date.

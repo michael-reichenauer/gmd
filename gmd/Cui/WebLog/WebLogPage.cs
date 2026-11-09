@@ -41,6 +41,11 @@ static class WebLogPage
     const int LineHeight = 18;
     const int SubjectShift = LineHeight / 2;
 
+    const int MaxExcerpt = 150;
+    static readonly Regex Trailer = new(
+        @"^(Co-Authored-By|Signed-off-by|Reviewed-by|Acked-by|Claude-Session|Change-Id): ",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase
+    );
     static readonly Regex PullRequestMerge = new(@"^Merge pull request #(\d+)", RegexOptions.Compiled);
 
     public static string Html(
@@ -196,12 +201,26 @@ static class WebLogPage
                     ? $"<a class=\"sid\" href=\"{E(commitPage)}\">{c.Sid}</a>"
                     : $"<span class=\"sid\">{c.Sid}</span>"
             );
+            if (MessageExcerpt(c) is { Length: > 0 } excerpt)
+                html.Append($" · <span class=\"x\">{E(excerpt)}</span>");
             html.Append("</div></div></div>\n");
         }
         var more = repo.ViewCommits.Count(c => c.Id != Repo.UncommittedId) - commits.Count;
         if (more > 0)
             html.Append($"<p class=\"meta more\">… and {more} older commits</p>\n");
         html.Append("</div></section>\n");
+    }
+
+    // The start of the commit's message below its subject, on one line: its lines joined, with no
+    // blank lines and no trailers, e.g. 'Co-Authored-By: ...', and cut at MaxExcerpt characters.
+    // It says what a merge is of, whose subject only names the branch or the pull request.
+    internal static string MessageExcerpt(Commit c)
+    {
+        var lines = c.Message.Split('\n').Skip(1).Select(l => l.Trim()).Where(l => l != "" && !Trailer.IsMatch(l));
+        // A list's first mark is left out, since it says nothing right after the commit's id
+        var text = Regex.Replace(string.Join(' ', lines), @"\s+", " ");
+        text = Regex.Replace(text, @"^[-*] ", "");
+        return text.Length <= MaxExcerpt ? text : text[..MaxExcerpt].TrimEnd() + "…";
     }
 
     // The subject, linked to the commit's page, and a pull request's merge to the pull request
@@ -272,6 +291,7 @@ static class WebLogPage
             .subj{text-decoration:none}
             .m{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
             .sid{font-family:ui-monospace,Menlo,monospace;text-decoration:none}
+            .x{opacity:.8}
             .tip{display:inline-block;font-size:12px;font-weight:600;padding:0 6px;margin-right:4px;border:1px solid currentColor;border-radius:9px;text-decoration:none}
             .pr{display:inline-block;font-size:12px;font-weight:600;padding:0 6px;margin-right:4px;border-radius:9px;background:#238636;color:#fff;text-decoration:none}
             .pr.draft{background:#6e7681}
