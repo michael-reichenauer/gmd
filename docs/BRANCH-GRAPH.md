@@ -25,6 +25,10 @@ draft; one from a fork is left out); `↗` opens the branch on GitHub when it ha
   to the right of the branch it came from. A dot is a commit on that branch.
 - An arc into a line is a merge: the branch on the right was merged into the line it joins. An arc
   out of a line is where a branch started.
+- Where a branch is merged in and another branches out at the same commit, or lines otherwise
+  share a stretch, each keeps its own color and the lines run side by side, the one going up
+  above the one coming from below. The terminal has one character for such a place, so it draws
+  it white there.
 - The short grey arcs are branches gmd does not show, for example ones that were merged and
   deleted long ago: where they were merged in or branched out.
 - A colored outlined label is a branch's tip, its latest commit, and a green label beside it its
@@ -78,7 +82,9 @@ The command is in `gmd/Common/ProgramCommands.cs`, and the page is made in `gmd/
   Bitbucket, Azure DevOps and Gitea, so the page works for repositories hosted there too.
 - `GraphSvg` draws each row of the graph. It takes the very runes the terminal shows, `┣ ┃ ╭ ╯ ─`,
   from `GraphWriter`, and draws each as the lines it is made of: heavy for a branch, light for a
-  merge, with the corners as arcs and the commit as a dot. Text cannot be used as it is, since a
+  merge, with the corners as arcs and the commit as a dot. Where lines of several colors share a
+  rune, which the terminal draws white, it draws them from the graph's own parts instead (each
+  `GraphColumn` keeps every line with its color), each in its color and side by side. Text cannot be used as it is, since a
   browser does not join one row of box-drawing characters to the next the way a terminal does.
 
 The page is the terminal's graph under a new coat, so any improvement to gmd's graph shows on the

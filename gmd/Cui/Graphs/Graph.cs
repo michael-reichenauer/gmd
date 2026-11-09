@@ -169,9 +169,18 @@ class GraphColumn
     internal Color PassColor { get; private set; } = Color.Black;
     internal GraphBranch? Branch { get; private set; }
 
+    // Each connection and pass of the column with its own color, which the terminal cannot show
+    // where they share a rune, drawn white there, but the web log page can (GraphSvg). The lists
+    // are made only for a column that has some, since the terminal's own graph never reads them
+    internal IReadOnlyList<(Sign Sign, Color Color)> ConnectParts => connectParts ?? [];
+    internal IReadOnlyList<Color> BranchPassColors => branchPassColors ?? [];
+    List<(Sign Sign, Color Color)>? connectParts;
+    List<Color>? branchPassColors;
+
     internal void SetConnect(Sign sign, Color color)
     {
         ConnectSign |= sign;
+        (connectParts ??= []).Add((sign, color));
         if (ConnectColor == Color.Black)
         {
             ConnectColor = color;
@@ -192,6 +201,7 @@ class GraphColumn
     internal void SetGraphBranchPass(Sign sign, Color color)
     {
         BranchSign |= sign;
+        (branchPassColors ??= []).Add(color);
 
         if (BranchColor == Color.Black)
         {
@@ -202,6 +212,7 @@ class GraphColumn
     internal void SetGraphPass(Sign sign, Color color)
     {
         ConnectSign |= sign;
+        (connectParts ??= []).Add((sign, color));
 
         if (PassColor == Color.Black)
         {
