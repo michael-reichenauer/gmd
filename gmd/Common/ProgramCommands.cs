@@ -1,3 +1,4 @@
+using gmd.Cui.WebLog;
 using gmd.Installation;
 
 namespace gmd.Common;
@@ -12,10 +13,12 @@ interface IProgramCommands
 class ProgramCommands : IProgramCommands
 {
     readonly IUpdater updater;
+    readonly IWebLogExport webLogExport;
 
-    public ProgramCommands(IUpdater updater)
+    public ProgramCommands(IUpdater updater, IWebLogExport webLogExport)
     {
         this.updater = updater;
+        this.webLogExport = webLogExport;
     }
 
     public async Task<int?> HandleCommandsAsync(string[] args)
@@ -26,6 +29,8 @@ class ProgramCommands : IProgramCommands
             return ShowVersion();
         if (HasOptions(args, "--update", "-u"))
             return await UpdateAsync();
+        if (HasOptions(args, "--web-log"))
+            return await WriteWebLogAsync(args);
 
         return null;
     }
@@ -41,6 +46,12 @@ class ProgramCommands : IProgramCommands
               --update|-u         Update gmd to latest version (downloading from GitHub)
               -d <path>           Show repo for working folder specified by <path>
               -m                  Show the start page, even in a repository
+              --web-log <file>    Write the branch graph of all active branches as a web page,
+                                  of the repo in the current folder or the one -d names
+                --prs <file>      ... with the open pull requests 'gh pr list --json
+                                  number,title,headRefName,url,isDraft,isCrossRepository' wrote to <file>
+                --max <n>         ... with at most <n> commits (default 500)
+                --hide <names>    ... without these branches, a comma separated list
               --help|-h|-?        Show command line help.
 
             The help on using gmd, which ? opens in gmd:
@@ -91,6 +102,31 @@ class ProgramCommands : IProgramCommands
         }
 
         Console.WriteLine($"Updated {currentVersion} -> {newVersion}");
+        return 0;
+    }
+
+    async Task<int> WriteWebLogAsync(string[] args)
+    {
+        if (OptionValue(args, "--web-log") is not string outPath)
+        {
+            Console.Error.WriteLine("--web-log needs the file to write");
+            return -1;
+        }
+        var repoPath = OptionValue(args, "-d") ?? Environment.CurrentDirectory;
+        var pullRequestsPath = OptionValue(args, "--prs") ?? "";
+        var maxRows = int.TryParse(OptionValue(args, "--max"), out var max) && max > 0 ? max : 500;
+
+        var hidden = (OptionValue(args, "--hide") ?? "").Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
+
+        if (await webLogExport.WriteAsync(repoPath, outPath, pullRequestsPath, maxRows, hidden) is Error e)
+        {
+            Console.Error.WriteLine($"Failed to write the web log: {e.AllMessages()}");
+            return -1;
+        }
+        Console.WriteLine($"Wrote {outPath}");
         return 0;
     }
 
