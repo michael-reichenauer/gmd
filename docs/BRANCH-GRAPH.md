@@ -46,9 +46,11 @@ Nothing runs on a server: the page is one static HTML file, rebuilt and publishe
 Action.
 
 1. **The workflow**, `.github/workflows/branch-graph.yml` ("Branch graph"), runs on every push
-   to any branch, whenever a pull request is opened, closed or changes draft state, every hour
-   (GitHub runs scheduled workflows from the default branch only, so this starts once the
-   workflow is on `main`), and by hand from the Actions tab (`Run workflow`).
+   to any branch, whenever a pull request is opened, closed or changes draft state, when the
+   Release workflow ends (whose pushes to `dev` and `main`, made with the workflow's own token,
+   start no run themselves), every hour, and by hand from the Actions tab (`Run workflow`).
+   GitHub runs the hourly and the after-release runs from the default branch's workflow file only,
+   so those two start once the workflow is on `main`.
 2. It checks out the repository with its whole history and every branch, and builds gmd.
 3. It reads the open pull requests with `gh pr list` into a JSON file.
 4. It runs gmd, which writes the page and exits, with no terminal and no UI:
