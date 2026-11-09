@@ -49,7 +49,7 @@ class ProgramCommands : IProgramCommands
               --web-log <file>    Write the branch graph of all active branches as a web page,
                                   of the repo in the current folder or the one -d names
                 --prs <file>      ... with the open pull requests 'gh pr list --json
-                                  number,title,headRefName,url,isDraft' wrote to <file>
+                                  number,title,headRefName,url,isDraft,isCrossRepository' wrote to <file>
                 --max <n>         ... with at most <n> commits (default 500)
                 --hide <names>    ... without these branches, a comma separated list
               --help|-h|-?        Show command line help.

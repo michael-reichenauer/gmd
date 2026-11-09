@@ -32,6 +32,8 @@ concurrency:
 jobs:
   page:
     runs-on: ubuntu-latest
+    # A pull request from a fork has no right to publish the page
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -56,14 +58,16 @@ jobs:
       - name: Read the open pull requests
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh pr list --state open --limit 100 --json number,title,headRefName,url,isDraft > "$RUNNER_TEMP/prs.json"
+        run: gh pr list --state open --limit 100 --json number,title,headRefName,url,isDraft,isCrossRepository > "$RUNNER_TEMP/prs.json"
 
       # A throwaway HOME, since gmd writes its config and log there. 'stats' is left out, being
       # the download snapshots (downloads.yml) rather than work. The checkout is of the main
-      # branch, so that no detached HEAD is drawn as a branch of its own.
+      # branch, so that no detached HEAD is drawn as a branch of its own, and the pull request's
+      # merge ref a pull request event checks out is dropped, which would be drawn as a branch too.
       - name: Write the page
         run: |
           git checkout -q -B main origin/main
+          git for-each-ref --format='%(refname)' refs/remotes/pull | xargs -r -n1 git update-ref -d
           mkdir -p "$RUNNER_TEMP/home" site
           echo '{"CheckUpdates": false}' > "$RUNNER_TEMP/home/.gmdconfig"
           HOME="$RUNNER_TEMP/home" "$RUNNER_TEMP/gmd/gmd" --web-log site/index.html --prs "$RUNNER_TEMP/prs.json" --max 400 --hide stats

@@ -16,8 +16,8 @@ or GitHub.
 
 **Branches** lists every active branch, the one with the latest commit first, with who made that
 commit and how long ago. A branch's dot has its color in the graph. Tap a name to jump to its
-latest commit in the graph. A green `#n` is the branch's open pull request (grey while it is a
-draft); `↗` opens the branch on GitHub when it has no pull request.
+latest commit in the graph (or to the branch on GitHub, when that commit is older than those drawn). A green `#n` is the branch's open pull request (grey while it is a
+draft; one from a fork is left out); `↗` opens the branch on GitHub when it has no pull request.
 
 **Commits** is gmd's log of all those branches, newest first, as `Show All Active` shows it in gmd:
 
@@ -94,7 +94,7 @@ gmd --web-log graph.html -d path/to/repo
 | ----------------- | ----------------------------------------------------------------------- |
 | `--web-log <file>` | Writes the page to `<file>`                                            |
 | `-d <folder>`     | The repository; the current folder when left out                        |
-| `--prs <file>`    | The open pull requests, as `gh pr list --json number,title,headRefName,url,isDraft` writes them |
+| `--prs <file>`    | The open pull requests, as `gh pr list --json number,title,headRefName,url,isDraft,isCrossRepository` writes them |
 | `--max <n>`       | At most `<n>` commits (500 when left out)                               |
 | `--hide <names>`  | Branches to leave out, comma separated, named as on the remote          |
 

@@ -47,6 +47,7 @@ static class GraphSvg
         ['╊'] = new(Arm.Up | Arm.Down, Arm.Left),
         ['╂'] = new(Arm.Up | Arm.Down, Arm.Left | Arm.Right),
         ['╼'] = new(Arm.None, Arm.Left),
+        ['Φ'] = new(Arm.Up | Arm.Down, Arm.None), // A commit whose branch the user set
         // Connect runes
         ['─'] = new(Arm.None, Arm.Left | Arm.Right),
         ['│'] = new(Arm.None, Arm.Up | Arm.Down),

@@ -10,8 +10,16 @@ using WebLinks = gmd.Git.WebLinks;
 
 namespace gmd.Cui.WebLog;
 
-// An open pull request, as 'gh pr list --json number,title,headRefName,url,isDraft' gives it
-record PullRequest(int Number, string Title, string HeadRefName, string Url, bool IsDraft);
+// An open pull request, as 'gh pr list --json number,title,headRefName,url,isDraft,isCrossRepository' gives it; one from a fork
+// is left out, since its branch is not this repo's branch of the same name
+record PullRequest(
+    int Number,
+    string Title,
+    string HeadRefName,
+    string Url,
+    bool IsDraft,
+    bool IsCrossRepository = false
+);
 
 // The log view as a web page: the branch graph of the shown branches with each commit's subject,
 // author and time, every commit linked to its page on the hosting service, every branch to its page
@@ -41,10 +49,14 @@ static class WebLogPage
         int maxRows
     )
     {
-        var prs = pullRequests.GroupBy(p => p.HeadRefName).ToDictionary(g => g.Key, g => g.First());
+        var prs = pullRequests
+            .Where(p => !p.IsCrossRepository)
+            .GroupBy(p => p.HeadRefName)
+            .ToDictionary(g => g.Key, g => g.First());
         var commits = repo.ViewCommits.Where(c => c.Id != Repo.UncommittedId).Take(maxRows).ToList();
         var branches = repo.ViewBranches.Where(b => b.IsPrimary && !b.IsDetached).ToList();
-        var tips = branches.GroupBy(b => b.TipId).ToDictionary(g => g.Key, g => g.ToList());
+        var tips = branches.GroupBy(b => TipId(repo, b)).ToDictionary(g => g.Key, g => g.ToList());
+        var shownIds = commits.Select(c => c.Id).ToHashSet();
 
         var html = new StringBuilder();
         html.Append(
@@ -77,7 +89,7 @@ static class WebLogPage
             """
         );
 
-        AppendBranches(html, repo, branches, branchColor, links, prs);
+        AppendBranches(html, repo, branches, shownIds, branchColor, links, prs);
         AppendLog(html, repo, graph, graphWriter, commits, tips, branchColor, links, prs);
 
         html.Append(
@@ -97,18 +109,21 @@ static class WebLogPage
         StringBuilder html,
         Server.Repo repo,
         IReadOnlyList<Branch> branches,
+        IReadOnlySet<string> shownIds,
         Func<Branch, Color> branchColor,
         WebLinks? links,
         IReadOnlyDictionary<string, PullRequest> prs
     )
     {
         html.Append("<section class=\"branches\"><h2>Branches</h2><ul>\n");
-        foreach (var b in branches.OrderByDescending(b => repo.CommitById[b.TipId].AuthorTime))
+        foreach (var b in branches.OrderByDescending(b => repo.CommitById[TipId(repo, b)].AuthorTime))
         {
-            var tip = repo.CommitById[b.TipId];
+            var tip = repo.CommitById[TipId(repo, b)];
             var name = RemoteName(b);
             var color = GraphSvg.ColorClass(branchColor(b));
-            html.Append($"<li><a class=\"bn {color}\" href=\"#{tip.Sid}\"><span class=\"dot\"></span>")
+            // Its tip in the graph, or, older than the commits drawn, its page
+            var target = shownIds.Contains(tip.Id) ? $"#{tip.Sid}" : links?.Branch(name) ?? "#";
+            html.Append($"<li><a class=\"bn {color}\" href=\"{E(target)}\"><span class=\"dot\"></span>")
                 .Append(E(b.NiceNameUnique))
                 .Append("</a>");
             if (prs.TryGetValue(name, out var pr))
@@ -193,6 +208,11 @@ static class WebLogPage
 
     static string RepoLink(WebLinks? links, string title) =>
         links != null ? $"<a href=\"{E(links.RepoUrl)}\">{E(title)}</a>" : E(title);
+
+    // The branch's tip commit, the commit below the uncommitted changes for the current branch of a
+    // working tree with changes, since the page leaves those out
+    static string TipId(Server.Repo repo, Branch b) =>
+        b.TipId == Repo.UncommittedId && repo.CommitById[b.TipId].ParentIds is [var parent, ..] ? parent : b.TipId;
 
     // The branch's name on the remote, as its web page names it
     static string RemoteName(Branch b) =>

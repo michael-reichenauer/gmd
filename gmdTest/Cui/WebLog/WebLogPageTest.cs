@@ -76,4 +76,28 @@ public class WebLogPageTest
         Assert.AreEqual(2, html.Split("<div class=\"r\"").Length - 1);
         StringAssert.Contains(html, "… and 3 older commits");
     }
+
+    [TestMethod]
+    public async Task LeavesOutPullRequestsFromForks()
+    {
+        var prs = new List<PullRequest>
+        {
+            new(9, "A fork's main", "main", "https://github.com/owner/repo/pull/9", false, IsCrossRepository: true),
+        };
+        var html = await PageOf(FeatureRepo(), prs);
+
+        Assert.IsFalse(html.Contains("/pull/9"), html);
+    }
+
+    [TestMethod]
+    public async Task LinksABranchOlderThanTheCommitsDrawnToItsPage()
+    {
+        var html = await PageOf(FeatureRepo(), maxRows: 1);
+
+        StringAssert.Contains(
+            html,
+            "href=\"https://github.com/owner/repo/tree/main\"><span class=\"dot\"></span>main</a>"
+        );
+        StringAssert.Contains(html, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+    }
 }

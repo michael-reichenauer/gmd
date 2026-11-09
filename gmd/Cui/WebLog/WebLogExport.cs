@@ -97,7 +97,7 @@ class WebLogExport : IWebLogExport
         return repo;
     }
 
-    // The open pull requests, as 'gh pr list --json number,title,headRefName,url,isDraft' writes
+    // The open pull requests, as 'gh pr list --json number,title,headRefName,url,isDraft,isCrossRepository' writes
     // them, none when no file is named
     internal static Result<IReadOnlyList<PullRequest>> ReadPullRequests(string path)
     {

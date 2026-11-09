@@ -34,4 +34,13 @@ public class GraphSvgTest
 
         Assert.IsFalse(svg.Contains("<circle"), svg);
     }
+
+    [TestMethod]
+    public void DrawsTheLineThroughACommitSetByTheUser()
+    {
+        var svg = GraphSvg.Row(Text.Color(Color.White, "Φ"), 0, 1);
+
+        StringAssert.Contains(svg, "<path class=\"h c-White\" d=\"M4.5 0V40\"/>");
+        StringAssert.Contains(svg, "<circle class=\"d c-White\"");
+    }
 }
