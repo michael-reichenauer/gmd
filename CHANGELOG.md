@@ -8,6 +8,9 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+### Improved
+- The branch graph web page now keeps itself current while it is open: every five minutes it checks for a newer published page and shows its branches and commits in place, staying where it was scrolled to, and its times ("5m ago") no longer go stale
+
 ## [v1.18.1471.1270] - 2026-11-09
 
 ### Improved

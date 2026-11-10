@@ -112,6 +112,24 @@ public class WebLogPageTest
         Assert.IsFalse(html.Contains("prefers-color-scheme"), "The page is dark whatever the device's mode");
     }
 
+    // The page keeps itself current by reading itself anew and showing the branches and the rows of
+    // what it read, so its script and the page agree on where those are, and on what makes two
+    // pages look alike, of which there is one each
+    [TestMethod]
+    public async Task HasWhatItsScriptUpdatesItBy()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(html, "<section class=\"branches\">");
+        StringAssert.Contains(html, "<div class=\"rows\">");
+        StringAssert.Contains(html, "<p class=\"meta\">Made by gmd, updated <time data-t=\"2026-11-07T12:00:00Z\">");
+        foreach (var tag in new[] { "<title>", "<style>", "<script>" })
+            Assert.AreEqual(1, html.Split(tag).Length - 1, tag);
+        foreach (var selector in new[] { "\".branches\"", "\".rows\"", "\".meta time\"" })
+            StringAssert.Contains(html, $"q(d,{selector})");
+        StringAssert.Contains(html, "fetch(location.pathname,{cache:\"no-store\"})");
+    }
+
     [TestMethod]
     public async Task LinksATagToItsRelease()
     {
