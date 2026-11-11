@@ -153,4 +153,13 @@ public class BuildTest
         var sha = Build.CommitSha();
         Assert.IsTrue(sha == "" || Build.IsSha(sha), sha);
     }
+
+    // A build run from its build folder has its assembly as a file, a release has it inside its
+    // single file. The updater leaves the first alone, so a release taken for one would never
+    // update; that a published binary is none is checked by hand, see docs/UPGRADING.md.
+    [TestMethod]
+    public void TestTheTestsRunADevBuild()
+    {
+        Assert.IsTrue(Build.IsDevInstance());
+    }
 }

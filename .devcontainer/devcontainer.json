@@ -1,6 +1,6 @@
 {
 	"name": "C# (.NET)",
-	"image": "mcr.microsoft.com/devcontainers/dotnet:10.0",
+	"image": "mcr.microsoft.com/devcontainers/dotnet:11.0",
 	// The GitHub CLI, installed with the image at every rebuild, so that the CI runs can be read from
 	// here (gh run view <id> --log-failed) without a step by hand. Its login is kept in a volume, see
 	// mounts below, so 'gh auth login' is needed once, not after every rebuild.
@@ -33,10 +33,9 @@
 	// has no directory at the mount point, and the base image has no /home/vscode/.claude — so
 	// without this the vscode user cannot write to its own Claude directory. The same goes for
 	// .config/gh, and for .config itself should Docker have to make it for the mount.
-	// The image ships the .NET 10 SDK and runtime, which the net10.0 build and the end-to-end tests
-	// run on. global.json pins the .NET 11 SDK for its C# 15 compiler (union types), so it is
-	// installed side by side into the same root before anything restores. Also in scripts/installtools.
-	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.claude && sudo chown vscode:vscode /home/vscode/.config && sudo chown -R vscode:vscode /home/vscode/.config/gh && curl -sSL https://dot.net/v1/dotnet-install.sh | sudo bash -s -- --channel 11.0 --quality preview --install-dir /usr/share/dotnet && dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj && dotnet tool restore",
+	// The image ships the .NET 11 SDK that global.json pins, and its runtime, which the build and
+	// the tests run on.
+	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.claude && sudo chown vscode:vscode /home/vscode/.config && sudo chown -R vscode:vscode /home/vscode/.config/gh && dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj && dotnet tool restore",
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode"
 }

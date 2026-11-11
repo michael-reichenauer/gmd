@@ -27,8 +27,8 @@ sealed class TempHome : IDisposable
     const string FolderPrefix = "gmdTest-home-";
 
     // Seeded so the updater never calls GitHub. Not optional, although the apphost these tests
-    // drive is a dev instance: Build.IsDevInstance() finds 'gmd.dll' on the command line, since
-    // .NET puts the entry assembly there even when the apphost starts it. So RepoView's regular
+    // drive is a dev instance: Build.IsDevInstance() finds its assembly as a file, 'gmd.dll',
+    // where a release is a single file. So RepoView's regular
     // update check never runs, and no update is ever reported (no '⇓' in the application bar, no
     // release items in the menus), but the start page and saving the Config dialog check all the
     // same (Updater.CheckUpdateAvailableAsync skips only the 'dotnet' host), and without this they

@@ -118,12 +118,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
 - Renamed `R` / `R<T>` to `Result` / `Result<T>` (2026-09-12), so the type reads without
   explanation in another project, and `Result.cs` no longer calls gmd's `Asserter`: misuse throws
   `ResultException`, an `InvalidOperationException` that `Result.Catch` lets through and gmd's
-  unhandled-exception path logs and shows. So `Result.cs`, `UnionPolyfill.cs` and the test helper
+  unhandled-exception path logs and shows. So `Result.cs` and the test helper
   `ResultAssert.cs` depend on nothing but the BCL and can be copied to another project as they are
   (one namespace line each).
-- The compiler is the .NET 11 RC2 SDK's since 2026-10-17, RC1 before (`global.json`; `LangVersion preview` in
-  `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
-  are polyfilled in `gmd/Utils/UnionPolyfill.cs`. CSharpier 1.3.0 parses no C# 15 syntax, which is
+- The compiler is the released .NET 11 SDK's since 2026-11-11, RC2 and RC1 before (`global.json`;
+  C# 15 by default), and the target framework net11.0 since the same day, net10.0 before, with
+  `UnionAttribute` / `IUnion` polyfilled then (`gmd/Utils/UnionPolyfill.cs`, deleted). CSharpier 1.3.0 parses no C# 15 syntax, which is
   why the union is a hand-written struct rather than a `union` declaration. A missing switch arm
   (CS8509) is a build error.
 - Found on the way: `Task<Result>.RunInBackground()` bound to the `Task` overload and dropped an error
@@ -823,15 +823,15 @@ Add new open issues and findings here as work lands; keep them short and drop th
   are read as a branch named 'of' (weak), so in rust every pull request is an 'of' branch and its
   subprojects' lines are long ambiguous stretches with hundreds of candidates per commit.
 
-**The union result, at .NET 11 GA (November 2026)** — the steps are in `docs/UPGRADING.md`
+**The union result, after .NET 11 GA** — the steps are in `docs/UPGRADING.md`
 
-- Set `LangVersion` to `15`. If the target framework moves to net11.0 (an STS release, where
-  net10.0 is LTS), delete `gmd/Utils/UnionPolyfill.cs` and the explicit `LangVersion` too. When
+- Done 2026-11-11, the day after GA: `global.json` pins the released SDK, 11.0.100, and the target
+  framework is net11.0 (supported as long as net10.0, to 2028-11-14), with the polyfill and the
+  explicit `LangVersion` deleted. Still open: when
   CSharpier parses C# 15, `union Result<T>(T, Error) { … }` is optional sugar; the struct already has
   what the keyword form would not (non-boxing access, the helpers in its body).
 - The VS Code C# extension bundles its own Roslyn and may flag union patterns until it catches up;
-  `dotnet build` is the truth. CI installs the SDK from `global.json` plus `10.0.x` for the runtime
-  the net10.0 tests need; unverified until the first CI run on this branch.
+  `dotnet build` is the truth.
 
 **Refactoring roadmap** (from the 2026-09-11 review; A before B before C)
 
@@ -1158,6 +1158,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   alone three times. Recorded so nobody hunts a flake that is not biting.
 - `AskpassServerTest.TestQuestionsAskedAtOnceAreEachAnswered` failed once in a full run on
   2026-10-15, while timing runs had the machine busy, and passed alone five times and in a full rerun.
+  It was no flake of the test: `TestACancelledCommandIsNotAskedAgain` failed the same way in the
+  Release workflow on 2026-11-11 ("Connection reset by peer"), and stopped a preview. .NET listens
+  on one Unix socket for all the pipes of a name and closes it with the last pipe, and
+  `AskpassServer` made the next pipe only after it started answering the connected one, so a
+  question answered at once closed the listener under the next askpass. The next pipe is now made
+  first; `TestQuestionsRightAfterEachOtherAreAllAnswered` failed five runs of five before.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The end-to-end tests were about four of `scripts/test`'s four and a half minutes, nearly all waiting:
@@ -1567,9 +1573,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.
 - The .NET 10 SDK's terminal logger swallows VSTest output entirely, so `-tl:false` is passed
   everywhere.
-- `Build.IsDevInstance()` is *true* for the Debug build's apphost, since .NET puts the entry
-  assembly, `gmd.dll`, on `Environment.CommandLine` however it is started; only a published
-  single-file build is not one. So the end-to-end tests can never show ⇓ or the release menu items,
+- `Build.IsDevInstance()` is *true* for the Debug build's apphost, since its assembly is a file,
+  `gmd.dll` (`Assembly.Location`, empty in a single file); only a published single-file build is not one. Until .NET 11 it was read off
+  `Environment.CommandLine`, where .NET had the entry assembly however gmd was started; .NET 11
+  has the apphost there instead, which made every Debug build a release to itself, found by the
+  end-to-end test of Report a Bug when the target framework moved to net11.0 (2026-11-11). So the end-to-end tests can never show ⇓ or the release menu items,
   yet the start page and saving the Config dialog still call the GitHub releases API
   (`Updater.CheckUpdateAvailableAsync` skips only the `dotnet` host) unless `CheckUpdates` is off.
   It was long written down the other way round; the log of a run says `Dev instance, no update check`.
@@ -1615,4 +1623,4 @@ Add new open issues and findings here as work lands; keep them short and drop th
   CPU, so the macOS half is checked from Linux too.
 - A formula, not a cask: Homebrew stopped supporting casks that fail Gatekeeper on 2026-09-01, and
   a formula's download is never quarantined, so neither notarization nor a Developer ID is needed.
-  homebrew-core builds from source, which the C# 15 compiler of a .NET 11 preview rules out for now.
+  homebrew-core builds from source, which the C# 15 compiler of a .NET 11 preview ruled out until .NET 11 was released (2026-11-10).

@@ -29,13 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # global.json pins the .NET 11 SDK for its C# 15 compiler (union types). '10.0.x' adds the
-      # .NET 10 runtime that the net10.0 build and its tests run on, which the 11 SDK does not carry.
+      # global.json pins the .NET 11 SDK, which carries the runtime the build and its tests run on
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-          dotnet-version: '10.0.x'
 
       # The end-to-end UI tests drive the built binary in a tmux pane (gmdE2eTest/Fixtures/
       # TmuxSession.cs), and they fail rather than skip when tmux is missing, deliberately, so

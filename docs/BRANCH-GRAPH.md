@@ -54,6 +54,11 @@ branches gmd would, including those already merged whose names only survive in a
 Nothing runs on a server: the page is one static HTML file, rebuilt and published by a GitHub
 Action.
 
+An open page keeps itself current: every five minutes, and when it is shown again after being in
+the background, it reads itself anew and, when a newer page is published, shows that page's
+branches and commits in place, without a reload, so it stays where it was scrolled to. This only
+reads the published file; it starts no workflow run.
+
 1. **The workflow**, `.github/workflows/branch-graph.yml` ("Branch graph"), runs on every push
    to any branch, whenever a pull request is opened, closed or changes draft state, when the
    Release workflow ends (whose pushes to `dev` and `main`, made with the workflow's own token,

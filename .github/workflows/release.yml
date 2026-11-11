@@ -46,13 +46,11 @@ jobs:
           ref: dev
           fetch-depth: 0
 
-      # global.json pins the .NET 11 SDK for its C# 15 compiler (union types). '10.0.x' adds the
-      # .NET 10 runtime that the net10.0 build and its tests run on, which the 11 SDK does not carry.
+      # global.json pins the .NET 11 SDK, which carries the runtime the build and its tests run on
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-          dotnet-version: '10.0.x'
 
       # The end-to-end UI tests drive the built binary in a tmux pane and fail rather than skip
       # without it, see build.yml
@@ -80,7 +78,7 @@ jobs:
           BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           sed -i "s/BUILD_TIME/$BUILD_TIME/g" gmd/Build.cs
           dotnet build gmd/gmd.csproj -v quiet --nologo
-          VERSION="$(gmd/bin/Debug/net10.0/gmd --version)"
+          VERSION="$(gmd/bin/Debug/net11.0/gmd --version)"
           git checkout -- gmd/Build.cs
           echo "Version: $VERSION, built $BUILD_TIME"
 

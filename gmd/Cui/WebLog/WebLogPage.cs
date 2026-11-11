@@ -88,7 +88,7 @@ static class WebLogPage
             )}}">{{generated:yyyy-MM-dd HH:mm}} UTC</time></p>
             <details class="about"><summary>About this page</summary>
             <p>What everyone is working on, across the branches: gmd's branch graph of this repo, made anew
-            by a GitHub Action on every push. <b>Branches</b> lists the active branches, the latest changed
+            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b> lists the active branches, the latest changed
             first, with their open pull requests. In <b>Commits</b>, each branch is a line in its own color,
             main on the left, every branch to the right of the branch it came from; a dot is a commit, an
             arc in is a merge and an arc out is where a branch started, and the short grey arcs are branches
@@ -320,15 +320,56 @@ static class WebLogPage
     static string Rgb(Palette palette, ColorName name) =>
         $"#{palette[name].R:X2}{palette[name].G:X2}{palette[name].B:X2}";
 
-    // The times as how long ago, in the reader's own time zone, as the page is read rather than made
+    // The times as how long ago, in the reader's own time zone, as the page is read rather than made,
+    // and the page kept current while it is open: every five minutes it reads itself anew from the
+    // server, and when a newer one is published, shows its branches and commits in place of those
+    // shown. Nothing is reloaded, so the page stays where it was scrolled to, on the commit that was
+    // at the top of the screen, however many commits came in above it; at the top of the page it
+    // stays at the top, where the new ones are. A page that looks otherwise, made by a newer gmd,
+    // is reloaded as a whole. A tablet stops the timers of a page not shown, so it checks as it is
+    // shown again too. The times are written anew with each check, so "5m ago" stays true.
     const string Script = """
         (function(){
-        const now=Date.now();
-        function ago(t){const s=(now-t)/1000;if(s<60)return"now";const m=s/60;if(m<60)return Math.floor(m)+"m ago";
+        const every=5*60*1000;
+        const q=(d,s)=>d.querySelector(s);
+        function ago(now,t){const s=(now-t)/1000;if(s<60)return"now";const m=s/60;if(m<60)return Math.floor(m)+"m ago";
         const h=m/60;if(h<24)return Math.floor(h)+"h ago";const d=h/24;if(d<30)return Math.floor(d)+"d ago";
         return new Date(t).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});}
-        document.querySelectorAll("time[data-t]").forEach(e=>{const t=Date.parse(e.dataset.t);
-        e.title=new Date(t).toLocaleString();e.textContent=ago(t);});
+        function times(){const now=Date.now();document.querySelectorAll("time[data-t]").forEach(e=>{
+        const t=Date.parse(e.dataset.t);e.title=new Date(t).toLocaleString();e.textContent=ago(now,t);});}
+        const content=d=>q(d,".branches").innerHTML+q(d,".rows").innerHTML;
+        const look=d=>q(d,"title").textContent+q(d,"style").textContent+q(d,"script").textContent;
+        let shown=content(document),last=Date.now(),busy=false;
+        const made=look(document);
+        times();
+        function topRow(){if(window.scrollY<=0)return null;
+        for(const e of document.querySelectorAll(".r")){const y=e.getBoundingClientRect().top;if(y>=0)return{id:e.id,y};}
+        return null;}
+        async function check(){
+        if(busy)return;busy=true;last=Date.now();
+        try{
+        const r=await fetch(location.pathname,{cache:"no-store"});
+        if(r.ok){
+        const d=new DOMParser().parseFromString(await r.text(),"text/html");
+        if(q(d,".branches")&&q(d,".rows")&&q(d,".meta time")){
+        if(look(d)!==made){location.reload();return;}
+        q(document,".meta time").dataset.t=q(d,".meta time").dataset.t;
+        const c=content(d);
+        if(c!==shown){
+        const at=topRow();
+        q(document,".branches").innerHTML=q(d,".branches").innerHTML;
+        q(document,".rows").innerHTML=q(d,".rows").innerHTML;
+        shown=c;
+        const e=at&&document.getElementById(at.id);
+        if(e)window.scrollBy(0,e.getBoundingClientRect().top-at.y);
+        }}}
+        }catch(e){}
+        finally{busy=false;}
+        times();
+        }
+        function tick(){if(!document.hidden&&Date.now()-last>=every)check();}
+        setInterval(tick,30*1000);
+        document.addEventListener("visibilitychange",tick);
         })();
         """;
 }

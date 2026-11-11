@@ -25,7 +25,7 @@ How hard a question guards an action follows from what a slip costs (USABILITY.m
 CLAUDE.md, "Running the TUI from a non-interactive shell", has the basics.
 
 - **A slow or fake git for a hand experiment**, e.g. to see what the UI shows while a command runs:
-  put a `git` script beside the built binary (`<copy>/gmd/bin/Debug/net10.0/git`), since .NET's
+  put a `git` script beside the built binary (`<copy>/gmd/bin/Debug/net11.0/git`), since .NET's
   `Process` looks for a bare file name in the executable's own folder before `PATH`. A wrapper folder
   put first on `PATH` with `tmux new-session -e PATH=…` did nothing: the pane had it, but gmd's git
   was still the real one, which cost two runs that proved nothing. Delete the script before running

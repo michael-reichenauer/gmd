@@ -23,7 +23,7 @@ The detailed records are elsewhere, and this file points to them rather than rep
 | Commits this year (not counting merges) | | about 610 (about 590 released) |
 | C# lines in `gmd/` | about 20,500 | about 48,700 |
 | Test methods | 2 | about 2,120 (about 1,860 in `gmdTest`, about 260 end to end) |
-| .NET | 8 | 10 (built with the .NET 11 SDK for C# 15) |
+| .NET | 8 | 11 (C# 15) |
 
 ---
 
@@ -285,10 +285,11 @@ template, issue forms (also linked from the crash message), Dependabot, and a so
 
 ## Under the hood
 
-- **Toolchain**: .NET 8 to .NET 10, built with the .NET 11 SDK for the C# 15 compiler.
+- **Toolchain**: .NET 8 to .NET 10, built with the .NET 11 SDK for the C# 15 compiler, and to
+  .NET 11 the day after its release.
   Terminal.Gui 1.17 to 1.19, which fixed the 100% CPU spin on Linux and macOS. CSharpier formats on
-  save, on build and in CI. CI runs on every branch. `docs/UPGRADING.md` has the steps for when
-  .NET 11 is released.
+  save, on build and in CI. CI runs on every branch. `docs/UPGRADING.md` has how
+  to move to the next .NET.
 - **Errors**: `Result` / `Result<T>` are a C# 15 union type, matched on their case types, with an
   exhaustive `switch`. About 480 `Try(out …)` sites were rewritten (2026-09-11).
 - **Structure**: the layers are clean, with nothing below `Cui/` referencing Terminal.Gui. The large

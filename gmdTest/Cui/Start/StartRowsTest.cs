@@ -209,7 +209,7 @@ public class StartRowsTest
         var row = page.Row(page.RowOf(help), true);
 
         Assert.AreEqual("                     ▸ ?  Help", row.ToString().TrimEnd());
-        var highlighted = row.Fragments.Where(f => f.Color.Background == Color.Dark.Foreground).Sum(f => f.Text.Length);
+        var highlighted = row.Fragments.Where(f => f.Color.Background == ColorName.CursorBg).Sum(f => f.Text.Length);
         Assert.AreEqual("▸ 4  scratch   ~/Downloads/scratch ".Length, highlighted);
     }
 

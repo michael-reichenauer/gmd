@@ -66,8 +66,20 @@ class AskpassServer : IAskpassServer
             {
                 await pipe.WaitForConnectionAsync();
                 var connected = pipe;
-                Task.Run(() => AnswerAsync(connected, token)).RunInBackground();
-                pipe = NewPipe(name);
+
+                // The next pipe before this one is answered: .NET listens on one socket for all the
+                // pipes of a name and closes it with the last of them, so a question answered at
+                // once, as one of a cancelled command is, closed it before the next pipe was made,
+                // and the askpass connecting just then was reset or found the pipe broken
+                try
+                {
+                    pipe = NewPipe(name);
+                }
+                finally
+                {
+                    // Answered also when there is no next pipe, or its git would wait for ever
+                    Task.Run(() => AnswerAsync(connected, token)).RunInBackground();
+                }
             }
         }
         catch (Exception e) when (e.IsNotFatal())

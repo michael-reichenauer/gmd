@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## What this is
 
-**Gmd** is a cross-platform console-UI (TUI) Git client written in C# / .NET 10, built on
+**Gmd** is a cross-platform console-UI (TUI) Git client written in C# / .NET 11, built on
 [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) 2.x. Its distinguishing feature is
 *interactive branch visibility*: the user chooses which branches are shown in the commit
 graph, so a clean log is achieved without rebasing or squashing.
@@ -25,7 +25,7 @@ scripts/build          # full release: test + package audit + publish all platfo
 scripts/build -l       # linux only (x64 and arm64; much faster — use this for local verification)
 scripts/log            # tail the runtime log with lnav (~/gmd.log)
 scripts/updatepackages # list outdated NuGet packages; -u non-major upgrades, -m incl. major
-scripts/installtools   # devcontainer setup: tools, the .NET 11 SDK, dotnet local tools
+scripts/installtools   # devcontainer setup: tools, dotnet local tools
 scripts/cloud-setup    # a fresh Ubuntu 24.04 machine, e.g. a cloud session: the toolchain (see Cloud sessions)
 scripts/installagg <bin> <fonts> # agg and its fonts, for scripts/demo (installtools and cloud-setup run it)
 scripts/demo           # re-record the README's animation and log pictures in gmd/doc/ (~30 s; tmux + agg)
@@ -51,7 +51,7 @@ not run at all. tmux is the way in — it parses the escape sequences and keeps 
 Installed by `scripts/installtools`, and by `scripts/cloud-setup` in a cloud session.
 
 ```bash
-tmux new-session -d -s gmd -x 120 -y 40 -c /path/to/some/repo  gmd/bin/Debug/net10.0/gmd
+tmux new-session -d -s gmd -x 120 -y 40 -c /path/to/some/repo  gmd/bin/Debug/net11.0/gmd
 until tmux capture-pane -t gmd -p | grep -q "uncommitted"; do sleep 1; done  # wait, never sleep blind
 tmux capture-pane -t gmd -p        # the rendered screen, as the user sees it
 tmux capture-pane -t gmd -p -e     # ... with the colors kept as ANSI
@@ -59,7 +59,7 @@ tmux send-keys -t gmd d            # press a key; Escape is `tmux send-keys -t g
 tmux kill-session -t gmd
 ```
 
-Always drive the *built binary* (`gmd/bin/Debug/net10.0/gmd`), not `scripts/run` — `dotnet run`
+Always drive the *built binary* (`gmd/bin/Debug/net11.0/gmd`), not `scripts/run` — `dotnet run`
 wraps the app in a second process, so the pid you measure or kill is the wrong one. Never point it
 at this working tree; use a throwaway repo, exactly as `TempRepo` does.
 
@@ -68,9 +68,9 @@ home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `Rec
 **appends to `~/gmd.log`**, rotating it to `gmd.1.log` and `gmd.2.log` past 1 MB. Neither path can be redirected — `ConfigService` and `LogFile` both
 anchor on `SpecialFolder.UserProfile` with no override — so `HOME` is the only lever, and on Unix
 it also isolates `~/.gitconfig` from the git commands gmd runs. Seed `{"CheckUpdates": false}` into
-that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` looks for
-`gmd.dll` on the command line, and .NET puts the entry assembly there even when the apphost starts
-it — so it never starts the regular update check, but the start page and saving the Config dialog
+that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` asks whether
+its assembly is a file, `gmd.dll`, where a release is a single file with the assembly inside it (not
+the command line, where .NET 11 no longer puts the assembly when the apphost starts it) — so it never starts the regular update check, but the start page and saving the Config dialog
 still call the GitHub releases API (`Updater.CheckUpdateAvailableAsync` skips only the `dotnet`
 host). Being a dev instance also means it never reports an update, so ⇓ in the application bar and
 the release menu items cannot be seen with it; a published single-file build
@@ -101,7 +101,7 @@ VM, x86_64 and as root, with the repo cloned at `/home/user/gmd` and without the
 Nothing under `~/.claude` is there, no memory and no user settings: what a session needs to know is
 in this file and in `.claude/rules/`. The SessionStart hook in `.claude/settings.json` runs
 `scripts/cloud-setup --hook`, which does nothing unless `CLAUDE_CODE_REMOTE=true`. It installs the
-SDK that `global.json` pins and the .NET 10 runtime into `/usr/share/dotnet`, tmux, ICU and
+SDK that `global.json` pins, with its .NET 11 runtime, into `/usr/share/dotnet`, tmux, ICU and
 ssh-keygen from apt, and agg with its fonts (`scripts/installagg`), then restores the dotnet tools
 and the NuGet packages, so that `scripts/test` (both tiers), `scripts/build -l` and `scripts/demo`
 work as they do locally. Its one-line result is in the session's context, and its log in
@@ -507,9 +507,9 @@ Things to know:
 - There is no conversion to `bool`, so `Result<bool>` is a value like any other. `default(Result<T>)` holds
   nothing and matches neither arm, and converting one to `Result` throws rather than passing it off
   as a success.
-- The attribute the compiler recognizes the union by is polyfilled in `gmd/Utils/UnionPolyfill.cs`
-  while the target framework is net10.0; the C# 15 compiler comes from the .NET 11 SDK pinned in
-  `global.json` (.notes/MODERNIZATION.md has the GA step).
+- The attribute the compiler recognizes the union by, `UnionAttribute`, is .NET 11's own, the
+  target framework, built with the SDK pinned in `global.json` (docs/UPGRADING.md has how to move
+  to the next .NET).
 
 ### Formatting: CSharpier owns it
 

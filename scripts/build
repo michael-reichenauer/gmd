@@ -3,7 +3,7 @@
 # Runs at the repository root, wherever it is started from
 cd "$(dirname "$0")/.." || exit 1
 
-DOTNET="net10.0"
+DOTNET="net11.0"
 
 # The executables, and the package audit, go into artifacts/ (ignored by git)
 OUT="artifacts"
@@ -51,7 +51,7 @@ if test -f "$OUT/gmd_osx_arm64"; then
 fi
 echo ""
 echo Run tests ...
-# '-tl:false': the .NET 10 SDK terminal logger hides the console test logger output (see scripts/test)
+# '-tl:false': the .NET SDK's terminal logger hides the console test logger output (see scripts/test)
 # Both test projects, see scripts/test
 dotnet test gmd.sln -tl:false -v quiet --nologo -l:"console;verbosity=normal"
 if [ $? -ne 0 ]; then
