@@ -30,9 +30,8 @@ On a fresh Ubuntu 24.04 machine without the devcontainer, such as a Claude Code 
 
 To set up a machine yourself you need:
 
-- The **.NET 11 SDK**, a preview until .NET 11 is released and pinned in `global.json`. Its C# 15
-  compiler is what the `Result` union type needs. [UPGRADING.md](UPGRADING.md) has the steps for
-  when .NET 11 is released.
+- The **.NET 11 SDK**, pinned in `global.json`. Its C# 15 compiler is what the `Result` union type
+  needs. [UPGRADING.md](UPGRADING.md) has the steps for the next .NET release.
 - The **.NET 10 runtime**, since gmd targets `net10.0` and the tests run on it.
 - **git**, and **tmux** for the end-to-end tests.
 

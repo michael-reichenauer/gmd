@@ -709,8 +709,8 @@ Both are reworked, see proposal D.1.
   off; and the tags of Add Tag, above. There is no telemetry. People ask this before they run a tool
   on their work, and the README answers it, in "What Gmd Stores and Sends" (complete since
   2026-10-18, when the metadata moved out of the repository into the file).
-- **Can others contribute?** Building needs a preview .NET 11 SDK, for the C# 15 unions, until .NET
-  11 is released (`docs/UPGRADING.md`).
+- **Can others contribute?** Building needed a preview .NET 11 SDK, for the C# 15 unions, until
+  .NET 11 was released; the released SDK since 2026-11-11 (`docs/UPGRADING.md`).
 - **Can it be found?** "gmd" is hard to search for. A tagline, the repository's GitHub topics and the
   lists of terminal tools are how people come across a tool like this.
 

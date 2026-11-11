@@ -287,8 +287,8 @@ template, issue forms (also linked from the crash message), Dependabot, and a so
 
 - **Toolchain**: .NET 8 to .NET 10, built with the .NET 11 SDK for the C# 15 compiler.
   Terminal.Gui 1.17 to 1.19, which fixed the 100% CPU spin on Linux and macOS. CSharpier formats on
-  save, on build and in CI. CI runs on every branch. `docs/UPGRADING.md` has the steps for when
-  .NET 11 is released.
+  save, on build and in CI. CI runs on every branch. The released SDK since
+  .NET 11's release (`docs/UPGRADING.md`).
 - **Errors**: `Result` / `Result<T>` are a C# 15 union type, matched on their case types, with an
   exhaustive `switch`. About 480 `Try(out …)` sites were rewritten (2026-09-11).
 - **Structure**: the layers are clean, with nothing below `Cui/` referencing Terminal.Gui. The large
