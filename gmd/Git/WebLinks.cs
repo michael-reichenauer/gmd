@@ -81,6 +81,20 @@ record WebLinks(string RepoUrl, WebHost Host)
             _ => null,
         };
 
+    // The page of the runs of the repository's builds, tests and releases: its Actions on GitHub and
+    // Gitea, its pipelines on GitLab and Bitbucket. Azure DevOps has it per project, not per repository
+    public string? Runs =>
+        Host switch
+        {
+            WebHost.GitHub or WebHost.Gitea => $"{RepoUrl}/actions",
+            WebHost.GitLab => $"{RepoUrl}/-/pipelines",
+            WebHost.Bitbucket => $"{RepoUrl}/pipelines",
+            _ => null,
+        };
+
+    // What the service calls that page
+    public string RunsName => Host is WebHost.GitLab or WebHost.Bitbucket ? "Pipelines" : "Actions";
+
     // The page for opening a pull request (a merge request on GitLab) of a branch into another,
     // with both filled in, so that the base is the branch it was made from rather than whatever the
     // service defaults to

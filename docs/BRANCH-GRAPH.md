@@ -14,6 +14,9 @@ or GitHub.
 
 ## Reading the page
 
+The buttons beside the title open the repository on GitHub and its Actions, the runs of its
+workflows.
+
 **Branches** lists every active branch, the one with the latest commit first, with who made that
 commit and how long ago. A branch's dot has its color in the graph. Tap a name to jump to its
 latest commit in the graph (or to the branch on GitHub, when that commit is older than those drawn). A green `#n` is the branch's open pull request (grey while it is a
