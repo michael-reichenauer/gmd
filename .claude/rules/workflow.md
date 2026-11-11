@@ -65,7 +65,7 @@ themselves, and a picture is only overhead. How to render one: `.claude/rules/ui
   the README's way. Declined: winget, whose validation sandbox had Defender block the submission, and
   signing `gmd.exe`, which would not remove SmartScreen's warning anyway. gmd still knows a winget
   install (`PackageManager.Winget`), on purpose. Postponed: Scoop (two commands to install) and a
-  dotnet tool (it needs the .NET 10 SDK). Still open: a build for Intel Macs.
+  dotnet tool (it needs the .NET SDK). Still open: a build for Intel Macs.
 - **A logo** (explored 2026-10-20, postponed until it adds value). If it is taken up, start from the
   candidate that worked, a "g" drawn in the graph's own glyphs, 5 columns by 4 rows:
 

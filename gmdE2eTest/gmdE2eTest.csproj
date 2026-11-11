@@ -3,7 +3,7 @@
        can run its tests in parallel (see TestSetup.cs), which gmdTest must not: MSTest sets
        parallelism per assembly, and the unit tests share process state. -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 

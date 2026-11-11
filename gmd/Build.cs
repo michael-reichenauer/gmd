@@ -68,7 +68,14 @@ static class Build
 
     internal static bool IsSha(string text) => text.Length == 40 && text.All(char.IsAsciiHexDigitLower);
 
-    public static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll") || IsDotNet();
+    // A build run from its build folder, not a release: its assembly, gmd.dll, is a file, where a
+    // release is a single file with the assembly inside it, which .NET gives no location. Not read
+    // off the command line, where .NET had the assembly however gmd was started until .NET 11, which
+    // has the program there, nor by looking for a gmd.dll beside the program, which a stray file
+    // would answer, and a release taken for a dev build never updates.
+#pragma warning disable IL3000 // An assembly in a single file has no location: just what is asked
+    public static bool IsDevInstance() => typeof(Build).Assembly.Location != "" || IsDotNet();
+#pragma warning restore IL3000
 
     static bool IsDotNet()
     {

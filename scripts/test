@@ -13,7 +13,7 @@
 # At the repository root, wherever it is started from
 cd "$(dirname "$0")/.." || exit 1
 
-# '-tl:false' disables the MSBuild terminal logger, which the .NET 10 SDK turns on by default
+# '-tl:false' disables the MSBuild terminal logger, which the .NET SDK turns on by default (since 10)
 # in an interactive terminal. It swallows the console test logger output entirely, so without
 # this the run prints nothing at all when stdout is a terminal (but everything when piped).
 if [ "$1" = "--stress" ]; then
