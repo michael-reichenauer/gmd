@@ -1567,8 +1567,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   under an unrelated title; measured 100% → 0%. The one-second `FileMonitor` timer is not a spin.
 - The .NET 10 SDK's terminal logger swallows VSTest output entirely, so `-tl:false` is passed
   everywhere.
-- `Build.IsDevInstance()` is *true* for the Debug build's apphost, since `gmd.dll` is a file
-  beside it; only a published single-file build is not one. Until .NET 11 it was read off
+- `Build.IsDevInstance()` is *true* for the Debug build's apphost, since its assembly is a file,
+  `gmd.dll` (`Assembly.Location`, empty in a single file); only a published single-file build is not one. Until .NET 11 it was read off
   `Environment.CommandLine`, where .NET had the entry assembly however gmd was started; .NET 11
   has the apphost there instead, which made every Debug build a release to itself, found by the
   end-to-end test of Report a Bug when the target framework moved to net11.0 (2026-11-11). So the end-to-end tests can never show ⇓ or the release menu items,

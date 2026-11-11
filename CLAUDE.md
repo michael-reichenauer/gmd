@@ -68,8 +68,8 @@ home: it *writes* `~/.gmdconfig` (the git version, and the opened repo into `Rec
 **appends to `~/gmd.log`**, rotating it to `gmd.1.log` and `gmd.2.log` past 1 MB. Neither path can be redirected — `ConfigService` and `LogFile` both
 anchor on `SpecialFolder.UserProfile` with no override — so `HOME` is the only lever, and on Unix
 it also isolates `~/.gitconfig` from the git commands gmd runs. Seed `{"CheckUpdates": false}` into
-that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` looks for
-`gmd.dll` beside the program, where a release is a single file with the assembly inside it (not on
+that config as well. The built binary *is* a dev instance — `Build.IsDevInstance()` asks whether
+its assembly is a file, `gmd.dll`, where a release is a single file with the assembly inside it (not
 the command line, where .NET 11 no longer puts the assembly when the apphost starts it) — so it never starts the regular update check, but the start page and saving the Config dialog
 still call the GitHub releases API (`Updater.CheckUpdateAvailableAsync` skips only the `dotnet`
 host). Being a dev instance also means it never reports an update, so ⇓ in the application bar and

@@ -45,7 +45,9 @@ packages needed no new version.
 
 1. `TargetFramework` in `gmd/gmd.csproj`, `gmdTest/gmdTest.csproj` and `gmdE2eTest/gmdE2eTest.csproj`;
    `DOTNET` in `scripts/build` and `scripts/build.bat`; the `gmd/bin/Debug/net11.0/` paths in
-   CLAUDE.md, `.claude/rules/ui.md` and `.vscode/launch.json`.
+   CLAUDE.md, `.claude/rules/ui.md`, `.vscode/launch.json` and, easily missed since no push runs
+   it, the Version step of `.github/workflows/release.yml`; `gmd/bin/Release/net11.0/` in
+   CONTRIBUTING.md. Search for the old `net<version>` to find them all.
 2. Delete what step 1 added: the polyfill, and the explicit `LangVersion` in
    `Directory.Build.props`, since the SDK's C# is the default for its own target framework.
 3. CI: remove the `dotnet-version` lines; the SDK from `global.json` carries its own runtime.
@@ -56,7 +58,10 @@ packages needed no new version.
    WeCantSpell.Hunspell for the new target; `scripts/updatepackages` lists what is behind. The
    CSharpier tool is built for older runtimes and rolls forward to the newest one installed.
 6. Verify as in step 1.7, with only the new runtime installed, as CI has it, plus `scripts/build
-   -l`, since the publish settings are per target.
+   -l`, since the publish settings are per target. Run the published `artifacts/gmd_linux_x64` and
+   the Debug build by hand and press `0`: only the Debug build, a dev build, opens the character
+   table (`Build.IsDevInstance`, which .NET 11 broke and the updater relies on). Then make a
+   preview and update to it from a released gmd.
 
 ## 3. Optional, when the tooling catches up
 

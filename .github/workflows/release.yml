@@ -78,7 +78,7 @@ jobs:
           BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           sed -i "s/BUILD_TIME/$BUILD_TIME/g" gmd/Build.cs
           dotnet build gmd/gmd.csproj -v quiet --nologo
-          VERSION="$(gmd/bin/Debug/net10.0/gmd --version)"
+          VERSION="$(gmd/bin/Debug/net11.0/gmd --version)"
           git checkout -- gmd/Build.cs
           echo "Version: $VERSION, built $BUILD_TIME"
 

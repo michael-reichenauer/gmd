@@ -154,25 +154,12 @@ public class BuildTest
         Assert.IsTrue(sha == "" || Build.IsSha(sha), sha);
     }
 
-    // A build run from its build folder has gmd.dll beside it, a release has not: it is a single
-    // file. The updater leaves the first alone, so a release taken for one would never update.
+    // A build run from its build folder has its assembly as a file, a release has it inside its
+    // single file. The updater leaves the first alone, so a release taken for one would never
+    // update; that a published binary is none is checked by hand, see docs/UPGRADING.md.
     [TestMethod]
-    public void TestADevBuildIsToldByItsAssemblyFile()
+    public void TestTheTestsRunADevBuild()
     {
-        var folder = Directory.CreateTempSubdirectory("gmdTest-build-").FullName;
-        try
-        {
-            File.WriteAllText(Path.Combine(folder, "gmd"), "");
-            Assert.IsFalse(Build.IsDevFolder(folder), "A release, the program alone");
-
-            File.WriteAllText(Path.Combine(folder, "gmd.dll"), "");
-            Assert.IsTrue(Build.IsDevFolder(folder), "A build folder");
-        }
-        finally
-        {
-            Directory.Delete(folder, recursive: true);
-        }
-
-        Assert.IsTrue(Build.IsDevInstance(), "The tests run from a build folder");
+        Assert.IsTrue(Build.IsDevInstance());
     }
 }
