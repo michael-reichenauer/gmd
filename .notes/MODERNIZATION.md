@@ -1158,6 +1158,12 @@ Add new open issues and findings here as work lands; keep them short and drop th
   alone three times. Recorded so nobody hunts a flake that is not biting.
 - `AskpassServerTest.TestQuestionsAskedAtOnceAreEachAnswered` failed once in a full run on
   2026-10-15, while timing runs had the machine busy, and passed alone five times and in a full rerun.
+  It was no flake of the test: `TestACancelledCommandIsNotAskedAgain` failed the same way in the
+  Release workflow on 2026-11-11 ("Connection reset by peer"), and stopped a preview. .NET listens
+  on one Unix socket for all the pipes of a name and closes it with the last pipe, and
+  `AskpassServer` made the next pipe only after it started answering the connected one, so a
+  question answered at once closed the listener under the next askpass. The next pipe is now made
+  first; `TestQuestionsRightAfterEachOtherAreAllAnswered` failed five runs of five before.
 - tmux cannot report the exit code of a directly exec'd binary; a crash shows as a `WaitFor`
   timeout with the screen and the log tail in the message.
 - The end-to-end tests were about four of `scripts/test`'s four and a half minutes, nearly all waiting:

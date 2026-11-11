@@ -89,4 +89,16 @@ public class AskpassServerTest
         Assert.AreEqual((false, ""), Ask(name, new(token, "2", "git fetch", "", "Enter passphrase for key 'a': ")));
         Assert.AreEqual(2, asked.Count, "Another command is asked");
     }
+
+    // A question answered at once, as one of a cancelled command is, is over before the server
+    // listens for the next: the server must still be there for the question that follows it
+    [TestMethod]
+    public void TestQuestionsRightAfterEachOtherAreAllAnswered()
+    {
+        var (name, token) = Start(_ => null);
+        Assert.AreEqual((false, ""), Ask(name, new(token, "1", "git push", "", "q")));
+
+        for (var i = 0; i < 2000; i++)
+            Assert.AreEqual((false, ""), Ask(name, new(token, "1", "git push", "", "q")), $"Question {i}");
+    }
 }
