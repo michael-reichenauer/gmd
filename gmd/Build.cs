@@ -68,7 +68,12 @@ static class Build
 
     internal static bool IsSha(string text) => text.Length == 40 && text.All(char.IsAsciiHexDigitLower);
 
-    public static bool IsDevInstance() => Environment.CommandLine.Contains("gmd.dll") || IsDotNet();
+    // A build run from its build folder, not a release: gmd.dll is a file beside the program, where a
+    // release is a single file with the assembly inside it. Not read off the command line, where
+    // .NET had the assembly however gmd was started until .NET 11, which has the program there.
+    public static bool IsDevInstance() => IsDevFolder(AppContext.BaseDirectory) || IsDotNet();
+
+    internal static bool IsDevFolder(string programFolder) => File.Exists(Path.Combine(programFolder, "gmd.dll"));
 
     static bool IsDotNet()
     {
