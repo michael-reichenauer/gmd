@@ -121,8 +121,8 @@ Add new open issues and findings here as work lands; keep them short and drop th
   unhandled-exception path logs and shows. So `Result.cs`, `UnionPolyfill.cs` and the test helper
   `ResultAssert.cs` depend on nothing but the BCL and can be copied to another project as they are
   (one namespace line each).
-- The compiler is the .NET 11 RC2 SDK's since 2026-10-17, RC1 before (`global.json`; `LangVersion preview` in
-  `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
+- The compiler is the released .NET 11 SDK's since 2026-11-11, RC2 and RC1 before (`global.json`;
+  `LangVersion 15` in `Directory.Build.props`), the target framework is still net10.0, and `UnionAttribute` / `IUnion`
   are polyfilled in `gmd/Utils/UnionPolyfill.cs`. CSharpier 1.3.0 parses no C# 15 syntax, which is
   why the union is a hand-written struct rather than a `union` declaration. A missing switch arm
   (CS8509) is a build error.
@@ -823,10 +823,11 @@ Add new open issues and findings here as work lands; keep them short and drop th
   are read as a branch named 'of' (weak), so in rust every pull request is an 'of' branch and its
   subprojects' lines are long ambiguous stretches with hundreds of candidates per commit.
 
-**The union result, at .NET 11 GA (November 2026)** — the steps are in `docs/UPGRADING.md`
+**The union result, after .NET 11 GA** — the steps are in `docs/UPGRADING.md`
 
-- Set `LangVersion` to `15`. If the target framework moves to net11.0 (an STS release, where
-  net10.0 is LTS), delete `gmd/Utils/UnionPolyfill.cs` and the explicit `LangVersion` too. When
+- Done 2026-11-11, the day after GA: `global.json` pins the released SDK, 11.0.100, and `LangVersion`
+  is `15`. Still open: if the target framework moves to net11.0 (supported as long as net10.0, to
+  2028-11-14), delete `gmd/Utils/UnionPolyfill.cs` and the explicit `LangVersion` too. When
   CSharpier parses C# 15, `union Result<T>(T, Error) { … }` is optional sugar; the struct already has
   what the keyword form would not (non-boxing access, the helpers in its body).
 - The VS Code C# extension bundles its own Roslyn and may flag union patterns until it catches up;
@@ -1615,4 +1616,4 @@ Add new open issues and findings here as work lands; keep them short and drop th
   CPU, so the macOS half is checked from Linux too.
 - A formula, not a cask: Homebrew stopped supporting casks that fail Gatekeeper on 2026-09-01, and
   a formula's download is never quarantined, so neither notarization nor a Developer ID is needed.
-  homebrew-core builds from source, which the C# 15 compiler of a .NET 11 preview rules out for now.
+  homebrew-core builds from source, which the C# 15 compiler of a .NET 11 preview ruled out until .NET 11 was released (2026-11-10).

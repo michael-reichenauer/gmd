@@ -36,7 +36,7 @@
 	// The image ships the .NET 10 SDK and runtime, which the net10.0 build and the end-to-end tests
 	// run on. global.json pins the .NET 11 SDK for its C# 15 compiler (union types), so it is
 	// installed side by side into the same root before anything restores. Also in scripts/installtools.
-	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.claude && sudo chown vscode:vscode /home/vscode/.config && sudo chown -R vscode:vscode /home/vscode/.config/gh && curl -sSL https://dot.net/v1/dotnet-install.sh | sudo bash -s -- --channel 11.0 --quality preview --install-dir /usr/share/dotnet && dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj && dotnet tool restore",
+	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.claude && sudo chown vscode:vscode /home/vscode/.config && sudo chown -R vscode:vscode /home/vscode/.config/gh && curl -sSL https://dot.net/v1/dotnet-install.sh | sudo bash -s -- --channel 11.0 --install-dir /usr/share/dotnet && dotnet restore ./gmd/gmd.csproj && dotnet restore ./gmdTest/gmdTest.csproj && dotnet tool restore",
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode"
 }

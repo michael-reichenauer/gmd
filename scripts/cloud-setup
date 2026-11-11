@@ -122,7 +122,7 @@ dotnet_install() {
     [[ -f "$installer" ]] || curl -fsSL https://dot.net/v1/dotnet-install.sh -o "$installer"
     as_root bash "$installer" --install-dir "$DOTNET_DIR" "$@"
 }
-# Lines as '11.0.100-rc.2.26504.105 [/usr/share/dotnet/sdk]'
+# Lines as '11.0.100 [/usr/share/dotnet/sdk]'
 if ! grep -qF "$SDK_VERSION [" <<<"$("$DOTNET_DIR/dotnet" --list-sdks 2>/dev/null || true)"; then
     dotnet_install --version "$SDK_VERSION"
 fi

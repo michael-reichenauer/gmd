@@ -1,8 +1,9 @@
 # Upgrading to the next .NET and C#
 
 Gmd builds with the .NET 11 SDK for its C# 15 compiler (union types) while it still targets and
-runs on .NET 10. This is what to do when .NET 11 and C# 15 are released (planned for November
-2026), and again for the release after that. Every pin named here is found with:
+runs on .NET 10. .NET 11 and C# 15 were released on 2026-11-10, and section 1 was done the day
+after: the build is on the released SDK. Section 2, the target framework, is still open, and the
+whole of it is what to do again for the release after that. Every pin named here is found with:
 
 ```bash
 grep -rn "net10.0\|10.0.x\|dotnet:10\|--channel 11\|LangVersion\|11.0.100" \
@@ -10,7 +11,9 @@ grep -rn "net10.0\|10.0.x\|dotnet:10\|--channel 11\|LangVersion\|11.0.100" \
   --include=build --include=build.bat . | grep -v "/bin/\|/obj/"
 ```
 
-## 1. Move to the released SDK (do this at GA in any case)
+## 1. Move to the released SDK (done for .NET 11, 2026-11-11)
+
+From a preview SDK to the released one, as it was done, with .NET 11's values:
 
 1. `global.json`: set `sdk.version` to the GA version (`11.0.100`), keep `rollForward:
    latestFeature`, drop `allowPrerelease`.
@@ -18,7 +21,8 @@ grep -rn "net10.0\|10.0.x\|dotnet:10\|--channel 11\|LangVersion\|11.0.100" \
 3. `scripts/installtools` and `.devcontainer/devcontainer.json`: drop `--quality preview` from the
    `dotnet-install.sh` line, so the GA SDK is installed beside the image's .NET 10.
 4. In the container: run that install line once by hand (or `scripts/installtools`), then check
-   `dotnet --version` prints the GA version from `global.json`.
+   `dotnet --version` prints the GA version from `global.json`. A cloud session needs nothing:
+   `scripts/cloud-setup` installs the version `global.json` pins.
 5. CI (`.github/workflows/build.yml` and `release.yml`) needs no change: `global-json-file` picks the
    new pin, and the `dotnet-version: '10.0.x'` line keeps the .NET 10 runtime the tests run on.
 6. Update VS Code's C# extension; its bundled Roslyn must know unions or it flags every pattern.
@@ -28,9 +32,10 @@ grep -rn "net10.0\|10.0.x\|dotnet:10\|--channel 11\|LangVersion\|11.0.100" \
 
 ## 2. Decide the target framework
 
-Staying on net10.0 is the default: it is the LTS release (supported to November 2028) and the
-runtime the published binaries carry, where .NET 11 is STS (18 months). Nothing else changes; the
-polyfill in `gmd/Utils/UnionPolyfill.cs` stays and is harmless.
+Staying on net10.0 is the default: it is the LTS release and the runtime the published binaries
+carry. Support is no longer a reason either way, since an STS release is now supported for two
+years: .NET 10 and .NET 11 both end on 2028-11-14. Nothing else changes; the polyfill in
+`gmd/Utils/UnionPolyfill.cs` stays and is harmless.
 
 Moving to net11.0, when wanted (or when net10.0 leaves support):
 

@@ -509,7 +509,7 @@ Things to know:
   as a success.
 - The attribute the compiler recognizes the union by is polyfilled in `gmd/Utils/UnionPolyfill.cs`
   while the target framework is net10.0; the C# 15 compiler comes from the .NET 11 SDK pinned in
-  `global.json` (.notes/MODERNIZATION.md has the GA step).
+  `global.json` (docs/UPGRADING.md has the move to net11.0).
 
 ### Formatting: CSharpier owns it
 
