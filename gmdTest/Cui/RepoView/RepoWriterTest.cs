@@ -454,9 +454,9 @@ public class RepoWriterTest
     {
         var row = Rows(await View(), 120, currentIndex: 0)[0];
 
-        Assert.AreEqual(Color.Dark.Foreground, row.Fragments[0].Color.Background, "The graph rune it opens with");
+        Assert.AreEqual(ColorName.CursorBg, row.Fragments[0].Color.Background, "The graph rune it opens with");
         Assert.AreEqual(Color.Magenta.Foreground, row.Fragments[0].Color.Foreground, "In main's color still");
-        Assert.AreEqual(Color.Dark.Foreground, row.Fragments[^1].Color.Background, "The time column it ends with");
+        Assert.AreEqual(ColorName.CursorBg, row.Fragments[^1].Color.Background, "The time column it ends with");
     }
 
     // Hoovering a branch is the other way of saying where the user is, so the current row stops
@@ -490,7 +490,7 @@ public class RepoWriterTest
 
     // The highlight is on the whole row, see TestTheGraphIsHighlightedWithItsRow, and a selection on
     // the columns after the graph
-    static bool IsHighlighted(Text row) => row.Fragments.Any(f => f.Color.Background == Color.Dark.Foreground);
+    static bool IsHighlighted(Text row) => row.Fragments.Any(f => f.Color.Background == ColorName.CursorBg);
 
     static bool IsSelected(Text row) => row.Fragments.Any(f => f.Color.Background == Color.White.Foreground);
 

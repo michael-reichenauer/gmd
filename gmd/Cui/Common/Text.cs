@@ -82,7 +82,7 @@ class Text
 
     public override string ToString() => string.Concat(fragments.Select(f => f.Text));
 
-    public Text ToHighlight() => ToHighlight(Common.Color.Dark);
+    public Text ToHighlight() => ToHighlight(Common.Color.CursorBg);
 
     public Text ToSelect() => ToHighlight(Common.Color.White);
 
@@ -114,6 +114,10 @@ class Text
             else if (fg == newBg && fg == Common.Color.Black)
             { // Black on black is not readable
                 fg = Common.Color.White;
+            }
+            else if (fg == Common.Color.Dark && newBg == Common.Color.CursorBg)
+            { // Dark is too dim on the cursor's row: a lighter gray, which is still not the text's white
+                fg = ColorName.OnCursorDim;
             }
             else if (fg == Common.Color.Dark && newBg == Common.Color.MarkBg)
             { // Dark is too dim on the marked row, which is to stand out, as on the cursor's
@@ -363,7 +367,7 @@ class TextBuilder
         return this;
     }
 
-    public TextBuilder Highlight() => Highlight(Common.Color.Dark);
+    public TextBuilder Highlight() => Highlight(Common.Color.CursorBg);
 
     public Text Select() => Highlight(Common.Color.White);
 
@@ -390,6 +394,10 @@ class TextBuilder
             else if (fg == newBg && fg == Common.Color.Black)
             { // Black on black is not readable
                 fg = Common.Color.White;
+            }
+            else if (fg == Common.Color.Dark && newBg == Common.Color.CursorBg)
+            { // Dark is too dim on the cursor's row: a lighter gray, which is still not the text's white
+                fg = ColorName.OnCursorDim;
             }
             else if (fg == Common.Color.Dark && newBg == Common.Color.MarkBg)
             { // Dark is too dim on the marked row, which is to stand out, as on the cursor's

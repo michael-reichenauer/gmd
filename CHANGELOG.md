@@ -9,6 +9,7 @@ what is merged but in no preview yet. The next release heads it with its version
 ## [Unreleased]
 
 ### Improved
+- The row the cursor is on, in the log and in every list and menu, is now a soft tint of the background rather than a gray bar, so the colors on it can be read: the ahead and behind marks, the tags, the branch names and the commit ids keep their colors, and the author and time stay dimmer than the subject. A terminal of 16 colors, and the setting `Colors` at 16, has the gray bar as before
 - The branch graph web page now keeps itself current while it is open: every five minutes it checks for a newer published page and shows its branches and commits in place, staying where it was scrolled to, and its times ("5m ago") no longer go stale
 
 ### Changed
