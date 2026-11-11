@@ -1,61 +1,68 @@
 # Upgrading to the next .NET and C#
 
-Gmd builds with the .NET 11 SDK for its C# 15 compiler (union types) while it still targets and
-runs on .NET 10. .NET 11 and C# 15 were released on 2026-11-10, and section 1 was done the day
-after: the build is on the released SDK. Section 2, the target framework, is still open, and the
-whole of it is what to do again for the release after that. Every pin named here is found with:
+Gmd targets and runs on .NET 11 and is built with its SDK, whose C# 15 has the union types
+`Result` is made of. .NET 11 was released on 2026-11-10, and gmd moved to it the day after: first
+to the released SDK, then to the target framework net11.0. This is how that was done, to do again
+for the next .NET. Every pin named here is found with:
 
 ```bash
-grep -rn "net10.0\|10.0.x\|dotnet:10\|--channel 11\|LangVersion\|11.0.100" \
+grep -rn "net11.0\|11.0.x\|dotnet:11\|--channel\|LangVersion\|11.0.100" \
   --include=*.json --include=*.props --include=*.csproj --include=*.yml --include=installtools \
   --include=build --include=build.bat . | grep -v "/bin/\|/obj/"
 ```
 
-## 1. Move to the released SDK (done for .NET 11, 2026-11-11)
+## 1. Build with the next SDK, before or at its release
 
-From a preview SDK to the released one, as it was done, with .NET 11's values:
+Only when a language feature of the next C# is wanted before its .NET is released, as the unions
+of C# 15 were: gmd was built with the .NET 11 previews for months while it targeted net10.0.
 
-1. `global.json`: set `sdk.version` to the GA version (`11.0.100`), keep `rollForward:
-   latestFeature`, drop `allowPrerelease`.
-2. `Directory.Build.props`: `LangVersion` from `preview` to `15`, and shorten its comment.
-3. `scripts/installtools` and `.devcontainer/devcontainer.json`: drop `--quality preview` from the
-   `dotnet-install.sh` line, so the GA SDK is installed beside the image's .NET 10.
-4. In the container: run that install line once by hand (or `scripts/installtools`), then check
-   `dotnet --version` prints the GA version from `global.json`. A cloud session needs nothing:
-   `scripts/cloud-setup` installs the version `global.json` pins.
-5. CI (`.github/workflows/build.yml` and `release.yml`) needs no change: `global-json-file` picks the
-   new pin, and the `dotnet-version: '10.0.x'` line keeps the .NET 10 runtime the tests run on.
-6. Update VS Code's C# extension; its bundled Roslyn must know unions or it flags every pattern.
+1. `global.json`: set `sdk.version` to the preview's version and add `"allowPrerelease": true`; at
+   the release, the GA version (`11.0.100` it was) with `rollForward: latestFeature` and no
+   `allowPrerelease`.
+2. `Directory.Build.props`: `<LangVersion>preview</LangVersion>`, at the release the version's
+   number, since the language of an older target framework is not the SDK's newest by default.
+3. `scripts/installtools` and `.devcontainer/devcontainer.json`: install the SDK beside the image's
+   own, `dotnet-install.sh --channel <version> --install-dir /usr/share/dotnet` (with `--quality
+   preview` until the release). A cloud session needs nothing: `scripts/cloud-setup` installs the
+   version `global.json` pins and the runtime of the target framework.
+4. CI (`.github/workflows/build.yml`, `release.yml` and `branch-graph.yml`): `global-json-file`
+   picks the pin, and a `dotnet-version: '<target>.0.x'` line beside it adds the runtime of the
+   target framework, which a newer SDK does not carry.
+5. A type the compiler needs from the next base class library is declared by hand meanwhile, as
+   `UnionAttribute` and `IUnion` were (`gmd/Utils/UnionPolyfill.cs`, in git's history), inside
+   `#if !NET<version>_0_OR_GREATER`.
+6. Update VS Code's C# extension; its bundled Roslyn must know the new syntax or it flags it.
 7. Verify: `dotnet build gmd.sln`, `dotnet csharpier check .`, `scripts/test` (all tiers), and a smoke
-   run of the built binary as CLAUDE.md describes. Then close the "at .NET 11 GA" item in
-   MODERNIZATION.md.
+   run of the built binary as CLAUDE.md describes.
 
-## 2. Decide the target framework
+## 2. Move the target framework
 
-Staying on net10.0 is the default: it is the LTS release and the runtime the published binaries
-carry. Support is no longer a reason either way, since an STS release is now supported for two
-years: .NET 10 and .NET 11 both end on 2028-11-14. Nothing else changes; the polyfill in
-`gmd/Utils/UnionPolyfill.cs` stays and is harmless.
-
-Moving to net11.0, when wanted (or when net10.0 leaves support):
+Done for net11.0 on 2026-11-11. There was no reason to stay on net10.0: the releases carry their
+own runtime, so no user needs one installed; .NET 10 (LTS) and .NET 11 (STS, now two years) are
+both supported to 2028-11-14; .NET 11 runs on the same macOS, Linux and glibc versions, and on
+Windows drops only versions past their own support (Server 2012, Windows 11 23H2); and the
+packages needed no new version.
 
 1. `TargetFramework` in `gmd/gmd.csproj`, `gmdTest/gmdTest.csproj` and `gmdE2eTest/gmdE2eTest.csproj`;
-   `DOTNET` in `scripts/build` and `scripts/build.bat`; the `gmd/bin/Debug/net10.0/gmd` path in CLAUDE.md.
-2. Delete `gmd/Utils/UnionPolyfill.cs` (its `#if !NET11_0_OR_GREATER` already compiles it out) and
-   the explicit `LangVersion` in `Directory.Build.props`, since C# 15 is the default for net11.0.
-3. CI: remove the `dotnet-version: '10.0.x'` lines and their comment; the SDK from `global.json`
-   carries the .NET 11 runtime.
-4. Devcontainer: image `mcr.microsoft.com/devcontainers/dotnet:11.0`, and remove the
-   `dotnet-install.sh` step from `postCreateCommand` and `scripts/installtools`.
-5. Check the release notes of Terminal.Gui, Autofac, DiffPlex and WeCantSpell.Hunspell for the new
-   target; `scripts/updatepackages` lists what is behind.
-6. Verify as in step 1.7, plus `scripts/build -l`, since the publish settings are per target.
+   `DOTNET` in `scripts/build` and `scripts/build.bat`; the `gmd/bin/Debug/net11.0/` paths in
+   CLAUDE.md, `.claude/rules/ui.md` and `.vscode/launch.json`.
+2. Delete what step 1 added: the polyfill, and the explicit `LangVersion` in
+   `Directory.Build.props`, since the SDK's C# is the default for its own target framework.
+3. CI: remove the `dotnet-version` lines; the SDK from `global.json` carries its own runtime.
+4. Devcontainer: image `mcr.microsoft.com/devcontainers/dotnet:<version>`, and remove the
+   `dotnet-install.sh` step from `postCreateCommand` and `scripts/installtools`. Rebuild the
+   container afterwards.
+5. Check the release notes of Terminal.Gui, Autofac, DiffPlex and
+   WeCantSpell.Hunspell for the new target; `scripts/updatepackages` lists what is behind. The
+   CSharpier tool is built for older runtimes and rolls forward to the newest one installed.
+6. Verify as in step 1.7, with only the new runtime installed, as CI has it, plus `scripts/build
+   -l`, since the publish settings are per target.
 
 ## 3. Optional, when the tooling catches up
 
 - **CSharpier** must parse C# 15 syntax before any of it is used; today it is pinned in three
   places that must move together: `.config/dotnet-tools.json` and the `CSharpier.MsBuild`
-  reference in both `.csproj` files. Its changelog says which C# version a release supports.
+  reference in the three `.csproj` files. Its changelog says which C# version a release supports.
 - With that in place the `union` keyword is available, but `Result` / `Result<T>` in
   `gmd/Utils/Result.cs` are deliberately hand-written structs and can stay so: the keyword form
   would add nothing they lack. Use the keyword for new domain unions (`union MergeOutcome(...)`).

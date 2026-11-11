@@ -3,8 +3,8 @@
 # Code cloud session, which does not use the devcontainer:
 #
 #   - the .NET SDK that global.json pins, exactly, as CI installs it (its C# 15 compiler), and the
-#     .NET runtime of the projects' TargetFramework (net10.0), which the build, the tests and
-#     CSharpier run on and that SDK does not carry, both in /usr/share/dotnet as in the
+#     .NET runtime of the projects' TargetFramework (net11.0), which the build, the tests and
+#     CSharpier run on, and which that SDK carries unless it is of a later .NET, both in /usr/share/dotnet as in the
 #     devcontainer, which is also where gmd's apphost looks for the runtime
 #   - tmux, which the end-to-end tests drive gmd in (they fail rather than skip without it), ICU,
 #     which .NET needs, and ssh-keygen, without which the commit signing tests are inconclusive

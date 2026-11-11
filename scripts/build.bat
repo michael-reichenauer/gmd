@@ -11,7 +11,7 @@ rem   scripts\build.bat -w     Test and build Windows only (fast path for local 
 rem Runs at the repository root, wherever it is started from (setlocal restores the folder at the end)
 cd /d "%~dp0.."
 
-set DOTNET=net10.0
+set DOTNET=net11.0
 
 rem The executables, and the package audit, go into artifacts\ (ignored by git)
 set OUT=artifacts

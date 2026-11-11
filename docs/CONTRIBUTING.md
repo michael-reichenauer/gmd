@@ -1,6 +1,6 @@
 # Contributing to Gmd
 
-Gmd is written in C# for .NET 10 on [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) 2.x.
+Gmd is written in C# for .NET 11 on [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui) 2.x.
 It runs the `git` command line for everything and uses no Git library. The code is layered, and
 each layer calls only the one below it:
 
@@ -30,9 +30,8 @@ On a fresh Ubuntu 24.04 machine without the devcontainer, such as a Claude Code 
 
 To set up a machine yourself you need:
 
-- The **.NET 11 SDK**, pinned in `global.json`. Its C# 15 compiler is what the `Result` union type
-  needs. [UPGRADING.md](UPGRADING.md) has the steps for the next .NET release.
-- The **.NET 10 runtime**, since gmd targets `net10.0` and the tests run on it.
+- The **.NET 11 SDK**, pinned in `global.json`, which gmd targets (`net11.0`) and whose C# 15 the
+  `Result` union type needs. [UPGRADING.md](UPGRADING.md) has the steps for the next .NET release.
 - **git**, and **tmux** for the end-to-end tests.
 
 ## Scripts

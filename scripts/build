@@ -3,7 +3,7 @@
 # Runs at the repository root, wherever it is started from
 cd "$(dirname "$0")/.." || exit 1
 
-DOTNET="net10.0"
+DOTNET="net11.0"
 
 # The executables, and the package audit, go into artifacts/ (ignored by git)
 OUT="artifacts"

@@ -1,10 +1,8 @@
 <Project>
   <PropertyGroup>
-    <!-- C# 15 (the .NET 11 SDK, pinned in global.json) for union types: gmd/Utils/Result.cs is a
-         custom union, matched with 'switch' and 'is' on its case types. The target framework stays
-         net10.0, so the union attribute is polyfilled in gmd/Utils/UnionPolyfill.cs. -->
-    <LangVersion>15</LangVersion>
-    <!-- A switch over a result that does not handle both of its cases is a bug, not a warning -->
+    <!-- gmd/Utils/Result.cs is a custom union of C# 15, the language of net11.0, matched with 'switch'
+         and 'is' on its case types. A switch over a result that does not handle both of its cases
+         is a bug, not a warning -->
     <WarningsAsErrors>$(WarningsAsErrors);CS8509</WarningsAsErrors>
   </PropertyGroup>
 </Project>
