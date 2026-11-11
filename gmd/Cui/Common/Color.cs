@@ -35,6 +35,14 @@ enum ColorName
     // The row of the commit marked for a diff
     MarkBg,
 
+    // The row the cursor is on, a tint of the background that leaves the colors of the row as they
+    // are, and the dark gray text on it, which is lighter there, as are the two darkest colors, the
+    // main branch's magenta and the blue, where the tint would leave them too dark to read
+    CursorBg,
+    OnCursorDim,
+    OnCursorMagenta,
+    OnCursorBlue,
+
     // The branch colors, of which the palette has BranchCount
     Branch1,
     Branch2,
@@ -96,6 +104,12 @@ record Color
     // marked; and the background of the rest of its row, see RepoWriter
     public static readonly Color DiffMark = new(ColorName.Black, ColorName.BrightCyan);
     public static readonly Color MarkBg = Make(ColorName.MarkBg);
+
+    // The background of the row the cursor is on, in the log, a list, a menu, see Text.ToHighlight.
+    // With the 16 colors it is the dark gray, with white for the dark gray text on it, as it was
+    // when they were all there was; with RGB it is a tint dark enough, or on white light enough, for
+    // every color of a row to be read on it, the ahead and behind marks, the tags and the branches
+    public static readonly Color CursorBg = Make(ColorName.CursorBg);
 
     public Color(Color fg, Color bg)
         : this(fg.Foreground, bg.Foreground) { }
@@ -237,6 +251,10 @@ sealed class Palette
             addedBg: TgColor.BrightGreen,
             onAdded: TgColor.Black,
             markBg: TgColor.Blue, // The mark's cyan is too light for white text on it
+            cursorBg: TgColor.DarkGray,
+            onCursorDim: TgColor.White,
+            onCursorMagenta: TgColor.Magenta,
+            onCursorBlue: TgColor.Blue,
             branches: [TgColor.Blue, TgColor.Green, TgColor.Cyan, TgColor.Red, TgColor.Yellow],
             code: CodeStyle.None
         )
@@ -268,6 +286,10 @@ sealed class Palette
             addedBg: Rgb(0x1E5A24),
             onAdded: Rgb(0xF2F2F2),
             markBg: Rgb(0x0F4848),
+            cursorBg: Rgb(0x333F57),
+            onCursorDim: Rgb(0xA6A6A6),
+            onCursorMagenta: Rgb(0xC860D8),
+            onCursorBlue: Rgb(0x6C96FF),
             branches:
             [
                 Rgb(0x42A5F5), // blue
@@ -313,6 +335,10 @@ sealed class Palette
             addedBg: Rgb(0xC8F0C8),
             onAdded: Rgb(0x1E1E1E),
             markBg: Rgb(0xC4EDED),
+            cursorBg: Rgb(0xDCE6F5),
+            onCursorDim: Rgb(0x6A6A6A),
+            onCursorMagenta: Rgb(0x881798),
+            onCursorBlue: Rgb(0x0037DA),
             branches:
             [
                 Rgb(0x1565C0), // blue
@@ -364,6 +390,10 @@ sealed class Palette
         TgColor addedBg,
         TgColor onAdded,
         TgColor markBg,
+        TgColor cursorBg,
+        TgColor onCursorDim,
+        TgColor onCursorMagenta,
+        TgColor onCursorBlue,
         IReadOnlyList<TgColor> branches,
         CodeStyle code
     )
@@ -391,6 +421,10 @@ sealed class Palette
             [ColorName.AddedBg] = addedBg,
             [ColorName.OnAdded] = onAdded,
             [ColorName.MarkBg] = markBg,
+            [ColorName.CursorBg] = cursorBg,
+            [ColorName.OnCursorDim] = onCursorDim,
+            [ColorName.OnCursorMagenta] = onCursorMagenta,
+            [ColorName.OnCursorBlue] = onCursorBlue,
         };
         // A palette of fewer branch colors repeats them, so every name has an RGB
         for (int i = 0; i < 12; i++)

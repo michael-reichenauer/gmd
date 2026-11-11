@@ -42,7 +42,52 @@ public class TextTest
         Assert.AreEqual(Color.DiffMark, marked.ToHighlight().Fragments[0].Color);
         Assert.AreEqual(Color.DiffMark, marked.ToSelect().Fragments[0].Color);
         Assert.AreEqual(Color.DiffMark, marked.ToTextBuilder().Highlight().ToText().Fragments[0].Color);
-        Assert.AreEqual(ColorName.Dark, marked.ToHighlight().Fragments[1].Color.Background, "The rest is highlighted");
+        Assert.AreEqual(
+            ColorName.CursorBg,
+            marked.ToHighlight().Fragments[1].Color.Background,
+            "The rest is highlighted"
+        );
+    }
+
+    // The cursor's row keeps the colors of its text, e.g. of the ahead and behind marks and the tags,
+    // on the cursor's background; only the dark gray, too dim there, is the lighter gray made for it
+    [TestMethod]
+    public void TestTheCursorsRowKeepsItsColors()
+    {
+        var text = Text.BrightBlue("▼").White("Subject").Green(" [v1.0]").Dark(" Author").ToText();
+
+        ColorName[] expected = [ColorName.BrightBlue, ColorName.White, ColorName.Green, ColorName.OnCursorDim];
+        CollectionAssert.AreEqual(expected, text.ToHighlight().Fragments.Select(f => f.Color.Foreground).ToArray());
+        CollectionAssert.AreEqual(
+            expected,
+            text.ToTextBuilder().Highlight().ToText().Fragments.Select(f => f.Color.Foreground).ToArray()
+        );
+        Assert.IsTrue(text.ToHighlight().Fragments.All(f => f.Color.Background == ColorName.CursorBg));
+    }
+
+    // With the 16 colors the cursor's row is as it always was, the dark gray with its dim text white
+    [TestMethod]
+    public void TestTheCursorsRowOfThe16ColorsIsDarkGray()
+    {
+        Assert.AreEqual(Palette.Sixteen[ColorName.Dark], Palette.Sixteen[ColorName.CursorBg]);
+        Assert.AreEqual(Palette.Sixteen[ColorName.White], Palette.Sixteen[ColorName.OnCursorDim]);
+        Assert.AreEqual(Palette.Sixteen[ColorName.Magenta], Palette.Sixteen[ColorName.OnCursorMagenta]);
+        Assert.AreEqual(Palette.Sixteen[ColorName.Blue], Palette.Sixteen[ColorName.OnCursorBlue]);
+    }
+
+    // The main branch's magenta and the blue are too dark to read on the cursor's tint, so they have
+    // colors of their own there, lighter in the dark palette
+    [TestMethod]
+    public void TestTheDarkestColorsAreLighterOnTheCursorsRow()
+    {
+        var text = Text.Magenta("┣").Blue(" old").ToText();
+
+        ColorName[] expected = [ColorName.OnCursorMagenta, ColorName.OnCursorBlue];
+        CollectionAssert.AreEqual(expected, text.ToHighlight().Fragments.Select(f => f.Color.Foreground).ToArray());
+        CollectionAssert.AreEqual(
+            expected,
+            text.ToTextBuilder().Highlight().ToText().Fragments.Select(f => f.Color.Foreground).ToArray()
+        );
     }
 
     // Dark is white on the background of the row marked for a diff, which is to stand out, as it is on
@@ -71,7 +116,7 @@ public class TextTest
         var keyword = new Color(ColorName.CodeKeyword, ColorName.Background);
         var code = Text.Color(keyword, "int").White(" x").ToText();
 
-        Assert.AreEqual(new Color(ColorName.CodeKeyword, ColorName.Dark), code.ToHighlight().Fragments[0].Color);
+        Assert.AreEqual(new Color(ColorName.CodeKeyword, ColorName.CursorBg), code.ToHighlight().Fragments[0].Color);
         Assert.AreEqual(new Color(ColorName.Black, ColorName.White), code.ToSelect().Fragments[0].Color);
         Assert.AreEqual(new Color(ColorName.Black, ColorName.White), code.ToTextBuilder().Select().Fragments[0].Color);
     }
