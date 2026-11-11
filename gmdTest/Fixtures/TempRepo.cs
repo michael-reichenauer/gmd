@@ -313,13 +313,22 @@ sealed class TempRepo : IDisposable
         if (!Directory.Exists(path))
             return;
 
-        // Git marks files in the object store read only, which blocks deleting them on Windows
-        foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
-            File.SetAttributes(file, FileAttributes.Normal);
-
         // A failed cleanup should not fail a test, the folder is in temp and will be cleaned by
-        // the system eventually
-        if (Result.Catch(() => Directory.Delete(path, true)) is Error e)
+        // the system eventually. That goes for the attributes too: a git process still ending
+        // removes its lock file (packed-refs.lock) between the listing and the call, which failed a
+        // test in CI.
+        var deleted = Result.Catch(() =>
+        {
+            // Git marks files in the object store read only, which blocks deleting them on Windows
+            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+            {
+                if (File.Exists(file))
+                    File.SetAttributes(file, FileAttributes.Normal);
+            }
+
+            Directory.Delete(path, true);
+        });
+        if (deleted is Error e)
             Log.Warn($"Failed to delete temp repo '{path}', {e}");
     }
 }
