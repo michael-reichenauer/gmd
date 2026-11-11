@@ -119,6 +119,14 @@ class Text
             { // Dark is too dim on the cursor's row: a lighter gray, which is still not the text's white
                 fg = ColorName.OnCursorDim;
             }
+            else if (fg == Common.Color.Magenta && newBg == Common.Color.CursorBg)
+            { // The main branch's magenta is too dark on the cursor's tint, as is the blue below
+                fg = ColorName.OnCursorMagenta;
+            }
+            else if (fg == Common.Color.Blue && newBg == Common.Color.CursorBg)
+            {
+                fg = ColorName.OnCursorBlue;
+            }
             else if (fg == Common.Color.Dark && newBg == Common.Color.MarkBg)
             { // Dark is too dim on the marked row, which is to stand out, as on the cursor's
                 fg = Common.Color.White;
@@ -398,6 +406,14 @@ class TextBuilder
             else if (fg == Common.Color.Dark && newBg == Common.Color.CursorBg)
             { // Dark is too dim on the cursor's row: a lighter gray, which is still not the text's white
                 fg = ColorName.OnCursorDim;
+            }
+            else if (fg == Common.Color.Magenta && newBg == Common.Color.CursorBg)
+            { // The main branch's magenta is too dark on the cursor's tint, as is the blue below
+                fg = ColorName.OnCursorMagenta;
+            }
+            else if (fg == Common.Color.Blue && newBg == Common.Color.CursorBg)
+            {
+                fg = ColorName.OnCursorBlue;
             }
             else if (fg == Common.Color.Dark && newBg == Common.Color.MarkBg)
             { // Dark is too dim on the marked row, which is to stand out, as on the cursor's

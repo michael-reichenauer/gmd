@@ -36,9 +36,12 @@ enum ColorName
     MarkBg,
 
     // The row the cursor is on, a tint of the background that leaves the colors of the row as they
-    // are, and the dark gray text on it, which is lighter there
+    // are, and the dark gray text on it, which is lighter there, as are the two darkest colors, the
+    // main branch's magenta and the blue, where the tint would leave them too dark to read
     CursorBg,
     OnCursorDim,
+    OnCursorMagenta,
+    OnCursorBlue,
 
     // The branch colors, of which the palette has BranchCount
     Branch1,
@@ -250,6 +253,8 @@ sealed class Palette
             markBg: TgColor.Blue, // The mark's cyan is too light for white text on it
             cursorBg: TgColor.DarkGray,
             onCursorDim: TgColor.White,
+            onCursorMagenta: TgColor.Magenta,
+            onCursorBlue: TgColor.Blue,
             branches: [TgColor.Blue, TgColor.Green, TgColor.Cyan, TgColor.Red, TgColor.Yellow],
             code: CodeStyle.None
         )
@@ -283,6 +288,8 @@ sealed class Palette
             markBg: Rgb(0x0F4848),
             cursorBg: Rgb(0x333F57),
             onCursorDim: Rgb(0xA6A6A6),
+            onCursorMagenta: Rgb(0xC860D8),
+            onCursorBlue: Rgb(0x6C96FF),
             branches:
             [
                 Rgb(0x42A5F5), // blue
@@ -330,6 +337,8 @@ sealed class Palette
             markBg: Rgb(0xC4EDED),
             cursorBg: Rgb(0xDCE6F5),
             onCursorDim: Rgb(0x6A6A6A),
+            onCursorMagenta: Rgb(0x881798),
+            onCursorBlue: Rgb(0x0037DA),
             branches:
             [
                 Rgb(0x1565C0), // blue
@@ -383,6 +392,8 @@ sealed class Palette
         TgColor markBg,
         TgColor cursorBg,
         TgColor onCursorDim,
+        TgColor onCursorMagenta,
+        TgColor onCursorBlue,
         IReadOnlyList<TgColor> branches,
         CodeStyle code
     )
@@ -412,6 +423,8 @@ sealed class Palette
             [ColorName.MarkBg] = markBg,
             [ColorName.CursorBg] = cursorBg,
             [ColorName.OnCursorDim] = onCursorDim,
+            [ColorName.OnCursorMagenta] = onCursorMagenta,
+            [ColorName.OnCursorBlue] = onCursorBlue,
         };
         // A palette of fewer branch colors repeats them, so every name has an RGB
         for (int i = 0; i < 12; i++)

@@ -455,7 +455,11 @@ public class RepoWriterTest
         var row = Rows(await View(), 120, currentIndex: 0)[0];
 
         Assert.AreEqual(ColorName.CursorBg, row.Fragments[0].Color.Background, "The graph rune it opens with");
-        Assert.AreEqual(Color.Magenta.Foreground, row.Fragments[0].Color.Foreground, "In main's color still");
+        Assert.AreEqual(
+            ColorName.OnCursorMagenta,
+            row.Fragments[0].Color.Foreground,
+            "In main's color, as it is on the cursor's row"
+        );
         Assert.AreEqual(ColorName.CursorBg, row.Fragments[^1].Color.Background, "The time column it ends with");
     }
 

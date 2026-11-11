@@ -71,6 +71,23 @@ public class TextTest
     {
         Assert.AreEqual(Palette.Sixteen[ColorName.Dark], Palette.Sixteen[ColorName.CursorBg]);
         Assert.AreEqual(Palette.Sixteen[ColorName.White], Palette.Sixteen[ColorName.OnCursorDim]);
+        Assert.AreEqual(Palette.Sixteen[ColorName.Magenta], Palette.Sixteen[ColorName.OnCursorMagenta]);
+        Assert.AreEqual(Palette.Sixteen[ColorName.Blue], Palette.Sixteen[ColorName.OnCursorBlue]);
+    }
+
+    // The main branch's magenta and the blue are too dark to read on the cursor's tint, so they have
+    // colors of their own there, lighter in the dark palette
+    [TestMethod]
+    public void TestTheDarkestColorsAreLighterOnTheCursorsRow()
+    {
+        var text = Text.Magenta("┣").Blue(" old").ToText();
+
+        ColorName[] expected = [ColorName.OnCursorMagenta, ColorName.OnCursorBlue];
+        CollectionAssert.AreEqual(expected, text.ToHighlight().Fragments.Select(f => f.Color.Foreground).ToArray());
+        CollectionAssert.AreEqual(
+            expected,
+            text.ToTextBuilder().Highlight().ToText().Fragments.Select(f => f.Color.Foreground).ToArray()
+        );
     }
 
     // Dark is white on the background of the row marked for a diff, which is to stand out, as it is on
