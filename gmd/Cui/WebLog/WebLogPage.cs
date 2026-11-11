@@ -82,7 +82,7 @@ static class WebLogPage
             </head>
             <body>
             <header>
-            <h1>{{RepoLink(links, title)}}</h1>
+            <div class="top"><h1>{{RepoLink(links, title)}}</h1>{{SiteLinks(links)}}</div>
             <p class="meta">Made by gmd, updated <time data-t="{{Iso(
                 generated
             )}}">{{generated:yyyy-MM-dd HH:mm}} UTC</time></p>
@@ -241,6 +241,16 @@ static class WebLogPage
     static string RepoLink(WebLinks? links, string title) =>
         links != null ? $"<a href=\"{E(links.RepoUrl)}\">{E(title)}</a>" : E(title);
 
+    // The shortcuts beside the title to the repository on its hosting service and to the runs of its
+    // actions there: buttons, since the title being a link does not show, and large enough for a finger
+    static string SiteLinks(WebLinks? links)
+    {
+        if (links == null)
+            return "";
+        var runs = links.Runs is string page ? $"<a href=\"{E(page)}\">{E(links.RunsName)}</a>" : "";
+        return $"<nav class=\"site\"><a href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{runs}</nav>";
+    }
+
     // The branch's tip commit, the commit below the uncommitted changes for the current branch of a
     // working tree with changes, since the page leaves those out
     static string TipId(Server.Repo repo, Branch b) =>
@@ -270,7 +280,11 @@ static class WebLogPage
             *{box-sizing:border-box}
             body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
             header,section{padding:0 16px}
-            h1{font-size:20px;margin:16px 0 2px}
+            .top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:16px 0 2px}
+            h1{font-size:20px;margin:0 auto 0 0}
+            .site{display:flex;gap:8px}
+            .site a{font-size:13px;line-height:30px;padding:0 12px;border:1px solid var(--line);border-radius:16px;background:var(--chip);color:var(--fg);text-decoration:none;white-space:nowrap}
+            .site a:active{background:var(--line)}
             h1 a{color:inherit;text-decoration:none}
             h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin:20px 0 8px}
             a{color:inherit}

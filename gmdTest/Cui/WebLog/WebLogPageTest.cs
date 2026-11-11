@@ -107,9 +107,21 @@ public class WebLogPageTest
         var html = await PageOf(FeatureRepo());
 
         StringAssert.Contains(html, "<title>repo Branch Graph</title>");
-        StringAssert.Contains(html, "<h1><a href=\"https://github.com/owner/repo\">repo Branch Graph</a></h1>");
+        StringAssert.Contains(html, "<h1><a href=\"https://github.com/owner/repo\">repo Branch Graph</a></h1><nav");
         StringAssert.Contains(html, "<a class=\"subj\" href=\"https://github.com/owner/repo/pull/7\">");
         Assert.IsFalse(html.Contains("prefers-color-scheme"), "The page is dark whatever the device's mode");
+    }
+
+    [TestMethod]
+    public async Task HasShortcutsToTheRepositoryAndItsActions()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(
+            html,
+            "<nav class=\"site\"><a href=\"https://github.com/owner/repo\">GitHub</a>"
+                + "<a href=\"https://github.com/owner/repo/actions\">Actions</a></nav>"
+        );
     }
 
     // The page keeps itself current by reading itself anew and showing the branches and the rows of

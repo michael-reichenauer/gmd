@@ -57,6 +57,7 @@ public class WebLinksTest
         var links = WebLinks.From("git@github.com:user/repo.git")!;
 
         Assert.AreEqual("https://github.com/user/repo/releases/tag/v1.2", links.Tag("v1.2"));
+        Assert.AreEqual("https://github.com/user/repo/actions", links.Runs);
         Assert.AreEqual("https://github.com/user/repo/tree/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://github.com/user/repo/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual(
@@ -71,6 +72,7 @@ public class WebLinksTest
         var links = WebLinks.From("git@gitlab.com:group/repo.git")!;
 
         Assert.AreEqual("https://gitlab.com/group/repo/-/tags/v1.2", links.Tag("v1.2"));
+        Assert.AreEqual("https://gitlab.com/group/repo/-/pipelines", links.Runs);
         Assert.AreEqual("https://gitlab.com/group/repo/-/tree/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://gitlab.com/group/repo/-/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual(
@@ -86,6 +88,7 @@ public class WebLinksTest
         var links = WebLinks.From("git@bitbucket.org:team/repo.git")!;
 
         Assert.AreEqual("https://bitbucket.org/team/repo/src/v1.2", links.Tag("v1.2"));
+        Assert.AreEqual("https://bitbucket.org/team/repo/pipelines", links.Runs);
         Assert.AreEqual("https://bitbucket.org/team/repo/branch/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://bitbucket.org/team/repo/commits/abc123", links.Commit("abc123"));
         Assert.AreEqual(
@@ -105,6 +108,7 @@ public class WebLinksTest
         );
         Assert.AreEqual("https://dev.azure.com/org/project/_git/repo/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual("https://dev.azure.com/org/project/_git/repo?version=GTv1.2", links.Tag("v1.2"));
+        Assert.AreEqual(null, links.Runs);
         Assert.AreEqual(
             "https://dev.azure.com/org/project/_git/repo/pullrequestcreate?sourceRef=feature%2Flogin&targetRef=dev",
             links.NewPullRequest("feature/login", "dev")
@@ -117,6 +121,7 @@ public class WebLinksTest
         var links = WebLinks.From("https://codeberg.org/user/repo.git")!;
 
         Assert.AreEqual("https://codeberg.org/user/repo/releases/tag/v1.2", links.Tag("v1.2"));
+        Assert.AreEqual("https://codeberg.org/user/repo/actions", links.Runs);
         Assert.AreEqual("https://codeberg.org/user/repo/src/branch/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://codeberg.org/user/repo/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual(

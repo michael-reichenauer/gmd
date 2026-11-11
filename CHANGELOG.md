@@ -8,6 +8,9 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+### Improved
+- The branch graph web page now has buttons beside its title that open the repository on GitHub and its Actions (the pipelines on GitLab and Bitbucket)
+
 ## [v1.19.1473.971] - 2026-11-11
 
 ### Improved
