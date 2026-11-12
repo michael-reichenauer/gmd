@@ -13,6 +13,9 @@ what is merged but in no preview yet. The next release heads it with its version
 - The branch graph web page now checks for a newer published page each time it is shown again, on a switch back to its tab or to the browser, rather than only when five minutes have passed
 - The branch graph web page now lists only the branches drawn in its graph, leaving out those whose latest commit is older than the commits shown
 
+### Changed
+- A button or a link on the branch graph web page now opens in another tab rather than in place of the graph, and the next one is shown in that same tab, so ten commits opened are one tab
+
 ## [v1.19.1473.971] - 2026-11-11
 
 ### Improved
