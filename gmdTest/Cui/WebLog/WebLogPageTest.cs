@@ -135,8 +135,14 @@ public class WebLogPageTest
         var html = await PageOf(FeatureRepo());
 
         StringAssert.Contains(html, "<title>repo Branch Graph</title>");
-        StringAssert.Contains(html, "<h1><a href=\"https://github.com/owner/repo\">repo Branch Graph</a></h1><nav");
-        StringAssert.Contains(html, "<a class=\"subj\" href=\"https://github.com/owner/repo/pull/7\">");
+        StringAssert.Contains(
+            html,
+            "<h1><a target=\"gmd-repo\" href=\"https://github.com/owner/repo\">repo Branch Graph</a></h1><nav"
+        );
+        StringAssert.Contains(
+            html,
+            "<a target=\"gmd-pr\" class=\"subj\" href=\"https://github.com/owner/repo/pull/7\">"
+        );
         Assert.IsFalse(html.Contains("prefers-color-scheme"), "The page is dark whatever the device's mode");
     }
 
@@ -147,10 +153,10 @@ public class WebLogPageTest
 
         StringAssert.Contains(
             html,
-            "<nav class=\"site\"><a href=\"https://github.com/owner/repo\">GitHub</a>"
-                + "<a href=\"https://github.com/owner/repo/pulls\">Pull requests</a>"
-                + "<a href=\"https://github.com/owner/repo/actions\">Actions</a>"
-                + "<a href=\"https://vscode.dev/github/owner/repo\">VS Code</a></nav>"
+            "<nav class=\"site\"><a target=\"gmd-repo\" href=\"https://github.com/owner/repo\">GitHub</a>"
+                + "<a target=\"gmd-pr\" href=\"https://github.com/owner/repo/pulls\">Pull requests</a>"
+                + "<a target=\"gmd-runs\" href=\"https://github.com/owner/repo/actions\">Actions</a>"
+                + "<a target=\"gmd-editor\" href=\"https://vscode.dev/github/owner/repo\">VS Code</a></nav>"
         );
     }
 
@@ -160,20 +166,65 @@ public class WebLogPageTest
         var gitLab = await PageOf(FeatureRepo(), remote: "git@gitlab.com:group/repo.git");
         StringAssert.Contains(
             gitLab,
-            "<nav class=\"site\"><a href=\"https://gitlab.com/group/repo\">GitLab</a>"
-                + "<a href=\"https://gitlab.com/group/repo/-/merge_requests\">Merge requests</a>"
-                + "<a href=\"https://gitlab.com/group/repo/-/pipelines\">Pipelines</a></nav>"
+            "<nav class=\"site\"><a target=\"gmd-repo\" href=\"https://gitlab.com/group/repo\">GitLab</a>"
+                + "<a target=\"gmd-pr\" href=\"https://gitlab.com/group/repo/-/merge_requests\">Merge requests</a>"
+                + "<a target=\"gmd-runs\" href=\"https://gitlab.com/group/repo/-/pipelines\">Pipelines</a></nav>"
         );
 
         var unknown = await PageOf(FeatureRepo(), remote: "git@git.example.com:team/repo.git");
         StringAssert.Contains(
             unknown,
-            "<nav class=\"site\"><a href=\"https://git.example.com/team/repo\">git.example.com</a></nav>"
+            "<nav class=\"site\"><a target=\"gmd-repo\" href=\"https://git.example.com/team/repo\">git.example.com</a></nav>"
         );
 
         var noRemote = await PageOf(FeatureRepo(), remote: null);
         Assert.IsFalse(noRemote.Contains("<nav"), "No shortcuts with no remote");
         StringAssert.Contains(noRemote, "<div class=\"top\"><h1>repo Branch Graph</h1></div>");
+    }
+
+    // A link to another site opens in the tab of its kind of page, which the next link of that kind
+    // is shown in, so that the graph stays open and ten commits tapped are one tab, not ten. A link
+    // to a row of the page itself stays in the page.
+    [TestMethod]
+    public async Task OpensALinkToAnotherSiteInTheTabOfItsKind()
+    {
+        var prs = new List<PullRequest>
+        {
+            new(8, "The feature", "feature", "https://github.com/owner/repo/pull/8", false),
+        };
+        var html = await PageOf(FeatureRepo().Tag("v1.2", "c3"), prs);
+
+        var links = System.Text.RegularExpressions.Regex.Matches(html, "<a ([^>]*)>").Select(m => m.Groups[1].Value);
+        var tabs = new Dictionary<string, HashSet<string>>();
+        foreach (var link in links)
+        {
+            var href = System.Text.RegularExpressions.Regex.Match(link, "href=\"([^\"]*)\"").Groups[1].Value;
+            var tab = System.Text.RegularExpressions.Regex.Match(link, "target=\"([^\"]*)\"").Groups[1].Value;
+            if (href.StartsWith('#'))
+            {
+                Assert.AreEqual("", tab, link);
+                continue;
+            }
+            Assert.IsFalse(link.Contains("noopener"), "A tab opened with noopener has no name to be found by");
+            var page =
+                href == "https://github.com/owner/repo" ? "/" : href.Replace("https://github.com/owner/repo", "");
+            var kind = System.Text.RegularExpressions.Regex.Replace(page, "[0-9a-f]{40}|(?<=/pull/)[0-9]+", "*");
+            tabs.TryAdd(tab, []);
+            tabs[tab].Add(kind);
+        }
+
+        Assert.AreEqual(
+            """
+            gmd-commit: /commit/*
+            gmd-editor: https://vscode.dev/github/owner/repo
+            gmd-guide: https://github.com/michael-reichenauer/gmd/blob/dev/docs/BRANCH-GRAPH.md
+            gmd-pr: /pull/* /pulls
+            gmd-repo: / /tree/feature /tree/main
+            gmd-runs: /actions
+            gmd-tag: /releases/tag/v1.2
+            """,
+            string.Join('\n', tabs.OrderBy(t => t.Key).Select(t => $"{t.Key}: {string.Join(' ', t.Value.Order())}"))
+        );
     }
 
     // The page keeps itself current by reading itself anew and showing the branches and the rows of
@@ -214,7 +265,7 @@ public class WebLogPageTest
 
         StringAssert.Contains(
             html,
-            "<a class=\"tag\" href=\"https://github.com/owner/repo/releases/tag/v1.2\">v1.2</a>"
+            "<a target=\"gmd-tag\" class=\"tag\" href=\"https://github.com/owner/repo/releases/tag/v1.2\">v1.2</a>"
         );
     }
 
