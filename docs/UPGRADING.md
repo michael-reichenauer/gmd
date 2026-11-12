@@ -1,9 +1,11 @@
 # Upgrading to the next .NET and C#
 
+> **Status: the upgrade to .NET 11 is done** (2026-11-11, from gmd 1.19 on). Nothing here is left
+> to do. This is the record of how it was done, kept as the guide for the next .NET.
+
 Gmd targets and runs on .NET 11 and is built with its SDK, whose C# 15 has the union types
 `Result` is made of. .NET 11 was released on 2026-11-10, and gmd moved to it the day after: first
-to the released SDK, then to the target framework net11.0. This is how that was done, to do again
-for the next .NET. Every pin named here is found with:
+to the released SDK, then to the target framework net11.0. Every pin named here is found with:
 
 ```bash
 grep -rn "net11.0\|11.0.x\|dotnet:11\|--channel\|LangVersion\|11.0.100" \

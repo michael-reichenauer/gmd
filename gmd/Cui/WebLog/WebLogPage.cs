@@ -35,6 +35,14 @@ static class WebLogPage
     // The guide to the page, what it shows and how it is made
     const string GuideUrl = Project.Url + "/blob/dev/docs/BRANCH-GRAPH.md";
 
+    // A link to another site opens in another tab, one tab for them all: the graph stays open in
+    // its tab, and each link is shown in the tab the first one opened rather than in one more,
+    // however many are tapped. The tab is found by its name, so the links have no rel="noopener",
+    // with which a browser gives the tab no name and opens a new one each time. Without it a page
+    // shown in that tab can send the graph's tab elsewhere, also a page of another site that a link
+    // on the hosting service's led to: accepted, for a page that is public and takes no input.
+    const string OtherTab = "target=\"gmd-link\"";
+
     // A row's two lines of text, the subject and below it the author, time and id, are moved down
     // from the middle of the row by half a line, so that the subject is beside the commit's dot,
     // as it is in the terminal, rather than the two lines around it
@@ -65,9 +73,9 @@ static class WebLogPage
             .GroupBy(p => p.HeadRefName)
             .ToDictionary(g => g.Key, g => g.First());
         var commits = repo.ViewCommits.Where(c => c.Id != Repo.UncommittedId).Take(maxRows).ToList();
+        var shownIds = commits.Select(c => c.Id).ToHashSet();
         var branches = repo.ViewBranches.Where(b => b.IsPrimary && !b.IsDetached).ToList();
         var tips = branches.GroupBy(b => TipId(repo, b)).ToDictionary(g => g.Key, g => g.ToList());
-        var shownIds = commits.Select(c => c.Id).ToHashSet();
 
         var html = new StringBuilder();
         html.Append(
@@ -82,18 +90,19 @@ static class WebLogPage
             </head>
             <body>
             <header>
-            <h1>{{RepoLink(links, title)}}</h1>
+            <div class="top"><h1>{{RepoLink(links, title)}}</h1>{{SiteLinks(links)}}</div>
             <p class="meta">Made by gmd, updated <time data-t="{{Iso(
                 generated
             )}}">{{generated:yyyy-MM-dd HH:mm}} UTC</time></p>
             <details class="about"><summary>About this page</summary>
             <p>What everyone is working on, across the branches: gmd's branch graph of this repo, made anew
-            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b> lists the active branches, the latest changed
+            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b> lists the active branches of the commits shown, the latest changed
             first, with their open pull requests. In <b>Commits</b>, each branch is a line in its own color,
             main on the left, every branch to the right of the branch it came from; a dot is a commit, an
             arc in is a merge and an arc out is where a branch started, and the short grey arcs are branches
-            not shown. Tap a subject for the commit's diff, or a pull request's merge for the pull request.</p>
-            <p><a href="{{GuideUrl}}">How it works</a></p>
+            not shown. Tap a subject for the commit's diff, or a pull request's merge for the pull request.
+            A link opens in another tab, which the next link is shown in too.</p>
+            <p><a {{OtherTab}} href="{{GuideUrl}}">How it works</a></p>
             </details>
             </header>
 
@@ -114,8 +123,9 @@ static class WebLogPage
         return html.ToString();
     }
 
-    // The branches, the one with the latest commit first, each with its last commit's time and
-    // author, and its open pull request
+    // The branches drawn, the one with the latest commit first, each with its last commit's time and
+    // author, and its open pull request. A branch with no commit among those shown has no line in the
+    // graph and no row to go to, so it is left out.
     static void AppendBranches(
         StringBuilder html,
         Server.Repo repo,
@@ -126,21 +136,27 @@ static class WebLogPage
         IReadOnlyDictionary<string, PullRequest> prs
     )
     {
+        var drawn = branches
+            .Select(b => (Branch: b, TipId: ShownTipId(repo, b, shownIds)))
+            .Where(d => d.TipId != null)
+            .Select(d => (d.Branch, Tip: repo.CommitById[d.TipId!]))
+            .OrderByDescending(d => d.Tip.AuthorTime);
+
         html.Append("<section class=\"branches\"><h2>Branches</h2><ul>\n");
-        foreach (var b in branches.OrderByDescending(b => repo.CommitById[TipId(repo, b)].AuthorTime))
+        foreach (var (b, tip) in drawn)
         {
-            var tip = repo.CommitById[TipId(repo, b)];
             var name = RemoteName(b);
             var color = GraphSvg.ColorClass(branchColor(b));
-            // Its tip in the graph, or, older than the commits drawn, its page
-            var target = shownIds.Contains(tip.Id) ? $"#{tip.Sid}" : links?.Branch(name) ?? "#";
-            html.Append($"<li><a class=\"bn {color}\" href=\"{E(target)}\"><span class=\"dot\"></span>")
+            // Its tip in the graph
+            html.Append($"<li><a class=\"bn {color}\" href=\"#{tip.Sid}\"><span class=\"dot\"></span>")
                 .Append(E(b.NiceNameUnique))
                 .Append("</a>");
             if (prs.TryGetValue(name, out var pr))
                 html.Append(' ').Append(PullRequestLink(pr));
             else if (links?.Branch(name) is string page && b.IsGitBranch)
-                html.Append($" <a class=\"ext\" href=\"{E(page)}\" title=\"The branch on the hosting service\">↗</a>");
+                html.Append(
+                    $" <a {OtherTab} class=\"ext\" href=\"{E(page)}\" title=\"The branch on the hosting service\">↗</a>"
+                );
             html.Append($"<span class=\"bm\">{E(tip.Author)} · {TimeTag(tip.AuthorTime)}</span></li>\n");
         }
         html.Append("</ul></section>\n");
@@ -177,7 +193,7 @@ static class WebLogPage
                     var page = b.IsGitBranch ? links?.Branch(name) : null;
                     html.Append(
                         page != null
-                            ? $"<a class=\"tip {color}\" href=\"{E(page)}\">{E(b.NiceNameUnique)}</a>"
+                            ? $"<a {OtherTab} class=\"tip {color}\" href=\"{E(page)}\">{E(b.NiceNameUnique)}</a>"
                             : $"<span class=\"tip {color}\">{E(b.NiceNameUnique)}</span>"
                     );
                     if (prs.TryGetValue(name, out var pr))
@@ -189,7 +205,7 @@ static class WebLogPage
                 // A tag opens its release, e.g. of a version
                 html.Append(
                     links?.Tag(tag.Name) is string page
-                        ? $"<a class=\"tag\" href=\"{E(page)}\">{E(tag.Name)}</a>"
+                        ? $"<a {OtherTab} class=\"tag\" href=\"{E(page)}\">{E(tag.Name)}</a>"
                         : $"<span class=\"tag\">{E(tag.Name)}</span>"
                 );
             }
@@ -198,7 +214,7 @@ static class WebLogPage
             html.Append($"<div class=\"m\">{E(c.Author)} · {TimeTag(c.AuthorTime)} · ");
             html.Append(
                 links?.Commit(c.Id) is string commitPage
-                    ? $"<a class=\"sid\" href=\"{E(commitPage)}\">{c.Sid}</a>"
+                    ? $"<a {OtherTab} class=\"sid\" href=\"{E(commitPage)}\">{c.Sid}</a>"
                     : $"<span class=\"sid\">{c.Sid}</span>"
             );
             if (MessageExcerpt(c) is { Length: > 0 } excerpt)
@@ -229,22 +245,53 @@ static class WebLogPage
         var subject = E(c.Subject);
         const string cls = "subj";
         if (links?.Host == WebHost.GitHub && PullRequestMerge.Match(c.Subject) is { Success: true } m)
-            return $"<a class=\"{cls}\" href=\"{E(links.RepoUrl)}/pull/{m.Groups[1].Value}\">{subject}</a>";
+            return $"<a {OtherTab} class=\"{cls}\" href=\"{E(links.RepoUrl)}/pull/{m.Groups[1].Value}\">{subject}</a>";
         if (links?.Commit(c.Id) is string page)
-            return $"<a class=\"{cls}\" href=\"{E(page)}\">{subject}</a>";
+            return $"<a {OtherTab} class=\"{cls}\" href=\"{E(page)}\">{subject}</a>";
         return $"<span class=\"{cls}\">{subject}</span>";
     }
 
     static string PullRequestLink(PullRequest pr) =>
-        $"<a class=\"pr{(pr.IsDraft ? " draft" : "")}\" href=\"{E(pr.Url)}\" title=\"{E(pr.Title)}\">#{pr.Number}</a>";
+        $"<a {OtherTab} class=\"pr{(pr.IsDraft ? " draft" : "")}\" href=\"{E(pr.Url)}\" title=\"{E(pr.Title)}\">#{pr.Number}</a>";
 
     static string RepoLink(WebLinks? links, string title) =>
-        links != null ? $"<a href=\"{E(links.RepoUrl)}\">{E(title)}</a>" : E(title);
+        links != null ? $"<a {OtherTab} href=\"{E(links.RepoUrl)}\">{E(title)}</a>" : E(title);
+
+    // The shortcuts beside the title to the repository on its hosting service, and to its pull
+    // requests and the runs of its actions there, and to its files in VS Code for the Web: buttons,
+    // since the title being a link does not show, and large enough for a finger
+    static string SiteLinks(WebLinks? links)
+    {
+        if (links == null)
+            return "";
+        var pulls = links.PullRequests is string pullsPage
+            ? $"<a {OtherTab} href=\"{E(pullsPage)}\">{E(links.PullRequestsName)}</a>"
+            : "";
+        var runs = links.Runs is string runsPage ? $"<a {OtherTab} href=\"{E(runsPage)}\">{E(links.RunsName)}</a>" : "";
+        var editor = links.WebEditor is string editorPage
+            ? $"<a {OtherTab} href=\"{E(editorPage)}\">{E(links.WebEditorName)}</a>"
+            : "";
+        return $"<nav class=\"site\"><a {OtherTab} href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{pulls}{runs}{editor}</nav>";
+    }
 
     // The branch's tip commit, the commit below the uncommitted changes for the current branch of a
     // working tree with changes, since the page leaves those out
     static string TipId(Server.Repo repo, Branch b) =>
         b.TipId == Repo.UncommittedId && repo.CommitById[b.TipId].ParentIds is [var parent, ..] ? parent : b.TipId;
+
+    // The branch's latest commit among those shown, null when it has none: its tip, or, when that is
+    // older than they are, the tip of its local branch, which has commits not pushed yet
+    static string? ShownTipId(Server.Repo repo, Branch b, IReadOnlySet<string> shownIds)
+    {
+        if (shownIds.Contains(TipId(repo, b)))
+            return TipId(repo, b);
+        return
+            b.LocalName != ""
+            && repo.BranchByName.TryGetValue(b.LocalName, out var local)
+            && shownIds.Contains(TipId(repo, local))
+            ? TipId(repo, local)
+            : null;
+    }
 
     // The branch's name on the remote, as its web page names it
     static string RemoteName(Branch b) =>
@@ -270,7 +317,11 @@ static class WebLogPage
             *{box-sizing:border-box}
             body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
             header,section{padding:0 16px}
-            h1{font-size:20px;margin:16px 0 2px}
+            .top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:16px 0 2px}
+            h1{font-size:20px;margin:0 auto 0 0}
+            .site{display:flex;flex-wrap:wrap;gap:8px}
+            .site a{font-size:13px;line-height:30px;padding:0 12px;border:1px solid var(--line);border-radius:16px;background:var(--chip);color:var(--fg);text-decoration:none;white-space:nowrap}
+            .site a:active{background:var(--line)}
             h1 a{color:inherit;text-decoration:none}
             h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin:20px 0 8px}
             a{color:inherit}
@@ -326,11 +377,30 @@ static class WebLogPage
     // shown. Nothing is reloaded, so the page stays where it was scrolled to, on the commit that was
     // at the top of the screen, however many commits came in above it; at the top of the page it
     // stays at the top, where the new ones are. A page that looks otherwise, made by a newer gmd,
-    // is reloaded as a whole. A tablet stops the timers of a page not shown, so it checks as it is
-    // shown again too. The times are written anew with each check, so "5m ago" stays true.
+    // or has other buttons or another text about it above the branches, which are not shown in
+    // place, is reloaded as a whole. It checks as it is shown again too, on a switch back to its tab or its
+    // window or to the browser, however short the time away: that is when it is read, and a tablet
+    // stops the timers of a page not shown. Which event says so differs between browsers, so it
+    // listens for them all, and those of one switch are one check: none within ten seconds of the
+    // last one tried. It checks as it is opened as well, since a browser going back to the page, or
+    // opening it again within ten minutes, shows the one it kept without asking the server; but not
+    // after a reload, which did ask, and which a check that reloads again could follow for ever. A
+    // check that fails, as the first one of a tablet waking up without a network yet does, is tried
+    // again at the next tick, not in five minutes: 'last' is the last check that read a page, 'tried'
+    // the last one started, later only when that one failed. The times are written anew with each
+    // check, so "5m ago" stays true.
+    //
+    // Last, the other tab on an iPad or an iPhone (an iPad says it is a Mac, but one with a touch
+    // screen). Safari there shows a link in the tab of its target's name as elsewhere, but leaves
+    // that tab behind the graph, where a Mac brings it to the front; only a tab it opens is shown.
+    // So there the page opens the links itself: it closes the other tab, which it may since it
+    // opened it, and opens the link in a new one, under a name of its own, since the tab being
+    // closed may still be found by the old one. After a reload it has no hold of the tab it opened,
+    // so it opens the link under the name it kept, which shows it in that tab if it is still there.
+    // Where the browser lets it open no tab, the link opens as any other.
     const string Script = """
         (function(){
-        const every=5*60*1000;
+        const every=5*60*1000,soon=10*1000;
         const q=(d,s)=>d.querySelector(s);
         function ago(now,t){const s=(now-t)/1000;if(s<60)return"now";const m=s/60;if(m<60)return Math.floor(m)+"m ago";
         const h=m/60;if(h<24)return Math.floor(h)+"h ago";const d=h/24;if(d<30)return Math.floor(d)+"d ago";
@@ -338,20 +408,23 @@ static class WebLogPage
         function times(){const now=Date.now();document.querySelectorAll("time[data-t]").forEach(e=>{
         const t=Date.parse(e.dataset.t);e.title=new Date(t).toLocaleString();e.textContent=ago(now,t);});}
         const content=d=>q(d,".branches").innerHTML+q(d,".rows").innerHTML;
-        const look=d=>q(d,"title").textContent+q(d,"style").textContent+q(d,"script").textContent;
-        let shown=content(document),last=Date.now(),busy=false;
+        const html=(d,s)=>(q(d,s)||{}).innerHTML;
+        const look=d=>q(d,"title").textContent+q(d,"style").textContent+q(d,"script").textContent+html(d,".top")+html(d,".about");
+        const nav=performance.getEntriesByType("navigation")[0];
+        let shown=content(document),last=nav&&nav.type==="reload"?Date.now():0,tried=last,busy=false;
         const made=look(document);
         times();
         function topRow(){if(window.scrollY<=0)return null;
         for(const e of document.querySelectorAll(".r")){const y=e.getBoundingClientRect().top;if(y>=0)return{id:e.id,y};}
         return null;}
         async function check(){
-        if(busy)return;busy=true;last=Date.now();
+        if(busy)return;busy=true;tried=Date.now();
         try{
         const r=await fetch(location.pathname,{cache:"no-store"});
         if(r.ok){
         const d=new DOMParser().parseFromString(await r.text(),"text/html");
         if(q(d,".branches")&&q(d,".rows")&&q(d,".meta time")){
+        last=tried;
         if(look(d)!==made){location.reload();return;}
         q(document,".meta time").dataset.t=q(d,".meta time").dataset.t;
         const c=content(d);
@@ -367,9 +440,24 @@ static class WebLogPage
         finally{busy=false;}
         times();
         }
-        function tick(){if(!document.hidden&&Date.now()-last>=every)check();}
+        const tick=()=>{if(!document.hidden&&(tried>last||Date.now()-last>=every))check();};
+        const back=()=>{if(!document.hidden&&Date.now()-tried>=soon)check();};
         setInterval(tick,30*1000);
-        document.addEventListener("visibilitychange",tick);
+        document.addEventListener("visibilitychange",back);
+        window.addEventListener("pageshow",back);
+        window.addEventListener("focus",back);
+        const touch=/iP(ad|hone|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+        const kept=v=>{try{if(v)sessionStorage.setItem("gmd-link",v);return sessionStorage.getItem("gmd-link");}catch(e){return v||null;}};
+        let other=null;
+        if(touch)document.addEventListener("click",e=>{
+        const a=e.target.closest&&e.target.closest('a[target="gmd-link"]');
+        if(!a||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+        const open=other&&!other.closed;
+        if(open)other.close();
+        const name=open||!kept()?"gmd-link-"+Date.now():kept();
+        const w=window.open(a.href,name);
+        if(w){e.preventDefault();other=w;kept(name);}
+        });
         })();
         """;
 }

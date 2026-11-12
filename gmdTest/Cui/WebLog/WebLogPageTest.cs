@@ -9,7 +9,12 @@ namespace gmdTest.Cui.WebLog;
 [TestClass]
 public class WebLogPageTest
 {
-    static async Task<string> PageOf(RepoBuilder builder, IReadOnlyList<PullRequest>? prs = null, int maxRows = 100)
+    static async Task<string> PageOf(
+        RepoBuilder builder,
+        IReadOnlyList<PullRequest>? prs = null,
+        int maxRows = 100,
+        string? remote = "git@github.com:owner/repo.git"
+    )
     {
         var repo = await builder.ViewRepoAsync(gmd.Server.ShowBranches.AllActive);
         var colors = new BranchColorService(new FakeRepoConfig());
@@ -19,7 +24,7 @@ public class WebLogPageTest
             graph,
             new GraphWriter(),
             b => colors.GetColor(repo, b),
-            WebLinks.From("git@github.com:owner/repo.git"),
+            remote != null ? WebLinks.From(remote) : null,
             prs ?? [],
             "repo Branch Graph",
             new DateTime(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc),
@@ -89,16 +94,39 @@ public class WebLogPageTest
         Assert.IsFalse(html.Contains("/pull/9"), html);
     }
 
+    // A branch with its tip below the last commit drawn has no line in the graph, so it is not
+    // listed either
     [TestMethod]
-    public async Task LinksABranchOlderThanTheCommitsDrawnToItsPage()
+    public async Task ListsOnlyTheBranchesOfTheCommitsDrawn()
     {
         var html = await PageOf(FeatureRepo(), maxRows: 1);
 
-        StringAssert.Contains(
-            html,
-            "href=\"https://github.com/owner/repo/tree/main\"><span class=\"dot\"></span>main</a>"
+        var branches = html[html.IndexOf("<section class=\"branches\">")..html.IndexOf("<section class=\"log\">")];
+        StringAssert.Contains(branches, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+        Assert.IsFalse(branches.Contains(">main</a>"), branches);
+        Assert.AreEqual(1, branches.Split("<li>").Length - 1, branches);
+
+        // With both tips drawn, both are listed, each going to its tip
+        var all = await PageOf(FeatureRepo(), maxRows: 2);
+        StringAssert.Contains(all, "href=\"#c3000000\"><span class=\"dot\"></span>main</a>");
+        StringAssert.Contains(all, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+    }
+
+    // The commits not pushed are the local branch's, drawn above the tip origin has, so the branch
+    // is listed while any of them is shown, and goes to the latest
+    [TestMethod]
+    public async Task ListsABranchWithOnlyCommitsNotPushedDrawn()
+    {
+        var html = await PageOf(
+            new RepoBuilder()
+                .Commit("c2", "Not pushed", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c1", ahead: 1),
+            maxRows: 1
         );
-        StringAssert.Contains(html, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+
+        Assert.AreEqual(1, html.Split("<div class=\"r\"").Length - 1);
+        StringAssert.Contains(html, "href=\"#c2000000\"><span class=\"dot\"></span>main</a>");
     }
 
     [TestMethod]
@@ -107,9 +135,96 @@ public class WebLogPageTest
         var html = await PageOf(FeatureRepo());
 
         StringAssert.Contains(html, "<title>repo Branch Graph</title>");
-        StringAssert.Contains(html, "<h1><a href=\"https://github.com/owner/repo\">repo Branch Graph</a></h1>");
-        StringAssert.Contains(html, "<a class=\"subj\" href=\"https://github.com/owner/repo/pull/7\">");
+        StringAssert.Contains(
+            html,
+            "<h1><a target=\"gmd-link\" href=\"https://github.com/owner/repo\">repo Branch Graph</a></h1><nav"
+        );
+        StringAssert.Contains(
+            html,
+            "<a target=\"gmd-link\" class=\"subj\" href=\"https://github.com/owner/repo/pull/7\">"
+        );
         Assert.IsFalse(html.Contains("prefers-color-scheme"), "The page is dark whatever the device's mode");
+    }
+
+    [TestMethod]
+    public async Task HasShortcutsToTheRepositoryItsPullRequestsItsActionsAndItsFilesInVsCode()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(
+            html,
+            "<nav class=\"site\"><a target=\"gmd-link\" href=\"https://github.com/owner/repo\">GitHub</a>"
+                + "<a target=\"gmd-link\" href=\"https://github.com/owner/repo/pulls\">Pull requests</a>"
+                + "<a target=\"gmd-link\" href=\"https://github.com/owner/repo/actions\">Actions</a>"
+                + "<a target=\"gmd-link\" href=\"https://vscode.dev/github/owner/repo\">VS Code</a></nav>"
+        );
+    }
+
+    [TestMethod]
+    public async Task NamesTheShortcutsAsTheHostDoesAndLeavesOutWhatItHasNot()
+    {
+        var gitLab = await PageOf(FeatureRepo(), remote: "git@gitlab.com:group/repo.git");
+        StringAssert.Contains(
+            gitLab,
+            "<nav class=\"site\"><a target=\"gmd-link\" href=\"https://gitlab.com/group/repo\">GitLab</a>"
+                + "<a target=\"gmd-link\" href=\"https://gitlab.com/group/repo/-/merge_requests\">Merge requests</a>"
+                + "<a target=\"gmd-link\" href=\"https://gitlab.com/group/repo/-/pipelines\">Pipelines</a></nav>"
+        );
+
+        var unknown = await PageOf(FeatureRepo(), remote: "git@git.example.com:team/repo.git");
+        StringAssert.Contains(
+            unknown,
+            "<nav class=\"site\"><a target=\"gmd-link\" href=\"https://git.example.com/team/repo\">git.example.com</a></nav>"
+        );
+
+        var noRemote = await PageOf(FeatureRepo(), remote: null);
+        Assert.IsFalse(noRemote.Contains("<nav"), "No shortcuts with no remote");
+        StringAssert.Contains(noRemote, "<div class=\"top\"><h1>repo Branch Graph</h1></div>");
+    }
+
+    // A link to another site opens in one other tab, which the next link is shown in too, so that
+    // the graph stays open and ten commits tapped are one tab, not ten. A link to a row of the page
+    // itself stays in the page.
+    [TestMethod]
+    public async Task OpensEveryLinkToAnotherSiteInOneOtherTab()
+    {
+        var prs = new List<PullRequest>
+        {
+            new(8, "The feature", "feature", "https://github.com/owner/repo/pull/8", false),
+        };
+        var html = await PageOf(FeatureRepo().Tag("v1.2", "c3"), prs);
+
+        var links = System
+            .Text.RegularExpressions.Regex.Matches(html, "<a ([^>]*)>")
+            .Select(m => m.Groups[1].Value)
+            .ToList();
+        var inPage = links.Where(l => l.Contains("href=\"#")).ToList();
+        var others = links.Except(inPage).ToList();
+
+        Assert.AreEqual(2, inPage.Count, "The two branches in the list go to their rows");
+        Assert.IsFalse(inPage.Any(l => l.Contains("target=")), string.Join('\n', inPage));
+
+        // The title, four buttons, the guide, two branch pages, a pull request, a tag and the commits
+        Assert.IsTrue(others.Count > 10, $"{others.Count} links");
+        foreach (var link in others)
+        {
+            StringAssert.StartsWith(link, "target=\"gmd-link\" ");
+            Assert.IsFalse(link.Contains("noopener"), "A tab opened with noopener has no name to be found by");
+        }
+    }
+
+    // Safari on an iPad shows a link in the other tab without bringing that tab to the front, so
+    // there the page's script closes the tab and opens the link in a new one, found by the name
+    // the links have as their target
+    [TestMethod]
+    public async Task BringsTheOtherTabToTheFrontWhereTheBrowserDoesNot()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(html, "if(touch)document.addEventListener(\"click\"");
+        StringAssert.Contains(html, "e.target.closest('a[target=\"gmd-link\"]')");
+        StringAssert.Contains(html, "if(open)other.close();");
+        StringAssert.Contains(html, "if(w){e.preventDefault();");
     }
 
     // The page keeps itself current by reading itself anew and showing the branches and the rows of
@@ -128,6 +243,25 @@ public class WebLogPageTest
         foreach (var selector in new[] { "\".branches\"", "\".rows\"", "\".meta time\"" })
             StringAssert.Contains(html, $"q(d,{selector})");
         StringAssert.Contains(html, "fetch(location.pathname,{cache:\"no-store\"})");
+
+        // The buttons and the text about the page are not shown in place, so a page with others is
+        // reloaded, which its script tells by the one element of each
+        foreach (var element in new[] { "<div class=\"top\">", "<details class=\"about\">" })
+            Assert.AreEqual(1, html.Split(element).Length - 1, element);
+        StringAssert.Contains(html, "+html(d,\".top\")+html(d,\".about\")");
+    }
+
+    // A browser says that the page is shown again with one event or another, by whether its tab,
+    // its window or the browser itself was left, so the page checks for a newer one on each of them
+    [TestMethod]
+    public async Task ChecksForANewerPageAsItIsShownAgain()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(html, "document.addEventListener(\"visibilitychange\",back)");
+        StringAssert.Contains(html, "window.addEventListener(\"pageshow\",back)");
+        StringAssert.Contains(html, "window.addEventListener(\"focus\",back)");
+        StringAssert.Contains(html, "Date.now()-tried>=soon)check()");
     }
 
     [TestMethod]
@@ -137,7 +271,7 @@ public class WebLogPageTest
 
         StringAssert.Contains(
             html,
-            "<a class=\"tag\" href=\"https://github.com/owner/repo/releases/tag/v1.2\">v1.2</a>"
+            "<a target=\"gmd-link\" class=\"tag\" href=\"https://github.com/owner/repo/releases/tag/v1.2\">v1.2</a>"
         );
     }
 

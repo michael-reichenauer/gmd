@@ -8,6 +8,16 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+## [v1.20.1474.720] - 2026-11-12
+
+### Improved
+- The branch graph web page now has buttons beside its title that open the repository on GitHub, its pull requests and its Actions (the merge requests on GitLab, the pipelines on GitLab and Bitbucket), and, for a repository on github.com, its files in VS Code for the Web
+- The branch graph web page now checks for a newer published page as it is opened and each time it is shown again, on a switch back to its tab, its window or the browser, rather than only when five minutes have passed
+- The branch graph web page now lists only the branches drawn in its graph, leaving out those whose latest commit is older than the commits shown
+
+### Changed
+- A button or a link on the branch graph web page now opens in another tab rather than in place of the graph, and the next one is shown in that same tab, so ten commits opened are one tab
+
 ## [v1.19.1473.971] - 2026-11-11
 
 ### Improved
