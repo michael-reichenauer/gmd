@@ -249,8 +249,11 @@ static class WebLogPage
     {
         if (links == null)
             return "";
-        var runs = links.Runs is string page ? $"<a href=\"{E(page)}\">{E(links.RunsName)}</a>" : "";
-        return $"<nav class=\"site\"><a href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{runs}</nav>";
+        var pulls = links.PullRequests is string pullsPage
+            ? $"<a href=\"{E(pullsPage)}\">{E(links.PullRequestsName)}</a>"
+            : "";
+        var runs = links.Runs is string runsPage ? $"<a href=\"{E(runsPage)}\">{E(links.RunsName)}</a>" : "";
+        return $"<nav class=\"site\"><a href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{pulls}{runs}</nav>";
     }
 
     // The branch's tip commit, the commit below the uncommitted changes for the current branch of a

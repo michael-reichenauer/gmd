@@ -59,6 +59,8 @@ public class WebLinksTest
         Assert.AreEqual("https://github.com/user/repo/releases/tag/v1.2", links.Tag("v1.2"));
         Assert.AreEqual("https://github.com/user/repo/actions", links.Runs);
         Assert.AreEqual("Actions", links.RunsName);
+        Assert.AreEqual("https://github.com/user/repo/pulls", links.PullRequests);
+        Assert.AreEqual("Pull requests", links.PullRequestsName);
         Assert.AreEqual("https://github.com/user/repo/tree/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://github.com/user/repo/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual(
@@ -75,6 +77,8 @@ public class WebLinksTest
         Assert.AreEqual("https://gitlab.com/group/repo/-/tags/v1.2", links.Tag("v1.2"));
         Assert.AreEqual("https://gitlab.com/group/repo/-/pipelines", links.Runs);
         Assert.AreEqual("Pipelines", links.RunsName);
+        Assert.AreEqual("https://gitlab.com/group/repo/-/merge_requests", links.PullRequests);
+        Assert.AreEqual("Merge requests", links.PullRequestsName);
         Assert.AreEqual("https://gitlab.com/group/repo/-/tree/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://gitlab.com/group/repo/-/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual(
@@ -92,6 +96,8 @@ public class WebLinksTest
         Assert.AreEqual("https://bitbucket.org/team/repo/src/v1.2", links.Tag("v1.2"));
         Assert.AreEqual("https://bitbucket.org/team/repo/pipelines", links.Runs);
         Assert.AreEqual("Pipelines", links.RunsName);
+        Assert.AreEqual("https://bitbucket.org/team/repo/pull-requests", links.PullRequests);
+        Assert.AreEqual("Pull requests", links.PullRequestsName);
         Assert.AreEqual("https://bitbucket.org/team/repo/branch/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://bitbucket.org/team/repo/commits/abc123", links.Commit("abc123"));
         Assert.AreEqual(
@@ -112,6 +118,7 @@ public class WebLinksTest
         Assert.AreEqual("https://dev.azure.com/org/project/_git/repo/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual("https://dev.azure.com/org/project/_git/repo?version=GTv1.2", links.Tag("v1.2"));
         Assert.AreEqual(null, links.Runs);
+        Assert.AreEqual("https://dev.azure.com/org/project/_git/repo/pullrequests", links.PullRequests);
         Assert.AreEqual(
             "https://dev.azure.com/org/project/_git/repo/pullrequestcreate?sourceRef=feature%2Flogin&targetRef=dev",
             links.NewPullRequest("feature/login", "dev")
@@ -126,6 +133,7 @@ public class WebLinksTest
         Assert.AreEqual("https://codeberg.org/user/repo/releases/tag/v1.2", links.Tag("v1.2"));
         Assert.AreEqual("https://codeberg.org/user/repo/actions", links.Runs);
         Assert.AreEqual("Actions", links.RunsName);
+        Assert.AreEqual("https://codeberg.org/user/repo/pulls", links.PullRequests);
         Assert.AreEqual("https://codeberg.org/user/repo/src/branch/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://codeberg.org/user/repo/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual(
@@ -147,6 +155,7 @@ public class WebLinksTest
         Assert.IsNull(links.NewPullRequest("dev", "main"));
         Assert.AreEqual("git.example.com", links.HostName);
         Assert.AreEqual(null, links.Runs);
+        Assert.AreEqual(null, links.PullRequests);
     }
 
     // A space in the path, as an Azure DevOps project name often has, stays escaped: a link with a

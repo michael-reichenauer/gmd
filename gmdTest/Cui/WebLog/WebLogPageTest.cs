@@ -124,13 +124,14 @@ public class WebLogPageTest
     }
 
     [TestMethod]
-    public async Task HasShortcutsToTheRepositoryAndItsActions()
+    public async Task HasShortcutsToTheRepositoryItsPullRequestsAndItsActions()
     {
         var html = await PageOf(FeatureRepo());
 
         StringAssert.Contains(
             html,
             "<nav class=\"site\"><a href=\"https://github.com/owner/repo\">GitHub</a>"
+                + "<a href=\"https://github.com/owner/repo/pulls\">Pull requests</a>"
                 + "<a href=\"https://github.com/owner/repo/actions\">Actions</a></nav>"
         );
     }
@@ -142,6 +143,7 @@ public class WebLogPageTest
         StringAssert.Contains(
             gitLab,
             "<nav class=\"site\"><a href=\"https://gitlab.com/group/repo\">GitLab</a>"
+                + "<a href=\"https://gitlab.com/group/repo/-/merge_requests\">Merge requests</a>"
                 + "<a href=\"https://gitlab.com/group/repo/-/pipelines\">Pipelines</a></nav>"
         );
 

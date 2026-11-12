@@ -14,8 +14,8 @@ or GitHub.
 
 ## Reading the page
 
-The buttons beside the title open the repository on GitHub and its Actions, the runs of its
-workflows.
+The buttons beside the title open the repository on GitHub, its pull requests and its Actions, the
+runs of its workflows.
 
 **Branches** lists the active branches drawn in the graph, those whose latest commit is among the
 commits shown, the one with the latest commit first, with who made that commit and how long ago. A

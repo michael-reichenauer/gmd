@@ -95,6 +95,20 @@ record WebLinks(string RepoUrl, WebHost Host)
     // What the service calls that page
     public string RunsName => Host is WebHost.GitLab or WebHost.Bitbucket ? "Pipelines" : "Actions";
 
+    // The page of the repository's open pull requests, its merge requests on GitLab
+    public string? PullRequests =>
+        Host switch
+        {
+            WebHost.GitHub or WebHost.Gitea => $"{RepoUrl}/pulls",
+            WebHost.GitLab => $"{RepoUrl}/-/merge_requests",
+            WebHost.Bitbucket => $"{RepoUrl}/pull-requests",
+            WebHost.AzureDevOps => $"{RepoUrl}/pullrequests",
+            _ => null,
+        };
+
+    // What the service calls them
+    public string PullRequestsName => Host is WebHost.GitLab ? "Merge requests" : "Pull requests";
+
     // The page for opening a pull request (a merge request on GitLab) of a branch into another,
     // with both filled in, so that the base is the branch it was made from rather than whatever the
     // service defaults to
