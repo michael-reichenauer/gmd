@@ -243,6 +243,12 @@ public class WebLogPageTest
         foreach (var selector in new[] { "\".branches\"", "\".rows\"", "\".meta time\"" })
             StringAssert.Contains(html, $"q(d,{selector})");
         StringAssert.Contains(html, "fetch(location.pathname,{cache:\"no-store\"})");
+
+        // The buttons and the text about the page are not shown in place, so a page with others is
+        // reloaded, which its script tells by the one element of each
+        foreach (var element in new[] { "<div class=\"top\">", "<details class=\"about\">" })
+            Assert.AreEqual(1, html.Split(element).Length - 1, element);
+        StringAssert.Contains(html, "+html(d,\".top\")+html(d,\".about\")");
     }
 
     // A browser says that the page is shown again with one event or another, by whether its tab,

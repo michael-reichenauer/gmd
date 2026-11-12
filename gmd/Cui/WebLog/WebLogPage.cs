@@ -40,7 +40,9 @@ static class WebLogPage
     // opened rather than in one more, however many are tapped. One tab for the repository and its
     // branches, and one each for the pull requests, the runs, the commits, the tags, the editor and
     // the guide. The links have no rel="noopener", with which a browser gives the tab no name and
-    // so opens a new one each time; the pages they open are the hosting service's.
+    // so opens a new one each time. Without it a page shown in such a tab can send the graph's tab
+    // elsewhere, also a page of another site that a link on the hosting service's led to: accepted,
+    // for a page that is public and takes no input.
     const string RepoTab = "target=\"gmd-repo\"";
     const string PullRequestTab = "target=\"gmd-pr\"";
     const string RunsTab = "target=\"gmd-runs\"";
@@ -383,7 +385,8 @@ static class WebLogPage
     // shown. Nothing is reloaded, so the page stays where it was scrolled to, on the commit that was
     // at the top of the screen, however many commits came in above it; at the top of the page it
     // stays at the top, where the new ones are. A page that looks otherwise, made by a newer gmd,
-    // is reloaded as a whole. It checks as it is shown again too, on a switch back to its tab or its
+    // or has other buttons or another text about it above the branches, which are not shown in
+    // place, is reloaded as a whole. It checks as it is shown again too, on a switch back to its tab or its
     // window or to the browser, however short the time away: that is when it is read, and a tablet
     // stops the timers of a page not shown. Which event says so differs between browsers, so it
     // listens for them all, and those of one switch are one check: none within ten seconds of the
@@ -404,7 +407,8 @@ static class WebLogPage
         function times(){const now=Date.now();document.querySelectorAll("time[data-t]").forEach(e=>{
         const t=Date.parse(e.dataset.t);e.title=new Date(t).toLocaleString();e.textContent=ago(now,t);});}
         const content=d=>q(d,".branches").innerHTML+q(d,".rows").innerHTML;
-        const look=d=>q(d,"title").textContent+q(d,"style").textContent+q(d,"script").textContent;
+        const html=(d,s)=>(q(d,s)||{}).innerHTML;
+        const look=d=>q(d,"title").textContent+q(d,"style").textContent+q(d,"script").textContent+html(d,".top")+html(d,".about");
         const nav=performance.getEntriesByType("navigation")[0];
         let shown=content(document),last=nav&&nav.type==="reload"?Date.now():0,tried=last,busy=false;
         const made=look(document);
