@@ -15,7 +15,8 @@ or GitHub.
 ## Reading the page
 
 The buttons beside the title open the repository on GitHub, its pull requests and its Actions, the
-runs of its workflows.
+runs of its workflows, and, for a repository on github.com, its files in
+[VS Code for the Web](https://vscode.dev), an editor in the browser with nothing to install.
 
 **Branches** lists the active branches drawn in the graph, those whose latest commit is among the
 commits shown, the one with the latest commit first, with who made that commit and how long ago. A

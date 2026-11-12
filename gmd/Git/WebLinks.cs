@@ -109,6 +109,18 @@ record WebLinks(string RepoUrl, WebHost Host)
     // What the service calls them
     public string PullRequestsName => Host is WebHost.GitLab ? "Merge requests" : "Pull requests";
 
+    // The repository opened in VS Code for the Web, an editor in the browser that reads the files
+    // from the hosting service, with nothing cloned. Linked for a repository of github.com alone:
+    // not for one of a GitHub server of a company's own, which it cannot reach
+    public string? WebEditor =>
+        Host == WebHost.GitHub && RepoUrl.StartsWith(GitHubSite, StringComparison.OrdinalIgnoreCase)
+            ? $"https://vscode.dev/github/{RepoUrl[GitHubSite.Length..]}"
+            : null;
+
+    public string WebEditorName => "VS Code";
+
+    const string GitHubSite = "https://github.com/";
+
     // The page for opening a pull request (a merge request on GitLab) of a branch into another,
     // with both filled in, so that the base is the branch it was made from rather than whatever the
     // service defaults to

@@ -141,7 +141,7 @@ public class WebLogPageTest
     }
 
     [TestMethod]
-    public async Task HasShortcutsToTheRepositoryItsPullRequestsAndItsActions()
+    public async Task HasShortcutsToTheRepositoryItsPullRequestsItsActionsAndItsFilesInVsCode()
     {
         var html = await PageOf(FeatureRepo());
 
@@ -149,7 +149,8 @@ public class WebLogPageTest
             html,
             "<nav class=\"site\"><a href=\"https://github.com/owner/repo\">GitHub</a>"
                 + "<a href=\"https://github.com/owner/repo/pulls\">Pull requests</a>"
-                + "<a href=\"https://github.com/owner/repo/actions\">Actions</a></nav>"
+                + "<a href=\"https://github.com/owner/repo/actions\">Actions</a>"
+                + "<a href=\"https://vscode.dev/github/owner/repo\">VS Code</a></nav>"
         );
     }
 
