@@ -65,9 +65,9 @@ static class WebLogPage
             .GroupBy(p => p.HeadRefName)
             .ToDictionary(g => g.Key, g => g.First());
         var commits = repo.ViewCommits.Where(c => c.Id != Repo.UncommittedId).Take(maxRows).ToList();
+        var shownIds = commits.Select(c => c.Id).ToHashSet();
         var branches = repo.ViewBranches.Where(b => b.IsPrimary && !b.IsDetached).ToList();
         var tips = branches.GroupBy(b => TipId(repo, b)).ToDictionary(g => g.Key, g => g.ToList());
-        var shownIds = commits.Select(c => c.Id).ToHashSet();
 
         var html = new StringBuilder();
         html.Append(
@@ -88,7 +88,7 @@ static class WebLogPage
             )}}">{{generated:yyyy-MM-dd HH:mm}} UTC</time></p>
             <details class="about"><summary>About this page</summary>
             <p>What everyone is working on, across the branches: gmd's branch graph of this repo, made anew
-            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b> lists the active branches, the latest changed
+            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b> lists the active branches of the commits shown, the latest changed
             first, with their open pull requests. In <b>Commits</b>, each branch is a line in its own color,
             main on the left, every branch to the right of the branch it came from; a dot is a commit, an
             arc in is a merge and an arc out is where a branch started, and the short grey arcs are branches
@@ -114,8 +114,9 @@ static class WebLogPage
         return html.ToString();
     }
 
-    // The branches, the one with the latest commit first, each with its last commit's time and
-    // author, and its open pull request
+    // The branches drawn, the one with the latest commit first, each with its last commit's time and
+    // author, and its open pull request. A branch with no commit among those shown has no line in the
+    // graph and no row to go to, so it is left out.
     static void AppendBranches(
         StringBuilder html,
         Server.Repo repo,
@@ -126,15 +127,19 @@ static class WebLogPage
         IReadOnlyDictionary<string, PullRequest> prs
     )
     {
+        var drawn = branches
+            .Select(b => (Branch: b, TipId: ShownTipId(repo, b, shownIds)))
+            .Where(d => d.TipId != null)
+            .Select(d => (d.Branch, Tip: repo.CommitById[d.TipId!]))
+            .OrderByDescending(d => d.Tip.AuthorTime);
+
         html.Append("<section class=\"branches\"><h2>Branches</h2><ul>\n");
-        foreach (var b in branches.OrderByDescending(b => repo.CommitById[TipId(repo, b)].AuthorTime))
+        foreach (var (b, tip) in drawn)
         {
-            var tip = repo.CommitById[TipId(repo, b)];
             var name = RemoteName(b);
             var color = GraphSvg.ColorClass(branchColor(b));
-            // Its tip in the graph, or, older than the commits drawn, its page
-            var target = shownIds.Contains(tip.Id) ? $"#{tip.Sid}" : links?.Branch(name) ?? "#";
-            html.Append($"<li><a class=\"bn {color}\" href=\"{E(target)}\"><span class=\"dot\"></span>")
+            // Its tip in the graph
+            html.Append($"<li><a class=\"bn {color}\" href=\"#{tip.Sid}\"><span class=\"dot\"></span>")
                 .Append(E(b.NiceNameUnique))
                 .Append("</a>");
             if (prs.TryGetValue(name, out var pr))
@@ -241,20 +246,37 @@ static class WebLogPage
     static string RepoLink(WebLinks? links, string title) =>
         links != null ? $"<a href=\"{E(links.RepoUrl)}\">{E(title)}</a>" : E(title);
 
-    // The shortcuts beside the title to the repository on its hosting service and to the runs of its
-    // actions there: buttons, since the title being a link does not show, and large enough for a finger
+    // The shortcuts beside the title to the repository on its hosting service, and to its pull
+    // requests and the runs of its actions there: buttons, since the title being a link does not show, and large enough for a finger
     static string SiteLinks(WebLinks? links)
     {
         if (links == null)
             return "";
-        var runs = links.Runs is string page ? $"<a href=\"{E(page)}\">{E(links.RunsName)}</a>" : "";
-        return $"<nav class=\"site\"><a href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{runs}</nav>";
+        var pulls = links.PullRequests is string pullsPage
+            ? $"<a href=\"{E(pullsPage)}\">{E(links.PullRequestsName)}</a>"
+            : "";
+        var runs = links.Runs is string runsPage ? $"<a href=\"{E(runsPage)}\">{E(links.RunsName)}</a>" : "";
+        return $"<nav class=\"site\"><a href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{pulls}{runs}</nav>";
     }
 
     // The branch's tip commit, the commit below the uncommitted changes for the current branch of a
     // working tree with changes, since the page leaves those out
     static string TipId(Server.Repo repo, Branch b) =>
         b.TipId == Repo.UncommittedId && repo.CommitById[b.TipId].ParentIds is [var parent, ..] ? parent : b.TipId;
+
+    // The branch's latest commit among those shown, null when it has none: its tip, or, when that is
+    // older than they are, the tip of its local branch, which has commits not pushed yet
+    static string? ShownTipId(Server.Repo repo, Branch b, IReadOnlySet<string> shownIds)
+    {
+        if (shownIds.Contains(TipId(repo, b)))
+            return TipId(repo, b);
+        return
+            b.LocalName != ""
+            && repo.BranchByName.TryGetValue(b.LocalName, out var local)
+            && shownIds.Contains(TipId(repo, local))
+            ? TipId(repo, local)
+            : null;
+    }
 
     // The branch's name on the remote, as its web page names it
     static string RemoteName(Branch b) =>
@@ -340,11 +362,20 @@ static class WebLogPage
     // shown. Nothing is reloaded, so the page stays where it was scrolled to, on the commit that was
     // at the top of the screen, however many commits came in above it; at the top of the page it
     // stays at the top, where the new ones are. A page that looks otherwise, made by a newer gmd,
-    // is reloaded as a whole. A tablet stops the timers of a page not shown, so it checks as it is
-    // shown again too. The times are written anew with each check, so "5m ago" stays true.
+    // is reloaded as a whole. It checks as it is shown again too, on a switch back to its tab or its
+    // window or to the browser, however short the time away: that is when it is read, and a tablet
+    // stops the timers of a page not shown. Which event says so differs between browsers, so it
+    // listens for them all, and those of one switch are one check: none within ten seconds of the
+    // last one tried. It checks as it is opened as well, since a browser going back to the page, or
+    // opening it again within ten minutes, shows the one it kept without asking the server; but not
+    // after a reload, which did ask, and which a check that reloads again could follow for ever. A
+    // check that fails, as the first one of a tablet waking up without a network yet does, is tried
+    // again at the next tick, not in five minutes: 'last' is the last check that read a page, 'tried'
+    // the last one started, later only when that one failed. The times are written anew with each
+    // check, so "5m ago" stays true.
     const string Script = """
         (function(){
-        const every=5*60*1000;
+        const every=5*60*1000,soon=10*1000;
         const q=(d,s)=>d.querySelector(s);
         function ago(now,t){const s=(now-t)/1000;if(s<60)return"now";const m=s/60;if(m<60)return Math.floor(m)+"m ago";
         const h=m/60;if(h<24)return Math.floor(h)+"h ago";const d=h/24;if(d<30)return Math.floor(d)+"d ago";
@@ -353,19 +384,21 @@ static class WebLogPage
         const t=Date.parse(e.dataset.t);e.title=new Date(t).toLocaleString();e.textContent=ago(now,t);});}
         const content=d=>q(d,".branches").innerHTML+q(d,".rows").innerHTML;
         const look=d=>q(d,"title").textContent+q(d,"style").textContent+q(d,"script").textContent;
-        let shown=content(document),last=Date.now(),busy=false;
+        const nav=performance.getEntriesByType("navigation")[0];
+        let shown=content(document),last=nav&&nav.type==="reload"?Date.now():0,tried=last,busy=false;
         const made=look(document);
         times();
         function topRow(){if(window.scrollY<=0)return null;
         for(const e of document.querySelectorAll(".r")){const y=e.getBoundingClientRect().top;if(y>=0)return{id:e.id,y};}
         return null;}
         async function check(){
-        if(busy)return;busy=true;last=Date.now();
+        if(busy)return;busy=true;tried=Date.now();
         try{
         const r=await fetch(location.pathname,{cache:"no-store"});
         if(r.ok){
         const d=new DOMParser().parseFromString(await r.text(),"text/html");
         if(q(d,".branches")&&q(d,".rows")&&q(d,".meta time")){
+        last=tried;
         if(look(d)!==made){location.reload();return;}
         q(document,".meta time").dataset.t=q(d,".meta time").dataset.t;
         const c=content(d);
@@ -381,9 +414,12 @@ static class WebLogPage
         finally{busy=false;}
         times();
         }
-        function tick(){if(!document.hidden&&Date.now()-last>=every)check();}
+        const tick=()=>{if(!document.hidden&&(tried>last||Date.now()-last>=every))check();};
+        const back=()=>{if(!document.hidden&&Date.now()-tried>=soon)check();};
         setInterval(tick,30*1000);
-        document.addEventListener("visibilitychange",tick);
+        document.addEventListener("visibilitychange",back);
+        window.addEventListener("pageshow",back);
+        window.addEventListener("focus",back);
         })();
         """;
 }

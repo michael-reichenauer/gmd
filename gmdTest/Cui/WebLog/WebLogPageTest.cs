@@ -94,16 +94,39 @@ public class WebLogPageTest
         Assert.IsFalse(html.Contains("/pull/9"), html);
     }
 
+    // A branch with its tip below the last commit drawn has no line in the graph, so it is not
+    // listed either
     [TestMethod]
-    public async Task LinksABranchOlderThanTheCommitsDrawnToItsPage()
+    public async Task ListsOnlyTheBranchesOfTheCommitsDrawn()
     {
         var html = await PageOf(FeatureRepo(), maxRows: 1);
 
-        StringAssert.Contains(
-            html,
-            "href=\"https://github.com/owner/repo/tree/main\"><span class=\"dot\"></span>main</a>"
+        var branches = html[html.IndexOf("<section class=\"branches\">")..html.IndexOf("<section class=\"log\">")];
+        StringAssert.Contains(branches, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+        Assert.IsFalse(branches.Contains(">main</a>"), branches);
+        Assert.AreEqual(1, branches.Split("<li>").Length - 1, branches);
+
+        // With both tips drawn, both are listed, each going to its tip
+        var all = await PageOf(FeatureRepo(), maxRows: 2);
+        StringAssert.Contains(all, "href=\"#c3000000\"><span class=\"dot\"></span>main</a>");
+        StringAssert.Contains(all, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+    }
+
+    // The commits not pushed are the local branch's, drawn above the tip origin has, so the branch
+    // is listed while any of them is shown, and goes to the latest
+    [TestMethod]
+    public async Task ListsABranchWithOnlyCommitsNotPushedDrawn()
+    {
+        var html = await PageOf(
+            new RepoBuilder()
+                .Commit("c2", "Not pushed", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c1", ahead: 1),
+            maxRows: 1
         );
-        StringAssert.Contains(html, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+
+        Assert.AreEqual(1, html.Split("<div class=\"r\"").Length - 1);
+        StringAssert.Contains(html, "href=\"#c2000000\"><span class=\"dot\"></span>main</a>");
     }
 
     [TestMethod]
@@ -118,13 +141,14 @@ public class WebLogPageTest
     }
 
     [TestMethod]
-    public async Task HasShortcutsToTheRepositoryAndItsActions()
+    public async Task HasShortcutsToTheRepositoryItsPullRequestsAndItsActions()
     {
         var html = await PageOf(FeatureRepo());
 
         StringAssert.Contains(
             html,
             "<nav class=\"site\"><a href=\"https://github.com/owner/repo\">GitHub</a>"
+                + "<a href=\"https://github.com/owner/repo/pulls\">Pull requests</a>"
                 + "<a href=\"https://github.com/owner/repo/actions\">Actions</a></nav>"
         );
     }
@@ -136,6 +160,7 @@ public class WebLogPageTest
         StringAssert.Contains(
             gitLab,
             "<nav class=\"site\"><a href=\"https://gitlab.com/group/repo\">GitLab</a>"
+                + "<a href=\"https://gitlab.com/group/repo/-/merge_requests\">Merge requests</a>"
                 + "<a href=\"https://gitlab.com/group/repo/-/pipelines\">Pipelines</a></nav>"
         );
 
@@ -166,6 +191,19 @@ public class WebLogPageTest
         foreach (var selector in new[] { "\".branches\"", "\".rows\"", "\".meta time\"" })
             StringAssert.Contains(html, $"q(d,{selector})");
         StringAssert.Contains(html, "fetch(location.pathname,{cache:\"no-store\"})");
+    }
+
+    // A browser says that the page is shown again with one event or another, by whether its tab,
+    // its window or the browser itself was left, so the page checks for a newer one on each of them
+    [TestMethod]
+    public async Task ChecksForANewerPageAsItIsShownAgain()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(html, "document.addEventListener(\"visibilitychange\",back)");
+        StringAssert.Contains(html, "window.addEventListener(\"pageshow\",back)");
+        StringAssert.Contains(html, "window.addEventListener(\"focus\",back)");
+        StringAssert.Contains(html, "Date.now()-tried>=soon)check()");
     }
 
     [TestMethod]

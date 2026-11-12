@@ -14,12 +14,12 @@ or GitHub.
 
 ## Reading the page
 
-The buttons beside the title open the repository on GitHub and its Actions, the runs of its
-workflows.
+The buttons beside the title open the repository on GitHub, its pull requests and its Actions, the
+runs of its workflows.
 
-**Branches** lists every active branch, the one with the latest commit first, with who made that
-commit and how long ago. A branch's dot has its color in the graph. Tap a name to jump to its
-latest commit in the graph (or to the branch on GitHub, when that commit is older than those drawn). A green `#n` is the branch's open pull request (grey while it is a
+**Branches** lists the active branches drawn in the graph, those whose latest commit is among the
+commits shown, the one with the latest commit first, with who made that commit and how long ago. A
+branch's dot has its color in the graph. Tap a name to jump to its latest commit in the graph. A green `#n` is the branch's open pull request (grey while it is a
 draft; one from a fork is left out); `↗` opens the branch on GitHub when it has no pull request.
 
 **Commits** is gmd's log of all those branches, newest first, as `Show All Active` shows it in gmd:
@@ -57,10 +57,10 @@ branches gmd would, including those already merged whose names only survive in a
 Nothing runs on a server: the page is one static HTML file, rebuilt and published by a GitHub
 Action.
 
-An open page keeps itself current: every five minutes, and when it is shown again after being in
-the background, it reads itself anew and, when a newer page is published, shows that page's
-branches and commits in place, without a reload, so it stays where it was scrolled to. This only
-reads the published file; it starts no workflow run.
+An open page keeps itself current: as it is opened, every five minutes, and each time it is shown
+again, on a switch back to its tab, its window or the browser, it reads itself anew and, when a
+newer page is published, shows that page's branches and commits in place, without a reload, so it
+stays where it was scrolled to. This only reads the published file; it starts no workflow run.
 
 1. **The workflow**, `.github/workflows/branch-graph.yml` ("Branch graph"), runs on every push
    to any branch, whenever a pull request is opened, closed or changes draft state, when the
