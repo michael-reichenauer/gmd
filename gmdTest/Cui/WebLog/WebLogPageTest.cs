@@ -112,6 +112,23 @@ public class WebLogPageTest
         StringAssert.Contains(all, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
     }
 
+    // The commits not pushed are the local branch's, drawn above the tip origin has, so the branch
+    // is listed while any of them is shown, and goes to the latest
+    [TestMethod]
+    public async Task ListsABranchWithOnlyCommitsNotPushedDrawn()
+    {
+        var html = await PageOf(
+            new RepoBuilder()
+                .Commit("c2", "Not pushed", "c1")
+                .Commit("c1", "Initial")
+                .BranchWithRemote("main", "c2", isCurrent: true, remoteTipCommit: "c1", ahead: 1),
+            maxRows: 1
+        );
+
+        Assert.AreEqual(1, html.Split("<div class=\"r\"").Length - 1);
+        StringAssert.Contains(html, "href=\"#c2000000\"><span class=\"dot\"></span>main</a>");
+    }
+
     [TestMethod]
     public async Task TitlesThePageAndShowsEverySubjectAlike()
     {
@@ -186,7 +203,7 @@ public class WebLogPageTest
         StringAssert.Contains(html, "document.addEventListener(\"visibilitychange\",back)");
         StringAssert.Contains(html, "window.addEventListener(\"pageshow\",back)");
         StringAssert.Contains(html, "window.addEventListener(\"focus\",back)");
-        StringAssert.Contains(html, "back=due(soon)");
+        StringAssert.Contains(html, "Date.now()-tried>=soon)check()");
     }
 
     [TestMethod]
