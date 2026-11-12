@@ -51,6 +51,18 @@ public class WebLinksTest
         Assert.AreEqual(host, WebLinks.From(remote)?.Host.ToString());
     }
 
+    // VS Code for the Web opens a repository of github.com, not of a company's own GitHub server
+    [TestMethod]
+    public void TestOnlyGitHubItselfHasAWebEditor()
+    {
+        Assert.AreEqual(
+            "https://vscode.dev/github/user/repo",
+            WebLinks.From("https://GitHub.com/user/repo.git")!.WebEditor
+        );
+        Assert.AreEqual(null, WebLinks.From("git@github.example.com:user/repo.git")!.WebEditor);
+        Assert.AreEqual(null, WebLinks.From("git@ssh.dev.azure.com:v3/org/project/repo")!.WebEditor);
+    }
+
     [TestMethod]
     public void TestGitHub()
     {
@@ -61,6 +73,8 @@ public class WebLinksTest
         Assert.AreEqual("Actions", links.RunsName);
         Assert.AreEqual("https://github.com/user/repo/pulls", links.PullRequests);
         Assert.AreEqual("Pull requests", links.PullRequestsName);
+        Assert.AreEqual("https://vscode.dev/github/user/repo", links.WebEditor);
+        Assert.AreEqual("VS Code", links.WebEditorName);
         Assert.AreEqual("https://github.com/user/repo/tree/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://github.com/user/repo/commit/abc123", links.Commit("abc123"));
         Assert.AreEqual(
@@ -78,6 +92,7 @@ public class WebLinksTest
         Assert.AreEqual("https://gitlab.com/group/repo/-/pipelines", links.Runs);
         Assert.AreEqual("Pipelines", links.RunsName);
         Assert.AreEqual("https://gitlab.com/group/repo/-/merge_requests", links.PullRequests);
+        Assert.AreEqual(null, links.WebEditor);
         Assert.AreEqual("Merge requests", links.PullRequestsName);
         Assert.AreEqual("https://gitlab.com/group/repo/-/tree/feature/login", links.Branch("feature/login"));
         Assert.AreEqual("https://gitlab.com/group/repo/-/commit/abc123", links.Commit("abc123"));
@@ -156,6 +171,7 @@ public class WebLinksTest
         Assert.AreEqual("git.example.com", links.HostName);
         Assert.AreEqual(null, links.Runs);
         Assert.AreEqual(null, links.PullRequests);
+        Assert.AreEqual(null, links.WebEditor);
     }
 
     // A space in the path, as an Azure DevOps project name often has, stays escaped: a link with a

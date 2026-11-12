@@ -247,7 +247,8 @@ static class WebLogPage
         links != null ? $"<a href=\"{E(links.RepoUrl)}\">{E(title)}</a>" : E(title);
 
     // The shortcuts beside the title to the repository on its hosting service, and to its pull
-    // requests and the runs of its actions there: buttons, since the title being a link does not show, and large enough for a finger
+    // requests and the runs of its actions there, and to its files in VS Code for the Web: buttons,
+    // since the title being a link does not show, and large enough for a finger
     static string SiteLinks(WebLinks? links)
     {
         if (links == null)
@@ -256,7 +257,10 @@ static class WebLogPage
             ? $"<a href=\"{E(pullsPage)}\">{E(links.PullRequestsName)}</a>"
             : "";
         var runs = links.Runs is string runsPage ? $"<a href=\"{E(runsPage)}\">{E(links.RunsName)}</a>" : "";
-        return $"<nav class=\"site\"><a href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{pulls}{runs}</nav>";
+        var editor = links.WebEditor is string editorPage
+            ? $"<a href=\"{E(editorPage)}\">{E(links.WebEditorName)}</a>"
+            : "";
+        return $"<nav class=\"site\"><a href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{pulls}{runs}{editor}</nav>";
     }
 
     // The branch's tip commit, the commit below the uncommitted changes for the current branch of a
@@ -304,7 +308,7 @@ static class WebLogPage
             header,section{padding:0 16px}
             .top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:16px 0 2px}
             h1{font-size:20px;margin:0 auto 0 0}
-            .site{display:flex;gap:8px}
+            .site{display:flex;flex-wrap:wrap;gap:8px}
             .site a{font-size:13px;line-height:30px;padding:0 12px;border:1px solid var(--line);border-radius:16px;background:var(--chip);color:var(--fg);text-decoration:none;white-space:nowrap}
             .site a:active{background:var(--line)}
             h1 a{color:inherit;text-decoration:none}
