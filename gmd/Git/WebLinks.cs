@@ -110,8 +110,8 @@ record WebLinks(string RepoUrl, WebHost Host)
     public string PullRequestsName => Host is WebHost.GitLab ? "Merge requests" : "Pull requests";
 
     // The repository opened in VS Code for the Web, an editor in the browser that reads the files
-    // from the hosting service, with nothing cloned. It opens a repository of github.com alone: not
-    // one of a GitHub server of a company's own, which it cannot reach
+    // from the hosting service, with nothing cloned. Linked for a repository of github.com alone:
+    // not for one of a GitHub server of a company's own, which it cannot reach
     public string? WebEditor =>
         Host == WebHost.GitHub && RepoUrl.StartsWith(GitHubSite, StringComparison.OrdinalIgnoreCase)
             ? $"https://vscode.dev/github/{RepoUrl[GitHubSite.Length..]}"

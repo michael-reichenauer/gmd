@@ -59,6 +59,11 @@ public class WebLinksTest
             "https://vscode.dev/github/user/repo",
             WebLinks.From("https://GitHub.com/user/repo.git")!.WebEditor
         );
+        // The scp-like form keeps the host as it was written
+        Assert.AreEqual(
+            "https://vscode.dev/github/user/repo",
+            WebLinks.From("git@GitHub.com:user/repo.git")!.WebEditor
+        );
         Assert.AreEqual(null, WebLinks.From("git@github.example.com:user/repo.git")!.WebEditor);
         Assert.AreEqual(null, WebLinks.From("git@ssh.dev.azure.com:v3/org/project/repo")!.WebEditor);
     }
