@@ -65,9 +65,13 @@ static class WebLogPage
             .GroupBy(p => p.HeadRefName)
             .ToDictionary(g => g.Key, g => g.First());
         var commits = repo.ViewCommits.Where(c => c.Id != Repo.UncommittedId).Take(maxRows).ToList();
-        var branches = repo.ViewBranches.Where(b => b.IsPrimary && !b.IsDetached).ToList();
-        var tips = branches.GroupBy(b => TipId(repo, b)).ToDictionary(g => g.Key, g => g.ToList());
         var shownIds = commits.Select(c => c.Id).ToHashSet();
+        // The branches drawn, those with their tip among the commits shown: one older than them has
+        // no line in the graph and no row to go to
+        var branches = repo
+            .ViewBranches.Where(b => b.IsPrimary && !b.IsDetached && shownIds.Contains(TipId(repo, b)))
+            .ToList();
+        var tips = branches.GroupBy(b => TipId(repo, b)).ToDictionary(g => g.Key, g => g.ToList());
 
         var html = new StringBuilder();
         html.Append(
@@ -88,7 +92,7 @@ static class WebLogPage
             )}}">{{generated:yyyy-MM-dd HH:mm}} UTC</time></p>
             <details class="about"><summary>About this page</summary>
             <p>What everyone is working on, across the branches: gmd's branch graph of this repo, made anew
-            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b> lists the active branches, the latest changed
+            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b> lists the active branches of the commits shown, the latest changed
             first, with their open pull requests. In <b>Commits</b>, each branch is a line in its own color,
             main on the left, every branch to the right of the branch it came from; a dot is a commit, an
             arc in is a merge and an arc out is where a branch started, and the short grey arcs are branches
@@ -100,7 +104,7 @@ static class WebLogPage
             """
         );
 
-        AppendBranches(html, repo, branches, shownIds, branchColor, links, prs);
+        AppendBranches(html, repo, branches, branchColor, links, prs);
         AppendLog(html, repo, graph, graphWriter, commits, tips, branchColor, links, prs);
 
         html.Append(
@@ -120,7 +124,6 @@ static class WebLogPage
         StringBuilder html,
         Server.Repo repo,
         IReadOnlyList<Branch> branches,
-        IReadOnlySet<string> shownIds,
         Func<Branch, Color> branchColor,
         WebLinks? links,
         IReadOnlyDictionary<string, PullRequest> prs
@@ -132,9 +135,8 @@ static class WebLogPage
             var tip = repo.CommitById[TipId(repo, b)];
             var name = RemoteName(b);
             var color = GraphSvg.ColorClass(branchColor(b));
-            // Its tip in the graph, or, older than the commits drawn, its page
-            var target = shownIds.Contains(tip.Id) ? $"#{tip.Sid}" : links?.Branch(name) ?? "#";
-            html.Append($"<li><a class=\"bn {color}\" href=\"{E(target)}\"><span class=\"dot\"></span>")
+            // Its tip in the graph
+            html.Append($"<li><a class=\"bn {color}\" href=\"#{tip.Sid}\"><span class=\"dot\"></span>")
                 .Append(E(b.NiceNameUnique))
                 .Append("</a>");
             if (prs.TryGetValue(name, out var pr))

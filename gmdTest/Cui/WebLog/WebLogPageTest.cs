@@ -94,16 +94,22 @@ public class WebLogPageTest
         Assert.IsFalse(html.Contains("/pull/9"), html);
     }
 
+    // A branch with its tip below the last commit drawn has no line in the graph, so it is not
+    // listed either
     [TestMethod]
-    public async Task LinksABranchOlderThanTheCommitsDrawnToItsPage()
+    public async Task ListsOnlyTheBranchesOfTheCommitsDrawn()
     {
         var html = await PageOf(FeatureRepo(), maxRows: 1);
 
-        StringAssert.Contains(
-            html,
-            "href=\"https://github.com/owner/repo/tree/main\"><span class=\"dot\"></span>main</a>"
-        );
-        StringAssert.Contains(html, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+        var branches = html[html.IndexOf("<section class=\"branches\">")..html.IndexOf("<section class=\"log\">")];
+        StringAssert.Contains(branches, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
+        Assert.IsFalse(branches.Contains(">main</a>"), branches);
+        Assert.AreEqual(1, branches.Split("<li>").Length - 1, branches);
+
+        // With both tips drawn, both are listed, each going to its tip
+        var all = await PageOf(FeatureRepo(), maxRows: 2);
+        StringAssert.Contains(all, "href=\"#c3000000\"><span class=\"dot\"></span>main</a>");
+        StringAssert.Contains(all, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
     }
 
     [TestMethod]
