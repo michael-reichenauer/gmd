@@ -389,6 +389,15 @@ static class WebLogPage
     // again at the next tick, not in five minutes: 'last' is the last check that read a page, 'tried'
     // the last one started, later only when that one failed. The times are written anew with each
     // check, so "5m ago" stays true.
+    //
+    // Last, the other tab on an iPad or an iPhone (an iPad says it is a Mac, but one with a touch
+    // screen). Safari there shows a link in the tab of its target's name as elsewhere, but leaves
+    // that tab behind the graph, where a Mac brings it to the front; only a tab it opens is shown.
+    // So there the page opens the links itself: it closes the other tab, which it may since it
+    // opened it, and opens the link in a new one, under a name of its own, since the tab being
+    // closed may still be found by the old one. After a reload it has no hold of the tab it opened,
+    // so it opens the link under the name it kept, which shows it in that tab if it is still there.
+    // Where the browser lets it open no tab, the link opens as any other.
     const string Script = """
         (function(){
         const every=5*60*1000,soon=10*1000;
@@ -437,6 +446,18 @@ static class WebLogPage
         document.addEventListener("visibilitychange",back);
         window.addEventListener("pageshow",back);
         window.addEventListener("focus",back);
+        const touch=/iP(ad|hone|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+        const kept=v=>{try{if(v)sessionStorage.setItem("gmd-link",v);return sessionStorage.getItem("gmd-link");}catch(e){return v||null;}};
+        let other=null;
+        if(touch)document.addEventListener("click",e=>{
+        const a=e.target.closest&&e.target.closest('a[target="gmd-link"]');
+        if(!a||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+        const open=other&&!other.closed;
+        if(open)other.close();
+        const name=open||!kept()?"gmd-link-"+Date.now():kept();
+        const w=window.open(a.href,name);
+        if(w){e.preventDefault();other=w;kept(name);}
+        });
         })();
         """;
 }

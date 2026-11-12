@@ -213,6 +213,20 @@ public class WebLogPageTest
         }
     }
 
+    // Safari on an iPad shows a link in the other tab without bringing that tab to the front, so
+    // there the page's script closes the tab and opens the link in a new one, found by the name
+    // the links have as their target
+    [TestMethod]
+    public async Task BringsTheOtherTabToTheFrontWhereTheBrowserDoesNot()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(html, "if(touch)document.addEventListener(\"click\"");
+        StringAssert.Contains(html, "e.target.closest('a[target=\"gmd-link\"]')");
+        StringAssert.Contains(html, "if(open)other.close();");
+        StringAssert.Contains(html, "if(w){e.preventDefault();");
+    }
+
     // The page keeps itself current by reading itself anew and showing the branches and the rows of
     // what it read, so its script and the page agree on where those are, and on what makes two
     // pages look alike, of which there is one each

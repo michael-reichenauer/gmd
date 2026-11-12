@@ -48,8 +48,9 @@ draft; one from a fork is left out); `↗` opens the branch on GitHub when it ha
 
 A button or a link to GitHub opens in another tab, so the graph stays open in its tab, and the
 next one is shown in that same tab rather than in one more: tap ten commits, a pull request and
-Actions, and there is one other tab, showing Actions. Whether that tab also comes to the front when
-it is used again is the browser's to decide.
+Actions, and there is one other tab, showing Actions. On an iPad or an iPhone, where Safari shows
+a link in that tab but leaves it behind the graph, the page closes the tab and opens the link in a
+new one, so that it comes to the front there too.
 
 The page is dark, in the colors of gmd's dark palette, whatever the device's mode, as gmd is best known. It shows the latest 400
 commits.
