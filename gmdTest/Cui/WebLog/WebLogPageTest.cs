@@ -168,6 +168,19 @@ public class WebLogPageTest
         StringAssert.Contains(html, "fetch(location.pathname,{cache:\"no-store\"})");
     }
 
+    // A browser says that the page is shown again with one event or another, by whether its tab,
+    // its window or the browser itself was left, so the page checks for a newer one on each of them
+    [TestMethod]
+    public async Task ChecksForANewerPageAsItIsShownAgain()
+    {
+        var html = await PageOf(FeatureRepo());
+
+        StringAssert.Contains(html, "document.addEventListener(\"visibilitychange\",back)");
+        StringAssert.Contains(html, "window.addEventListener(\"pageshow\",back)");
+        StringAssert.Contains(html, "window.addEventListener(\"focus\",back)");
+        StringAssert.Contains(html, "back=due(soon)");
+    }
+
     [TestMethod]
     public async Task LinksATagToItsRelease()
     {

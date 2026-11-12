@@ -10,6 +10,7 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ### Improved
 - The branch graph web page now has buttons beside its title that open the repository on GitHub and its Actions (the pipelines on GitLab and Bitbucket)
+- The branch graph web page now checks for a newer published page each time it is shown again, on a switch back to its tab or to the browser, rather than only when five minutes have passed
 
 ## [v1.19.1473.971] - 2026-11-11
 

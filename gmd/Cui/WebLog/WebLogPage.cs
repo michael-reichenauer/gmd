@@ -340,11 +340,15 @@ static class WebLogPage
     // shown. Nothing is reloaded, so the page stays where it was scrolled to, on the commit that was
     // at the top of the screen, however many commits came in above it; at the top of the page it
     // stays at the top, where the new ones are. A page that looks otherwise, made by a newer gmd,
-    // is reloaded as a whole. A tablet stops the timers of a page not shown, so it checks as it is
-    // shown again too. The times are written anew with each check, so "5m ago" stays true.
+    // is reloaded as a whole. It checks as it is shown again too, on a switch back to its tab or its
+    // window or to the browser, however short the time away: that is when it is read, and a tablet
+    // stops the timers of a page not shown. Which event says so differs between browsers, so it
+    // listens for them all, and several at once are one check. A check that fails, as the first one
+    // of a tablet waking up without a network yet does, is tried again at the next tick, not in five
+    // minutes. The times are written anew with each check, so "5m ago" stays true.
     const string Script = """
         (function(){
-        const every=5*60*1000;
+        const every=5*60*1000,soon=10*1000;
         const q=(d,s)=>d.querySelector(s);
         function ago(now,t){const s=(now-t)/1000;if(s<60)return"now";const m=s/60;if(m<60)return Math.floor(m)+"m ago";
         const h=m/60;if(h<24)return Math.floor(h)+"h ago";const d=h/24;if(d<30)return Math.floor(d)+"d ago";
@@ -360,10 +364,10 @@ static class WebLogPage
         for(const e of document.querySelectorAll(".r")){const y=e.getBoundingClientRect().top;if(y>=0)return{id:e.id,y};}
         return null;}
         async function check(){
-        if(busy)return;busy=true;last=Date.now();
+        if(busy)return;busy=true;last=Date.now();let ok=false;
         try{
         const r=await fetch(location.pathname,{cache:"no-store"});
-        if(r.ok){
+        if(r.ok){ok=true;
         const d=new DOMParser().parseFromString(await r.text(),"text/html");
         if(q(d,".branches")&&q(d,".rows")&&q(d,".meta time")){
         if(look(d)!==made){location.reload();return;}
@@ -378,12 +382,15 @@ static class WebLogPage
         if(e)window.scrollBy(0,e.getBoundingClientRect().top-at.y);
         }}}
         }catch(e){}
-        finally{busy=false;}
+        finally{busy=false;if(!ok)last=0;}
         times();
         }
-        function tick(){if(!document.hidden&&Date.now()-last>=every)check();}
+        const due=after=>()=>{if(!document.hidden&&Date.now()-last>=after)check();};
+        const tick=due(every),back=due(soon);
         setInterval(tick,30*1000);
-        document.addEventListener("visibilitychange",tick);
+        document.addEventListener("visibilitychange",back);
+        window.addEventListener("pageshow",back);
+        window.addEventListener("focus",back);
         })();
         """;
 }
