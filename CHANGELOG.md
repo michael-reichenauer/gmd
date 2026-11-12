@@ -14,7 +14,7 @@ what is merged but in no preview yet. The next release heads it with its version
 - The branch graph web page now lists only the branches drawn in its graph, leaving out those whose latest commit is older than the commits shown
 
 ### Changed
-- A button or a link on the branch graph web page now opens in a tab of its own rather than in place of the graph, one tab per kind of page (the repository, pull requests, Actions, commits, tags, VS Code), which the next link of that kind is shown in, so ten commits opened are one tab
+- A button or a link on the branch graph web page now opens in another tab rather than in place of the graph, and the next one is shown in that same tab, so ten commits opened are one tab
 
 ## [v1.19.1473.971] - 2026-11-11
 

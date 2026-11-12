@@ -35,21 +35,13 @@ static class WebLogPage
     // The guide to the page, what it shows and how it is made
     const string GuideUrl = Project.Url + "/blob/dev/docs/BRANCH-GRAPH.md";
 
-    // A link to another site opens in a tab of its own, named after the kind of page it is: the
-    // graph stays open in its tab, and the next link of that kind is shown in the tab the last one
-    // opened rather than in one more, however many are tapped. One tab for the repository and its
-    // branches, and one each for the pull requests, the runs, the commits, the tags, the editor and
-    // the guide. The links have no rel="noopener", with which a browser gives the tab no name and
-    // so opens a new one each time. Without it a page shown in such a tab can send the graph's tab
-    // elsewhere, also a page of another site that a link on the hosting service's led to: accepted,
-    // for a page that is public and takes no input.
-    const string RepoTab = "target=\"gmd-repo\"";
-    const string PullRequestTab = "target=\"gmd-pr\"";
-    const string RunsTab = "target=\"gmd-runs\"";
-    const string CommitTab = "target=\"gmd-commit\"";
-    const string TagTab = "target=\"gmd-tag\"";
-    const string EditorTab = "target=\"gmd-editor\"";
-    const string GuideTab = "target=\"gmd-guide\"";
+    // A link to another site opens in another tab, one tab for them all: the graph stays open in
+    // its tab, and each link is shown in the tab the first one opened rather than in one more,
+    // however many are tapped. The tab is found by its name, so the links have no rel="noopener",
+    // with which a browser gives the tab no name and opens a new one each time. Without it a page
+    // shown in that tab can send the graph's tab elsewhere, also a page of another site that a link
+    // on the hosting service's led to: accepted, for a page that is public and takes no input.
+    const string OtherTab = "target=\"gmd-link\"";
 
     // A row's two lines of text, the subject and below it the author, time and id, are moved down
     // from the middle of the row by half a line, so that the subject is beside the commit's dot,
@@ -109,8 +101,8 @@ static class WebLogPage
             main on the left, every branch to the right of the branch it came from; a dot is a commit, an
             arc in is a merge and an arc out is where a branch started, and the short grey arcs are branches
             not shown. Tap a subject for the commit's diff, or a pull request's merge for the pull request.
-            A link opens in a tab of its own kind, which the next link of that kind is shown in.</p>
-            <p><a {{GuideTab}} href="{{GuideUrl}}">How it works</a></p>
+            A link opens in another tab, which the next link is shown in too.</p>
+            <p><a {{OtherTab}} href="{{GuideUrl}}">How it works</a></p>
             </details>
             </header>
 
@@ -163,7 +155,7 @@ static class WebLogPage
                 html.Append(' ').Append(PullRequestLink(pr));
             else if (links?.Branch(name) is string page && b.IsGitBranch)
                 html.Append(
-                    $" <a {RepoTab} class=\"ext\" href=\"{E(page)}\" title=\"The branch on the hosting service\">↗</a>"
+                    $" <a {OtherTab} class=\"ext\" href=\"{E(page)}\" title=\"The branch on the hosting service\">↗</a>"
                 );
             html.Append($"<span class=\"bm\">{E(tip.Author)} · {TimeTag(tip.AuthorTime)}</span></li>\n");
         }
@@ -201,7 +193,7 @@ static class WebLogPage
                     var page = b.IsGitBranch ? links?.Branch(name) : null;
                     html.Append(
                         page != null
-                            ? $"<a {RepoTab} class=\"tip {color}\" href=\"{E(page)}\">{E(b.NiceNameUnique)}</a>"
+                            ? $"<a {OtherTab} class=\"tip {color}\" href=\"{E(page)}\">{E(b.NiceNameUnique)}</a>"
                             : $"<span class=\"tip {color}\">{E(b.NiceNameUnique)}</span>"
                     );
                     if (prs.TryGetValue(name, out var pr))
@@ -213,7 +205,7 @@ static class WebLogPage
                 // A tag opens its release, e.g. of a version
                 html.Append(
                     links?.Tag(tag.Name) is string page
-                        ? $"<a {TagTab} class=\"tag\" href=\"{E(page)}\">{E(tag.Name)}</a>"
+                        ? $"<a {OtherTab} class=\"tag\" href=\"{E(page)}\">{E(tag.Name)}</a>"
                         : $"<span class=\"tag\">{E(tag.Name)}</span>"
                 );
             }
@@ -222,7 +214,7 @@ static class WebLogPage
             html.Append($"<div class=\"m\">{E(c.Author)} · {TimeTag(c.AuthorTime)} · ");
             html.Append(
                 links?.Commit(c.Id) is string commitPage
-                    ? $"<a {CommitTab} class=\"sid\" href=\"{E(commitPage)}\">{c.Sid}</a>"
+                    ? $"<a {OtherTab} class=\"sid\" href=\"{E(commitPage)}\">{c.Sid}</a>"
                     : $"<span class=\"sid\">{c.Sid}</span>"
             );
             if (MessageExcerpt(c) is { Length: > 0 } excerpt)
@@ -253,17 +245,17 @@ static class WebLogPage
         var subject = E(c.Subject);
         const string cls = "subj";
         if (links?.Host == WebHost.GitHub && PullRequestMerge.Match(c.Subject) is { Success: true } m)
-            return $"<a {PullRequestTab} class=\"{cls}\" href=\"{E(links.RepoUrl)}/pull/{m.Groups[1].Value}\">{subject}</a>";
+            return $"<a {OtherTab} class=\"{cls}\" href=\"{E(links.RepoUrl)}/pull/{m.Groups[1].Value}\">{subject}</a>";
         if (links?.Commit(c.Id) is string page)
-            return $"<a {CommitTab} class=\"{cls}\" href=\"{E(page)}\">{subject}</a>";
+            return $"<a {OtherTab} class=\"{cls}\" href=\"{E(page)}\">{subject}</a>";
         return $"<span class=\"{cls}\">{subject}</span>";
     }
 
     static string PullRequestLink(PullRequest pr) =>
-        $"<a {PullRequestTab} class=\"pr{(pr.IsDraft ? " draft" : "")}\" href=\"{E(pr.Url)}\" title=\"{E(pr.Title)}\">#{pr.Number}</a>";
+        $"<a {OtherTab} class=\"pr{(pr.IsDraft ? " draft" : "")}\" href=\"{E(pr.Url)}\" title=\"{E(pr.Title)}\">#{pr.Number}</a>";
 
     static string RepoLink(WebLinks? links, string title) =>
-        links != null ? $"<a {RepoTab} href=\"{E(links.RepoUrl)}\">{E(title)}</a>" : E(title);
+        links != null ? $"<a {OtherTab} href=\"{E(links.RepoUrl)}\">{E(title)}</a>" : E(title);
 
     // The shortcuts beside the title to the repository on its hosting service, and to its pull
     // requests and the runs of its actions there, and to its files in VS Code for the Web: buttons,
@@ -273,13 +265,13 @@ static class WebLogPage
         if (links == null)
             return "";
         var pulls = links.PullRequests is string pullsPage
-            ? $"<a {PullRequestTab} href=\"{E(pullsPage)}\">{E(links.PullRequestsName)}</a>"
+            ? $"<a {OtherTab} href=\"{E(pullsPage)}\">{E(links.PullRequestsName)}</a>"
             : "";
-        var runs = links.Runs is string runsPage ? $"<a {RunsTab} href=\"{E(runsPage)}\">{E(links.RunsName)}</a>" : "";
+        var runs = links.Runs is string runsPage ? $"<a {OtherTab} href=\"{E(runsPage)}\">{E(links.RunsName)}</a>" : "";
         var editor = links.WebEditor is string editorPage
-            ? $"<a {EditorTab} href=\"{E(editorPage)}\">{E(links.WebEditorName)}</a>"
+            ? $"<a {OtherTab} href=\"{E(editorPage)}\">{E(links.WebEditorName)}</a>"
             : "";
-        return $"<nav class=\"site\"><a {RepoTab} href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{pulls}{runs}{editor}</nav>";
+        return $"<nav class=\"site\"><a {OtherTab} href=\"{E(links.RepoUrl)}\">{E(links.HostName)}</a>{pulls}{runs}{editor}</nav>";
     }
 
     // The branch's tip commit, the commit below the uncommitted changes for the current branch of a

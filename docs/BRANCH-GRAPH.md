@@ -46,11 +46,10 @@ draft; one from a fork is left out); `↗` opens the branch on GitHub when it ha
   pull request. The short id at the end of the second line opens the commit too.
 - Times are shown as how long ago; older than a month, as the date.
 
-A button or a link to GitHub opens in a tab of its own, so the graph stays open in its tab, and the
-next one of the same kind is shown in that tab rather than in one more: tap ten commits and there
-is one tab of commits, showing the tenth. There is a tab for the repository and its branches, and
-one each for the pull requests, the Actions, the commits, the tags, VS Code and this guide. Whether
-a tab used again also comes to the front is the browser's to decide.
+A button or a link to GitHub opens in another tab, so the graph stays open in its tab, and the
+next one is shown in that same tab rather than in one more: tap ten commits, a pull request and
+Actions, and there is one other tab, showing Actions. Whether that tab also comes to the front when
+it is used again is the browser's to decide.
 
 The page is dark, in the colors of gmd's dark palette, whatever the device's mode, as gmd is best known. It shows the latest 400
 commits.
