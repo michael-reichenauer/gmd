@@ -77,14 +77,11 @@ static class MessageDlg
 
         // Pulsed on the main loop, as every view is touched: from a thread pool timer, an exception
         // ended the process, with no shutdown to give the terminal back
-        var pulse = UI.AddTimeout(
-            TimeSpan.FromMilliseconds(pulseInterval),
-            () =>
-            {
-                marquee.Pulse();
-                return true;
-            }
-        );
+        var pulse = UI.AddTimeout(TimeSpan.FromMilliseconds(pulseInterval), () =>
+        {
+            marquee.Pulse();
+            return true;
+        });
         try
         {
             UI.App.Run(d);

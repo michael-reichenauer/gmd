@@ -337,10 +337,7 @@ class ViewRepoCreater : IViewRepoCreater
             if (commit.Id != Repo.UncommittedId)
             {
                 // Commit is ahead
-                filteredCommits[commitIndex] = commit with
-                {
-                    IsAhead = true,
-                };
+                filteredCommits[commitIndex] = commit with { IsAhead = true };
                 hasAheadCommits = true;
             }
 

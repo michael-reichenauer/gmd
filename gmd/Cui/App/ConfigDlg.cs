@@ -86,15 +86,12 @@ class ConfigDlg : IConfigDlg
         // Update repo config
         var names = ParseNames(integrationBranches.Text);
         var isNamesChanged = !names.SequenceEqual(repoConf.IntegrationBranches);
-        repoConfig.Set(
-            repoPath,
-            c =>
-            {
-                c.SyncMetaData = isSharing;
-                c.ShowNewBranches = isShowNewBranches.Checked;
-                c.IntegrationBranches = names;
-            }
-        );
+        repoConfig.Set(repoPath, c =>
+        {
+            c.SyncMetaData = isSharing;
+            c.ShowNewBranches = isShowNewBranches.Checked;
+            c.IntegrationBranches = names;
+        });
 
         // Update general config
         config.Set(c =>

@@ -116,10 +116,8 @@ class BranchMenu : IBranchMenu
     IReadOnlyList<MenuItem> ToHiddenNewsItems(IReadOnlyList<HiddenBranchNews> news)
     {
         var items = news.Select(n =>
-                Menu.Item(
-                    $"{n.Branch.NiceNameUnique} ({(n.IsNew ? "new branch" : $"{n.Count} new")})",
-                    "",
-                    () => cmds.ShowBranch(n.Branch.Name, false)
+                Menu.Item($"{n.Branch.NiceNameUnique} ({(n.IsNew ? "new branch" : $"{n.Count} new")})", "", () =>
+                    cmds.ShowBranch(n.Branch.Name, false)
                 )
             )
             .ToList();
@@ -227,16 +225,11 @@ class BranchMenu : IBranchMenu
             )
             .SubMenu(isCurrent, MergeIntoCurrentTitle(), "e", GetMergeFromItems(), whyNot: WhyNoMerge)
             .SubMenu(isCurrent, MergeCurrentIntoTitle(), "⇧e", GetMergeToItems(), whyNot: WhyNoMerge)
-            .SubMenu(
-                "Rebase onto",
-                "",
-                GetRebaseFromItems(b),
-                whyNot: () =>
-                    !isCurrent ? "Only the current branch is rebased: switch to it first"
-                    : !isStatusOK ? Why.Changes
-                    : BranchCommands.WhyNotRebase(repo.Repo, repo.Repo.CurrentBranch()) is var why && why != "" ? why
-                    : $"'{b.NiceNameUnique}' has no parent branch to rebase on"
-            )
+            .SubMenu("Rebase onto", "", GetRebaseFromItems(b), whyNot: () => !isCurrent
+                    ? "Only the current branch is rebased: switch to it first"
+                : !isStatusOK ? Why.Changes
+                : BranchCommands.WhyNotRebase(repo.Repo, repo.Repo.CurrentBranch()) is var why && why != "" ? why
+                : $"'{b.NiceNameUnique}' has no parent branch to rebase on")
             // The same rules as the 'u' and 'p' keys on a highlighted branch, see
             // BranchPushPullCommands.CanPullBranch
             .Item(
@@ -336,11 +329,8 @@ class BranchMenu : IBranchMenu
                 () => BranchUndo.WhyNot(repo.Repo, b, step)
             )
             .Separator()
-            .SubMenu(
-                "Diff Branch to",
-                "d",
-                GetBranchDiffItems(branchName),
-                whyNot: () => !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see ⇧→"
+            .SubMenu("Diff Branch to", "d", GetBranchDiffItems(branchName), whyNot: () =>
+                !isStatusOK ? Why.Changes : "No other branch is shown to diff with, see ⇧→"
             )
             // The pages of the service hosting the remote, see WebCommands
             .Item(
@@ -506,13 +496,9 @@ class BranchMenu : IBranchMenu
             return Menu.Items;
 
         // Sort on left to right shown order
-        Sorter.Sort(
-            overlappingBranches,
-            (b1, b2) =>
-                b1.X < b2.X ? -1
-                : b1.X > b2.X ? 1
-                : 0
-        );
+        Sorter.Sort(overlappingBranches, (b1, b2) => b1.X < b2.X ? -1
+            : b1.X > b2.X ? 1
+            : 0);
 
         // Find possible branch on left side to move to before (skip if ancestor)
         Branch? leftBranch = null;
@@ -542,18 +528,14 @@ class BranchMenu : IBranchMenu
         // Add menu items if movable branches found
         if (leftPrimaryName != "")
         {
-            items.Item(
-                $"Move Left of '{leftBranch!.NiceNameUnique}'",
-                "",
-                () => cmds.MoveBranch(branch.PrimaryName, leftPrimaryName, -1)
+            items.Item($"Move Left of '{leftBranch!.NiceNameUnique}'", "", () =>
+                cmds.MoveBranch(branch.PrimaryName, leftPrimaryName, -1)
             );
         }
         if (rightPrimaryName != "")
         {
-            items.Item(
-                $"Move Right of '{rightBranch!.NiceNameUnique}'",
-                "",
-                () => cmds.MoveBranch(branch.PrimaryName, rightPrimaryName, +1)
+            items.Item($"Move Right of '{rightBranch!.NiceNameUnique}'", "", () =>
+                cmds.MoveBranch(branch.PrimaryName, rightPrimaryName, +1)
             );
         }
 
@@ -605,12 +587,8 @@ class BranchMenu : IBranchMenu
             .Items.Items(GetCommitInOutItems())
             // First when there is any, since it is what has changed since the user last looked; and
             // seen once looked at, as in the ✦ menu
-            .SubMenu(
-                news.Count > 0,
-                "    New",
-                "",
-                ToHiddenNewsItems(news),
-                onOpen: () => cmds.MarkHiddenNewsSeen(news)
+            .SubMenu(news.Count > 0, "    New", "", ToHiddenNewsItems(news), onOpen: () =>
+                cmds.MarkHiddenNewsSeen(news)
             )
             .SubMenu(
                 "    Recent",
@@ -632,10 +610,8 @@ class BranchMenu : IBranchMenu
                 "",
                 ToHierarchicalBranchesItems(liveAndDeletedBranches, ShowBranch)
                     .Prepend(
-                        Menu.Item(
-                            "Show All Active and Deleted",
-                            "",
-                            () => cmds.ShowBranch("", false, ShowBranches.AllActiveAndDeleted)
+                        Menu.Item("Show All Active and Deleted", "", () =>
+                            cmds.ShowBranch("", false, ShowBranches.AllActiveAndDeleted)
                         )
                     )
             );

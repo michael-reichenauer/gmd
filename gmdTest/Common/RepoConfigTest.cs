@@ -44,19 +44,15 @@ public class RepoConfigTest
         Directory.CreateDirectory(Path.Join(main, ".git"));
         var config = new RepoConfigService(new FileStore());
 
-        config.Set(
-            main,
-            c =>
-                c.UndoSteps["dev"] = new RecordedStep
-                {
-                    Kind = "Squash",
-                    Name = "Squashed",
-                    BeforeId = "a1",
-                    AfterId = "a2",
-                    Moves = 3,
-                    IsRedo = true,
-                }
-        );
+        config.Set(main, c => c.UndoSteps["dev"] = new RecordedStep
+            {
+                Kind = "Squash",
+                Name = "Squashed",
+                BeforeId = "a1",
+                AfterId = "a2",
+                Moves = 3,
+                IsRedo = true,
+            });
 
         var step = new RepoConfigService(new FileStore()).Get(main).UndoSteps["dev"];
         Assert.AreEqual(

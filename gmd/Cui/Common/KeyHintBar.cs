@@ -36,14 +36,11 @@ class KeyHintBar : View
             UI.OnMainLoop(() =>
             {
                 Update();
-                UI.AddTimeout(
-                    (status.Current?.Duration ?? StatusLine.Duration) + TimeSpan.FromMilliseconds(100),
-                    () =>
-                    {
-                        Update();
-                        return false;
-                    }
-                );
+                UI.AddTimeout((status.Current?.Duration ?? StatusLine.Duration) + TimeSpan.FromMilliseconds(100), () =>
+                {
+                    Update();
+                    return false;
+                });
             });
 
         void Update()

@@ -368,10 +368,7 @@ class TextBuilder
         }
 
         // Same color as previous fragment, append text to previous fragment to avoid too many fragments
-        fragments[^1] = f with
-        {
-            Text = f.Text + text,
-        };
+        fragments[^1] = f with { Text = f.Text + text };
         return this;
     }
 

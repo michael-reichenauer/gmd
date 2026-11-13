@@ -376,32 +376,29 @@ class BranchCreateCommands : IBranchCreateCommands
         };
         string Renamed(string name) => newNameByOldName.TryGetValue(name, out var newName) ? newName : name;
 
-        repoConfig.Set(
-            repo.Path,
-            s =>
-            {
-                s.Branches = s.Branches.Select(Renamed).Distinct().ToList();
-                // Renamed, two orders can be of one pair, or of a branch against itself
-                s.BranchOrders = BranchOrder.OnePerPair(
-                    s.BranchOrders.Select(b => new BranchOrder
-                    {
-                        Branch = Renamed(b.Branch),
-                        Other = Renamed(b.Other),
-                        Order = b.Order,
-                    })
-                );
-
-                // Remove and add, and not Select() as above, since a stale color of the new name
-                // would otherwise make the dictionary have two equal keys
-                foreach (var (oldName, newName) in newNameByOldName)
+        repoConfig.Set(repo.Path, s =>
+        {
+            s.Branches = s.Branches.Select(Renamed).Distinct().ToList();
+            // Renamed, two orders can be of one pair, or of a branch against itself
+            s.BranchOrders = BranchOrder.OnePerPair(
+                s.BranchOrders.Select(b => new BranchOrder
                 {
-                    if (s.BranchColors.Remove(oldName, out var colorId))
-                    {
-                        s.BranchColors[newName] = colorId;
-                    }
+                    Branch = Renamed(b.Branch),
+                    Other = Renamed(b.Other),
+                    Order = b.Order,
+                })
+            );
+
+            // Remove and add, and not Select() as above, since a stale color of the new name
+            // would otherwise make the dictionary have two equal keys
+            foreach (var (oldName, newName) in newNameByOldName)
+            {
+                if (s.BranchColors.Remove(oldName, out var colorId))
+                {
+                    s.BranchColors[newName] = colorId;
                 }
             }
-        );
+        });
     }
 
     void Refresh(string addName = "", string commitId = "") => repoView.Refresh(addName, commitId);
