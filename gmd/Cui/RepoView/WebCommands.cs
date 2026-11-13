@@ -52,13 +52,8 @@ class WebCommands : IWebCommands
     public void CopyCommitLink(string commitId) => WithLink("a commit", links => links.Commit(commitId), CopyLink);
 
     public void OpenNewPullRequest(string name) =>
-        Open(
-            "a pull request",
-            links =>
-                links.NewPullRequest(
-                    RemoteName(context.ViewRepo.Repo, name),
-                    PullRequestBase(context.ViewRepo.Repo, name)
-                )
+        Open("a pull request", links =>
+            links.NewPullRequest(RemoteName(context.ViewRepo.Repo, name), PullRequestBase(context.ViewRepo.Repo, name))
         );
 
     // The branch's name on the remote, i.e. its remote branch without 'origin/', empty when it has

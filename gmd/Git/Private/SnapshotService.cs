@@ -31,20 +31,16 @@ class SnapshotService : ISnapshotService
 
     // The files of the working tree as the uncommitted diff has them, staged into a copy of the index
     // (TempIndex): the changed ones and the new ones, and not the ones git ignores
-    public Task<Result<string>> WriteWorkingTreeAsync(string wd) =>
-        TempIndex.WithCopyAsync<string>(
-            wd,
-            async env =>
+    public Task<Result<string>> WriteWorkingTreeAsync(string wd) => TempIndex.WithCopyAsync<string>(wd, async env =>
+        {
+            if (await cmd.RunAsync("git", "add -A", wd, environment: env) is Error addError)
+                return addError;
+            return await cmd.RunAsync("git", "write-tree", wd, environment: env) switch
             {
-                if (await cmd.RunAsync("git", "add -A", wd, environment: env) is Error addError)
-                    return addError;
-                return await cmd.RunAsync("git", "write-tree", wd, environment: env) switch
-                {
-                    string tree => tree.Trim(),
-                    Error e => e,
-                };
-            }
-        );
+                string tree => tree.Trim(),
+                Error e => e,
+            };
+        });
 
     // A commit of the tree, on no branch, with no hook run and no signing, as a commit for a record
     // should be made

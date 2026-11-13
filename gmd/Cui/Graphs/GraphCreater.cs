@@ -49,13 +49,9 @@ class GraphCreater : IGraphCreater
         // The width is the max branch X room for 'more' branch in/out signs
         int maxBranchX = branches.Any() ? branches.Max(b => b.X) : 0;
 
-        Sorter.Sort(
-            branches,
-            (b1, b2) =>
-                b1.X < b2.X ? -1
-                : b1.X > b2.X ? 1
-                : 0
-        );
+        Sorter.Sort(branches, (b1, b2) => b1.X < b2.X ? -1
+            : b1.X > b2.X ? 1
+            : 0);
         Graph graph = new Graph(maxBranchX, repo.ViewCommits.Count, branches);
         SetGraph(graph, repo, branches);
         return graph;

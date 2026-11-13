@@ -794,9 +794,8 @@ public class DiffServiceTest
         await AssertArgsContain(ignore, s => s.GetStashDiffAsync("stash@{0}", options, "/wd"));
         await AssertArgsContain(ignore, s => s.GetDiffRangeAsync("a", "b", "Range", options, "/wd"));
         await AssertArgsContain(ignore, s => s.GetRefsDiffAsync("a", "b", "Refs", options, "/wd"));
-        await AssertArgsContain(
-            "--date=iso --ignore-all-space ",
-            s => s.GetLineHistoryAsync("a.txt", 1, 2, "", options, "/wd")
+        await AssertArgsContain("--date=iso --ignore-all-space ", s =>
+            s.GetLineHistoryAsync("a.txt", 1, 2, "", options, "/wd")
         );
 
         var cmd = new FakeCmd(

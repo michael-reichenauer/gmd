@@ -185,10 +185,8 @@ class CommitMenu : ICommitMenu
             repo.Repo.Status.Operation == GitOperation.None
                 ? Menu.Items
                 : Menu
-                    .Items.Item(
-                        $"Abort {commands.RepoCmds.OperationName()}",
-                        "",
-                        () => commands.RepoCmds.AbortOperation()
+                    .Items.Item($"Abort {commands.RepoCmds.OperationName()}", "", () =>
+                        commands.RepoCmds.AbortOperation()
                     )
                     .Separator();
 

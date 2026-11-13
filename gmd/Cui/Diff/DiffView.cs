@@ -264,16 +264,13 @@ class DiffView : IDiffView
     void RegisterShortcuts(ContentView view)
     {
         // Esc leaves the file list for the diff, and closes the diff
-        view.RegisterKeyHandler(
-            Key.Esc,
-            () =>
-            {
-                if (isListFocus)
-                    ToggleListFocus();
-                else
-                    UI.Shutdown();
-            }
-        );
+        view.RegisterKeyHandler(Key.Esc, () =>
+        {
+            if (isListFocus)
+                ToggleListFocus();
+            else
+                UI.Shutdown();
+        });
 
         // Tab moves the keys to the list of files beside the diff and back, and while the list has
         // them, up and down go to the file above and below, which the diff shows as they do
@@ -324,16 +321,13 @@ class DiffView : IDiffView
         // 'Open what the cursor is on', which is what Enter means everywhere else in gmd. On the '⋯'
         // where lines are left out between two hunks it is nothing: + shows more of them, stepping the
         // file it is in as anywhere else in it.
-        view.RegisterKeyHandler(
-            Key.Enter,
-            () =>
-            {
-                if (isListFocus)
-                    ToggleListFocus();
-                else
-                    ResolveCurrentConflict();
-            }
-        );
+        view.RegisterKeyHandler(Key.Enter, () =>
+        {
+            if (isListFocus)
+                ToggleListFocus();
+            else
+                ResolveCurrentConflict();
+        });
 
         // More/less context around the changes of the file the cursor is on. Terminal.Gui 1.x has
         // no Key value for these, so use the ascii code, as the '?' key does in RepoViewInput.
@@ -504,16 +498,11 @@ class DiffView : IDiffView
 
     // Each side of a row is searched, and not the two as one line, so a match never runs from the end
     // of the left one into the right one
-    RowSearch FindInRows(string text) =>
-        RowSearch.Find(
-            text,
-            diffRows.Count,
-            i =>
-            {
-                var (left, right) = DiffRowService.SearchText(diffRows.Rows[i]);
-                return $"{left}\n{right}";
-            }
-        );
+    RowSearch FindInRows(string text) => RowSearch.Find(text, diffRows.Count, i =>
+        {
+            var (left, right) = DiffRowService.SearchText(diffRows.Rows[i]);
+            return $"{left}\n{right}";
+        });
 
     // The cursor is put on the row, on the side the match is on, the left one when both have it, which
     // is where a copy then takes the lines from too, and the columns are scrolled sideways to show it
@@ -736,11 +725,8 @@ class DiffView : IDiffView
     (IEnumerable<Text> rows, int total) OnGetListContent(int firstRow, int rowCount, int _, int contentWidth)
     {
         var current = fileList.IndexAt(contentView.CurrentIndex);
-        var rows = fileList.Rows(
-            contentWidth,
-            current,
-            isListFocus,
-            path => source.CanCommit ? leftOut.CountOf(path) : 0
+        var rows = fileList.Rows(contentWidth, current, isListFocus, path =>
+            source.CanCommit ? leftOut.CountOf(path) : 0
         );
         return (rows.Skip(firstRow).Take(rowCount), rows.Count);
     }

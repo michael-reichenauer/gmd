@@ -31,15 +31,12 @@ public class ConfigServiceTest
     [TestMethod]
     public void TestConfigHoldsTheStoredValuesFromTheStart()
     {
-        new FileStore().Set<Config>(
-            path,
-            c =>
-            {
-                c.CheckUpdates = false;
-                c.AllowPreview = true;
-                c.RecentFolders = ["/repo"];
-            }
-        );
+        new FileStore().Set<Config>(path, c =>
+        {
+            c.CheckUpdates = false;
+            c.AllowPreview = true;
+            c.RecentFolders = ["/repo"];
+        });
 
         var config = new Config(new ConfigService(new RedirectedStore(path)));
 

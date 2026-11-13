@@ -244,42 +244,38 @@ public class ViewRepoCreaterTest
             BranchNames(shown)
         );
 
-        builder.Config.Set(
-            "/test/repo",
-            c =>
-                c.BranchOrders = [
-                    new BranchOrder
-                    {
-                        Branch = "feat3",
-                        Other = "feat1",
-                        Order = -1,
-                    },
-                    new BranchOrder
-                    {
-                        Branch = "feat1",
-                        Other = "feat2",
-                        Order = 1,
-                    },
-                    new BranchOrder
-                    {
-                        Branch = "extra",
-                        Other = "dev",
-                        Order = -1,
-                    },
-                    new BranchOrder
-                    {
-                        Branch = "dev",
-                        Other = "feat3",
-                        Order = -1,
-                    },
-                    new BranchOrder
-                    {
-                        Branch = "dev",
-                        Other = "feat3",
-                        Order = 1,
-                    },
-                ]
-        );
+        builder.Config.Set("/test/repo", c => c.BranchOrders = [
+                new BranchOrder
+                {
+                    Branch = "feat3",
+                    Other = "feat1",
+                    Order = -1,
+                },
+                new BranchOrder
+                {
+                    Branch = "feat1",
+                    Other = "feat2",
+                    Order = 1,
+                },
+                new BranchOrder
+                {
+                    Branch = "extra",
+                    Other = "dev",
+                    Order = -1,
+                },
+                new BranchOrder
+                {
+                    Branch = "dev",
+                    Other = "feat3",
+                    Order = -1,
+                },
+                new BranchOrder
+                {
+                    Branch = "dev",
+                    Other = "feat3",
+                    Order = 1,
+                },
+            ]);
         var ordered = await builder.ViewRepoAsync(ShowBranches.AllActive);
 
         CollectionAssert.AreEqual(
@@ -297,24 +293,20 @@ public class ViewRepoCreaterTest
     public async Task TestOrdersThatContradictEachOtherStillEnd()
     {
         var builder = SiblingBranches();
-        builder.Config.Set(
-            "/test/repo",
-            c =>
-                c.BranchOrders = [
-                    new BranchOrder
-                    {
-                        Branch = "feat1",
-                        Other = "feat2",
-                        Order = 1,
-                    },
-                    new BranchOrder
-                    {
-                        Branch = "feat2",
-                        Other = "feat1",
-                        Order = 1,
-                    },
-                ]
-        );
+        builder.Config.Set("/test/repo", c => c.BranchOrders = [
+                new BranchOrder
+                {
+                    Branch = "feat1",
+                    Other = "feat2",
+                    Order = 1,
+                },
+                new BranchOrder
+                {
+                    Branch = "feat2",
+                    Other = "feat1",
+                    Order = 1,
+                },
+            ]);
 
         var ordered = await builder.ViewRepoAsync(ShowBranches.AllActive);
 

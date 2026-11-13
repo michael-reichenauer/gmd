@@ -25,8 +25,8 @@ public class MetaData
     // the choices, where they were kept marked with a '~' before they had one
     internal static MetaData Parse(string json)
     {
-        var metaData =
-            JsonSerializer.Deserialize<MetaData>(json) ?? throw new JsonException("No metadata in the value");
+        var metaData = JsonSerializer.Deserialize<MetaData>(json)
+            ?? throw new JsonException("No metadata in the value");
         foreach (var (id, name) in metaData.CommitBranchById.Where(e => e.Value.StartsWith('~')).ToList())
         {
             metaData.WitnessedById.TryAdd(id, name[1..]);

@@ -862,12 +862,8 @@ public class MenuItemsTest
     {
         var commands = Commands(view);
         IBranchMenu? branchMenu = null;
-        var repoMenu = new RepoMenu(
-            view,
-            commands,
-            config ?? new Config(),
-            null!,
-            () => branchMenu!.GetShowBranchSubMenu()
+        var repoMenu = new RepoMenu(view, commands, config ?? new Config(), null!, () =>
+            branchMenu!.GetShowBranchSubMenu()
         );
         branchMenu = new BranchMenu(repoMenu, view, commands);
         return (repoMenu, branchMenu, commands);

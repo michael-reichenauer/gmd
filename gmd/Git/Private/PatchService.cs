@@ -51,28 +51,25 @@ class PatchService : IPatchService
         var patchPath = Path.Join(Path.GetTempPath(), $"gmd-patch-{Guid.NewGuid():N}.diff");
         try
         {
-            return await TempIndex.WithCopyAsync<FilePatch>(
-                wd,
-                async env =>
-                {
-                    var literal = new Dictionary<string, string>(env) { ["GIT_LITERAL_PATHSPECS"] = "1" };
-                    if (await cmd.RunAsync("git", "add -A", wd, environment: literal) is Error e)
-                        return e;
+            return await TempIndex.WithCopyAsync<FilePatch>(wd, async env =>
+            {
+                var literal = new Dictionary<string, string>(env) { ["GIT_LITERAL_PATHSPECS"] = "1" };
+                if (await cmd.RunAsync("git", "add -A", wd, environment: literal) is Error e)
+                    return e;
 
-                    // With no commit yet there is no HEAD, the file is new, and what is staged is all of it.
-                    // Asked first: git's word for it with a path is not the one it has without.
-                    var hasHead = await HasHeadAsync(wd);
-                    var since = hasHead ? "HEAD" : "--staged";
-                    var renamedFrom = hasHead ? await RenamedFromAsync(path, literal, wd) : "";
-                    var paths = renamedFrom == "" ? Cmd.Quote(path) : $"{Cmd.Quote(renamedFrom)} {Cmd.Quote(path)}";
-                    var renames = renamedFrom == "" ? "--no-renames" : "--find-renames";
-                    var args = $"{PatchFormat} {renames} --output={Cmd.Quote(patchPath)} {since} -- {paths}";
-                    if (await cmd.RunAsync("git", args, wd, environment: literal) is Error diffError)
-                        return diffError;
+                // With no commit yet there is no HEAD, the file is new, and what is staged is all of it.
+                // Asked first: git's word for it with a path is not the one it has without.
+                var hasHead = await HasHeadAsync(wd);
+                var since = hasHead ? "HEAD" : "--staged";
+                var renamedFrom = hasHead ? await RenamedFromAsync(path, literal, wd) : "";
+                var paths = renamedFrom == "" ? Cmd.Quote(path) : $"{Cmd.Quote(renamedFrom)} {Cmd.Quote(path)}";
+                var renames = renamedFrom == "" ? "--no-renames" : "--find-renames";
+                var args = $"{PatchFormat} {renames} --output={Cmd.Quote(patchPath)} {since} -- {paths}";
+                if (await cmd.RunAsync("git", args, wd, environment: literal) is Error diffError)
+                    return diffError;
 
-                    return ReadPatch(path, patchPath);
-                }
-            );
+                return ReadPatch(path, patchPath);
+            });
         }
         finally
         {

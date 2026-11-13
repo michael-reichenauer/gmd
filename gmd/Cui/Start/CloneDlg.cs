@@ -32,22 +32,17 @@ class CloneDlg : ICloneDlg
         dlg.AddLabel(1, 2, "Path:");
         path = dlg.AddInputField(7, 2, width - 16, WithSeparator(parent), InputMarkers.None);
 
-        dlg.AddButton(
-            width - 9,
-            2,
-            "Browse",
-            () =>
-            {
-                FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (
-                    browseDlg.Show("Folder to Clone Into", "choose", recentParentFolders) is not string folder
-                    || folder.Trim() == ""
-                )
-                    return;
-                parent = folder.Trim();
-                UpdatePath(parent, uri.Text, isBrowsed: true);
-            }
-        );
+        dlg.AddButton(width - 9, 2, "Browse", () =>
+        {
+            FolderBrowseDlg browseDlg = new FolderBrowseDlg();
+            if (
+                browseDlg.Show("Folder to Clone Into", "choose", recentParentFolders) is not string folder
+                || folder.Trim() == ""
+            )
+                return;
+            parent = folder.Trim();
+            UpdatePath(parent, uri.Text, isBrowsed: true);
+        });
 
         dlg.Validate(() => uri.Text != "", "Empty uri is not allowed");
         dlg.Validate(() => path.Text != "", "Empty path is not allowed");

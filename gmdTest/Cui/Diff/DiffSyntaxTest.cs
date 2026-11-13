@@ -32,14 +32,12 @@ public class DiffSyntaxTest
 
     // The colors of the file's lines with the code of each side colored, as the view shows them
     static string ColorsOf(DiffRows rows, DiffSyntax syntax) =>
-        DiffText.BodyColorsOf(
-            rows,
-            (row, i) =>
-                row with
-                {
-                    Left = syntax.Colored(row.Left, i, false),
-                    Right = row.Mode == DiffRowMode.SideBySide ? syntax.Colored(row.Right, i, true) : row.Right,
-                }
+        DiffText.BodyColorsOf(rows, (row, i) =>
+            row with
+            {
+                Left = syntax.Colored(row.Left, i, false),
+                Right = row.Mode == DiffRowMode.SideBySide ? syntax.Colored(row.Right, i, true) : row.Right,
+            }
         );
 
     // Only the code of a line is colored, what the text's color is drawn in: not the gutter. A
