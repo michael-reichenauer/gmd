@@ -22,9 +22,9 @@ if [ "$1" = "--stress" ]; then
         echo "--stress needs taskset (util-linux), which is Linux only" >&2
         exit 1
     fi
-    dotnet build gmd.sln -tl:false -v quiet --nologo || exit 1
+    dotnet build gmd.slnx -tl:false -v quiet --nologo || exit 1
     exec taskset -c 0,1 dotnet test gmdE2eTest/gmdE2eTest.csproj --no-build -tl:false -v quiet --nologo \
         -l:"console;verbosity=normal" --filter "TestCategory=E2e" "$@"
 fi
 
-dotnet test gmd.sln -tl:false -v quiet --nologo -l:"console;verbosity=normal" "$@"
+dotnet test gmd.slnx -tl:false -v quiet --nologo -l:"console;verbosity=normal" "$@"

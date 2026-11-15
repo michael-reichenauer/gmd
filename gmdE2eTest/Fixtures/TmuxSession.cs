@@ -749,7 +749,7 @@ sealed class TmuxSession : IDisposable
     {
         var name = OperatingSystem.IsWindows() ? "gmd.exe" : "gmd";
         var path = IOPath.Join(AppContext.BaseDirectory, name);
-        Assert.IsTrue(File.Exists(path), $"'{path}' is missing, build the solution first (dotnet build gmd.sln)");
+        Assert.IsTrue(File.Exists(path), $"'{path}' is missing, build the solution first (dotnet build gmd.slnx)");
         return path;
     }
 

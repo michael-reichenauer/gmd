@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="gmd/gmd.csproj" />
+  <Project Path="gmdE2eTest/gmdE2eTest.csproj" />
+  <Project Path="gmdTest/gmdTest.csproj" />
+</Solution>

@@ -27,7 +27,7 @@ indent_size = 2
 # Trailing whitespace is significant in Markdown (line break)
 trim_trailing_whitespace = false
 
-[*.{csproj,props,targets,sln}]
+[*.{csproj,props,targets,sln,slnx}]
 indent_size = 2
 
 [*.cs]
