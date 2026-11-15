@@ -17,7 +17,7 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 
 ```bash
 scripts/run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
-scripts/test [args]    # dotnet test gmd.sln "$@": gmdTest and gmdE2eTest (~1 min with the build)
+scripts/test [args]    # dotnet test gmd.slnx "$@": gmdTest and gmdE2eTest (~1 min with the build)
                        #   --filter "TestCategory!=Integration"  fast tests only (~1100 tests, ~1 s)
                        #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~55 s)
                        #   --stress   the end-to-end tier on two CPUs, loaded as CI is, to find flaky tests
@@ -40,7 +40,7 @@ in a volume, so a failed CI run is read with `gh run list` and `gh run view <id>
 says it is not logged in, the user runs `gh auth login` once.
 
 Each script runs at the repository root, wherever it is started from, so `scripts/run` opens this
-repository (`-d <folder>` opens another). Faster inner loop for verification: `dotnet build gmd.sln`
+repository (`-d <folder>` opens another). Faster inner loop for verification: `dotnet build gmd.slnx`
 and `scripts/test`.
 
 ### Running the TUI from a non-interactive shell

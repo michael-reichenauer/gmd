@@ -37,7 +37,7 @@ echo.
 echo Run tests ...
 rem '-tl:false': the .NET SDK's terminal logger hides the console test logger output (see scripts/test)
 rem Both test projects, see scripts/test
-dotnet test gmd.sln -tl:false -v quiet --nologo -l:"console;verbosity=normal"
+dotnet test gmd.slnx -tl:false -v quiet --nologo -l:"console;verbosity=normal"
 if errorlevel 1 (
     echo Error: Tests failed
     exit /b 1
