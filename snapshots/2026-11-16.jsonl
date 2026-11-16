@@ -1,4 +1,4 @@
-{"tag":"v1.20.1474.720","published":"2026-11-12T12:15:30Z","preview":false,"assets":{"gmd.exe":0,"gmdSetup.exe":0,"gmd_linux":1,"gmd_linux_arm64":3,"gmd_linux_x64":173,"gmd_osx_arm64":1,"gmd_windows":2,"SHA256SUMS":176}}
+{"tag":"v1.20.1474.720","published":"2026-11-12T12:15:30Z","preview":false,"assets":{"gmd.exe":0,"gmdSetup.exe":0,"gmd_linux":1,"gmd_linux_arm64":3,"gmd_linux_x64":190,"gmd_osx_arm64":1,"gmd_windows":2,"SHA256SUMS":193}}
 {"tag":"v1.20.1474.633","published":"2026-11-12T10:47:02Z","preview":true,"assets":{"gmd.exe":1,"gmdSetup.exe":0,"gmd_linux":0,"gmd_linux_arm64":2,"gmd_linux_x64":1,"gmd_osx_arm64":1,"gmd_windows":0,"SHA256SUMS":2}}
 {"tag":"v1.19.1473.971","published":"2026-11-11T16:26:21Z","preview":false,"assets":{"gmd.exe":2,"gmdSetup.exe":1,"gmd_linux":1,"gmd_linux_arm64":2,"gmd_linux_x64":30,"gmd_osx_arm64":1,"gmd_windows":1,"SHA256SUMS":33}}
 {"tag":"v1.19.1473.946","published":"2026-11-11T16:00:38Z","preview":true,"assets":{"gmd.exe":1,"gmdSetup.exe":0,"gmd_linux":0,"gmd_linux_arm64":2,"gmd_linux_x64":1,"gmd_osx_arm64":2,"gmd_windows":1,"SHA256SUMS":4}}
@@ -14,7 +14,7 @@
 {"tag":"v1.12.1448.496","published":"2026-10-17T08:22:11Z","preview":false,"assets":{"gmd.exe":2,"gmdSetup.exe":1,"gmd_linux":2,"gmd_linux_arm64":2,"gmd_linux_x64":1,"gmd_osx_arm64":1,"gmd_windows":1,"SHA256SUMS":2}}
 {"tag":"v1.11.1447.386","published":"2026-10-16T06:35:07Z","preview":false,"assets":{"gmd.exe":0,"gmdSetup.exe":0,"gmd_linux":1,"gmd_linux_arm64":1,"gmd_linux_x64":1,"gmd_osx_arm64":1,"gmd_windows":2,"SHA256SUMS":1}}
 {"tag":"v1.10.1446.1006","published":"2026-10-15T16:55:02Z","preview":false,"assets":{"gmd.exe":1,"gmdSetup.exe":0,"gmd_linux":2,"gmd_linux_arm64":1,"gmd_linux_x64":1,"gmd_osx_arm64":1,"gmd_windows":0,"SHA256SUMS":1}}
-{"tag":"v1.9.1446.426","published":"2026-10-15T07:12:37Z","preview":false,"assets":{"gmd.exe":0,"gmdSetup.exe":0,"gmd_linux":1,"gmd_linux_arm64":1,"gmd_linux_x64":0,"gmd_osx_arm64":1,"gmd_windows":1,"SHA256SUMS":1}}
+{"tag":"v1.9.1446.426","published":"2026-10-15T07:12:37Z","preview":false,"assets":{"gmd.exe":0,"gmdSetup.exe":0,"gmd_linux":2,"gmd_linux_arm64":1,"gmd_linux_x64":0,"gmd_osx_arm64":1,"gmd_windows":1,"SHA256SUMS":1}}
 {"tag":"v1.8.1445.1141","published":"2026-10-14T19:09:09Z","preview":false,"assets":{"gmd.exe":13,"gmdSetup.exe":0,"gmd_linux":2,"gmd_linux_arm64":4,"gmd_linux_x64":6,"gmd_osx_arm64":1,"gmd_windows":1,"SHA256SUMS":12}}
 {"tag":"v1.7.1445.1049","published":"2026-10-14T17:37:46Z","preview":false,"assets":{"gmd.exe":3,"gmdSetup.exe":0,"gmd_linux":2,"gmd_linux_arm64":9,"gmd_linux_x64":10,"gmd_osx_arm64":2,"gmd_windows":0,"SHA256SUMS":19}}
 {"tag":"v1.6.1444.518","published":"2026-10-13T08:45:58Z","preview":false,"assets":{"gmd.exe":1,"gmdSetup.exe":0,"gmd_linux":1,"gmd_linux_arm64":2,"gmd_linux_x64":1,"gmd_osx_arm64":1,"gmd_windows":1,"SHA256SUMS":5}}
