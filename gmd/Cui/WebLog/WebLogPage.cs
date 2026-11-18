@@ -23,7 +23,7 @@ record PullRequest(
 
 // The log view as a web page: the branch graph of the shown branches with each commit's subject,
 // author and time, every commit linked to its page on the hosting service, every branch to its page
-// and its open pull request, and above it the branches, the one changed last first. Made for a phone
+// and its open pull request, and above it the branches, folded, the one changed last first. Made for a phone
 // or a tablet, to see what is going on in a repo where gmd cannot run, e.g. by a GitHub Action
 // publishing it to GitHub Pages. It is the log view's own graph, GraphCreater's and GraphWriter's,
 // drawn as SVG by GraphSvg, in the colors of gmd's own dark palette, as gmd is best known, whatever the device's mode.
@@ -96,7 +96,7 @@ static class WebLogPage
             )}}">{{generated:yyyy-MM-dd HH:mm}} UTC</time></p>
             <details class="about"><summary>About this page</summary>
             <p>What everyone is working on, across the branches: gmd's branch graph of this repo, made anew
-            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b> lists the active branches of the commits shown, the latest changed
+            by a GitHub Action on every push; open, the page updates itself within five minutes. <b>Branches</b>, folded until tapped, lists the active branches of the commits shown, the latest changed
             first, with their open pull requests. In <b>Commits</b>, each branch is a line in its own color,
             main on the left, every branch to the right of the branch it came from; a dot is a commit, an
             arc in is a merge and an arc out is where a branch started, and the short grey arcs are branches
@@ -140,9 +140,15 @@ static class WebLogPage
             .Select(b => (Branch: b, TipId: ShownTipId(repo, b, shownIds)))
             .Where(d => d.TipId != null)
             .Select(d => (d.Branch, Tip: repo.CommitById[d.TipId!]))
-            .OrderByDescending(d => d.Tip.AuthorTime);
+            .OrderByDescending(d => d.Tip.AuthorTime)
+            .ToList();
+        var prCount = drawn.Count(d => prs.ContainsKey(RemoteName(d.Branch)));
 
-        html.Append("<section class=\"branches\"><h2>Branches</h2><ul>\n");
+        // Folded by default: the commits are what is read every day, the list now and then, so the
+        // summary only counts what it holds
+        html.Append("<details class=\"branches\"><summary><h2>Branches</h2>")
+            .Append($"<span class=\"count\">{Count(drawn.Count, "branch", "branches")}")
+            .Append($" · {Count(prCount, "pull request", "pull requests")}</span></summary><ul>\n");
         foreach (var (b, tip) in drawn)
         {
             var name = RemoteName(b);
@@ -159,8 +165,10 @@ static class WebLogPage
                 );
             html.Append($"<span class=\"bm\">{E(tip.Author)} · {TimeTag(tip.AuthorTime)}</span></li>\n");
         }
-        html.Append("</ul></section>\n");
+        html.Append("</ul></details>\n");
     }
+
+    static string Count(int n, string one, string many) => $"{n} {(n == 1 ? one : many)}";
 
     static void AppendLog(
         StringBuilder html,
@@ -326,6 +334,13 @@ static class WebLogPage
             h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin:20px 0 8px}
             a{color:inherit}
             .meta{color:var(--dim);font-size:13px;margin:0}
+            .branches{padding:0 16px}
+            .branches summary{display:flex;align-items:baseline;gap:10px;margin:20px 0 8px;cursor:pointer;list-style:none}
+            .branches summary::-webkit-details-marker{display:none}
+            .branches summary h2{margin:0}
+            .branches summary h2::before{content:"▸";display:inline-block;width:1em}
+            .branches[open] summary h2::before{content:"▾"}
+            .branches .count{color:var(--dim);font-size:13px}
             .branches ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:2px 16px}
             .branches li{display:flex;align-items:baseline;gap:6px;padding:6px 0;border-bottom:1px solid var(--line);min-width:0}
             .bn{font-weight:600;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
