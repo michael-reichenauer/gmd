@@ -67,10 +67,33 @@ public class WebLogPageTest
     {
         var html = await PageOf(FeatureRepo());
 
-        var branches = html[html.IndexOf("<section class=\"branches\">")..html.IndexOf("<section class=\"log\">")];
+        var branches = html[html.IndexOf("<details class=\"branches\">")..html.IndexOf("<section class=\"log\">")];
         var feature = branches.IndexOf(">feature</a>");
         var main = branches.IndexOf(">main</a>");
         Assert.IsTrue(feature >= 0 && main > feature, branches);
+    }
+
+    // The commits are what is read first, so the branches are folded, the summary counting them and
+    // their pull requests; a page opened folded stays so as it shows a newer page in place, since
+    // only the inside of the list is replaced
+    [TestMethod]
+    public async Task FoldsTheBranchesUnderACount()
+    {
+        var prs = new List<PullRequest>
+        {
+            new(8, "The feature", "feature", "https://github.com/owner/repo/pull/8", false),
+        };
+        var html = await PageOf(FeatureRepo(), prs);
+
+        StringAssert.Contains(
+            html,
+            "<details class=\"branches\"><summary><h2>Branches</h2>"
+                + "<span class=\"count\">2 branches · 1 pull request</span></summary>"
+        );
+        Assert.IsTrue(html.IndexOf("<details class=\"branches\">") < html.IndexOf("<section class=\"log\">"));
+
+        var one = await PageOf(FeatureRepo(), maxRows: 1);
+        StringAssert.Contains(one, "<span class=\"count\">1 branch · 0 pull requests</span>");
     }
 
     [TestMethod]
@@ -101,7 +124,7 @@ public class WebLogPageTest
     {
         var html = await PageOf(FeatureRepo(), maxRows: 1);
 
-        var branches = html[html.IndexOf("<section class=\"branches\">")..html.IndexOf("<section class=\"log\">")];
+        var branches = html[html.IndexOf("<details class=\"branches\">")..html.IndexOf("<section class=\"log\">")];
         StringAssert.Contains(branches, "href=\"#f2000000\"><span class=\"dot\"></span>feature</a>");
         Assert.IsFalse(branches.Contains(">main</a>"), branches);
         Assert.AreEqual(1, branches.Split("<li>").Length - 1, branches);
@@ -235,7 +258,7 @@ public class WebLogPageTest
     {
         var html = await PageOf(FeatureRepo());
 
-        StringAssert.Contains(html, "<section class=\"branches\">");
+        StringAssert.Contains(html, "<details class=\"branches\">");
         StringAssert.Contains(html, "<div class=\"rows\">");
         StringAssert.Contains(html, "<p class=\"meta\">Made by gmd, updated <time data-t=\"2026-11-07T12:00:00Z\">");
         foreach (var tag in new[] { "<title>", "<style>", "<script>" })
