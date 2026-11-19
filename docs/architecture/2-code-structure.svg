@@ -76,8 +76,8 @@
 <rect x="435.19" y="451" width="29.62" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
 <text x="450" y="464" font-size="11.5" fill="currentColor" text-anchor="middle">IGit</text>
 <rect x="26.2725" y="383.5" width="67.455" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="60" y="396.5" font-size="11.5" fill="currentColor" text-anchor="middle">IGit, a few</text>
-<text x="60" y="411.5" font-size="11.5" fill="currentColor" text-anchor="middle">direct uses</text>
+<text x="60" y="396.5" font-size="11.5" fill="currentColor" text-anchor="middle">git's value</text>
+<text x="60" y="411.5" font-size="11.5" fill="currentColor" text-anchor="middle">types</text>
 <rect x="435.19" y="575" width="29.62" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
 <text x="450" y="588" font-size="11.5" fill="currentColor" text-anchor="middle">ICmd</text>
 <rect x="699.785" y="575" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>

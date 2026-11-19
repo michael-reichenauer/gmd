@@ -43,11 +43,13 @@ prompt on the terminal, which gmd owns. Git's own questions come back to gmd as 
 **The repository** holds what git holds plus a few things of gmd's, all of them in `.git` and none
 in the working tree: `.git/.gmdconfig` (shown branches, colors, undo records), `.git/gmd-metadata.json`
 (branches set by hand and what the reflog said, `MetaDataFile`), `refs/gmd/discarded` (discarded
-changes, `DiscardedChanges`) and `refs/gmdtags/origin/*` (origin's tags at the last fetch,
-`TagService`). gmd never pushes these: every push it makes names a branch, a tag or, when the
-shared branch structure is on, the metadata ref (`RemoteService`, `KeyValueService`), and a plain
-`git push` sends only branches and tags, so they reach origin only if the user pushes every ref
-themselves, e.g. with `git push --mirror`. **The home folder** holds `~/.gmdconfig` (`ConfigService`), the rotating `~/gmd.log`,
+changes, `DiscardedChanges`), `refs/gmdtags/origin/*` (origin's tags at the last fetch,
+`TagService`), and, with the shared branch structure, `refs/gmd-metadata-key-value-origin/data`
+(origin's metadata, fetched) and the older gmd's local `refs/gmd-metadata-key-value/data`. gmd never
+pushes these: every push it makes names a branch, a tag or, when the shared branch structure is on,
+the metadata ref (`RemoteService`, `KeyValueService`), and a plain `git push`, even with `--all` or
+`--tags`, sends no other refs, so they reach origin only if the user pushes every ref themselves,
+e.g. with `git push --mirror`. **The home folder** holds `~/.gmdconfig` (`ConfigService`), the rotating `~/gmd.log`,
 and the Oniguruma library that `OnigurumaLibrary` writes out to local app data so that code can be
 colored.
 
@@ -101,12 +103,13 @@ ripple up into the UI.
 checker; `gmd/Installation/` the self-updater; `gmd/Utils/` the `Result` type, `Log`, `Cmd`, the
 askpass and the clipboard and browser services, used by every layer.
 
-Points to discuss: only the git layer's boundary is enforced by a test. The others hold by
-convention, and there are a few exceptions in the code today: `MainView`, `RepoView` and a handful of
-other UI classes call `IGit` directly (`RootPath`, the web links, ref name checks), `Updater` calls
+Points to discuss: two boundaries are enforced by a test: the git layer's (`GitNamespaceTest`) and
+the UI's way down, which reaches git only through `IServer` (`CuiLayerTest`; it may still use the git
+layer's value types, such as `WebLinks`, `RefName` and `DiffOptions`, which the dashed arrow shows).
+The others hold by convention, and there are a few exceptions in the code today: `Updater` calls
 `UI.Post` and `UI.InfoMessage` to say a new version was installed, and `ProgramCommands` in
 `gmd/Common/` runs the web log export of `gmd/Cui/WebLog/`. The UI is
-nearly two thirds of the code, and its largest files are views of over 1,000 lines (`DiffView.cs`,
+nearly two thirds of the code, and its largest files are over 1,000 lines (`DiffView.cs`,
 `ConflictView.cs`, `CommitCommands.cs`). Because registration is by convention, a second class
 implementing an interface silently takes over its resolution, and a stateful class shared by several
 others must be marked `[SingleInstance]` or each gets a copy.
@@ -120,8 +123,8 @@ branches again, and replaces the snapshot it draws. The diagram follows one roun
 developer's key (1) to the log they see redrawn (12). There are two ways in.
 
 **A key** goes to `RepoViewInput`, which finds the command in one of the `*Commands` classes
-(`CommitCommands`, `BranchCommands`, ...). `CommandRunner.Do` runs it off the UI thread with the
-progress shown, and says a failure in an error box, a `Notice` on the status line, or the conflicts
+(`CommitCommands`, `BranchCommands`, ...). `CommandRunner.Do` runs it asynchronously on the UI thread, git working
+in the background, with the progress shown, and says a failure in an error box, a `Notice` on the status line, or the conflicts
 and the way on when git stopped on them. The command calls the server, and every write the user
 asks for runs in `Server.Paused`, which pauses the `FileMonitor` meanwhile, so that gmd's own changes
 do not trigger a second refresh. When the write is done the command calls `Refresh()`.
@@ -137,9 +140,9 @@ last read has already seen (`ChangeEvent.IsSeenBy`).
 parallel in `AugmentedService.GetGitRepoAsync`: the log of the newest 50,000 commits, the branches,
 tags, status, stashes, worktrees, reflog, the user name, and the metadata file. The result is a
 `GitRepo`, which the `Augmenter` turns into a `Repo` on a thread pool thread (`Task.Run`), with the
-branch of every commit inferred (view 4). `ViewRepoCreater` then keeps the commits of the branches
-the user shows. Back on the UI thread, `RepoView.ShowRepo` wraps it in a `ViewRepo` with its `Graph`
-(`GraphCreater`), and the `ContentView` asks `RepoWriter` for only the rows on screen as it draws,
+branch of every commit inferred (view 4). `ViewRepoCreator` then keeps the commits of the branches
+the user shows. Back on the UI thread, `RepoView.ShowRepo` wraps it in a `RepoSnapshot` with its `Graph`
+(`GraphCreator`), and the `ContentView` asks `RepoWriter` for only the rows on screen as it draws,
 so a large repo is never turned into text as a whole.
 
 **Showing or hiding a branch** reads nothing: it filters the `Repo` already read again
@@ -212,8 +215,8 @@ terminal, and the terminal is gmd's: a question drawn there scrolled the UI and 
 for gmd. So gmd answers the questions itself, in a dialog.
 
 **`Cmd.NeverAskOnTheTerminal`** starts every git with `GIT_TERMINAL_PROMPT=0`,
-`SSH_ASKPASS_REQUIRE=force`, stdin closed, and gmd's own executable as `SSH_ASKPASS` (git asks it
-too when there is no `GIT_ASKPASS`). For a command that may ask, it also passes the name of a
+`SSH_ASKPASS_REQUIRE=force`, stdin closed, and gmd's own executable as `SSH_ASKPASS` unless the user
+has one of their own (git asks it too when there is no `GIT_ASKPASS`). For a command that may ask, it also passes the name of a
 channel and a random token. **ssh then runs gmd as its askpass**: `Main` sees `GMD_ASKPASS=1` before
 anything else and calls `Askpass.Answer`, which connects to the channel and passes the question.
 **`AskpassServer`** in the gmd on screen listens on a named pipe opened for the current user only,
@@ -228,7 +231,7 @@ fetches and asks.
 Points to discuss: an OpenSSH older than 8.4 ignores `SSH_ASKPASS_REQUIRE` and still asks on the
 terminal. The askpass is not yet tried on Windows. A gmd left running after an update starts the new
 binary as its askpass, so the channel's protocol must stay compatible between versions. A user's own
-credential helper or `GIT_ASKPASS` is left alone, which is right, but means some logins never reach
+credential helper, `GIT_ASKPASS` or `SSH_ASKPASS` is left alone, which is right, but means some logins never reach
 this dialog.
 
 ## 6. Test view: from a fake git to the real binary in a terminal
@@ -271,13 +274,13 @@ is right.
 **Branches**: work happens on feature branches, merged into `dev` through pull requests; `main`
 holds the releases and moves only through the Release workflow. **`build.yml`** runs on every push
 to any branch and on pull requests into `dev` and `main`: the CSharpier format check first, then
-`scripts/build -l`, which runs both test projects and publishes the two Linux builds. It publishes
+`scripts/build -l`, which runs both test projects and builds the two Linux binaries. It publishes
 nothing: a merge only tests.
 
 **`release.yml`** is run by hand (`gh workflow run release.yml -f kind=preview`, or the `release`
 skill). A preview builds `dev` as it is and publishes a GitHub pre-release. A release stamps the
 `## [Unreleased]` notes of `CHANGELOG.md` with the version on `dev`, merges `dev` into `main` with
-`--no-ff`, raises `MinorVersion` on `dev`, builds and tests the merge for all four platforms, and
+`--no-ff`, raises `MinorVersion` on `dev`, builds the merge for all four platforms and tests it on Linux, and
 only then pushes `dev` and `main` together and publishes the release with its assets: the four
 binaries, `gmdSetup.exe` (a prebuilt installer committed to the repository), two copies under the
 names older versions update from, and `SHA256SUMS`. It then writes the Homebrew formula into the tap
@@ -309,7 +312,7 @@ sources (CSharpier), which is why CI checks the format before it builds.
 | Run the `git` CLI for everything, with no git library | Git behaves exactly as the user's own: their config, hooks, credential helpers and signing (inferred) | A process per command, text to parse, and guards on every process (`Cmd`: no editor, no prompt, no optional locks, English); formats pinned per command |
 | Infer each commit's branch rather than ask for a workflow | The product's point: a readable log of the history as it is, with no rebasing or squashing (README) | The most subtle code in the repository, heuristics that can be wrong (ambiguous commits, set by hand), and characterization tests plus inference dumps to change it safely |
 | Re-read and re-infer the whole repo on every change, into an immutable `Repo` | A command acts on the snapshot shown when it runs (CLAUDE.md); one way to read is simpler than updating a model in place (inferred) | 1.2 to 2.6 s per 100,000 commits, so the log stops at 50,000; memory for a megabytes-long log; careful handling of reads overtaken by changes |
-| Strict layers behind interfaces, `gmd.Git` a general library | A change in git's model does not ripple into the UI (CLAUDE.md) | Twin records (`Git.Commit`, `Server.Commit`) and `GitConverter`; a pattern on the wrong twin compiles and never matches; only the git layer is checked by a test |
+| Strict layers behind interfaces, `gmd.Git` a general library | A change in git's model does not ripple into the UI (CLAUDE.md) | Twin records (`Git.Commit`, `Server.Commit`) and `GitConverter`; a pattern on the wrong twin compiles and never matches; only the git layer and the UI's way down are checked by tests |
 | `Result` unions instead of exceptions | Failures are values a reader sees at a glance; exceptions are left for bugs (CLAUDE.md, `.claude/rules/workflow.md`) | Needs C# 15 and .NET 11; every call site matches its result; misuse throws `ResultException` at run time |
 | Dependency injection by convention (Autofac scanning the assembly) | No registration code to write for a new class (CLAUDE.md) | A second implementer silently wins; a shared stateful class must be marked `[SingleInstance]`; tests wire the inference by hand (`RepoBuilder.NewAugmenter`) |
 | One self-contained executable with its own updater | No .NET to install (README); one file to download, check and swap | Some 100 MB per release; native Oniguruma embedded and written out at run time; an updater bug reaches users a release late |
@@ -327,7 +330,7 @@ sources (CSharpier), which is why CI checks the format before it builds.
 | What a key does | `gmd/Cui/RepoView/RepoViewInput.cs`, `LogKeys.cs`, the `*Commands.cs` beside them |
 | How the branches are inferred | `gmd/Server/Private/Augmented/Private/BranchStructureService.cs`, then `CommitBranchService.cs` and `CommitBranchRules.cs` |
 | How git is run and parsed | `gmd/Git/IGit.cs`, `gmd/Git/Private/LogService.cs`, `gmd/Utils/Cmd.cs` |
-| How the graph is drawn | `gmd/Cui/Graphs/GraphCreater.cs`, `GraphWriter.cs` |
+| How the graph is drawn | `gmd/Cui/Graphs/GraphCreator.cs`, `GraphWriter.cs` |
 | The diff, blame and conflict views | `gmd/Cui/Diff/DiffView.cs`, `gmd/Cui/Blame/BlameView.cs`, `gmd/Cui/Conflict/ConflictWorkspace.cs` |
 | Errors and results | `gmd/Utils/Result.cs`, CLAUDE.md "Errors" |
 | The file monitor | `gmd/Server/Private/FileMonitor.cs` |
@@ -347,8 +350,8 @@ machine, and `docs/BRANCH-GRAPH.md` the web branch graph.
 - **The UI is two thirds of the code.** The log view's folder alone is about 10k lines, and the
   largest views are over 1,000 lines each; the logic kept apart from the views is what keeps them
   testable.
-- **Layer boundaries other than the git layer's are kept by convention.** The few upward and
-  skipping references (UI to `IGit`, `Common` and `Installation` to the UI) could grow unnoticed.
+- **Layer boundaries other than the git layer's and the UI's way down are kept by convention.** The
+  few upward references (`Common` and `Installation` to the UI) could grow unnoticed.
 - **The updater cannot be fixed after the fact.** A gmd with a broken updater can only be
   reinstalled by hand, so every change to `gmd/Installation/` is tried through previews on all three
   systems first (`.claude/rules/installation.md`).

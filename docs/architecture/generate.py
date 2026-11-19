@@ -454,7 +454,7 @@ def code_structure_view(c):
     d.arrow("server", "aug", "IAugmentedService,\nwrite services", accent="main", frm="b", to="t", fs=0.3, straight=True)
     d.arrow("aug", "git", "IGit", accent="main", frm="b", to="t", fs=0.3, straight=True)
     d.arrow("server", "git", "IGit", frm="r", to="t", fs=0.75, ft=0.93, via=[(450, 351), (450, 528), (403.4, 528)], at=(450, 460))
-    d.arrow("cui", "git", "IGit, a few\ndirect uses", frm="l", to="l", fs=0.5, ft=0.5, via=[(32, 213), (32, 594)], dashed=True, at=(60, 400))
+    d.arrow("cui", "git", "git's value\ntypes", frm="l", to="l", fs=0.5, ft=0.5, via=[(32, 213), (32, 594)], dashed=True, at=(60, 400))
     d.arrow("git", "utils", "ICmd", accent="main", straight=True, fs=0.5)
     d.arrow("utils", "gitexe", "starts", accent="main", straight=True, fs=0.5)
     d.arrow("cui", "tgui", "draws with", straight=True, fs=0.4, ft=0.3)
@@ -478,13 +478,13 @@ def runtime_view(c):
     d.card("cmds", X + 40, 190, 250, "*Commands, CommandRunner", ["the command, with progress", "shown and an error box"], accent="main")
     d.card("refresh", X + 40, 320, 250, "RepoView refresh", ["ShowRefreshedRepoAsync, with", "the shown branches' names"], accent="main")
     d.card("draw", X + 40, 450, 250, "ContentView, RepoWriter", ["draws only the rows on", "screen, on demand"], accent="main")
-    d.card("viewrepo", X + 40, 570, 250, "ViewRepo, GraphCreater", ["a snapshot of the shown", "repo, and its graph"], accent="main")
+    d.card("viewrepo", X + 40, 570, 250, "RepoSnapshot, GraphCreator", ["a snapshot of the shown", "repo, and its graph"], accent="main")
 
     d.card("paused", X + 360, 80, 250, "Server, in Paused", ["the write, with the file", "monitor paused meanwhile"], accent="main")
     d.card("monitor", X + 360, 190, 250, "FileMonitor", ["watches the working folder", "and .git, debounced 1 s"], accent="side")
     d.card("aug", X + 360, 320, 250, "AugmentedService", ["the git reads, in parallel,", "into a GitRepo"], accent="main")
     d.card("augmenter", X + 360, 450, 250, "Augmenter, in Task.Run", ["infers each commit's branch", "into an immutable Repo"], accent="main")
-    d.card("viewcreater", X + 360, 570, 250, "ViewRepoCreater", ["the commits of the", "branches shown"], accent="main")
+    d.card("viewcreater", X + 360, 570, 250, "ViewRepoCreator", ["the commits of the", "branches shown"], accent="main")
 
     d.card("write", X + 690, 80, 230, "git commit, push, ...", ["the write, through IGit,", "the Git services and Cmd"], accent="main")
     d.card("other", X + 690, 190, 230, "Editor, another git", ["anything that changes", "the files or the refs"], dashed=True)
@@ -535,7 +535,7 @@ def inference_view(c):
     d.card("hierarchy", 520, 410, 210, "3. BranchHierarchyService", ["each branch's parent,", "the root branch, ancestors"], accent="main")
 
     d.card("repo", 785, 80, 140, "Repo", ["every commit's", "branch, every", "branch's parent"], accent="main")
-    d.card("view", 785, 220, 140, "ViewRepoCreater", ["the branches", "the user shows"], accent="main")
+    d.card("view", 785, 220, 140, "ViewRepoCreator", ["the branches", "the user shows"], accent="main")
     d.person("user", 795, 330, 120, "Developer", ["Set Branch, when", "a commit is", "ambiguous"])
 
     for src, f in (("log", 0.15), ("branches", 0.38), ("reflog", 0.6), ("meta", 0.82)):

@@ -71,7 +71,7 @@
 <text x="795" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">branch, every</text>
 <text x="795" y="151" font-size="12.5" fill="currentColor" fill-opacity="0.8">branch's parent</text>
 <rect x="785" y="220" width="140" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
-<text x="795" y="240" font-size="14" fill="currentColor" font-weight="600">ViewRepoCreater</text>
+<text x="795" y="240" font-size="14" fill="currentColor" font-weight="600">ViewRepoCreator</text>
 <text x="795" y="259" font-size="12.5" fill="currentColor" fill-opacity="0.8">the branches</text>
 <text x="795" y="275" font-size="12.5" fill="currentColor" fill-opacity="0.8">the user shows</text>
 <circle cx="855.0" cy="344" r="12" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.3"/>

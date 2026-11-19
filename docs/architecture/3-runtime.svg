@@ -44,7 +44,7 @@
 <text x="200" y="489" font-size="12.5" fill="currentColor" fill-opacity="0.8">draws only the rows on</text>
 <text x="200" y="505" font-size="12.5" fill="currentColor" fill-opacity="0.8">screen, on demand</text>
 <rect x="190" y="570" width="250" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
-<text x="200" y="590" font-size="14" fill="currentColor" font-weight="600">ViewRepo, GraphCreater</text>
+<text x="200" y="590" font-size="14" fill="currentColor" font-weight="600">RepoSnapshot, GraphCreator</text>
 <text x="200" y="609" font-size="12.5" fill="currentColor" fill-opacity="0.8">a snapshot of the shown</text>
 <text x="200" y="625" font-size="12.5" fill="currentColor" fill-opacity="0.8">repo, and its graph</text>
 <rect x="510" y="80" width="250" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
@@ -64,7 +64,7 @@
 <text x="520" y="489" font-size="12.5" fill="currentColor" fill-opacity="0.8">infers each commit's branch</text>
 <text x="520" y="505" font-size="12.5" fill="currentColor" fill-opacity="0.8">into an immutable Repo</text>
 <rect x="510" y="570" width="250" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
-<text x="520" y="590" font-size="14" fill="currentColor" font-weight="600">ViewRepoCreater</text>
+<text x="520" y="590" font-size="14" fill="currentColor" font-weight="600">ViewRepoCreator</text>
 <text x="520" y="609" font-size="12.5" fill="currentColor" fill-opacity="0.8">the commits of the</text>
 <text x="520" y="625" font-size="12.5" fill="currentColor" fill-opacity="0.8">branches shown</text>
 <rect x="840" y="80" width="230" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
