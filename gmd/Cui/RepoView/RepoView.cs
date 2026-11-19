@@ -21,7 +21,7 @@ interface IRepoView
     Selection Selection { get; }
 
     // The shown repo, which is an immutable snapshot replaced on every refresh, so a command that
-    // refreshes and then needs the repo (or its command classes) has to read this again after.
+    // refreshes and then needs the repo has to read this again after.
     IRepoSnapshot Snapshot { get; }
 
     // The branches shown before each show and hide, for Backspace to go back to. Kept here since the
