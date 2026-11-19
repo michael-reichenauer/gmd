@@ -44,7 +44,10 @@ prompt on the terminal, which gmd owns. Git's own questions come back to gmd as 
 in the working tree: `.git/.gmdconfig` (shown branches, colors, undo records), `.git/gmd-metadata.json`
 (branches set by hand and what the reflog said, `MetaDataFile`), `refs/gmd/discarded` (discarded
 changes, `DiscardedChanges`) and `refs/gmdtags/origin/*` (origin's tags at the last fetch,
-`TagService`). **The home folder** holds `~/.gmdconfig` (`ConfigService`), the rotating `~/gmd.log`,
+`TagService`). gmd never pushes these: every push it makes names a branch, a tag or, when the
+shared branch structure is on, the metadata ref (`RemoteService`, `KeyValueService`), and a plain
+`git push` sends only branches and tags, so they reach origin only if the user pushes every ref
+themselves, e.g. with `git push --mirror`. **The home folder** holds `~/.gmdconfig` (`ConfigService`), the rotating `~/gmd.log`,
 and the Oniguruma library that `OnigurumaLibrary` writes out to local app data so that code can be
 colored.
 
