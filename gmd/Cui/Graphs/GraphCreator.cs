@@ -25,17 +25,17 @@ enum Sign
     Resolve = 2048, // Φ
 }
 
-interface IGraphCreater
+interface IGraphCreator
 {
     Graph Create(Server.Repo repo);
 }
 
-class GraphCreater : IGraphCreater
+class GraphCreator : IGraphCreator
 {
     static readonly Color MoreColor = Color.Dark;
     readonly IBranchColorService branchColorService;
 
-    public GraphCreater(IBranchColorService branchColorService)
+    public GraphCreator(IBranchColorService branchColorService)
     {
         this.branchColorService = branchColorService;
     }

@@ -162,7 +162,7 @@ Key types and flow:
   `CommitById`/`BranchByName` lookups. `Repo.UncommittedId`, `TruncatedLogCommitId` and
   `EmptyRepoCommitId` are sentinel all-`0`/`f`/`e` SHAs — check for them when touching commit code.
 - `gmd/Server/Private/Server.cs` — the `IServer` facade. Reads go to `AugmentedService` and then
-  `ViewRepoCreater`; writes go to git, or, when they need the inferred model to work out what to
+  `ViewRepoCreator`; writes go to git, or, when they need the inferred model to work out what to
   run, to the write services of the augmented layer (`BranchWriteService`, `CommitRewriteService`,
   `UndoService`, `DeletedBranchService`). Every write the user asks for runs in `Server.Paused`,
   which pauses the file monitor; the background fetch does not. `GitConverter` turns git's records
@@ -239,7 +239,8 @@ Key types and flow:
   fails to open leaves it there. Its keys go on the log view's key-hint line
   (`IRepoView.SetStartPage`).
 - `Cui/RepoView/` — `RepoView.cs` is the main log view, i.e. reading and refreshing the shown repo
-  and drawing it. `IViewRepo` is a snapshot of the shown repo (with its graph and the cursor's row),
+  and drawing it. `IRepoSnapshot` is the shown repo at one moment: the server's view repo (the
+  `Repo` of the branches shown, which `ViewRepoCreator` makes) with its graph and the cursor's row,
   replaced at every refresh, show and hide; the menus are made with each one.
   What the user does to it is split off: `RepoViewInput.cs` holds every key and mouse button plus
   the handlers they dispatch through, and `Hoover.cs` holds which branch the pointer or cursor is
@@ -263,7 +264,7 @@ Key types and flow:
   key-hint line writes it, and so are the keys named in status messages and in the reasons a greyed
   out item gives; the help and the README write `Shift-P` in their text. Item names are
   plain, with no slashes, and end in " ..." only when the item asks for something before it runs.
-- `Cui/Graphs/` — `GraphCreater`, `Graph` and `GraphWriter` turn a `Repo` into the drawn
+- `Cui/Graphs/` — `GraphCreator`, `Graph` and `GraphWriter` turn a `Repo` into the drawn
   branch graph. A branch's color is `BranchColorService`'s (`Cui/Common/`): picked the first time
   gmd sees the branch, unlike its parent's and its siblings' (`BranchColorPicker`), and remembered in
   the repo config, the colors of branches gone forgotten, so that nothing done around a branch, a
@@ -396,7 +397,10 @@ of through an index of HEAD (`PatchService.CommitPatchesAsync`), the working tre
 
 Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
 `gmd/Cui/` references Terminal.Gui (`gmd/Program.cs`, the entry point, does — it is the composition
-root, above the layers). The one thing a lower layer needs from the UI is its main loop, and that
+root, above the layers). Downwards, the UI reaches git only through `IServer`: it may use the git
+layer's value types and helpers (`WebLinks`, `RefName`, `GitDir`, `DiffOptions`, `ConflictError`, …),
+never `IGit` or the implementation of the git layer or the server, which `CuiLayerTest` checks in the
+compiled code. The one thing a lower layer needs from the UI is its main loop, and that
 goes through `IMainThread` (`gmd/Utils/IMainThread.cs`): `Post` to raise an event on the UI thread,
 `RunPeriodically` for a timer, implemented by `MainThread` (`Cui/Common/`) over `UI`. `FileMonitor`
 is its only user. Keep it that way: if a lower layer needs something else from the UI, widen that
@@ -654,7 +658,7 @@ changes the graph under test rather than failing loudly.
 
 `AugmentAsync()` stops at the `WorkRepo`. `ViewRepoAsync(...)` goes all the way to the
 `Server.Repo` the UI renders — augmentation, the uncommitted commit, and the branches the user
-chose to show — by building the real `AugmentedService` and `ViewRepoCreater` with the fakes in
+chose to show — by building the real `AugmentedService` and `ViewRepoCreator` with the fakes in
 `gmdTest/Fixtures/` (`FakeGit`, `FakeFileMonitor`, `FakeMetaDataService`, `FakeRepoConfig`).
 `FakeGit` implements only the members the pipeline reaches and throws on the rest, so a test that
 starts depending on git fails loudly. `builder.Config` is the in-memory `IRepoConfigService`, for
@@ -685,7 +689,7 @@ string literals for the expected value — they keep the picture readable and th
 unaffected by CSharpier re-indenting them. `DiffText` does the same for the rows of a diff, and
 both take their color letters from `TextColors`.
 
-The other fakes in `gmdTest/Fixtures/`: `FakeViewRepo` stands in for `IViewRepo`, for the log
+The other fakes in `gmdTest/Fixtures/`: `FakeRepoSnapshot` stands in for `IRepoSnapshot`, for the log
 view's writer and menus, and `FakeRepoView` for the view, which `FakeRepoView.Context` puts in a
 `CommandContext` for the command classes and menus; `FakeSpellChecker` has the word list a test gives it; `FakeConfigService`
 is a config whose `Set` sticks, for a test of what a class saves rather than reads; `FakeMetaDataFile`

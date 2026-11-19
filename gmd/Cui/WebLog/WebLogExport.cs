@@ -23,19 +23,19 @@ interface IWebLogExport
 class WebLogExport : IWebLogExport
 {
     readonly IServer server;
-    readonly IGraphCreater graphCreater;
+    readonly IGraphCreator graphCreator;
     readonly IGraphWriter graphWriter;
     readonly IBranchColorService branchColorService;
 
     internal WebLogExport(
         IServer server,
-        IGraphCreater graphCreater,
+        IGraphCreator graphCreator,
         IGraphWriter graphWriter,
         IBranchColorService branchColorService
     )
     {
         this.server = server;
-        this.graphCreater = graphCreater;
+        this.graphCreator = graphCreator;
         this.graphWriter = graphWriter;
         this.branchColorService = branchColorService;
     }
@@ -64,7 +64,7 @@ class WebLogExport : IWebLogExport
         var name = links != null ? new Uri(links.RepoUrl).AbsolutePath.Trim('/').Split('/')[^1] : "";
         var title = $"{(name != "" ? name : Path.GetFileName(repo.Path))} Branch Graph";
 
-        var graph = graphCreater.Create(repo);
+        var graph = graphCreator.Create(repo);
         var html = WebLogPage.Html(
             repo,
             graph,

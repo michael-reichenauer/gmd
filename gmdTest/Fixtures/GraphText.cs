@@ -42,7 +42,7 @@ static class GraphText
     static IReadOnlyList<Text> RowTexts(Repo repo, IRepoConfigService? repoConfig)
     {
         var branchColorService = new BranchColorService(repoConfig ?? new FakeRepoConfig());
-        var graph = new GraphCreater(branchColorService).Create(repo);
+        var graph = new GraphCreator(branchColorService).Create(repo);
         var writer = new GraphWriter();
 
         // Full width and no highlighted branch, i.e. nothing is truncated or given a background

@@ -5,7 +5,7 @@ using gmdTest.Fixtures;
 
 namespace gmdTest.Cui.Graphs;
 
-// Snapshot tests of the drawn branch graph, i.e. GraphCreater laying branches out in columns and
+// Snapshot tests of the drawn branch graph, i.e. GraphCreator laying branches out in columns and
 // GraphWriter turning the signs into runes. The expected values are pictures of the graph, so they
 // can be reviewed by looking at them.
 //
@@ -254,6 +254,34 @@ public class GraphTest
         );
     }
 
+    // A local branch with no commits of its own, behind its remote (someone else pushed to the
+    // branch), with uncommitted changes. The uncommitted commit is the local branch's only commit,
+    // so its line goes from that row to where it branched out and no further: the branch's bottom
+    // was left at the commit below, on main, which drew a line under that commit too, starting in
+    // empty space.
+    [TestMethod]
+    public async Task TestUncommittedChangesOnALocalBranchBehindItsRemote()
+    {
+        var repo = await new RepoBuilder()
+            .Commit("r1", "Remote only", "c2")
+            .Commit("c2", "Second", "c1")
+            .Commit("c1", "Initial")
+            .BranchWithRemote("main", "c2")
+            .BranchWithRemote("dev", "c2", isCurrent: true, remoteTipCommit: "r1", behind: 1)
+            .WithStatus(modified: 1)
+            .ViewRepoAsync("dev");
+
+        Assert.AreEqual(
+            """
+                 ╭┺  1 uncommitted change
+               ╭┺│   Remote only
+            ┣─┺┴─╯   Second
+            ┗        Initial
+            """,
+            GraphText.WithSubjects(repo)
+        );
+    }
+
     // A local branch ahead of its remote and a remote ahead of its local are drawn as two lines
     // out of the commit they last shared.
     [TestMethod]
@@ -351,7 +379,7 @@ public class GraphTest
             .LocalBranch("feat", "f2")
             .LocalBranch("sub", "s1")
             .ViewRepoAsync("feat");
-        var graph = new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(repo);
+        var graph = new GraphCreator(new BranchColorService(new FakeRepoConfig())).Create(repo);
         Assert.IsTrue(graph.HasMore, "sub is hidden, so a more marker column");
         Assert.IsTrue(graph.RowLength > 2);
         var writer = new GraphWriter();

@@ -58,7 +58,7 @@ class WorktreeCommands : IWorktreeCommands
             var selected = 0;
             while (true)
             {
-                var current = repoView.ViewRepo.Repo;
+                var current = repoView.Snapshot.Repo;
                 var updatedResult = await server.GetUpdatedWorktreesRepoAsync(current);
                 if (updatedResult is not Repo updated)
                     return new Error("Failed to read the worktrees", updatedResult.Error);
@@ -239,7 +239,7 @@ class WorktreeCommands : IWorktreeCommands
     // Forgets the worktrees whose folders are gone, after saying which
     async Task<Result> PruneAsync(IReadOnlyList<Worktree> worktrees)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var missing = worktrees.Where(w => w.IsPrunable).Select(w => w.Path).ToList();
         if (missing.Count == 0)
             return Result.Ok;
@@ -255,5 +255,5 @@ class WorktreeCommands : IWorktreeCommands
         return Result.Ok;
     }
 
-    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
+    void Do(Func<IRepoSnapshot, Task<Result>> action) => context.Do(action);
 }

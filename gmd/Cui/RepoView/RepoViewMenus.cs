@@ -32,7 +32,7 @@ class RepoViewMenus : IRepoViewMenus
     // Made with each snapshot of the repo, which a menu shows as it was when it was shown, with the
     // command classes, which act on the repo as it is when they run
     internal RepoViewMenus(
-        IViewRepo repo,
+        IRepoSnapshot repo,
         CommandContext commands,
         Config config,
         IConfigDlg configDlg,

@@ -79,7 +79,7 @@ public class RepoWriterTest
             .BranchWithRemote("main", "c1", isCurrent: true)
             .ViewRepoAsync();
 
-        StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 120), "x┅(^)(● main)");
+        StringAssert.Contains(FirstRow(new FakeRepoSnapshot(repo), 120), "x┅(^)(● main)");
     }
 
     // A subject too long for the column is cut to leave the tips and tags up to 20 columns, half
@@ -95,7 +95,7 @@ public class RepoWriterTest
             .Tag("release-2024-10-15", "c1")
             .ViewRepoAsync();
 
-        StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 80), "x┅(^)(main)┅[release-┅");
+        StringAssert.Contains(FirstRow(new FakeRepoSnapshot(repo), 80), "x┅(^)(main)┅[release-┅");
     }
 
     // Characterization, and a wart: the sid, author and time columns are cut by Txt
@@ -149,7 +149,7 @@ public class RepoWriterTest
     [TestMethod]
     public void TestNothingIsDrawnForARepoWithNoCommitsInView()
     {
-        Assert.AreEqual(0, Rows(new FakeViewRepo(Repo.Empty), 120).Count);
+        Assert.AreEqual(0, Rows(new FakeRepoSnapshot(Repo.Empty), 120).Count);
     }
 
     // The markers between the graph and the subject
@@ -188,7 +188,7 @@ public class RepoWriterTest
     public async Task TestTheUncommittedRowIsMarkedAndColored()
     {
         var repo = await Fixture().WithStatus(modified: 2).ViewRepoAsync();
-        var row = Rows(new FakeViewRepo(repo), 120)[0];
+        var row = Rows(new FakeRepoSnapshot(repo), 120)[0];
 
         StringAssert.Contains(row.ToString(), "©2 uncommitted changes");
         StringAssert.Contains(TextColors.Of(row), "yyyyyyyy", "Bright yellow while there is nothing conflicted");
@@ -198,7 +198,7 @@ public class RepoWriterTest
     public async Task TestAConflictedUncommittedRowIsBrightRed()
     {
         var repo = await Fixture().WithStatus(modified: 2, conflicted: 1).ViewRepoAsync();
-        var row = Rows(new FakeViewRepo(repo), 120)[0];
+        var row = Rows(new FakeRepoSnapshot(repo), 120)[0];
 
         StringAssert.Contains(row.ToString(), "CONFLICTS: 1, 3 uncommitted changes");
         StringAssert.Contains(TextColors.Of(row), "rrrrrrrr");
@@ -214,7 +214,7 @@ public class RepoWriterTest
             .Stash("stash@{0}", "c2")
             .ViewRepoAsync();
 
-        StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 120), "┺ß● Second");
+        StringAssert.Contains(FirstRow(new FakeRepoSnapshot(repo), 120), "┺ß● Second");
     }
 
     // The commit marked for a diff, in the stash's column, so that it is seen at the start of its
@@ -301,7 +301,7 @@ public class RepoWriterTest
         var mark = new DiffMark();
         mark.Set(repo.Path, RepoBuilder.Sha("c2"));
 
-        StringAssert.StartsWith(Rows(new FakeViewRepo(repo), 120, diffMark: mark)[0].ToString(), "┣─┺±● Second");
+        StringAssert.StartsWith(Rows(new FakeRepoSnapshot(repo), 120, diffMark: mark)[0].ToString(), "┣─┺±● Second");
     }
 
     // A mark is of the repository it was made in, so another one opened in the same gmd has none
@@ -342,7 +342,7 @@ public class RepoWriterTest
             .LocalBranch("dev", "d1")
             .ViewRepoAsync();
 
-        StringAssert.Contains(FirstRow(new FakeViewRepo(repo), 120), "(● main)");
+        StringAssert.Contains(FirstRow(new FakeRepoSnapshot(repo), 120), "(● main)");
     }
 
     // A branch checked out in another worktree is marked with the folder glyph where the current
@@ -361,7 +361,7 @@ public class RepoWriterTest
             .Worktree("/test/repo-feat", "feat")
             .ViewRepoAsync(ShowBranches.AllActive);
 
-        var page = Page(new FakeViewRepo(repo), 120);
+        var page = Page(new FakeRepoSnapshot(repo), 120);
 
         StringAssert.Contains(page, "(⌂ feat)");
         StringAssert.Contains(page, "(^)(⌂ dev)");
@@ -386,7 +386,7 @@ public class RepoWriterTest
             .Worktree("/test/repo-dev", "dev")
             .ViewRepoAsync(ShowBranches.AllActive);
 
-        var rows = Page(new FakeViewRepo(repo), 120).Split('\n');
+        var rows = Page(new FakeRepoSnapshot(repo), 120).Split('\n');
 
         StringAssert.Contains(rows[0], "⌂ Work");
         StringAssert.Contains(rows[1], "● Second");
@@ -414,7 +414,7 @@ public class RepoWriterTest
             .LocalBranch("two", "b2")
             .ViewRepoAsync(ShowBranches.AllActive);
 
-        StringAssert.Contains(Page(new FakeViewRepo(repo), 120), "(~ambiguous)");
+        StringAssert.Contains(Page(new FakeRepoSnapshot(repo), 120), "(~ambiguous)");
     }
 
     [TestMethod]
@@ -428,7 +428,7 @@ public class RepoWriterTest
             .Tag("v0.9", "c1")
             .ViewRepoAsync();
 
-        var rows = Page(new FakeViewRepo(repo), 120).Split('\n');
+        var rows = Page(new FakeRepoSnapshot(repo), 120).Split('\n');
 
         StringAssert.Contains(rows[0], "(^)(● main)[v1.0]");
         StringAssert.Contains(rows[1], "[v0.9]");
@@ -501,7 +501,7 @@ public class RepoWriterTest
     static bool IsMarkBg(TextFragment f) => f.Color.Background == ColorName.MarkBg;
 
     static string Page(
-        FakeViewRepo view,
+        FakeRepoSnapshot view,
         int width,
         int firstRow = 0,
         int count = 20,
@@ -514,10 +514,10 @@ public class RepoWriterTest
                 .Select(t => t.ToString().TrimEnd())
         );
 
-    static string FirstRow(FakeViewRepo view, int width) => Rows(view, width)[0].ToString().TrimEnd();
+    static string FirstRow(FakeRepoSnapshot view, int width) => Rows(view, width)[0].ToString().TrimEnd();
 
     static IReadOnlyList<Text> Rows(
-        FakeViewRepo view,
+        FakeRepoSnapshot view,
         int width,
         int firstRow = 0,
         int count = 20,
@@ -533,10 +533,10 @@ public class RepoWriterTest
 
     static readonly Selection NoSelection = new Selection(0, 0, 0, 0, 0);
 
-    static async Task<FakeViewRepo> View() => new FakeViewRepo(await Fixture().ViewRepoAsync());
+    static async Task<FakeRepoSnapshot> View() => new FakeRepoSnapshot(await Fixture().ViewRepoAsync());
 
-    static async Task<FakeViewRepo> Detached() =>
-        new FakeViewRepo(
+    static async Task<FakeRepoSnapshot> Detached() =>
+        new FakeRepoSnapshot(
             await new RepoBuilder()
                 .Commit("c2", "Second", "c1")
                 .Commit("c1", "Initial")
@@ -544,8 +544,8 @@ public class RepoWriterTest
                 .ViewRepoAsync()
         );
 
-    static async Task<FakeViewRepo> Diverged() =>
-        new FakeViewRepo(
+    static async Task<FakeRepoSnapshot> Diverged() =>
+        new FakeRepoSnapshot(
             await new RepoBuilder()
                 .Commit("r1", "Remote work", "c1")
                 .Commit("l1", "Local work", "c1")

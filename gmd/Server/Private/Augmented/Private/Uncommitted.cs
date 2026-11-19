@@ -60,18 +60,18 @@ static class Uncommitted
 
         // Uncommitted commit does not exist, need to add it
         var commits2 = repo.AllCommits.Prepend(newUncommitted).ToList();
-        var branch = repo.BranchByName[newUncommitted.BranchName];
-        var parentBranch = string.IsNullOrEmpty(branch.ParentBranchName)
-            ? null
-            : repo.BranchByName[branch.ParentBranchName];
-
         var branches2 = repo
             .AllBranches.Select(b =>
             {
                 if (b.Name != newUncommitted.BranchName)
                     return b;
-                if (b.TipId == b.BottomId && b.TipId == parentBranch?.TipId)
+                if (HasNoCommitsOfItsOwn(repo, b))
+                { // The uncommitted commit becomes the branch's only commit, its tip and its bottom.
+                    // A bottom left on the commit below, which is another branch's, would draw the
+                    // branch's line on under that commit too, starting in empty space. That was so
+                    // when the branch was behind its remote, whose tip is then not the branch's.
                     return b with { TipId = newUncommitted.Id, BottomId = newUncommitted.Id };
+                }
                 return b with { TipId = Repo.UncommittedId };
             })
             .ToList();
@@ -82,6 +82,11 @@ static class Uncommitted
             AllBranches = branches2,
         };
     }
+
+    // A branch with no commits of its own, e.g. a local branch in step with or behind its remote,
+    // has its tip and bottom on a commit that belongs to another branch
+    static bool HasNoCommitsOfItsOwn(Repo repo, Branch b) =>
+        b.TipId == b.BottomId && repo.CommitById.TryGetValue(b.TipId, out var tip) && tip.BranchName != b.Name;
 
     static Commit NewCommit(Repo repo)
     {

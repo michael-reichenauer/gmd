@@ -2,7 +2,7 @@ using gmd.Common;
 
 namespace gmd.Server.Private;
 
-interface IViewRepoCreater
+interface IViewRepoCreator
 {
     Repo GetViewRepoAsync(
         Repo augRepo,
@@ -16,12 +16,12 @@ interface IViewRepoCreater
     Repo GetFilteredViewRepoAsync(Repo repo, string filter, int maxCount, IReadOnlySet<string>? onlyIds = null);
 }
 
-class ViewRepoCreater : IViewRepoCreater
+class ViewRepoCreator : IViewRepoCreator
 {
     readonly IViewRepoConverter converter;
     readonly IRepoConfigService repoConfig;
 
-    internal ViewRepoCreater(IViewRepoConverter converter, IRepoConfigService repoConfig)
+    internal ViewRepoCreator(IViewRepoConverter converter, IRepoConfigService repoConfig)
     {
         this.converter = converter;
         this.repoConfig = repoConfig;

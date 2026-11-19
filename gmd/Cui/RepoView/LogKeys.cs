@@ -27,7 +27,7 @@ static class LogKeys
 {
     // 'e' merges the highlighted branch into the current one, or for the current branch opens the
     // menu of branches to merge into it. Worded as the merge items are, naming the current branch.
-    public static KeyAction Merge(IViewRepo repo, Hoover hoover)
+    public static KeyAction Merge(IRepoSnapshot repo, Hoover hoover)
     {
         if (!hoover.IsBranch)
             return KeyAction.No("Highlight a branch with ← → first, and 'e' merges it into the current branch");
@@ -40,7 +40,7 @@ static class LogKeys
     // 'E', the mirror of 'e': merges the current branch into the highlighted one, which git can only
     // do by checking that one out on the way, or for the current branch opens the menu of branches
     // to merge it into. Hinted for the current branch only, the merge into another being rarer.
-    public static KeyAction MergeInto(IViewRepo repo, Hoover hoover)
+    public static KeyAction MergeInto(IRepoSnapshot repo, Hoover hoover)
     {
         if (!hoover.IsBranch)
             return KeyAction.No("Highlight a branch with ← → first, and 'E' merges the current branch into it");
@@ -63,7 +63,7 @@ static class LogKeys
     }
 
     // 's' switches to the highlighted branch
-    public static KeyAction Switch(IViewRepo repo, Hoover hoover)
+    public static KeyAction Switch(IRepoSnapshot repo, Hoover hoover)
     {
         if (!hoover.IsBranch)
             return KeyAction.No("Highlight a branch with ← → first, and 's' switches to it");
@@ -80,7 +80,7 @@ static class LogKeys
     // rewritten here is pushed with force, which the hint says, since there is nothing to pull first.
     // One not on origin yet is not pushed, but published from its branch menu, which 'p' says, see
     // BranchPushPullCommands.IsUnpublished.
-    public static KeyAction Push(IViewRepo repo, Hoover hoover)
+    public static KeyAction Push(IRepoSnapshot repo, Hoover hoover)
     {
         if (Hoovered(repo, hoover) is not Branch branch || IsCurrent(branch))
         {
@@ -98,7 +98,7 @@ static class LogKeys
 
     // 'u' pulls the highlighted branch, as the branch menu's Pull does, and the current branch when
     // none is highlighted, which merges, so it can be pulled when diverged
-    public static KeyAction Pull(IViewRepo repo, Hoover hoover)
+    public static KeyAction Pull(IRepoSnapshot repo, Hoover hoover)
     {
         if (Hoovered(repo, hoover) is not Branch branch || IsCurrent(branch))
             return new(BranchPushPullCommands.CanPullCurrentBranch(repo.Repo) ? "pull" : "");
@@ -111,7 +111,7 @@ static class LogKeys
     // Ctrl-C asks what to copy of the row's commit or of the commits selected, the copy menu, and 'i'
     // and '⇧i' copy their ids and messages straight away, see CommitCopy. Hinted for selected rows
     // only, where the line has room for it.
-    public static KeyAction Copy(IViewRepo repo, Selection selection) =>
+    public static KeyAction Copy(IRepoSnapshot repo, Selection selection) =>
         CommitCopy.WhyNot(repo.Repo, selection, repo.CurrentIndex) is var whyNot && whyNot != ""
             ? KeyAction.No(whyNot)
             : new("copy");
@@ -119,7 +119,7 @@ static class LogKeys
     // 'd' diffs the rows selected, else opens the menu of diffs of the highlighted branch, else
     // diffs the row's commit; on the uncommitted row with conflicts it asks whether to resolve them,
     // the default, or to show the diff (IsResolve)
-    public static KeyAction Diff(IViewRepo repo, Hoover hoover, Selection selection)
+    public static KeyAction Diff(IRepoSnapshot repo, Hoover hoover, Selection selection)
     {
         if (selection.IsRows)
             return new("diff");
@@ -133,12 +133,12 @@ static class LogKeys
     // Whether 'd' is on the uncommitted row with files in conflict, where it asks whether to resolve
     // them or to show the diff: it showed the diff, where Enter resolved them, while the hint said
     // 'd resolve'
-    public static bool IsResolve(IViewRepo repo, Hoover hoover, Selection selection) =>
+    public static bool IsResolve(IRepoSnapshot repo, Hoover hoover, Selection selection) =>
         !selection.IsRows && !hoover.IsBranch && repo.RowCommit.IsUncommitted && repo.Status.Conflicted > 0;
 
     // 'h' hides the highlighted branch, else the row's branch, which is not hinted. The main branch
     // is always shown: 'h' on it, and its menu item, did nothing and said nothing.
-    public static KeyAction Hide(IViewRepo repo, Hoover hoover)
+    public static KeyAction Hide(IRepoSnapshot repo, Hoover hoover)
     {
         var branch = Hoovered(repo, hoover) ?? repo.RowBranch;
         if (branch.IsMainBranch)
@@ -149,7 +149,7 @@ static class LogKeys
 
     // 'g' gives the highlighted branch another color, else the row's branch; not hinted, being rare.
     // The main branch and a deleted one keep theirs: 'g' on them did nothing and said nothing.
-    public static KeyAction Color(IViewRepo repo, Hoover hoover)
+    public static KeyAction Color(IRepoSnapshot repo, Hoover hoover)
     {
         var branch = Hoovered(repo, hoover) ?? repo.RowBranch;
         if (branch.IsMainBranch)
@@ -161,17 +161,17 @@ static class LogKeys
     }
 
     // 'b' makes a branch from the highlighted branch, else at the row's commit
-    public static KeyAction NewBranch(IViewRepo repo, Hoover hoover) =>
+    public static KeyAction NewBranch(IRepoSnapshot repo, Hoover hoover) =>
         !hoover.IsBranch && repo.RowCommit.IsUncommitted
             ? KeyAction.No(BranchCreateCommands.NoCommitToStartAt)
             : new("new branch");
 
     // The highlighted branch as the branch menu is for it, i.e. the primary one of a pair
-    public static Branch? Hoovered(IViewRepo repo, Hoover hoover) =>
+    public static Branch? Hoovered(IRepoSnapshot repo, Hoover hoover) =>
         hoover.IsBranch ? repo.Repo.BranchByName[hoover.BranchPrimaryName] : null;
 
     // The highlighted branch, the local one of a pair, which is the one checked out
-    public static Branch HooveredLocal(IViewRepo repo, Hoover hoover)
+    public static Branch HooveredLocal(IRepoSnapshot repo, Hoover hoover)
     {
         var branch = repo.Repo.BranchByName[hoover.BranchPrimaryName];
         return branch.LocalName != "" ? repo.Repo.BranchByName[branch.LocalName] : branch;
@@ -179,5 +179,5 @@ static class LogKeys
 
     static bool IsCurrent(Branch b) => b.IsCurrent || b.IsLocalCurrent;
 
-    static string CurrentName(IViewRepo repo) => repo.Repo.CurrentBranch().ShortNiceUniqueName();
+    static string CurrentName(IRepoSnapshot repo) => repo.Repo.CurrentBranch().ShortNiceUniqueName();
 }

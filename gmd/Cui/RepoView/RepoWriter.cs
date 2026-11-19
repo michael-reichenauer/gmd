@@ -8,7 +8,7 @@ namespace gmd.Cui.RepoView;
 interface IRepoWriter
 {
     IEnumerable<Text> ToPage(
-        IViewRepo repo,
+        IRepoSnapshot repo,
         int firstRow,
         int rowCount,
         int currentIndex,
@@ -37,7 +37,7 @@ class RepoWriter : IRepoWriter
     }
 
     public IEnumerable<Text> ToPage(
-        IViewRepo repo,
+        IRepoSnapshot repo,
         int firstRow,
         int count,
         int currentIndex,
@@ -112,7 +112,7 @@ class RepoWriter : IRepoWriter
         return rows;
     }
 
-    Columns ColumnWidths(IViewRepo repo, int width)
+    Columns ColumnWidths(IRepoSnapshot repo, int width)
     {
         width++;
         int graphWidth = Math.Max(0, Math.Min(repo.Graph.Width, width - 20));
@@ -217,7 +217,7 @@ class RepoWriter : IRepoWriter
     }
 
     // Whether the commit is the tip of a branch checked out in another worktree
-    static bool IsTipInOtherWorktree(IViewRepo repo, Commit c) =>
+    static bool IsTipInOtherWorktree(IRepoSnapshot repo, Commit c) =>
         c.BranchTips.Any(name =>
             repo.Repo.BranchByName.TryGetValue(name, out var branch) && repo.Repo.WorktreePathOf(branch) != ""
         );
@@ -378,7 +378,7 @@ class RepoWriter : IRepoWriter
     // in Chinese or Japanese does not move the time column after it
     static string Txt(string text, int width) => TextWidth.Fit(text, width);
 
-    IReadOnlyDictionary<string, TextBuilder> GetBranchTips(IViewRepo repo)
+    IReadOnlyDictionary<string, TextBuilder> GetBranchTips(IRepoSnapshot repo)
     {
         var branchTips = new Dictionary<string, TextBuilder>();
 

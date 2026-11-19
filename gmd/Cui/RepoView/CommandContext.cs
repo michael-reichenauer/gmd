@@ -22,7 +22,7 @@ class CommandContext
     }
 
     // The repo shown now, which every refresh replaces
-    public IViewRepo ViewRepo => View.ViewRepo;
+    public IRepoSnapshot Snapshot => View.Snapshot;
 
     public IRepoView View { get; }
     public IServer Server { get; }
@@ -39,5 +39,5 @@ class CommandContext
     public IUndoCommands UndoCmds { get; set; } = null!;
 
     // Runs a command in the background with the repo shown as it starts, see CommandRunner
-    public void Do(Func<IViewRepo, Task<Result>> action) => CommandRunner.Do(this, action);
+    public void Do(Func<IRepoSnapshot, Task<Result>> action) => CommandRunner.Do(this, action);
 }

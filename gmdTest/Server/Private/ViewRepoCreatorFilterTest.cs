@@ -10,9 +10,9 @@ namespace gmdTest.Server.Private;
 // commit's id, message (subject and body), branch name, author, date or tags. Two filters are special: '$' is the
 // commits whose branch the user set by hand, and '*' is the ambiguous branch tips.
 //
-// Kept apart from ViewRepoCreaterTest, which is about the branches the user chose to show.
+// Kept apart from ViewRepoCreatorTest, which is about the branches the user chose to show.
 [TestClass]
-public class ViewRepoCreaterFilterTest
+public class ViewRepoCreatorFilterTest
 {
     [TestMethod]
     public async Task TestATermMatchesTheSubject()
@@ -196,7 +196,7 @@ public class ViewRepoCreaterFilterTest
     // branch '<none>', which is how the dialog knows it is not a commit: FilterDlg.cs:91 refuses
     // to select it and FilterDlg.cs:204 leaves it out of the commit and branch counts.
     //
-    // Regression test. EmptyFilteredRepo built this repo all along, but ViewRepoCreater.cs:73
+    // Regression test. EmptyFilteredRepo built this repo all along, but ViewRepoCreator.cs:73
     // called it purely for its return value and discarded that value, so what reached the dialog
     // was simply an empty view and the row the dialog is written for never arrived.
     [TestMethod]

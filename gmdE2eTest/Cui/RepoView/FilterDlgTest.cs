@@ -38,8 +38,8 @@ public class FilterDlgTest
     }
 
     // A filter matching nothing says so in a row of its own rather than emptying the list.
-    // Regression test for two bugs that hid it: ViewRepoCreater built that row all along and
-    // discarded it (ViewRepoCreater.cs:73), and the dialog was drawn over the log view's first
+    // Regression test for two bugs that hid it: ViewRepoCreator built that row all along and
+    // discarded it (ViewRepoCreator.cs:73), and the dialog was drawn over the log view's first
     // row, so even once it was returned it was covered. Note the counts still read 0 — the row
     // is on the virtual '<none>' branch, which the dialog counts as neither commit nor branch.
     [TestMethod]

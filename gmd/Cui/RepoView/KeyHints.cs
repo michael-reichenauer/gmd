@@ -15,7 +15,12 @@ static class KeyHints
 {
     static readonly KeyHint Menu = KeyHintLine.Menu;
 
-    public static IReadOnlyList<KeyHint> For(IViewRepo repo, Hoover hoover, Selection selection, bool isDetailsShown)
+    public static IReadOnlyList<KeyHint> For(
+        IRepoSnapshot repo,
+        Hoover hoover,
+        Selection selection,
+        bool isDetailsShown
+    )
     {
         if (selection.IsRows)
             return ForSelectedRows(repo, selection);
@@ -37,14 +42,14 @@ static class KeyHints
 
     // The ranges the menu and 'd' work with: diff, squash and cherry-pick of the rows, and copying
     // them
-    static IReadOnlyList<KeyHint> ForSelectedRows(IViewRepo repo, Selection selection)
+    static IReadOnlyList<KeyHint> ForSelectedRows(IRepoSnapshot repo, Selection selection)
     {
         List<KeyHint> hints = [Menu, new("d", "diff")];
         Add(hints, "Ctrl-C", LogKeys.Copy(repo, selection));
         return hints;
     }
 
-    static IReadOnlyList<KeyHint> ForCommit(IViewRepo repo, Hoover hoover, Selection selection, bool isDetailsShown)
+    static IReadOnlyList<KeyHint> ForCommit(IRepoSnapshot repo, Hoover hoover, Selection selection, bool isDetailsShown)
     {
         var status = repo.Status;
         List<KeyHint> hints = [new LabelHint(RowName(repo).White(":")), Menu];
@@ -70,7 +75,7 @@ static class KeyHints
 
     // A branch hoovered with ← → or the mouse, named first, since it is what the keys act on and
     // the mouse can move the hoover without a key being pressed
-    static IReadOnlyList<KeyHint> ForBranch(IViewRepo repo, Hoover hoover, Selection selection)
+    static IReadOnlyList<KeyHint> ForBranch(IRepoSnapshot repo, Hoover hoover, Selection selection)
     {
         var status = repo.Status;
         var primary = repo.Repo.BranchByName[hoover.BranchPrimaryName];
@@ -127,7 +132,7 @@ static class KeyHints
     // What the keys act on with no branch highlighted: the commit on the row, or on the uncommitted
     // row the changes, with the branch it is on, in the color of the branch's line in the graph.
     // The application bar names it instead when the key-hint line is turned off.
-    public static TextBuilder RowName(IViewRepo repo)
+    public static TextBuilder RowName(IRepoSnapshot repo)
     {
         var commit = repo.RowCommit;
         var branch = repo.Graph.BranchByName(commit.BranchName);

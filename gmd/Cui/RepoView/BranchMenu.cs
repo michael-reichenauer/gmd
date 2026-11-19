@@ -30,11 +30,11 @@ class BranchMenu : IBranchMenu
     const int MaxItemCount = 20;
 
     readonly IRepoMenu repoMenu;
-    readonly IViewRepo repo;
+    readonly IRepoSnapshot repo;
     readonly CommandContext commands;
     readonly IBranchCommands cmds;
 
-    public BranchMenu(IRepoMenu repoMenu, IViewRepo repo, CommandContext commands)
+    public BranchMenu(IRepoMenu repoMenu, IRepoSnapshot repo, CommandContext commands)
     {
         this.repoMenu = repoMenu;
         this.repo = repo;

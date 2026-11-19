@@ -7,7 +7,7 @@ namespace gmdTest.Cui.RepoView;
 
 // What can be pushed and pulled, and which branches 'push all branches' and 'pull all branches'
 // act on. These are plain functions of the shown repo, i.e. of the HasLocalOnly / HasRemoteOnly
-// flags ViewRepoCreater sets, so they are testable without a view.
+// flags ViewRepoCreator sets, so they are testable without a view.
 //
 // The case that matters most is the diverged branch, which has both flags. The current branch can
 // be pulled but not pushed, since git rejects a push that is not a fast-forward; any other branch

@@ -18,7 +18,7 @@ public class WebLogPageTest
     {
         var repo = await builder.ViewRepoAsync(gmd.Server.ShowBranches.AllActive);
         var colors = new BranchColorService(new FakeRepoConfig());
-        var graph = new GraphCreater(colors).Create(repo);
+        var graph = new GraphCreator(colors).Create(repo);
         return WebLogPage.Html(
             repo,
             graph,
