@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" role="img" aria-labelledby="7-delivery-title" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" style="color: var(--arch-fg, #24292f)">
+<title id="7-delivery-title">Delivery view: from a commit to a user's machine</title>
+<defs><marker id="7-delivery-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker><marker id="7-delivery-arrow-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arch-main, #0969da)"/></marker><marker id="7-delivery-arrow-side" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arch-side, #b07800)"/></marker></defs>
+<rect width="960" height="640" fill="var(--arch-bg, #ffffff)"/>
+<rect x="20" y="40" width="640" height="560" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45"/>
+<text x="32" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">GitHub: michael-reichenauer/gmd</text>
+<rect x="690" y="40" width="250" height="560" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+<text x="702" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">Users</text>
+<path d="M290,114 L370,114" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#7-delivery-arrow-plain)"/>
+<path d="M165,148 L165,210" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#7-delivery-arrow-main)"/>
+<path d="M290,237.2 L370,237.2" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#7-delivery-arrow-main)"/>
+<path d="M370,285 L190,293.5 L190,360" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#7-delivery-arrow-main)"/>
+<path d="M505,300 L505,360" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#7-delivery-arrow-main)"/>
+<path d="M640,394 L675,394 L675,114 L710,114" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#7-delivery-arrow-main)"/>
+<path d="M640,394 L675,394 L675,224 L710,224" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#7-delivery-arrow-main)"/>
+<path d="M640,394 L675,394 L675,334 L710,334" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#7-delivery-arrow-main)"/>
+<path d="M165,428 L165,480" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" marker-end="url(#7-delivery-arrow-side)"/>
+<path d="M165,548 L165,580 L695,580 L695,534 L710,534" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#7-delivery-arrow-side)"/>
+<path d="M640,493.6 L670,493.6 L670,436 L710,436" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#7-delivery-arrow-side)"/>
+<rect x="40" y="80" width="250" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="50" y="100" font-size="14" fill="currentColor" font-weight="600">Feature branch</text>
+<text x="50" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">mr/&lt;topic&gt; or a thread's branch,</text>
+<text x="50" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">a pull request into dev</text>
+<rect x="370" y="80" width="270" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="380" y="100" font-size="14" fill="currentColor" font-weight="600">build.yml, every push and PR</text>
+<text x="380" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">format check, both test projects,</text>
+<text x="380" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">a linux-only publish; no release</text>
+<rect x="40" y="210" width="250" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="50" y="230" font-size="14" fill="currentColor" font-weight="600">dev</text>
+<text x="50" y="249" font-size="12.5" fill="currentColor" fill-opacity="0.8">merges only; CHANGELOG.md's</text>
+<text x="50" y="265" font-size="12.5" fill="currentColor" fill-opacity="0.8">Unreleased notes written here</text>
+<rect x="370" y="200" width="270" height="100" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="380" y="220" font-size="14" fill="currentColor" font-weight="600">release.yml, run by hand</text>
+<text x="380" y="239" font-size="12.5" fill="currentColor" fill-opacity="0.8">a preview builds dev as it is; a</text>
+<text x="380" y="255" font-size="12.5" fill="currentColor" fill-opacity="0.8">release stamps the notes, merges</text>
+<text x="380" y="271" font-size="12.5" fill="currentColor" fill-opacity="0.8">dev into main with --no-ff, raises</text>
+<text x="380" y="287" font-size="12.5" fill="currentColor" fill-opacity="0.8">dev's minor; pushes after tests</text>
+<rect x="40" y="360" width="250" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="50" y="380" font-size="14" fill="currentColor" font-weight="600">main</text>
+<text x="50" y="399" font-size="12.5" fill="currentColor" fill-opacity="0.8">releases only, moved by</text>
+<text x="50" y="415" font-size="12.5" fill="currentColor" fill-opacity="0.8">the Release workflow</text>
+<rect x="370" y="360" width="270" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="380" y="380" font-size="14" fill="currentColor" font-weight="600">GitHub Release v&lt;a.b.c.d&gt;</text>
+<text x="380" y="399" font-size="12.5" fill="currentColor" fill-opacity="0.8">4 platform binaries, gmdSetup.exe,</text>
+<text x="380" y="415" font-size="12.5" fill="currentColor" fill-opacity="0.8">2 copies under old names, SHA256SUMS</text>
+<rect x="370" y="480" width="270" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-side, #b07800)" stroke-width="1.8"/>
+<text x="380" y="500" font-size="14" fill="currentColor" font-weight="600">branch-graph.yml</text>
+<text x="380" y="519" font-size="12.5" fill="currentColor" fill-opacity="0.8">gmd --web-log on every push, hourly</text>
+<text x="380" y="535" font-size="12.5" fill="currentColor" fill-opacity="0.8">and after a release: GitHub Pages</text>
+<rect x="40" y="480" width="250" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-side, #b07800)" stroke-width="1.8"/>
+<text x="50" y="500" font-size="14" fill="currentColor" font-weight="600">devcontainer-feature.yml</text>
+<text x="50" y="519" font-size="12.5" fill="currentColor" fill-opacity="0.8">tests the feature on a change,</text>
+<text x="50" y="535" font-size="12.5" fill="currentColor" fill-opacity="0.8">publishes it to ghcr.io from main</text>
+<rect x="710" y="80" width="210" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="720" y="100" font-size="14" fill="currentColor" font-weight="600">gmd's own updater</text>
+<text x="720" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">hourly check; checksum, runs</text>
+<text x="720" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">the new binary, then swaps it</text>
+<rect x="710" y="190" width="210" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="720" y="210" font-size="14" fill="currentColor" font-weight="600">install.sh, install.ps1</text>
+<text x="720" y="229" font-size="12.5" fill="currentColor" fill-opacity="0.8">latest release, checked</text>
+<text x="720" y="245" font-size="12.5" fill="currentColor" fill-opacity="0.8">against SHA256SUMS</text>
+<rect x="710" y="300" width="210" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1" stroke-dasharray="5 4"/>
+<text x="720" y="320" font-size="14" fill="currentColor" font-weight="600">Homebrew tap</text>
+<text x="720" y="339" font-size="12.5" fill="currentColor" fill-opacity="0.8">a formula per release,</text>
+<text x="720" y="355" font-size="12.5" fill="currentColor" fill-opacity="0.8">pushed by release.yml</text>
+<rect x="710" y="410" width="210" height="52" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1" stroke-dasharray="5 4"/>
+<text x="720" y="430" font-size="14" fill="currentColor" font-weight="600">The web branch graph</text>
+<text x="720" y="449" font-size="12.5" fill="currentColor" fill-opacity="0.8">michael-reichenauer.github.io</text>
+<rect x="710" y="500" width="210" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1" stroke-dasharray="5 4"/>
+<text x="720" y="520" font-size="14" fill="currentColor" font-weight="600">Dev container feature</text>
+<text x="720" y="539" font-size="12.5" fill="currentColor" fill-opacity="0.8">ghcr.io/.../gmd/gmd:1, the</text>
+<text x="720" y="555" font-size="12.5" fill="currentColor" fill-opacity="0.8">latest release per build</text>
+<rect x="315.19" y="95" width="29.62" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="330" y="108" font-size="11.5" fill="currentColor" text-anchor="middle">push</text>
+<rect x="144.785" y="170" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="165" y="183" font-size="11.5" fill="currentColor" text-anchor="middle">merged</text>
+<rect x="296.272" y="218.2" width="67.455" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="330" y="231.2" font-size="11.5" fill="currentColor" text-anchor="middle">run by hand</text>
+<rect x="220.868" y="284.5" width="78.265" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="260" y="297.5" font-size="11.5" fill="currentColor" text-anchor="middle">--no-ff merge</text>
+<rect x="482.082" y="321" width="45.835" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="505" y="334" font-size="11.5" fill="currentColor" text-anchor="middle">publish</text>
+<line x1="40" y1="625" x2="74" y2="625" stroke="var(--arch-main, #0969da)" stroke-width="2"/>
+<text x="82" y="629" font-size="11.5" fill="currentColor" fill-opacity="0.8">the main path</text>
+<line x1="181.89999999999998" y1="625" x2="215.89999999999998" y2="625" stroke="var(--arch-side, #b07800)" stroke-width="2"/>
+<text x="223.9" y="629" font-size="11.5" fill="currentColor" fill-opacity="0.8">background work, events, optional</text>
+<line x1="449.79999999999995" y1="625" x2="483.79999999999995" y2="625" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="491.8" y="629" font-size="11.5" fill="currentColor" fill-opacity="0.8">optional, or outside gmd</text>
+</svg>

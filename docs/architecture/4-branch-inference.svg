@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600" role="img" aria-labelledby="4-branch-inference-title" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" style="color: var(--arch-fg, #24292f)">
+<title id="4-branch-inference-title">Branch inference view: which branch each commit is on</title>
+<defs><marker id="4-branch-inference-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker><marker id="4-branch-inference-arrow-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arch-main, #0969da)"/></marker><marker id="4-branch-inference-arrow-side" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arch-side, #b07800)"/></marker></defs>
+<rect width="960" height="600" fill="var(--arch-bg, #ffffff)"/>
+<rect x="20" y="40" width="220" height="500" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45"/>
+<text x="32" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">Read from git and .git</text>
+<rect x="270" y="40" width="470" height="500" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45"/>
+<text x="282" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">Augmented: the inference, a pipeline of stages</text>
+<rect x="770" y="40" width="170" height="500" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45"/>
+<text x="782" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">Server and Cui</text>
+<path d="M220,114 L255,114 L255,99.5 L290,99.5" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M220,216 L255,216 L255,129.4 L290,129.4" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M220,324 L255,324 L255,158 L290,158" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M220,439 L255,439 L255,186.6 L290,186.6" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M460,119 L520,119" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M625,164 L625,220" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M625,336 L625,410" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M460,300.2 L520,300.2" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-plain)"/>
+<path d="M460,434 L490,434 L490,328 L520,327.996" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-plain)"/>
+<path d="M730,444 L755,438 L755,124 L785,122" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M855,164 L855,220" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-main)"/>
+<path d="M855,450 L855,560 L130,560 L130,478" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" marker-end="url(#4-branch-inference-arrow-side)"/>
+<rect x="40" y="80" width="180" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="50" y="100" font-size="14" fill="currentColor" font-weight="600">git log</text>
+<text x="50" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">the newest 50,000 commits,</text>
+<text x="50" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">with their subjects</text>
+<rect x="40" y="190" width="180" height="52" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="50" y="210" font-size="14" fill="currentColor" font-weight="600">Branches</text>
+<text x="50" y="229" font-size="12.5" fill="currentColor" fill-opacity="0.8">local and remote tips</text>
+<rect x="40" y="290" width="180" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="50" y="310" font-size="14" fill="currentColor" font-weight="600">Reflogs</text>
+<text x="50" y="329" font-size="12.5" fill="currentColor" fill-opacity="0.8">HEAD's, each branch's</text>
+<text x="50" y="345" font-size="12.5" fill="currentColor" fill-opacity="0.8">and each remote's</text>
+<path d="M40,407 a90.0,7 0 0,0 180,0 a90.0,7 0 0,0 -180,0 v64 a90.0,7 0 0,0 180,0 v-64" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="50" y="430" font-size="14" fill="currentColor" font-weight="600">gmd-metadata.json</text>
+<text x="50" y="449" font-size="12.5" fill="currentColor" fill-opacity="0.8">branches set by hand,</text>
+<text x="50" y="465" font-size="12.5" fill="currentColor" fill-opacity="0.8">what the reflog said</text>
+<rect x="290" y="80" width="170" height="130" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="300" y="100" font-size="14" fill="currentColor" font-weight="600">Augmenter</text>
+<text x="300" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">the git records into a</text>
+<text x="300" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">WorkRepo: branches</text>
+<text x="300" y="151" font-size="12.5" fill="currentColor" fill-opacity="0.8">paired with their</text>
+<text x="300" y="167" font-size="12.5" fill="currentColor" fill-opacity="0.8">remotes, tags, stashes</text>
+<rect x="290" y="290" width="170" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="300" y="310" font-size="14" fill="currentColor" font-weight="600">BranchNameService</text>
+<text x="300" y="329" font-size="12.5" fill="currentColor" fill-opacity="0.8">branch names parsed</text>
+<text x="300" y="345" font-size="12.5" fill="currentColor" fill-opacity="0.8">from merge subjects</text>
+<rect x="290" y="400" width="170" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="300" y="420" font-size="14" fill="currentColor" font-weight="600">ReflogWitness</text>
+<text x="300" y="439" font-size="12.5" fill="currentColor" fill-opacity="0.8">where commits were</text>
+<text x="300" y="455" font-size="12.5" fill="currentColor" fill-opacity="0.8">made, branches started</text>
+<rect x="520" y="80" width="210" height="84" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="530" y="100" font-size="14" fill="currentColor" font-weight="600">1. CommitGraphService</text>
+<text x="530" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">branch tips, parents and</text>
+<text x="530" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">children; swaps the parents</text>
+<text x="530" y="151" font-size="12.5" fill="currentColor" fill-opacity="0.8">of pull and foxtrot merges</text>
+<rect x="520" y="220" width="210" height="116" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="530" y="240" font-size="14" fill="currentColor" font-weight="600">2. CommitBranchService</text>
+<text x="530" y="259" font-size="12.5" fill="currentColor" fill-opacity="0.8">a branch for every commit:</text>
+<text x="530" y="275" font-size="12.5" fill="currentColor" fill-opacity="0.8">CommitBranchRules, 15 rules</text>
+<text x="530" y="291" font-size="12.5" fill="currentColor" fill-opacity="0.8">in order of evidence, the</text>
+<text x="530" y="307" font-size="12.5" fill="currentColor" fill-opacity="0.8">first that applies wins, else</text>
+<text x="530" y="323" font-size="12.5" fill="currentColor" fill-opacity="0.8">ambiguous (BranchAmbiguity)</text>
+<rect x="520" y="410" width="210" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="530" y="430" font-size="14" fill="currentColor" font-weight="600">3. BranchHierarchyService</text>
+<text x="530" y="449" font-size="12.5" fill="currentColor" fill-opacity="0.8">each branch's parent,</text>
+<text x="530" y="465" font-size="12.5" fill="currentColor" fill-opacity="0.8">the root branch, ancestors</text>
+<rect x="785" y="80" width="140" height="84" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="795" y="100" font-size="14" fill="currentColor" font-weight="600">Repo</text>
+<text x="795" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">every commit's</text>
+<text x="795" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">branch, every</text>
+<text x="795" y="151" font-size="12.5" fill="currentColor" fill-opacity="0.8">branch's parent</text>
+<rect x="785" y="220" width="140" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="795" y="240" font-size="14" fill="currentColor" font-weight="600">ViewRepoCreater</text>
+<text x="795" y="259" font-size="12.5" fill="currentColor" fill-opacity="0.8">the branches</text>
+<text x="795" y="275" font-size="12.5" fill="currentColor" fill-opacity="0.8">the user shows</text>
+<circle cx="855.0" cy="344" r="12" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.3"/>
+<path d="M831.0,382 q0,-24 24,-24 q24,0 24,24 z" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.3"/>
+<text x="855" y="400" font-size="14" fill="currentColor" font-weight="600" text-anchor="middle">Developer</text>
+<text x="855" y="418" font-size="12.5" fill="currentColor" text-anchor="middle" fill-opacity="0.8">Set Branch, when</text>
+<text x="855" y="434" font-size="12.5" fill="currentColor" text-anchor="middle" fill-opacity="0.8">a commit is</text>
+<text x="855" y="450" font-size="12.5" fill="currentColor" text-anchor="middle" fill-opacity="0.8">ambiguous</text>
+<rect x="464.38" y="100" width="51.24" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="490" y="113" font-size="11.5" fill="currentColor" text-anchor="middle">WorkRepo</text>
+<rect x="472.488" y="281.2" width="35.025" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="490" y="294.2" font-size="11.5" fill="currentColor" text-anchor="middle">names</text>
+<rect x="461.678" y="376" width="56.645" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="490" y="389" font-size="11.5" fill="currentColor" text-anchor="middle">witnessed</text>
+<rect x="466.272" y="551" width="67.455" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="500" y="564" font-size="11.5" fill="currentColor" text-anchor="middle">set by hand</text>
+<line x1="40" y1="588" x2="74" y2="588" stroke="var(--arch-main, #0969da)" stroke-width="2"/>
+<text x="82" y="592" font-size="11.5" fill="currentColor" fill-opacity="0.8">the main path</text>
+<line x1="181.89999999999998" y1="588" x2="215.89999999999998" y2="588" stroke="var(--arch-side, #b07800)" stroke-width="2"/>
+<text x="223.9" y="592" font-size="11.5" fill="currentColor" fill-opacity="0.8">background work, events, optional</text>
+<line x1="449.79999999999995" y1="588" x2="483.79999999999995" y2="588" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="491.8" y="592" font-size="11.5" fill="currentColor" fill-opacity="0.8">optional, or outside gmd</text>
+</svg>

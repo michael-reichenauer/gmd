@@ -393,6 +393,7 @@ so when it ends, with the same links.
 
 [CONTRIBUTING.md](docs/CONTRIBUTING.md) describes how gmd is built, how to set up a machine for it, the
 scripts and the conventions.
+[ARCHITECTURE.md](docs/ARCHITECTURE.md) is the map of how gmd is built, with diagrams.
 
 ## Third-party components
 
