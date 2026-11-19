@@ -4,7 +4,7 @@ using gmd.Cui.Common;
 using gmd.Cui.Login;
 using gmd.Cui.RepoView;
 using gmd.Cui.Start;
-using gmd.Git;
+using gmd.Server;
 using Terminal.Gui.ViewBase;
 using Runnable = Terminal.Gui.Views.Runnable;
 
@@ -20,7 +20,7 @@ class MainView : IMainView
 {
     readonly IRepoView repoView;
     readonly IStartView startView;
-    readonly IGit git;
+    readonly IServer server;
     readonly ISpellChecker spellChecker;
     readonly IAskpassServer askpassServer;
     readonly ILoginDlg loginDlg;
@@ -32,7 +32,7 @@ class MainView : IMainView
     public MainView(
         IRepoView repoView,
         IStartView startView,
-        IGit git,
+        IServer server,
         ISpellChecker spellChecker,
         IStatusLine statusLine,
         IAskpassServer askpassServer,
@@ -42,7 +42,7 @@ class MainView : IMainView
         Menu.StatusLine = statusLine;
         this.repoView = repoView;
         this.startView = startView;
-        this.git = git;
+        this.server = server;
         this.spellChecker = spellChecker;
         this.askpassServer = askpassServer;
         this.loginDlg = loginDlg;
@@ -100,7 +100,7 @@ class MainView : IMainView
         startFolder = GetStartFolder();
         repoView.SetStartPage(startView.View, startView.Hints);
 
-        if (git.RootPath(startFolder) is string rootPath && !IsShowStartPage)
+        if (server.RootPath(startFolder) is string rootPath && !IsShowStartPage)
         {
             ShowRepo(rootPath);
             return;

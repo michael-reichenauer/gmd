@@ -93,7 +93,6 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly IRepoConfigService repoConfig;
     readonly IBranchColorService branchColors;
     readonly IProgress progress;
-    readonly IGit git;
     readonly ICommitDetailsView commitDetailsView;
     readonly IApplicationBar applicationBarView;
     readonly IFilterDlg filterDlg;
@@ -152,7 +151,6 @@ class RepoView : IRepoView, IRepoViewInputHost
         IRepoConfigService repoConfig,
         IBranchColorService branchColors,
         IProgress progress,
-        IGit git,
         ICommitDetailsView commitDetailsView,
         IApplicationBar applicationBarView,
         IFilterDlg filterDlg,
@@ -170,7 +168,6 @@ class RepoView : IRepoView, IRepoViewInputHost
         this.repoConfig = repoConfig;
         this.branchColors = branchColors;
         this.progress = progress;
-        this.git = git;
         this.commitDetailsView = commitDetailsView;
         this.applicationBarView = applicationBarView;
         this.filterDlg = filterDlg;
@@ -247,7 +244,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     public async Task<Result> ShowRepoAsync(string path)
     {
-        var rootDirResult = git.RootPath(path);
+        var rootDirResult = server.RootPath(path);
         if (rootDirResult is not string rootDir)
             return rootDirResult.Error;
         Log.Info($"Show repo for '{path}' ({rootDir})");

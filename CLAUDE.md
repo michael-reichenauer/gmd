@@ -394,7 +394,10 @@ of through an index of HEAD (`PatchService.CommitPatchesAsync`), the working tre
 
 Layering note: the arrow is clean — nothing below `gmd/Cui/` references it, and nothing below
 `gmd/Cui/` references Terminal.Gui (`gmd/Program.cs`, the entry point, does — it is the composition
-root, above the layers). The one thing a lower layer needs from the UI is its main loop, and that
+root, above the layers). Downwards, the UI reaches git only through `IServer`: it may use the git
+layer's value types and helpers (`WebLinks`, `RefName`, `GitDir`, `DiffOptions`, `ConflictError`, …),
+never `IGit` or the implementation of the git layer or the server, which `CuiLayerTest` checks in the
+compiled code. The one thing a lower layer needs from the UI is its main loop, and that
 goes through `IMainThread` (`gmd/Utils/IMainThread.cs`): `Post` to raise an event on the UI thread,
 `RunPeriodically` for a timer, implemented by `MainThread` (`Cui/Common/`) over `UI`. `FileMonitor`
 is its only user. Keep it that way: if a lower layer needs something else from the UI, widen that

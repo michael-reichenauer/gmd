@@ -76,6 +76,8 @@ class Server : IServer
         }
     }
 
+    public Result<string> RootPath(string path) => git.RootPath(path);
+
     public async Task<Result<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches)
     {
         var repoResult = await augmentedService.GetRepoAsync(path);
