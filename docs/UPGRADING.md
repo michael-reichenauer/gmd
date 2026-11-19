@@ -34,7 +34,7 @@ of C# 15 were: gmd was built with the .NET 11 previews for months while it targe
    `UnionAttribute` and `IUnion` were (`gmd/Utils/UnionPolyfill.cs`, in git's history), inside
    `#if !NET<version>_0_OR_GREATER`.
 6. Update VS Code's C# extension; its bundled Roslyn must know the new syntax or it flags it.
-7. Verify: `dotnet build gmd.sln`, `dotnet csharpier check .`, `scripts/test` (all tiers), and a smoke
+7. Verify: `dotnet build gmd.slnx`, `dotnet csharpier check .`, `scripts/test` (all tiers), and a smoke
    run of the built binary as CLAUDE.md describes.
 
 ## 2. Move the target framework

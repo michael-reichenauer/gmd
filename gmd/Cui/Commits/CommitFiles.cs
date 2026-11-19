@@ -30,9 +30,8 @@ class CommitFiles
             .. status.ModifiedFiles.Select(p => new File('M', p, [p])),
             .. status.AddedFiles.Select(p => new File('A', p, [p])),
             .. status.DeletedFiles.Select(p => new File('D', p, [p])),
-            .. status.RenamedSourceFiles.Zip(
-                status.RenamedTargetFiles,
-                (source, target) => new File('R', $"{source} → {target}", [source, target])
+            .. status.RenamedSourceFiles.Zip(status.RenamedTargetFiles, (source, target) =>
+                new File('R', $"{source} → {target}", [source, target])
             ),
         ];
         Files = files.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();

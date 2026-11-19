@@ -18,7 +18,8 @@ The buttons beside the title open the repository on GitHub, its pull requests an
 runs of its workflows, and, for a repository on github.com, its files in
 [VS Code for the Web](https://vscode.dev), an editor in the browser with nothing to install.
 
-**Branches** lists the active branches drawn in the graph, those whose latest commit is among the
+**Branches**, folded under a count of the branches and their pull requests until tapped, so that
+the commits come first, lists the active branches drawn in the graph, those whose latest commit is among the
 commits shown, the one with the latest commit first, with who made that commit and how long ago. A
 branch's dot has its color in the graph. Tap a name to jump to its latest commit in the graph. A green `#n` is the branch's open pull request (grey while it is a
 draft; one from a fork is left out); `↗` opens the branch on GitHub when it has no pull request.

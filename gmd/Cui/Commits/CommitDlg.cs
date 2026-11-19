@@ -174,16 +174,11 @@ class CommitDlg : ICommitDlg
                     ? "Files, Space unticks one or ticks it again, and a all:"
                     : "Files to add to it, Space ticks one or unticks it again, and a all:";
             dlg.AddLabel(1, 16, Text.Dark(label));
-            var list = dlg.AddContentView(
-                1,
-                17,
-                70,
-                fileRows,
-                (first, count, _, width) =>
-                    (
-                        files.Files.Skip(first).Take(count).Select((_, i) => FileRow(files, first + i, width)),
-                        files.Files.Count
-                    )
+            var list = dlg.AddContentView(1, 17, 70, fileRows, (first, count, _, width) =>
+                (
+                    files.Files.Skip(first).Take(count).Select((_, i) => FileRow(files, first + i, width)),
+                    files.Files.Count
+                )
             );
             list.IsShowCursor = false;
             list.IsHighlightCurrentIndex = true;
@@ -197,14 +192,11 @@ class CommitDlg : ICommitDlg
             list.RegisterKeyHandler(Key.Space, () => Toggle(() => files.Toggle(list.CurrentIndex)));
             list.RegisterKeyHandler(Key.A, () => Toggle(files.ToggleAll));
             list.RegisterKeyHandler(Key.A.WithShift, () => Toggle(files.ToggleAll));
-            list.RegisterMouseHandler(
-                MouseFlags.LeftButtonClicked,
-                (_, y) =>
-                {
-                    list.SetCurrentIndex(list.FirstIndex + y);
-                    Toggle(() => files.Toggle(list.FirstIndex + y));
-                }
-            );
+            list.RegisterMouseHandler(MouseFlags.LeftButtonClicked, (_, y) =>
+            {
+                list.SetCurrentIndex(list.FirstIndex + y);
+                Toggle(() => files.Toggle(list.FirstIndex + y));
+            });
             if (!isAmend)
                 dlg.Validate(() => files.TickedCount > 0, "No file is ticked to commit: Space ticks one");
         }

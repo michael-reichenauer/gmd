@@ -180,10 +180,7 @@ class BranchNameService : IBranchNameService
             if (name != fi.Into && name.EndsWith("/" + fi.Into))
             { // The child branch name is the into value with an owner in front, e.g. 'owner/dev' from a
                 // pull request, the same branch, so we can use the child branch name
-                fi = fi with
-                {
-                    Into = name,
-                };
+                fi = fi with { Into = name };
             }
         }
         else

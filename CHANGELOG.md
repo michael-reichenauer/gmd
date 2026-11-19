@@ -8,6 +8,11 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+## [v1.21.1481.487] - 2026-11-19
+
+### Improved
+- The list of branches on the branch graph web page is now folded by default, as About this page is, so the commits come first; its summary counts the branches and their open pull requests, and a tap opens it
+
 ## [v1.20.1474.720] - 2026-11-12
 
 ### Improved

@@ -96,9 +96,8 @@ class DeletedBranchService : IDeletedBranchService
             .ToList();
         if (unrestorable.Count > 0)
         {
-            repoConfig.Set(
-                repo.Path,
-                c => unrestorable.ForEach(sides => DeletedBranchRecords.Forget(c.DeletedBranches, sides))
+            repoConfig.Set(repo.Path, c =>
+                unrestorable.ForEach(sides => DeletedBranchRecords.Forget(c.DeletedBranches, sides))
             );
         }
 
@@ -168,12 +167,7 @@ class DeletedBranchService : IDeletedBranchService
         repoConfig.Set(repo.Path, c => DeletedBranchRecords.Add(c.DeletedBranches, deleted));
 
     void ForgetRestored(Repo repo, DeletedBranch deleted, bool isLocal, bool isRemote) =>
-        repoConfig.Set(
-            repo.Path,
-            c =>
-                DeletedBranchRecords.Forget(
-                    c.DeletedBranches,
-                    DeletedBranchRecords.Restored(deleted, isLocal, isRemote)
-                )
+        repoConfig.Set(repo.Path, c =>
+            DeletedBranchRecords.Forget(c.DeletedBranches, DeletedBranchRecords.Restored(deleted, isLocal, isRemote))
         );
 }

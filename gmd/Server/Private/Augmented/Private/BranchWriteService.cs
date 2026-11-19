@@ -65,9 +65,8 @@ class BranchWriteService : IBranchWriteService
         if (currentCommit == null || currentBranch == null)
             return Result.Ok;
 
-        return await metaDataService.UpdateMetaDataAsync(
-            wd,
-            m => m.SetBranched(currentCommit.Id, currentBranch.NiceName)
+        return await metaDataService.UpdateMetaDataAsync(wd, m =>
+            m.SetBranched(currentCommit.Id, currentBranch.NiceName)
         );
     }
 

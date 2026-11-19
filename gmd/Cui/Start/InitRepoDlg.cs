@@ -20,18 +20,13 @@ class InitRepoDlg : IInitRepoDlg
         dlg.AddLabel(1, 1, "Path:");
         pathField = dlg.AddInputField(7, 1, width - 16, defaultPath, InputMarkers.None);
 
-        dlg.AddButton(
-            width - 9,
-            1,
-            "Browse",
-            () =>
-            {
-                FolderBrowseDlg browseDlg = new FolderBrowseDlg();
-                if (browseDlg.Show("Folder to Init", "choose", browseFolders) is not string path || path == "")
-                    return;
-                pathField.Text = path;
-            }
-        );
+        dlg.AddButton(width - 9, 1, "Browse", () =>
+        {
+            FolderBrowseDlg browseDlg = new FolderBrowseDlg();
+            if (browseDlg.Show("Folder to Init", "choose", browseFolders) is not string path || path == "")
+                return;
+            pathField.Text = path;
+        });
 
         dlg.Validate(() => pathField.Text != "", "Empty path is not allowed");
         dlg.Validate(() => !InitPath.IsUnnamed(pathField.Text), InitPath.WhyNotUnnamed);

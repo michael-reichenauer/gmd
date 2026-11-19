@@ -213,15 +213,11 @@ static class UI
     // long as it returns true
     internal static object AddTimeout(TimeSpan timeout, Func<bool> callback) => App.AddTimeout(timeout, callback)!;
 
-    internal static object AddTimeout(TimeSpan timeout, Action callback) =>
-        App.AddTimeout(
-            timeout,
-            () =>
-            {
-                callback();
-                return false;
-            }
-        )!;
+    internal static object AddTimeout(TimeSpan timeout, Action callback) => App.AddTimeout(timeout, () =>
+        {
+            callback();
+            return false;
+        })!;
 
     internal static void RemoveTimeout(object token) => App.RemoveTimeout(token);
 

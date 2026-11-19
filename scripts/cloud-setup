@@ -139,7 +139,7 @@ dotnet --list-runtimes
 
 step "dotnet tools and NuGet packages"
 dotnet tool restore
-dotnet restore gmd.sln
+dotnet restore gmd.slnx
 
 step "agg and its fonts (scripts/demo)"
 aggResult="agg"

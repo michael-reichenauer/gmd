@@ -376,16 +376,13 @@ class ConflictView : IConflictView
     void RegisterShortcuts(ContentView view)
     {
         // Esc leaves the list of files for the file, and closes the resolver
-        view.RegisterKeyHandler(
-            Key.Esc,
-            () =>
-            {
-                if (isListFocus)
-                    ToggleListFocus();
-                else
-                    Close();
-            }
-        );
+        view.RegisterKeyHandler(Key.Esc, () =>
+        {
+            if (isListFocus)
+                ToggleListFocus();
+            else
+                Close();
+        });
 
         // The next and the previous file still conflicted, as the diff's } and { go to a file, and the
         // list of them, which Tab moves the keys to and back; there the arrows show the file they
@@ -399,16 +396,13 @@ class ConflictView : IConflictView
         view.RegisterKeyHandler(Key.PageDown, () => MoveInList(ListPage));
         view.RegisterKeyHandler(Key.Home, () => MoveInList(-files.Files.Count));
         view.RegisterKeyHandler(Key.End, () => MoveInList(files.Files.Count));
-        view.RegisterKeyHandler(
-            Key.Enter,
-            () =>
-            {
-                if (!isListFocus)
-                    return false;
-                GoToFile(files.Files[listSelected].Path);
-                return true;
-            }
-        );
+        view.RegisterKeyHandler(Key.Enter, () =>
+        {
+            if (!isListFocus)
+                return false;
+            GoToFile(files.Files[listSelected].Path);
+            return true;
+        });
 
         // Terminal.Gui 1.x has no Key value for these, so use the ascii code, as the diff view's
         // '+' and '-' do

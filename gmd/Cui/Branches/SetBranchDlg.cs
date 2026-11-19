@@ -59,17 +59,12 @@ class SetBranchDlg : ISetBranchDlg
         var color = isBranchSetByUser ? Color.White : Color.Dark;
         dlg.AddLabel(1, 1, Text.Color(color, "Manually Set: ").Dark(isBranchSetByUser ? niceName : "-"));
         var isUnsetClicked = false;
-        var unsetBtn = dlg.AddButton(
-            width - 12,
-            1,
-            "Clear",
-            () =>
-            {
-                isUnsetClicked = true;
-                nameField.Text = "";
-                dlg.Close();
-            }
-        );
+        var unsetBtn = dlg.AddButton(width - 12, 1, "Clear", () =>
+        {
+            isUnsetClicked = true;
+            nameField.Text = "";
+            dlg.Close();
+        });
         unsetBtn.Enabled = isBranchSetByUser;
 
         if (!dlg.ShowOkCancel(listView) && !isUnsetClicked)

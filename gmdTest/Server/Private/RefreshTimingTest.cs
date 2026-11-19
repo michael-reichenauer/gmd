@@ -66,9 +66,8 @@ public class RefreshTimingTest
         // The git reads, the log on its own and with the parse, and the rest the way the service reads them
         var logArgs = $"log --all --date-order {LogService.CommitFormat} --max-count={MaxCommitCount}";
         await TimeAsync("git log, read", async () => AssertOk(await cmd.RunAsync("git", logArgs, RepoPath)));
-        var log = await TimeAsync(
-            "git log, read + parse",
-            async () => AssertOk(await git.GetLogAsync(MaxCommitCount, RepoPath))
+        var log = await TimeAsync("git log, read + parse", async () =>
+            AssertOk(await git.GetLogAsync(MaxCommitCount, RepoPath))
         );
         var reads = await TimeAsync("git other reads, in parallel", () => OtherReadsAsync(git, metaDataService));
 
@@ -91,9 +90,8 @@ public class RefreshTimingTest
         foreach (var show in shows)
         {
             viewRepo = Time($"view repo, {show}", () => viewRepoCreater.GetViewRepoAsync(repo, [], show));
-            Time(
-                $"graph, {show}",
-                () => new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(viewRepo)
+            Time($"graph, {show}", () =>
+                new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(viewRepo)
             );
             AppendView(views, $"{show}", viewRepo);
         }

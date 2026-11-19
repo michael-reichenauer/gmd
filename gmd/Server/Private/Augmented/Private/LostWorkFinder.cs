@@ -36,8 +36,7 @@ static class LostWorkFinder
             .Select(tip =>
             {
                 var ids = LineOf(tip, byId, orderById);
-                var branchName =
-                    ids.Select(id => madeOn.GetValueOrDefault(id)).FirstOrDefault(n => n != null)
+                var branchName = ids.Select(id => madeOn.GetValueOrDefault(id)).FirstOrDefault(n => n != null)
                     ?? BranchMentioning(tip.Id, logs)
                     ?? "";
                 var lostBy =

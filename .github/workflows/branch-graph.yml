@@ -78,10 +78,10 @@ jobs:
           HOME="$RUNNER_TEMP/home" "$RUNNER_TEMP/gmd/gmd" --web-log site/index.html --prs "$RUNNER_TEMP/prs.json" --max 400 --hide stats
 
       - name: Upload the page
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
       - name: Publish the page
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

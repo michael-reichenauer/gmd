@@ -491,29 +491,26 @@ class BranchCommands : IBranchCommands
         {
             await Task.Yield();
 
-            repoConfig.Set(
-                repo.Path,
-                s =>
-                {
-                    // Filter existing branch orders for the two branches
-                    var branchOrders = s.BranchOrders.Where(b =>
-                        !(b.Branch == commonName && b.Other == otherCommonName)
-                        && !(b.Branch == otherCommonName && b.Other == commonName)
-                    );
+            repoConfig.Set(repo.Path, s =>
+            {
+                // Filter existing branch orders for the two branches
+                var branchOrders = s.BranchOrders.Where(b =>
+                    !(b.Branch == commonName && b.Other == otherCommonName)
+                    && !(b.Branch == otherCommonName && b.Other == commonName)
+                );
 
-                    // Add this branch order
-                    s.BranchOrders = branchOrders
-                        .Append(
-                            new BranchOrder()
-                            {
-                                Branch = commonName,
-                                Other = otherCommonName,
-                                Order = delta,
-                            }
-                        )
-                        .ToList();
-                }
-            );
+                // Add this branch order
+                s.BranchOrders = branchOrders
+                    .Append(
+                        new BranchOrder()
+                        {
+                            Branch = commonName,
+                            Other = otherCommonName,
+                            Order = delta,
+                        }
+                    )
+                    .ToList();
+            });
 
             Refresh();
             return Result.Ok;

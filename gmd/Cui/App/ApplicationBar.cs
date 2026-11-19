@@ -98,16 +98,12 @@ class ApplicationBar : View, IApplicationBar
     // idle gmd left open is exactly when a new release turns up. Even at startup the update check
     // often ends after the repo is shown, and then ⇓ waited for whatever redrew the bar next, while
     // the menu said so at once. Redrawn only when the indicator changes, not every five seconds.
-    void StartUpdateTimer() =>
-        UI.AddTimeout(
-            TimeSpan.FromSeconds(5),
-            () =>
-            {
-                if (config.Releases.IsUpdateAvailable() != isUpdateShown)
-                    UpdateView();
-                return true;
-            }
-        );
+    void StartUpdateTimer() => UI.AddTimeout(TimeSpan.FromSeconds(5), () =>
+        {
+            if (config.Releases.IsUpdateAvailable() != isUpdateShown)
+                UpdateView();
+            return true;
+        });
 
     // A click on the bar beside the label, e.g. on its line, as one on the label
     protected override bool OnMouseEvent(Mouse e)

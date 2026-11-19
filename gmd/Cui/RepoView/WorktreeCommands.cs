@@ -159,10 +159,8 @@ class WorktreeCommands : IWorktreeCommands
             return false;
         config.Set(c => c.WorktreeLocation = rsp.Location.ToString());
 
-        var addedAndIgnored = await AddAndIgnoreAsync(
-            rsp,
-            mainRoot,
-            () => server.AddWorktreeAsync(rsp.Path, rsp.BranchName, rsp.IsNewBranch, rsp.StartPoint, current.Path)
+        var addedAndIgnored = await AddAndIgnoreAsync(rsp, mainRoot, () =>
+            server.AddWorktreeAsync(rsp.Path, rsp.BranchName, rsp.IsNewBranch, rsp.StartPoint, current.Path)
         );
         if (addedAndIgnored is Error addError)
             return addError;

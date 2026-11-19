@@ -393,16 +393,11 @@ public class MetaDataServiceTest
     public async Task TestFetchKeepsARemovedChoiceRemoved()
     {
         EnableSync();
-        AssertOk(
-            await service.UpdateMetaDataAsync(
-                Path,
-                m =>
-                {
-                    m.SetCommitBranch("abc123", "dev");
-                    m.RemoveCommitBranch("abc123");
-                }
-            )
-        );
+        AssertOk(await service.UpdateMetaDataAsync(Path, m =>
+            {
+                m.SetCommitBranch("abc123", "dev");
+                m.RemoveCommitBranch("abc123");
+            }));
         git.RemoteValues[Key] = Local;
 
         AssertOk(await service.FetchMetaDataAsync(Path));

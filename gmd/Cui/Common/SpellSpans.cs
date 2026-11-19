@@ -108,15 +108,11 @@ static class SpellSpans
     }
 
     public static MenuItem AddToDictionary(ISpellChecker spellChecker, string word, Action redraw) =>
-        Menu.Item(
-            $"Add '{word}' to dictionary",
-            "",
-            () =>
-            {
-                spellChecker.AddToDictionary(word);
-                redraw();
-            }
-        );
+        Menu.Item($"Add '{word}' to dictionary", "", () =>
+        {
+            spellChecker.AddToDictionary(word);
+            redraw();
+        });
 
     static char ToChar(uint runeValue) => runeValue <= 0xFFFF ? (char)runeValue : '�';
 

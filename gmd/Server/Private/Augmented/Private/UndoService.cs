@@ -118,15 +118,12 @@ class UndoService : IUndoService
     // Records a change gmd made to a branch as its latest, see RepoConfig.UndoSteps, and forgets the
     // records of branches that are gone. Static, since the commit rewrites record theirs too.
     internal static void Record(IRepoConfigService repoConfig, Repo repo, string branchName, RecordedStep step) =>
-        repoConfig.Set(
-            repo.Path,
-            c =>
+        repoConfig.Set(repo.Path, c =>
+        {
+            foreach (var name in c.UndoSteps.Keys.Where(n => !repo.BranchByName.ContainsKey(n)).ToList())
             {
-                foreach (var name in c.UndoSteps.Keys.Where(n => !repo.BranchByName.ContainsKey(n)).ToList())
-                {
-                    c.UndoSteps.Remove(name);
-                }
-                c.UndoSteps[branchName] = step;
+                c.UndoSteps.Remove(name);
             }
-        );
+            c.UndoSteps[branchName] = step;
+        });
 }

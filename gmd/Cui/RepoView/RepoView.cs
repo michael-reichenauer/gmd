@@ -234,14 +234,11 @@ class RepoView : IRepoView, IRepoViewInputHost
         if (await ShowRepoAsync(path) is Error e)
             return e;
         UI.AddTimeout(fetchInterval, () => FetchFromRemote());
-        UI.AddTimeout(
-            worktreeStatusInterval,
-            () =>
-            {
-                UpdateWorktreesStatus();
-                return true;
-            }
-        );
+        UI.AddTimeout(worktreeStatusInterval, () =>
+        {
+            UpdateWorktreesStatus();
+            return true;
+        });
         updater.StartCheckUpdatesRegularly().RunInBackground();
 
         input.Register();
@@ -437,14 +434,11 @@ class RepoView : IRepoView, IRepoViewInputHost
         UI.OnMainLoop(() =>
         {
             UpdateStatusLine();
-            UI.AddTimeout(
-                (status.Current?.Duration ?? StatusLine.Duration) + TimeSpan.FromMilliseconds(100),
-                () =>
-                {
-                    UpdateStatusLine();
-                    return false;
-                }
-            );
+            UI.AddTimeout((status.Current?.Duration ?? StatusLine.Duration) + TimeSpan.FromMilliseconds(100), () =>
+            {
+                UpdateStatusLine();
+                return false;
+            });
         });
     }
 
@@ -839,14 +833,11 @@ class RepoView : IRepoView, IRepoViewInputHost
         var seen = Cui.RepoView.HiddenNews.Seen(serverRepo, config.SeenTips, config.IsSeenTipsForAll);
         if (!config.IsSeenTipsForAll || !Cui.RepoView.HiddenNews.IsSame(seen, config.SeenTips))
         {
-            repoConfig.Set(
-                serverRepo.Path,
-                s =>
-                {
-                    s.SeenTips = seen;
-                    s.IsSeenTipsForAll = true;
-                }
-            );
+            repoConfig.Set(serverRepo.Path, s =>
+            {
+                s.SeenTips = seen;
+                s.IsSeenTipsForAll = true;
+            });
         }
 
         hiddenNews = Cui.RepoView.HiddenNews.Of(serverRepo, seen);
@@ -962,8 +953,8 @@ class RepoView : IRepoView, IRepoViewInputHost
             return LoginAdvice.Of(login);
 
         var lines = e.AllMessages().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var line =
-            lines.FirstOrDefault(l => l.StartsWith("fatal:") || l.StartsWith("error:")) ?? lines.FirstOrDefault();
+        var line = lines.FirstOrDefault(l => l.StartsWith("fatal:") || l.StartsWith("error:"))
+            ?? lines.FirstOrDefault();
         return line?.Replace("fatal: ", "").Replace("error: ", "") ?? "";
     }
 

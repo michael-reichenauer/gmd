@@ -85,8 +85,7 @@ static class Uncommitted
 
     static Commit NewCommit(Repo repo)
     {
-        var currentBranch =
-            repo.AllBranches.FirstOrDefault(b => b.IsCurrent)
+        var currentBranch = repo.AllBranches.FirstOrDefault(b => b.IsCurrent)
             ?? repo.AllBranches.FirstOrDefault(b => b.IsMainBranch)
             ?? repo.AllBranches.First();
 

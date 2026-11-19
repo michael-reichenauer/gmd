@@ -25,13 +25,10 @@ class Typing
         if (timeout != null)
             UI.RemoveTimeout(timeout);
 
-        timeout = UI.AddTimeout(
-            Pause,
-            () =>
-            {
-                timeout = null;
-                onPause();
-            }
-        );
+        timeout = UI.AddTimeout(Pause, () =>
+        {
+            timeout = null;
+            onPause();
+        });
     }
 }

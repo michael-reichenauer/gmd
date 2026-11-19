@@ -117,17 +117,11 @@ class Menu
         );
         itemRows = MenuRows.ToRows(this.items, dimensions);
 
-        dlg = new UIDialog(
-            title,
-            dimensions.Width,
-            dimensions.Height,
-            null,
-            options =>
-            {
-                options.X = dimensions.X;
-                options.Y = dimensions.Y;
-            }
-        );
+        dlg = new UIDialog(title, dimensions.Width, dimensions.Height, null, options =>
+        {
+            options.X = dimensions.X;
+            options.Y = dimensions.Y;
+        });
 
         itemsView = CreateItemsView();
 

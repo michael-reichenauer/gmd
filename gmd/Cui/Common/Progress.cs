@@ -80,25 +80,19 @@ class Progress : IProgress
     void StartPulse(int delay)
     {
         StopPulse();
-        pulse = UI.AddTimeout(
-            TimeSpan.FromMilliseconds(delay),
-            () =>
-            {
-                if (marquee == null)
-                    return false;
-                marquee.IsVisible = true;
-                marquee.Pulse();
-                pulse = UI.AddTimeout(
-                    TimeSpan.FromMilliseconds(pulseInterval),
-                    () =>
-                    {
-                        marquee?.Pulse();
-                        return marquee != null;
-                    }
-                );
+        pulse = UI.AddTimeout(TimeSpan.FromMilliseconds(delay), () =>
+        {
+            if (marquee == null)
                 return false;
-            }
-        );
+            marquee.IsVisible = true;
+            marquee.Pulse();
+            pulse = UI.AddTimeout(TimeSpan.FromMilliseconds(pulseInterval), () =>
+            {
+                marquee?.Pulse();
+                return marquee != null;
+            });
+            return false;
+        });
     }
 
     void StopPulse()
