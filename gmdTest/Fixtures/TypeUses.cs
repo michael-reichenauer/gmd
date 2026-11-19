@@ -89,28 +89,47 @@ static class TypeUses
                     or OperandType.InlineTok
             )
             {
-                if (Resolve(method.Module, BitConverter.ToInt32(il, i), typeArguments, methodArguments) is Type used)
+                foreach (
+                    var used in Resolve(method.Module, BitConverter.ToInt32(il, i), typeArguments, methodArguments)
+                )
                     yield return used;
             }
             i += OperandSize(op, il, i);
         }
+
+        foreach (var local in method.GetMethodBody()?.LocalVariables ?? [])
+            yield return local.LocalType;
     }
 
-    static Type? Resolve(Module module, int token, Type[]? typeArguments, Type[]? methodArguments)
+    // A token as the types it names: a type itself, or a member's declaring type and the types of its
+    // signature, with a generic method's type arguments, so that a call naming a type only there, e.g.
+    // Resolve<IGit>(), or a field read whose type goes no further, is a use too
+    static IEnumerable<Type> Resolve(Module module, int token, Type[]? typeArguments, Type[]? methodArguments)
     {
+        MemberInfo? member;
         try
         {
-            return module.ResolveMember(token, typeArguments, methodArguments) switch
-            {
-                Type t => t,
-                MemberInfo m => m.DeclaringType,
-                _ => null,
-            };
+            member = module.ResolveMember(token, typeArguments, methodArguments);
         }
         catch (ArgumentException)
         {
-            return null; // A member of a generic the context does not resolve, e.g. in a lambda's closure
+            return []; // A member of a generic the context does not resolve, e.g. in a lambda's closure
         }
+
+        return member switch
+        {
+            Type t => [t],
+            FieldInfo f => [f.DeclaringType!, f.FieldType],
+            MethodBase m =>
+            [
+                m.DeclaringType!,
+                .. m is MethodInfo mi ? [mi.ReturnType] : Array.Empty<Type>(),
+                .. m.GetParameters().Select(p => p.ParameterType),
+                .. m.IsGenericMethod ? m.GetGenericArguments() : [],
+            ],
+            MemberInfo m when m.DeclaringType != null => [m.DeclaringType],
+            _ => [],
+        };
     }
 
     static int OperandSize(OpCode op, byte[] il, int i) =>

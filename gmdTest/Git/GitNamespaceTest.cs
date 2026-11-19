@@ -32,7 +32,11 @@ public class GitNamespaceTest
         || IsIn(type, "gmd.Utils")
         || IsIn(type, "System")
         || IsIn(type, "Microsoft")
-        || (type.Namespace == null && type.Name.StartsWith('<')); // Made by the compiler
+        || IsMadeByTheCompiler(type);
+
+    // E.g. <PrivateImplementationDetails>, which holds a static array's data, and the types nested in it
+    static bool IsMadeByTheCompiler(Type type) =>
+        type.Namespace == null && (type.Name.StartsWith('<') || type.DeclaringType is Type d && IsMadeByTheCompiler(d));
 
     static bool IsIn(Type type, string ns) => TypeUses.IsIn(type, ns);
 }

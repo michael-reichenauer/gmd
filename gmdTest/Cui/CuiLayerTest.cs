@@ -14,13 +14,10 @@ public class CuiLayerTest
     [TestMethod]
     public void TestCuiReachesGitOnlyThroughTheServer()
     {
-        var uses = TypeUses
-            .Of(TypeUses.In("gmd.Cui"))
-            .Where(u => IsForbidden(u.Used))
-            .Select(TypeUses.Describe)
-            .Distinct()
-            .Order()
-            .ToList();
+        var all = TypeUses.Of(TypeUses.In("gmd.Cui")).ToList();
+        Assert.IsTrue(all.Any(u => u.Used == typeof(gmd.Server.IServer)), "The scan found no use of IServer");
+
+        var uses = all.Where(u => IsForbidden(u.Used)).Select(TypeUses.Describe).Distinct().Order().ToList();
 
         Assert.AreEqual("", string.Join("\n", uses));
     }
