@@ -30,6 +30,30 @@ of one area are in the files beside this one, which load with the files they are
   preview (it is slow, and once timed out flakily); say in the report when a change alters what the
   demo shows.
 
+## The architecture document
+
+`docs/ARCHITECTURE.md` is the overview of how gmd is built, in numbered views, and its diagrams are
+written by `docs/architecture/generate.py` (Python 3 alone), never drawn by hand. It drifts unless
+it moves with the code, so:
+
+- **A change that alters what a view shows updates the prose, the generator and the regenerated
+  SVGs in the same pull request**, each diagram rendered and looked at before it is committed (the
+  last section of the document says how). What counts: a folder of `gmd/` (a layer, a `Cui/`
+  feature folder) added, removed or renamed; a dependency between them in a new direction, above
+  all an upward one or one past a layer; a new process gmd starts, external program, network
+  service, file or ref gmd writes, or setting it stores (keep the README's "What Gmd Stores and
+  Sends" in step too); a change to the read, refresh or command flow (`RepoView`, `Server`,
+  `AugmentedService`, the inference pipeline's stages); a change to `build.yml`, `release.yml` or
+  another workflow, or to how a release reaches users; a design decision made or reversed; a risk
+  that appeared or went away. A bug fix, or a change inside one module that no view shows, needs
+  nothing.
+- **Before opening a pull request**, check the change against the views and say in it whether the
+  document needed a change.
+- **When a release is made, or when the user asks whether the document is current**, run
+  `python3 docs/architecture/generate.py --count`, put the numbers into the prose and the table at
+  the top, regenerate the SVGs, and check each view against the code; commit it on `dev` with the
+  release's other preparations.
+
 ## Showing UI work
 
 Screenshots of finished UI work are wanted only while the user is away from a computer: in a cloud

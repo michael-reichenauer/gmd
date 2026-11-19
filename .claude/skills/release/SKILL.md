@@ -64,6 +64,8 @@ for tone and length. Do not invent: a change you cannot place goes to the user a
   the latest release's major.minor; if not, say so rather than raise it yourself.
 - For a release: re-record the README's pictures with `scripts/demo` on `dev` and commit them if they
   changed (`.claude/rules/workflow.md`). If the demo fails, say so and ask.
+- For a release: recount and check `docs/ARCHITECTURE.md` (`.claude/rules/workflow.md`, "The
+  architecture document") and commit it on `dev` if anything changed.
 - CI on `dev`'s tip is green (the Build workflow), or say what is red.
 
 ## 4. Ask

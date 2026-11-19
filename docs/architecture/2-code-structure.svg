@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 680" width="960" height="680" role="img" aria-labelledby="2-code-structure-title" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" style="color: var(--arch-fg, #24292f)">
+<title id="2-code-structure-title">Code structure view: five layers, and the calls go down</title>
+<defs><marker id="2-code-structure-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker><marker id="2-code-structure-arrow-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arch-main, #0969da)"/></marker><marker id="2-code-structure-arrow-side" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arch-side, #b07800)"/></marker></defs>
+<rect width="960" height="680" fill="var(--arch-bg, #ffffff)"/>
+<rect x="20" y="40" width="690" height="610" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45"/>
+<text x="32" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">gmd: one .NET assembly, a namespace per folder</text>
+<rect x="740" y="40" width="200" height="610" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+<text x="752" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">Outside gmd</text>
+<path d="M164,127 L164,170" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-main)"/>
+<path d="M164,238 L164,300" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-main)"/>
+<path d="M323.6,300 L323.6,238" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-side)"/>
+<path d="M164,368 L164,425" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-main)"/>
+<path d="M164,493 L164,550" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-main)"/>
+<path d="M430,351 L450,351 L450,528 L403.4,528 L403.4,550" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-plain)"/>
+<path d="M50,204 L32,213 L32,594 L50,584" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#2-code-structure-arrow-plain)"/>
+<path d="M430,584 L470,584" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-main)"/>
+<path d="M680,584 L760,584" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-main)"/>
+<path d="M430,197.2 L760,197.2" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#2-code-structure-arrow-plain)"/>
+<path d="M680,451 L695,451 L695,227.8 L430,227.8" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#2-code-structure-arrow-side)"/>
+<rect x="50" y="75" width="380" height="52" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="60" y="95" font-size="14" fill="currentColor" font-weight="600">Program.cs</text>
+<text x="60" y="114" font-size="12.5" fill="currentColor" fill-opacity="0.8">the entry point; Autofac registers every type</text>
+<rect x="50" y="170" width="380" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="60" y="190" font-size="14" fill="currentColor" font-weight="600">Cui  (about 34k lines)</text>
+<text x="60" y="209" font-size="12.5" fill="currentColor" fill-opacity="0.8">Terminal.Gui views, dialogs, menus, the graph:</text>
+<text x="60" y="225" font-size="12.5" fill="currentColor" fill-opacity="0.8">RepoView, Diff, Blame, Conflict, Start, WebLog, ...</text>
+<rect x="50" y="300" width="380" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="60" y="320" font-size="14" fill="currentColor" font-weight="600">Server  (about 3.3k)</text>
+<text x="60" y="339" font-size="12.5" fill="currentColor" fill-opacity="0.8">IServer, and the immutable Repo the UI draws;</text>
+<text x="60" y="355" font-size="12.5" fill="currentColor" fill-opacity="0.8">FileMonitor, the shown subset of branches</text>
+<rect x="50" y="425" width="380" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="60" y="445" font-size="14" fill="currentColor" font-weight="600">Server/Private/Augmented  (about 6k)</text>
+<text x="60" y="464" font-size="12.5" fill="currentColor" fill-opacity="0.8">what git does not record: each commit's branch,</text>
+<text x="60" y="480" font-size="12.5" fill="currentColor" fill-opacity="0.8">the branch hierarchy; the writes that need it</text>
+<rect x="50" y="550" width="380" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="60" y="570" font-size="14" fill="currentColor" font-weight="600">Git  (about 6.1k)</text>
+<text x="60" y="589" font-size="12.5" fill="currentColor" fill-opacity="0.8">a service per git area behind IGit; a general</text>
+<text x="60" y="605" font-size="12.5" fill="currentColor" fill-opacity="0.8">git library, which GitNamespaceTest guards</text>
+<rect x="470" y="300" width="210" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="480" y="320" font-size="14" fill="currentColor" font-weight="600">Common  (about 790)</text>
+<text x="480" y="339" font-size="12.5" fill="currentColor" fill-opacity="0.8">config, repo config, the</text>
+<text x="480" y="355" font-size="12.5" fill="currentColor" fill-opacity="0.8">command line, spelling</text>
+<rect x="470" y="425" width="210" height="52" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="480" y="445" font-size="14" fill="currentColor" font-weight="600">Installation  (about 1k)</text>
+<text x="480" y="464" font-size="12.5" fill="currentColor" fill-opacity="0.8">the self-updater</text>
+<rect x="470" y="550" width="210" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1"/>
+<text x="480" y="570" font-size="14" fill="currentColor" font-weight="600">Utils  (about 2.7k)</text>
+<text x="480" y="589" font-size="12.5" fill="currentColor" fill-opacity="0.8">Result, Log, Cmd, askpass,</text>
+<text x="480" y="605" font-size="12.5" fill="currentColor" fill-opacity="0.8">clipboard, browser, DI</text>
+<rect x="760" y="170" width="160" height="84" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1" stroke-dasharray="5 4"/>
+<text x="770" y="190" font-size="14" fill="currentColor" font-weight="600">Terminal.Gui 2.5</text>
+<text x="770" y="209" font-size="12.5" fill="currentColor" fill-opacity="0.8">the console UI toolkit,</text>
+<text x="770" y="225" font-size="12.5" fill="currentColor" fill-opacity="0.8">named only by Cui</text>
+<text x="770" y="241" font-size="12.5" fill="currentColor" fill-opacity="0.8">and Program.cs</text>
+<rect x="760" y="300" width="160" height="84" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1" stroke-dasharray="5 4"/>
+<text x="770" y="320" font-size="14" fill="currentColor" font-weight="600">Other packages</text>
+<text x="770" y="339" font-size="12.5" fill="currentColor" fill-opacity="0.8">Autofac, DiffPlex,</text>
+<text x="770" y="355" font-size="12.5" fill="currentColor" fill-opacity="0.8">WeCantSpell.Hunspell,</text>
+<text x="770" y="371" font-size="12.5" fill="currentColor" fill-opacity="0.8">TextMateSharp</text>
+<rect x="760" y="550" width="160" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1" stroke-dasharray="5 4"/>
+<text x="770" y="570" font-size="14" fill="currentColor" font-weight="600">git executable</text>
+<text x="770" y="589" font-size="12.5" fill="currentColor" fill-opacity="0.8">on the PATH; one</text>
+<text x="770" y="605" font-size="12.5" fill="currentColor" fill-opacity="0.8">process per command</text>
+<rect x="135.678" y="139.5" width="56.645" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="164" y="152.5" font-size="11.5" fill="currentColor" text-anchor="middle">IMainView</text>
+<rect x="141.083" y="260" width="45.835" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="164" y="273" font-size="11.5" fill="currentColor" text-anchor="middle">IServer</text>
+<rect x="268.252" y="252.5" width="110.695" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="323.6" y="265.5" font-size="11.5" fill="currentColor" text-anchor="middle">events, posted</text>
+<text x="323.6" y="280.5" font-size="11.5" fill="currentColor" text-anchor="middle">through IMainThread</text>
+<rect x="111.355" y="380" width="105.29" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="164" y="393" font-size="11.5" fill="currentColor" text-anchor="middle">IAugmentedService,</text>
+<text x="164" y="408" font-size="11.5" fill="currentColor" text-anchor="middle">write services</text>
+<rect x="149.19" y="512.5" width="29.62" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="164" y="525.5" font-size="11.5" fill="currentColor" text-anchor="middle">IGit</text>
+<rect x="435.19" y="451" width="29.62" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="450" y="464" font-size="11.5" fill="currentColor" text-anchor="middle">IGit</text>
+<rect x="26.2725" y="383.5" width="67.455" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="60" y="396.5" font-size="11.5" fill="currentColor" text-anchor="middle">git's value</text>
+<text x="60" y="411.5" font-size="11.5" fill="currentColor" text-anchor="middle">types</text>
+<rect x="435.19" y="575" width="29.62" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="450" y="588" font-size="11.5" fill="currentColor" text-anchor="middle">ICmd</text>
+<rect x="699.785" y="575" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="720" y="588" font-size="11.5" fill="currentColor" text-anchor="middle">starts</text>
+<rect x="563.975" y="188.2" width="62.05" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="595" y="201.2" font-size="11.5" fill="currentColor" text-anchor="middle">draws with</text>
+<rect x="558.165" y="211.5" width="83.67" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="600" y="224.5" font-size="11.5" fill="currentColor" text-anchor="middle">UI.Post,</text>
+<text x="600" y="239.5" font-size="11.5" fill="currentColor" text-anchor="middle">UI.InfoMessage</text>
+<text x="480" y="635" font-size="11.5" fill="currentColor" fill-opacity="0.75" font-style="italic">Utils is used by every layer; the arrows to it are left out</text>
+<line x1="40" y1="668" x2="74" y2="668" stroke="var(--arch-main, #0969da)" stroke-width="2"/>
+<text x="82" y="672" font-size="11.5" fill="currentColor" fill-opacity="0.8">the main path</text>
+<line x1="181.89999999999998" y1="668" x2="215.89999999999998" y2="668" stroke="var(--arch-side, #b07800)" stroke-width="2"/>
+<text x="223.9" y="672" font-size="11.5" fill="currentColor" fill-opacity="0.8">background work, events, optional</text>
+<line x1="449.79999999999995" y1="668" x2="483.79999999999995" y2="668" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="491.8" y="672" font-size="11.5" fill="currentColor" fill-opacity="0.8">optional, or outside gmd</text>
+</svg>

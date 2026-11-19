@@ -129,6 +129,9 @@ that is no sign of trouble.
 
 ## Architecture
 
+`docs/ARCHITECTURE.md` is the overview, with a diagram per view; keep it current as
+`.claude/rules/workflow.md` ("The architecture document") says. What follows is the detail.
+
 Strictly layered, top calls down. Each layer has a public `IXxx` interface and a `Private/`
 folder holding the implementation:
 

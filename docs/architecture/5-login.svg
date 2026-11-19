@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" width="960" height="500" role="img" aria-labelledby="5-login-title" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" style="color: var(--arch-fg, #24292f)">
+<title id="5-login-title">Login view: git's questions asked in gmd's own dialog</title>
+<defs><marker id="5-login-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker><marker id="5-login-arrow-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arch-main, #0969da)"/></marker><marker id="5-login-arrow-side" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arch-side, #b07800)"/></marker></defs>
+<rect width="960" height="500" fill="var(--arch-bg, #ffffff)"/>
+<rect x="20" y="40" width="360" height="400" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45"/>
+<text x="32" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">gmd on screen</text>
+<rect x="410" y="40" width="530" height="400" rx="10" fill="var(--arch-group, #f3f5f8)" stroke="currentColor" stroke-opacity="0.45"/>
+<text x="422" y="60" font-size="12.5" fill="currentColor" font-weight="600" fill-opacity="0.8">Processes git starts</text>
+<path d="M360,103.8 L430,103.8" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#5-login-arrow-main)"/>
+<path d="M630,103.8 L700,103.8" fill="none" stroke="var(--arch-main, #0969da)" stroke-width="1.6" marker-end="url(#5-login-arrow-main)"/>
+<path d="M766,148 L766,210" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" marker-end="url(#5-login-arrow-side)"/>
+<path d="M858.4,210 L858.4,148" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" marker-end="url(#5-login-arrow-side)"/>
+<path d="M700,233.8 L360,233.8" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" marker-end="url(#5-login-arrow-side)"/>
+<path d="M360,261 L700,261" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" marker-end="url(#5-login-arrow-side)"/>
+<path d="M200,278 L200,330" fill="none" stroke="var(--arch-side, #b07800)" stroke-width="1.6" marker-end="url(#5-login-arrow-side)"/>
+<path d="M810,278 L810,330" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#5-login-arrow-plain)"/>
+<rect x="40" y="80" width="320" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="50" y="100" font-size="14" fill="currentColor" font-weight="600">A command, e.g. Push</text>
+<text x="50" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">Cmd starts git with GIT_TERMINAL_PROMPT=0,</text>
+<text x="50" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">SSH_ASKPASS=gmd, the channel and a token</text>
+<rect x="40" y="210" width="320" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-side, #b07800)" stroke-width="1.8"/>
+<text x="50" y="230" font-size="14" fill="currentColor" font-weight="600">AskpassServer</text>
+<text x="50" y="249" font-size="12.5" fill="currentColor" fill-opacity="0.8">a named pipe for this user only;</text>
+<text x="50" y="265" font-size="12.5" fill="currentColor" fill-opacity="0.8">checks the token, one question at a time</text>
+<rect x="40" y="330" width="320" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="50" y="350" font-size="14" fill="currentColor" font-weight="600">LoginDlg</text>
+<text x="50" y="369" font-size="12.5" fill="currentColor" fill-opacity="0.8">the passphrase, password or</text>
+<text x="50" y="385" font-size="12.5" fill="currentColor" fill-opacity="0.8">host key question, in a dialog</text>
+<rect x="430" y="80" width="200" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="440" y="100" font-size="14" fill="currentColor" font-weight="600">git</text>
+<text x="440" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">stdin closed, no</text>
+<text x="440" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">terminal to ask on</text>
+<rect x="700" y="80" width="220" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-main, #0969da)" stroke-width="1.8"/>
+<text x="710" y="100" font-size="14" fill="currentColor" font-weight="600">ssh</text>
+<text x="710" y="119" font-size="12.5" fill="currentColor" fill-opacity="0.8">SSH_ASKPASS_REQUIRE=force</text>
+<text x="710" y="135" font-size="12.5" fill="currentColor" fill-opacity="0.8">(OpenSSH 8.4 and later)</text>
+<rect x="700" y="210" width="220" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="var(--arch-side, #b07800)" stroke-width="1.8"/>
+<text x="710" y="230" font-size="14" fill="currentColor" font-weight="600">gmd as the askpass</text>
+<text x="710" y="249" font-size="12.5" fill="currentColor" fill-opacity="0.8">GMD_ASKPASS=1: Main calls</text>
+<text x="710" y="265" font-size="12.5" fill="currentColor" fill-opacity="0.8">Askpass.Answer at once</text>
+<rect x="430" y="330" width="490" height="68" rx="6" fill="var(--arch-card, #ffffff)" stroke="currentColor" stroke-width="1.1" stroke-dasharray="5 4"/>
+<text x="440" y="350" font-size="14" fill="currentColor" font-weight="600">No channel: a background fetch (Askpass.NeverAsk)</text>
+<text x="440" y="369" font-size="12.5" fill="currentColor" fill-opacity="0.8">the askpass answers nothing and says why on stderr,</text>
+<text x="440" y="385" font-size="12.5" fill="currentColor" fill-opacity="0.8">where LoginError finds it; gmd says a login is needed</text>
+<rect x="363.975" y="84.8" width="62.05" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="395" y="97.8" font-size="11.5" fill="currentColor" text-anchor="middle">1 git push</text>
+<rect x="647.487" y="84.8" width="35.025" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="665" y="97.8" font-size="11.5" fill="currentColor" text-anchor="middle">2 ssh</text>
+<rect x="724.165" y="170" width="83.67" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="766" y="183" font-size="11.5" fill="currentColor" text-anchor="middle">3 the question</text>
+<rect x="821.97" y="162.5" width="72.86" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="858.4" y="175.5" font-size="11.5" fill="currentColor" text-anchor="middle">6 the answer</text>
+<text x="858.4" y="190.5" font-size="11.5" fill="currentColor" text-anchor="middle">on stdout</text>
+<rect x="477.355" y="214.8" width="105.29" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="530" y="227.8" font-size="11.5" fill="currentColor" text-anchor="middle">4 question + token</text>
+<rect x="474.653" y="264" width="110.695" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="530" y="277" font-size="11.5" fill="currentColor" text-anchor="middle">5 answer, or Cancel</text>
+<rect x="185.19" y="295" width="29.62" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="200" y="308" font-size="11.5" fill="currentColor" text-anchor="middle">asks</text>
+<line x1="40" y1="470" x2="74" y2="470" stroke="var(--arch-main, #0969da)" stroke-width="2"/>
+<text x="82" y="474" font-size="11.5" fill="currentColor" fill-opacity="0.8">the main path</text>
+<line x1="181.89999999999998" y1="470" x2="215.89999999999998" y2="470" stroke="var(--arch-side, #b07800)" stroke-width="2"/>
+<text x="223.9" y="474" font-size="11.5" fill="currentColor" fill-opacity="0.8">background work, events, optional</text>
+<line x1="449.79999999999995" y1="470" x2="483.79999999999995" y2="470" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="491.8" y="474" font-size="11.5" fill="currentColor" fill-opacity="0.8">optional, or outside gmd</text>
+</svg>
