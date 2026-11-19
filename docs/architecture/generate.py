@@ -465,43 +465,52 @@ def code_structure_view(c):
 
 
 def runtime_view(c):
-    d = Diagram("3-runtime", "Runtime view: from a key or a changed file to the redrawn log", 960, 720)
+    d = Diagram("3-runtime", "Runtime view: from a key or a changed file to the redrawn log", 1110, 720)
+    X = 150  # the developer's column, left of the three groups
 
-    d.group(20, 40, 290, 640, "Cui, on the UI main loop")
-    d.group(340, 40, 300, 640, "Server and Augmented, on the thread pool")
-    d.group(670, 40, 270, 640, "git, a process per command")
+    d.group(X + 20, 40, 290, 640, "Cui, on the UI main loop")
+    d.group(X + 340, 40, 300, 640, "Server and Augmented, on the thread pool")
+    d.group(X + 670, 40, 270, 640, "git, a process per command")
 
-    d.card("input", 40, 80, 250, "RepoViewInput", ["a key or a click, e.g. c, p, m"], accent="main")
-    d.card("cmds", 40, 190, 250, "*Commands, CommandRunner", ["the command, with progress", "shown and an error box"], accent="main")
-    d.card("refresh", 40, 320, 250, "RepoView refresh", ["ShowRefreshedRepoAsync, with", "the shown branches' names"], accent="main")
-    d.card("draw", 40, 450, 250, "ContentView, RepoWriter", ["draws only the rows on", "screen, on demand"], accent="main")
-    d.card("viewrepo", 40, 570, 250, "ViewRepo, GraphCreater", ["a snapshot of the shown", "repo, and its graph"], accent="main")
+    d.person("user", 25, 300, 120, "Developer", ["presses keys,", "reads the log"])
 
-    d.card("paused", 360, 80, 250, "Server, in Paused", ["the write, with the file", "monitor paused meanwhile"], accent="main")
-    d.card("monitor", 360, 190, 250, "FileMonitor", ["watches the working folder", "and .git, debounced 1 s"], accent="side")
-    d.card("aug", 360, 320, 250, "AugmentedService", ["the git reads, in parallel,", "into a GitRepo"], accent="main")
-    d.card("augmenter", 360, 450, 250, "Augmenter, in Task.Run", ["infers each commit's branch", "into an immutable Repo"], accent="main")
-    d.card("viewcreater", 360, 570, 250, "ViewRepoCreater", ["the commits of the", "branches shown"], accent="main")
+    d.card("input", X + 40, 80, 250, "RepoViewInput", ["a key or a click, e.g. c, p, m"], accent="main")
+    d.card("cmds", X + 40, 190, 250, "*Commands, CommandRunner", ["the command, with progress", "shown and an error box"], accent="main")
+    d.card("refresh", X + 40, 320, 250, "RepoView refresh", ["ShowRefreshedRepoAsync, with", "the shown branches' names"], accent="main")
+    d.card("draw", X + 40, 450, 250, "ContentView, RepoWriter", ["draws only the rows on", "screen, on demand"], accent="main")
+    d.card("viewrepo", X + 40, 570, 250, "ViewRepo, GraphCreater", ["a snapshot of the shown", "repo, and its graph"], accent="main")
 
-    d.card("write", 690, 80, 230, "git commit, push, ...", ["the write, through IGit,", "the Git services and Cmd"], accent="main")
-    d.card("other", 690, 190, 230, "Editor, another git", ["anything that changes", "the files or the refs"], dashed=True)
-    d.card("reads", 690, 320, 230, "git log, status, ...", ["log, branches, tags, status,", "stashes, worktrees, reflog"], accent="main")
+    d.card("paused", X + 360, 80, 250, "Server, in Paused", ["the write, with the file", "monitor paused meanwhile"], accent="main")
+    d.card("monitor", X + 360, 190, 250, "FileMonitor", ["watches the working folder", "and .git, debounced 1 s"], accent="side")
+    d.card("aug", X + 360, 320, 250, "AugmentedService", ["the git reads, in parallel,", "into a GitRepo"], accent="main")
+    d.card("augmenter", X + 360, 450, 250, "Augmenter, in Task.Run", ["infers each commit's branch", "into an immutable Repo"], accent="main")
+    d.card("viewcreater", X + 360, 570, 250, "ViewRepoCreater", ["the commits of the", "branches shown"], accent="main")
 
-    d.arrow("input", "cmds", "1 command", accent="main", frm="b", to="t", straight=True)
-    d.arrow("cmds", "paused", "2 write", accent="main", fs=0.5, ft=0.5, via=[(325, 224), (325, 114)], at=(325, 170))
-    d.arrow("paused", "write", "3 git", accent="main", straight=True, label_side="above")
+    d.card("write", X + 690, 80, 230, "git commit, push, ...", ["the write, through IGit,", "the Git services and Cmd"], accent="main")
+    d.card("other", X + 690, 190, 230, "Editor, another git", ["anything that changes", "the files or the refs"], dashed=True)
+    d.card("reads", X + 690, 320, 230, "git log, status, ...", ["log, branches, tags, status,", "stashes, worktrees, reflog"], accent="main")
+
+    ux = d.anchor("user", "t")[0]
+    d.arrow("user", "input", "1 a key", accent="main", frm="t", to="l", via=[(ux, d.anchor("input", "l")[1])],
+            at=(ux, 200))
+    d.arrow("input", "cmds", "2 command", accent="main", frm="b", to="t", straight=True)
+    d.arrow("cmds", "paused", "3 write", accent="main", fs=0.5, ft=0.5, via=[(X + 325, 224), (X + 325, 114)],
+            at=(X + 325, 170))
+    d.arrow("paused", "write", "4 git", accent="main", straight=True, label_side="above")
     d.arrow("paused", "monitor", "pauses", accent="side", frm="b", to="t", fs=0.5, straight=True, dashed=True)
-    d.arrow("cmds", "refresh", "4 Refresh()", accent="main", frm="b", to="t", straight=True)
+    d.arrow("cmds", "refresh", "5 Refresh()", accent="main", frm="b", to="t", straight=True)
     d.arrow("other", "monitor", "files change", accent="side", frm="l", to="r", straight=True, label_side="above")
-    d.arrow("monitor", "refresh", "4 RepoChanged,\nposted to the UI", accent="side", frm="l", to="r", fs=0.75, ft=0.25,
-            via=[(335, 241), (335, 337)], at=(325, 289))
-    d.arrow("refresh", "aug", "5 read", accent="main", fs=0.72, ft=0.72, straight=True, label_side="below")
-    d.arrow("aug", "reads", "6 git", accent="main", straight=True, label_side="above")
-    d.arrow("aug", "augmenter", "7 GitRepo", accent="main", frm="b", to="t", straight=True)
-    d.arrow("augmenter", "viewcreater", "8 Repo", accent="main", frm="b", to="t", straight=True)
-    d.arrow("viewcreater", "viewrepo", "9 view Repo", accent="main", frm="l", to="r", straight=True, label_side="above")
-    d.arrow("viewrepo", "draw", "10 rows", accent="main", frm="t", to="b", straight=True)
-    d.legend(40, 704)
+    d.arrow("monitor", "refresh", "5 RepoChanged,\nposted to the UI", accent="side", frm="l", to="r", fs=0.75, ft=0.25,
+            via=[(X + 335, 241), (X + 335, 337)], at=(X + 325, 289))
+    d.arrow("refresh", "aug", "6 read", accent="main", fs=0.72, ft=0.72, straight=True, label_side="below")
+    d.arrow("aug", "reads", "7 git", accent="main", straight=True, label_side="above")
+    d.arrow("aug", "augmenter", "8 GitRepo", accent="main", frm="b", to="t", straight=True)
+    d.arrow("augmenter", "viewcreater", "9 Repo", accent="main", frm="b", to="t", straight=True)
+    d.arrow("viewcreater", "viewrepo", "10 view Repo", accent="main", frm="l", to="r", straight=True, label_side="above")
+    d.arrow("viewrepo", "draw", "11 rows", accent="main", frm="t", to="b", straight=True)
+    d.arrow("draw", "user", "12 the redrawn\nlog on screen", accent="main", frm="l", to="b",
+            via=[(ux, d.anchor("draw", "l")[1])], at=(ux, 437))
+    d.legend(X + 40, 704)
     return d
 
 

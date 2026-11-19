@@ -113,10 +113,11 @@ others must be marked `[SingleInstance]` or each gets a copy.
 
 ## 3. Runtime view: from a key or a changed file to the redrawn log
 
-![Runtime view: a key runs a command that writes through git with the file monitor paused, or a file change is told by the file monitor; either way the log view reads the repo again, the augmenter infers the branches, and the view draws the rows on screen](architecture/3-runtime.svg)
+![Runtime view: the developer's key runs a command that writes through git with the file monitor paused, or a file change is told by the file monitor; either way the log view reads the repo again, the augmenter infers the branches, and the view draws the rows on screen, which the developer sees](architecture/3-runtime.svg)
 
 The log is never patched in place. Whatever changes, gmd reads the repository again, infers the
-branches again, and replaces the snapshot it draws. There are two ways in.
+branches again, and replaces the snapshot it draws. The diagram follows one round trip, from the
+developer's key (1) to the log they see redrawn (12). There are two ways in.
 
 **A key** goes to `RepoViewInput`, which finds the command in one of the `*Commands` classes
 (`CommitCommands`, `BranchCommands`, ...). `CommandRunner.Do` runs it off the UI thread with the
