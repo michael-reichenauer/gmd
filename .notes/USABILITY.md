@@ -496,7 +496,7 @@ developers who run AI coding agents in branches and worktrees of their own.
   say so, rather than let someone find out.
 - **The risk is the first five minutes, not the idea:**
   - The first screen of a repository shows main and the current branch
-    (`ViewRepoCreater.cs:415-423`). Every other branch is a dark `╮` or `╯` beside a commit of main,
+    (`ViewRepoCreator.cs:415-423`). Every other branch is a dark `╮` or `╯` beside a commit of main,
     and nothing says how many are hidden. Someone new may take their branches for missing.
   - The branch gmd works out for a commit is drawn as a fact. Only an ambiguous one says otherwise,
     with `(~ambiguous)` at its tip, and a wrong guess drawn as a fact costs more trust than a gap.

@@ -799,7 +799,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
 **Performance** (measured 2026-09-26, see Findings)
 
 - The graph with all branches shown is now nearly all of such a refresh: 4 s for git's 5,900
-  branches, 9 s for kubernetes' 11,000. Of git's 4 s, `GraphCreater.SetBranchesXLocation` was 3.2 s
+  branches, 9 s for kubernetes' 11,000. Of git's 4 s, `GraphCreator.SetBranchesXLocation` was 3.2 s
   (each branch tested for overlap against every branch, twice: since 2026-10-13 once, not measured
   again; testing only the branches placed before it is the next step, nearly equivalent), the sort by column 0.4 s (Sorter, whose
   order of equal columns is the drawing), `SetGraph` 0.3 s. Only after the user asks for all branches
@@ -857,7 +857,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `Do` bodies still end in `Refresh(); return Result.Ok;`, which a `DoAndRefresh` could take); `Commit.IsInView` / `ViewIndex` / `More` and `Branch.X` / `IsIn` / `IsOut` are UI
   layout state inside the server model; static leftovers (`Build.IsWindows` assignable,
   `Menu.StatusLine`, set by MainView, the single
-  `UI.onActivated` slot; `MessageDlg.Clicked` is gone); names (`Hoover` → `Hover`, `Creater` → `Creator` plus its cSpell entry,
+  `UI.onActivated` slot; `MessageDlg.Clicked` is gone); names (`Hoover` → `Hover`, `Creater` → `Creator` (*done 2026-11-19*, with `IViewRepo` → `IRepoSnapshot`),
   `brandName`, `SetBranchManuallyAsync` is void, `GetViewRepoAsync` is
   synchronous, `TipID` vs `TipId`, in `Git.Branch` and the augmented `WorkBranch` alike, and
   `Status.IsMerging`, which is any operation in progress); dead code (the
@@ -1516,7 +1516,7 @@ Add new open issues and findings here as work lands; keep them short and drop th
   `Subtext(…, isFillRest: true)` pads. There is no `Key` for `+` / `-` / `=`; cast the ascii code.
   `Y = -1` on a dialog means "as high as possible", and a `Dialog` given no position is centered.
 - `ContentScroll` never clamps a cursor the content shrank past, so a reload restores it; read the
-  row through `IViewRepo.CurrentIndex`, which is clamped, never the view's (`m` stopped gmd on it).
+  row through `IRepoSnapshot.CurrentIndex`, which is clamped, never the view's (`m` stopped gmd on it).
   Calling `SetCurrentIndex` before `ScrollToShowIndex` applies the scroll delta to the cursor twice,
   hence `ContentView.ShowCurrentIndex`, which does both in the right order.
 - The highlight and selection are drawn on the columns after the graph only, and a highlighted row

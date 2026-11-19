@@ -11,14 +11,14 @@ namespace gmd.Cui.RepoView;
 // git's output.
 static class CommandRunner
 {
-    public static void Do(CommandContext context, Func<IViewRepo, Task<Result>> action)
+    public static void Do(CommandContext context, Func<IRepoSnapshot, Task<Result>> action)
     {
         var (progress, status) = (context.Progress, context.Status);
         UI.RunInBackground(async () =>
         {
             using (progress.Show())
             {
-                var result = await action(context.ViewRepo);
+                var result = await action(context.Snapshot);
                 if (result is Notice notice)
                 {
                     status.Notice(notice.Message);

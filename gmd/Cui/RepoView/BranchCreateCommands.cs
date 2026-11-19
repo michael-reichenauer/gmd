@@ -113,7 +113,7 @@ class BranchCreateCommands : IBranchCreateCommands
 
     async Task<Result> CreateBranchAtAsync(string fromName, string commitId, string name, bool isPublish)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var branchName = "";
         try
         {
@@ -334,7 +334,7 @@ class BranchCreateCommands : IBranchCreateCommands
     void ShowMergedBranch(MergedBranch merged)
     {
         var name = merged.IsOnOrigin ? merged.RemoteName : merged.LocalName;
-        if (!context.ViewRepo.Repo.BranchByName.ContainsKey(name))
+        if (!context.Snapshot.Repo.BranchByName.ContainsKey(name))
             return;
         context.BranchCmds.ShowBranch(name, merged.TipId, MergedBranchTipRow);
     }
@@ -347,7 +347,7 @@ class BranchCreateCommands : IBranchCreateCommands
     // needs both of them, so resolve the name to the pair it is part of (either one can be missing)
     (Server.Branch? local, Server.Branch? remote) LocalAndRemoteBranch(string name)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var allBranches = repo.Repo.AllBranches;
         var branch = allBranches.First(b => b.Name == name);
 
@@ -368,7 +368,7 @@ class BranchCreateCommands : IBranchCreateCommands
     // of them is the key depends on whether the branch has a remote branch.
     void MigrateRepoConfigNames(string oldNiceName, string newNiceName)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var newNameByOldName = new Dictionary<string, string>
         {
             { oldNiceName, newNiceName },
@@ -447,7 +447,7 @@ class BranchCreateCommands : IBranchCreateCommands
     // push to, which is no failure to create the branch, so that push error is ignored.
     async Task<Result> PushNewBranchAsync(string branchName)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (await server.PushBranchAsync(branchName, repo.Path) is not Error e)
             return Result.Ok;
         if (e.Message.Contains("'origin' does not appear to be a git repository"))
@@ -455,5 +455,5 @@ class BranchCreateCommands : IBranchCreateCommands
         return new Error($"Failed to push branch {branchName} to remote server", e);
     }
 
-    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
+    void Do(Func<IRepoSnapshot, Task<Result>> action) => context.Do(action);
 }

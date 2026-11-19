@@ -253,7 +253,7 @@ static class E2eRepo
     // 'main' can only be pulled by switching to it.
     //
     // The branch is 'work' rather than 'dev' because the base fixture already has a 'dev'. 'main'
-    // needs no showing: ViewRepoCreater always includes it, so both are on screen with no menu to
+    // needs no showing: ViewRepoCreator always includes it, so both are on screen with no menu to
     // navigate.
     //
     //     main   Main local     (ahead)    12:11   <- diverged, cannot be fetched

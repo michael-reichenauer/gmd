@@ -198,7 +198,7 @@ public class CommitCommandsTest
     // are never reached
     static CommitCommands Commands(Repo repo) =>
         new CommitCommands(
-            FakeRepoView.Context(new FakeViewRepo(repo)),
+            FakeRepoView.Context(new FakeRepoSnapshot(repo)),
             null!,
             null!,
             null!,

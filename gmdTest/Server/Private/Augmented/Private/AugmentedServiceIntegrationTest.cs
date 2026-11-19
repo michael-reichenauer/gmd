@@ -7,7 +7,7 @@ using gmdTest.Fixtures;
 
 namespace gmdTest.Server.Private.Augmented.Private;
 
-// The whole inference pipeline over a real repository: git → AugmentedService → ViewRepoCreater
+// The whole inference pipeline over a real repository: git → AugmentedService → ViewRepoCreator
 // → the graph the UI draws. The other pipeline tests build the git facts by hand with
 // RepoBuilder, so this is the one place where real git output reaches the augmenter.
 //
@@ -379,7 +379,7 @@ public class AugmentedServiceIntegrationTest
     }
 
     static Repo ViewRepo(Repo augRepo, ShowBranches show = ShowBranches.Specified) =>
-        new ViewRepoCreater(new ViewRepoConverter(), new FakeRepoConfig()).GetViewRepoAsync(augRepo, [], show, 10);
+        new ViewRepoCreator(new ViewRepoConverter(), new FakeRepoConfig()).GetViewRepoAsync(augRepo, [], show, 10);
 
     // Commits made on main by mistake, moved to a new branch: it is checked out where main was, and
     // main goes back to the commit before them, its last change a reset, which Undo takes back. The

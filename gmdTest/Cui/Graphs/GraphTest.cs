@@ -5,7 +5,7 @@ using gmdTest.Fixtures;
 
 namespace gmdTest.Cui.Graphs;
 
-// Snapshot tests of the drawn branch graph, i.e. GraphCreater laying branches out in columns and
+// Snapshot tests of the drawn branch graph, i.e. GraphCreator laying branches out in columns and
 // GraphWriter turning the signs into runes. The expected values are pictures of the graph, so they
 // can be reviewed by looking at them.
 //
@@ -379,7 +379,7 @@ public class GraphTest
             .LocalBranch("feat", "f2")
             .LocalBranch("sub", "s1")
             .ViewRepoAsync("feat");
-        var graph = new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(repo);
+        var graph = new GraphCreator(new BranchColorService(new FakeRepoConfig())).Create(repo);
         Assert.IsTrue(graph.HasMore, "sub is hidden, so a more marker column");
         Assert.IsTrue(graph.RowLength > 2);
         var writer = new GraphWriter();

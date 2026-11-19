@@ -6,18 +6,18 @@ using gmd.Server;
 
 namespace gmdTest.Fixtures;
 
-// Double for IViewRepo, the snapshot of the shown repo the log view's writer, menus and commands
+// Double for IRepoSnapshot, the snapshot of the shown repo the log view's writer, menus and commands
 // read. It carries the repo and the graph drawn from it, which is all RepoWriter.ToPage reads; the
 // command classes and the menus reach it through a FakeRepoView.
-class FakeViewRepo : IViewRepo
+class FakeRepoSnapshot : IRepoSnapshot
 {
     readonly IServer? server;
 
-    public FakeViewRepo(Repo repo, IRepoConfigService? repoConfig = null, IServer? server = null)
+    public FakeRepoSnapshot(Repo repo, IRepoConfigService? repoConfig = null, IServer? server = null)
     {
         this.server = server;
         Repo = repo;
-        Graph = new GraphCreater(new BranchColorService(repoConfig ?? new FakeRepoConfig())).Create(repo);
+        Graph = new GraphCreator(new BranchColorService(repoConfig ?? new FakeRepoConfig())).Create(repo);
     }
 
     public Repo Repo { get; }
@@ -36,7 +36,7 @@ class FakeViewRepo : IViewRepo
 
     public IReadOnlyList<Branch> GetCommitBranches(bool isAll) =>
         server?.GetCommitBranches(Repo, RowCommit.Id, isAll)
-        ?? throw new NotSupportedException("FakeViewRepo was given no server");
+        ?? throw new NotSupportedException("FakeRepoSnapshot was given no server");
 
     // Its own, since there is no view to own it, for tests of what a show or hide makes undoable
     public ShownHistory ShownHistory { get; } = new();

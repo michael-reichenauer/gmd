@@ -24,7 +24,7 @@ namespace gmdTest.Server.Private;
 // Each stage runs once to warm up and then five times, and the median time is reported with what
 // the stage allocated. The stages are those of a refresh: the git reads (AugmentedService), the
 // augmentation, one stage at a time (BranchStructureService), the conversion to the repo the UI
-// works with, the view repo of what is shown (ViewRepoCreater), for the default view, all live
+// works with, the view repo of what is shown (ViewRepoCreator), for the default view, all live
 // branches and all branches, and the graph drawn of each; then a search of the log, and the memory
 // the repo keeps between two reads.
 //
@@ -81,7 +81,7 @@ public class RefreshTimingTest
         var workRepo = await augmenter.GetAugRepoAsync(gitRepo);
         var repo = Time("to repo", () => Uncommitted.Adjust(new WorkRepoConverter().ToRepo(workRepo)));
 
-        var viewRepoCreater = new ViewRepoCreater(new ViewRepoConverter(), new FakeRepoConfig());
+        var viewRepoCreator = new ViewRepoCreator(new ViewRepoConverter(), new FakeRepoConfig());
         var views = new StringBuilder();
         Repo viewRepo = repo;
         ShowBranches[] shows = IsAllShown
@@ -89,20 +89,20 @@ public class RefreshTimingTest
             : [ShowBranches.Specified, ShowBranches.AllActive];
         foreach (var show in shows)
         {
-            viewRepo = Time($"view repo, {show}", () => viewRepoCreater.GetViewRepoAsync(repo, [], show));
+            viewRepo = Time($"view repo, {show}", () => viewRepoCreator.GetViewRepoAsync(repo, [], show));
             Time($"graph, {show}", () =>
-                new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(viewRepo)
+                new GraphCreator(new BranchColorService(new FakeRepoConfig())).Create(viewRepo)
             );
             AppendView(views, $"{show}", viewRepo);
         }
 
         // A search of the log, which the filter dialog makes for every key typed, on the UI thread: one
         // that matches nothing, which is the most it reads, every commit's message
-        Time("search, no match", () => viewRepoCreater.GetFilteredViewRepoAsync(repo, "zq-no-such-text", 5000));
+        Time("search, no match", () => viewRepoCreator.GetFilteredViewRepoAsync(repo, "zq-no-such-text", 5000));
 
         // Once all branches are shown, every refresh shows them again by name (RepoView)
         var shownNames = viewRepo.ViewBranches.Select(b => b.Name).ToList();
-        var refreshed = Time("view repo, refresh of all", () => viewRepoCreater.GetViewRepoAsync(repo, shownNames));
+        var refreshed = Time("view repo, refresh of all", () => viewRepoCreator.GetViewRepoAsync(repo, shownNames));
         AppendView(views, "Refresh of all", refreshed);
 
         await RowKeptAsync(git, metaDataService);

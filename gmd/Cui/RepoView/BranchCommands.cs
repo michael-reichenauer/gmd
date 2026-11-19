@@ -84,7 +84,7 @@ class BranchCommands : IBranchCommands
         int count = 1
     )
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var totalCount = 0;
         if (show == ShowBranches.AllActive)
             totalCount = repo.Repo.AllBranches.Count(b => b.IsGitBranch);
@@ -114,7 +114,7 @@ class BranchCommands : IBranchCommands
     // Several branches at once, e.g. all the new ones, 'what' naming them for Undo
     public void ShowAllBranches(IReadOnlyList<string> names, string what)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (names.Count > 20)
         {
             if (UI.InfoMessage("Show Branches", $"Do you want to show {names.Count} branches?", 1, ["Yes", "No"]) != 0)
@@ -131,7 +131,7 @@ class BranchCommands : IBranchCommands
     // Shows the branch with the cursor on the commit, on that row of the view when one is given
     public void ShowBranch(string name, string showCommitId, int viewRow = -1)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         Repo newRepo = server.ShowBranch(repo.Repo, name, false);
         RecordShown(newRepo, "Show", Quoted(name), name);
         repoView.UpdateRepoToAtCommit(newRepo, showCommitId, viewRow);
@@ -141,7 +141,7 @@ class BranchCommands : IBranchCommands
     // picking it in that menu does. A branch already shown is scrolled to.
     public void FindBranch(string text)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (findBranchDlg.Show(repo.Repo, text) is not Server.Branch branch)
             return;
 
@@ -155,7 +155,7 @@ class BranchCommands : IBranchCommands
     // on a commit of main alone and the menus reach here too
     public void HideBranch(string name, bool hideAllBranches = false)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (!hideAllBranches && repo.Repo.BranchByName[name] is { IsMainBranch: true } main)
         {
             status.Notice(Why.AlwaysShown(main));
@@ -171,7 +171,7 @@ class BranchCommands : IBranchCommands
     // scrolls to it, as showing it does, since it is what the user wanted back.
     public void UndoShowOrHide()
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (repo.ShownHistory.Undo() is not ShownChange change)
         {
             status.Notice("No branch has been shown or hidden to undo");
@@ -186,7 +186,7 @@ class BranchCommands : IBranchCommands
     // picking it in the search does, so its branch is shown too, and Backspace hides it again
     public void ShowSearchMatch(int direction)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var search = repo.SearchMatches;
         if (!search.IsActive)
         {
@@ -216,12 +216,12 @@ class BranchCommands : IBranchCommands
 
     // A show or hide the user asked for, so that Backspace can undo it
     void RecordShown(Repo newRepo, string verb, string what, string name) =>
-        context.ViewRepo.ShownHistory.Add(BranchNames(context.ViewRepo.Repo), BranchNames(newRepo), verb, what, name);
+        context.Snapshot.ShownHistory.Add(BranchNames(context.Snapshot.Repo), BranchNames(newRepo), verb, what, name);
 
     static IReadOnlyList<string> BranchNames(Repo repo) => repo.ViewBranches.Select(b => b.Name).ToList();
 
     string Quoted(string name) =>
-        context.ViewRepo.Repo.BranchByName.TryGetValue(name, out var branch)
+        context.Snapshot.Repo.BranchByName.TryGetValue(name, out var branch)
             ? $"'{branch.NiceNameUnique}'"
             : $"'{name}'";
 
@@ -258,7 +258,7 @@ class BranchCommands : IBranchCommands
 
     async Task<Result> SwitchWithStashAsync(string branchName)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var name = repo.Repo.BranchByName.TryGetValue(branchName, out var b) ? b.NiceNameUnique : branchName;
         var question =
             $"Your uncommitted changes would be overwritten by switching to '{name}'.\n\n"
@@ -443,7 +443,7 @@ class BranchCommands : IBranchCommands
 
     public void ChangeBranchColor(string brandName)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var b = repo.Repo.BranchByName[brandName];
         if (b.IsMainBranch)
             return;
@@ -531,5 +531,5 @@ class BranchCommands : IBranchCommands
 
     void SetRepo(Repo newRepo, string branchName = "") => repoView.UpdateRepoTo(newRepo, branchName);
 
-    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
+    void Do(Func<IRepoSnapshot, Task<Result>> action) => context.Do(action);
 }

@@ -238,7 +238,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // its own commits are moved onto the new version, rather than the two versions merged
     async Task<Result> PullRewrittenAsync(RemoteRewrite rewrite)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (
             UI.InfoMessage("Pull Rewritten Branch", ForcePushes.PullQuestion(repo.Repo, rewrite), 1, ["Pull", "Cancel"])
             != 0
@@ -261,7 +261,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // brought in since are not dropped along with the old version.
     async Task<Result> ForcePushRewrittenAsync(LocalRewrite rewrite)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (repo.Repo.Status.IsMerging)
             return new Notice(Why.InProgress);
         var question = RewrittenHere.PushQuestion(repo.Repo, rewrite);
@@ -414,7 +414,7 @@ class BranchPushPullCommands : IBranchPushPullCommands
     // needs neither. False when the user cancelled.
     async Task<Result<bool>> EnsurePullWayAsync(Branch remoteBranch)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (!(remoteBranch.HasRemoteOnly && remoteBranch.HasLocalOnly))
             return true;
 
@@ -463,13 +463,13 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     bool IsPushedBack(Branch branch) => RewriteOf(branch) is RemoteRewrite r && ForcePushes.IsPushedBack(r);
 
-    RemoteRewrite? RewriteOf(Branch branch) => ForcePushes.RewriteOf(context.ViewRepo.Repo, branch);
+    RemoteRewrite? RewriteOf(Branch branch) => ForcePushes.RewriteOf(context.Snapshot.Repo, branch);
 
     // The name a branch is shown with, its local one for a local and remote pair: a branch menu and
     // a highlighted branch give the pair by its primary name, which is the remote's, 'origin/main'
     string NiceName(string name)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (!repo.Repo.BranchByName.TryGetValue(name, out var branch))
             return name;
         if (branch.LocalName != "" && repo.Repo.BranchByName.TryGetValue(branch.LocalName, out var local))
@@ -479,10 +479,10 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     // What was pushed, and that the changes were not, since that is easy to assume
     string Pushed(string what) =>
-        context.ViewRepo.Repo.Status.IsOk ? $"Pushed {what}" : $"Pushed {what}; the uncommitted changes stay local";
+        context.Snapshot.Repo.Status.IsOk ? $"Pushed {what}" : $"Pushed {what}; the uncommitted changes stay local";
 
     string Published(string what) =>
-        context.ViewRepo.Repo.Status.IsOk
+        context.Snapshot.Repo.Status.IsOk
             ? $"Published {what} to origin"
             : $"Published {what} to origin; the uncommitted changes stay local";
 
@@ -691,5 +691,5 @@ class BranchPushPullCommands : IBranchPushPullCommands
 
     void RefreshAndFetch(string addName = "", string commitId = "") => repoView.RefreshAndFetch(addName, commitId);
 
-    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
+    void Do(Func<IRepoSnapshot, Task<Result>> action) => context.Do(action);
 }

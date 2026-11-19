@@ -1,8 +1,8 @@
 namespace gmdTest.Utils;
 
-// Sorter exists because 'List.Sort does not work, why ????' (ViewRepoCreater.SortBranches). The
+// Sorter exists because 'List.Sort does not work, why ????' (ViewRepoCreator.SortBranches). The
 // answer is that the branch comparers are partial orders: CompareBranches returns 0 for two
-// branches that are neither related nor ordered by the user, and GraphCreater compares only the
+// branches that are neither related nor ordered by the user, and GraphCreator compares only the
 // column. List.Sort assumes a total order, so it can leave a pair that the comparer does order in
 // the wrong order. These pin that Sorter handles what List.Sort does not.
 [TestClass]
