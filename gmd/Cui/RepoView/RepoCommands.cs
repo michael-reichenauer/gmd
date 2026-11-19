@@ -267,13 +267,13 @@ class RepoCommands : IRepoCommands
 
     // The name of what git stopped part way through, e.g. "Rebase", for the menu items that act on
     // it. "Operation" when nothing is in progress, where those items are hidden anyway.
-    public string OperationName() => OperationText.Name(context.ViewRepo.Repo.Status.Operation);
+    public string OperationName() => OperationText.Name(context.Snapshot.Repo.Status.Operation);
 
     // What the operation is doing, for the separator that heads the menu section, e.g.
     // "Rebasing 'dev' (3 of 7)  ·  2 conflicts"
     public string OperationSummary()
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var s = repo.Repo.Status;
         var text = OperationText.Name(s.Operation);
         if (s.OperationBranchName != "")
@@ -302,7 +302,7 @@ class RepoCommands : IRepoCommands
     // file was refused, with that file listed as unresolved.
     public async Task<bool> ConfirmConflictsResolvedAsync(string action)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var (operation, conflicted) = await server.GetConflictStateAsync(repo.Path) is ConflictState state
             ? (state.Operation, state.Files.Select(f => f.Path).ToArray())
             : (repo.Repo.Status.Operation, repo.Repo.Status.ConflictsFiles);
@@ -344,7 +344,7 @@ class RepoCommands : IRepoCommands
     // it is not asked about again, since nothing has been resolved yet to lose.
     public void ShowConflicts()
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var s = repo.Repo.Status;
         if (!s.IsMerging || s.Conflicted == 0)
             return; // E.g. resolved by git itself, with rerere
@@ -377,7 +377,7 @@ class RepoCommands : IRepoCommands
     // the user chose there
     public async void ResolveConflicts()
     {
-        var next = await conflictWorkspace.ResolveAsync(context.ViewRepo.Path);
+        var next = await conflictWorkspace.ResolveAsync(context.Snapshot.Path);
         if (next == ResolveNext.Commit)
             repoView.RefreshAndCommit();
         else if (next == ResolveNext.Continue)
@@ -391,7 +391,7 @@ class RepoCommands : IRepoCommands
     // hint said 'd resolve'. Ctrl-D and the commit menu's Commit Diff show the diff without asking.
     public void ResolveOrDiff()
     {
-        var s = context.ViewRepo.Repo.Status;
+        var s = context.Snapshot.Repo.Status;
         var what = s.IsMerging
             ? $"The {OperationName().ToLower()} stopped on conflicts in:"
             : "There are conflicts in:";
@@ -498,7 +498,7 @@ class RepoCommands : IRepoCommands
 
     public void UpdateRelease() => Do(repo => updateDlg.ShowAsync());
 
-    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
+    void Do(Func<IRepoSnapshot, Task<Result>> action) => context.Do(action);
 
     // Copies the ids, the messages, or another kind of text of the commit on the cursor's row or of
     // the commits selected (see CommitCopy): 'i', '⇧i' and the copy menu (Ctrl-C). The selection is

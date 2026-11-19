@@ -840,23 +840,23 @@ public class MenuItemsTest
 
     // The show/hide branch items ask the server which branches a commit is on, which is a pure
     // function of the repo, so the real one is used
-    static async Task<FakeViewRepo> ViewOf(RepoBuilder builder, params string[] showBranches) =>
-        new FakeViewRepo(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
+    static async Task<FakeRepoSnapshot> ViewOf(RepoBuilder builder, params string[] showBranches) =>
+        new FakeRepoSnapshot(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
 
-    static IBranchMenu BranchMenuOf(FakeViewRepo view) => MenusOf(view).Branch;
+    static IBranchMenu BranchMenuOf(FakeRepoSnapshot view) => MenusOf(view).Branch;
 
-    static ICommitMenu CommitMenuOf(FakeViewRepo view)
+    static ICommitMenu CommitMenuOf(FakeRepoSnapshot view)
     {
         var (repoMenu, branchMenu, commands) = MenusOf(view);
         return new CommitMenu(repoMenu, branchMenu, view, commands, new DiffMark());
     }
 
-    static IRepoMenu RepoMenuOf(FakeViewRepo view, Config? config = null) => MenusOf(view, config).Repo;
+    static IRepoMenu RepoMenuOf(FakeRepoSnapshot view, Config? config = null) => MenusOf(view, config).Repo;
 
     // The repo menu and the branch menu, which have each other's items, made as RepoViewMenus makes
     // them
     static (IRepoMenu Repo, IBranchMenu Branch, CommandContext Commands) MenusOf(
-        FakeViewRepo view,
+        FakeRepoSnapshot view,
         Config? config = null
     )
     {
@@ -872,7 +872,7 @@ public class MenuItemsTest
     // The command classes the menus are made with. Only RepoCommands' OperationName and
     // OperationSummary are called while the items are built, and both read nothing but the shown
     // repo's status, so the rest of RepoCommands, and the other two, are never reached.
-    static CommandContext Commands(FakeViewRepo view)
+    static CommandContext Commands(FakeRepoSnapshot view)
     {
         var commands = FakeRepoView.Context(view);
         commands.RepoCmds = new RepoCommands(

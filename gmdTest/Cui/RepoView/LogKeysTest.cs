@@ -226,7 +226,7 @@ public class LogKeysTest
         Assert.AreEqual(new KeyAction("new branch"), LogKeys.NewBranch(view, HooverOn(view, "dev", "d1")));
     }
 
-    static Hoover HooverOn(FakeViewRepo view, string branchName, string commit)
+    static Hoover HooverOn(FakeRepoSnapshot view, string branchName, string commit)
     {
         view.CurrentIndex = view.Repo.CommitById[RepoBuilder.Sha(commit)].ViewIndex;
         var hoover = new Hoover();
@@ -234,8 +234,8 @@ public class LogKeysTest
         return hoover;
     }
 
-    static async Task<FakeViewRepo> ViewOf(RepoBuilder builder, params string[] showBranches) =>
-        new FakeViewRepo(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
+    static async Task<FakeRepoSnapshot> ViewOf(RepoBuilder builder, params string[] showBranches) =>
+        new FakeRepoSnapshot(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
 
     // 'main', synced, and 'dev', a local branch off it
     static RepoBuilder Branches() =>

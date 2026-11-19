@@ -16,7 +16,7 @@ class CommitMenu : ICommitMenu
 {
     readonly IRepoMenu repoMenu;
     readonly IBranchMenu branchMenu;
-    readonly IViewRepo repo;
+    readonly IRepoSnapshot repo;
     readonly CommandContext commands;
     readonly ICommitCommands cmds;
     readonly DiffMark diffMark;
@@ -24,7 +24,7 @@ class CommitMenu : ICommitMenu
     public CommitMenu(
         IRepoMenu repoMenu,
         IBranchMenu branchMenu,
-        IViewRepo repo,
+        IRepoSnapshot repo,
         CommandContext commands,
         DiffMark diffMark
     )

@@ -134,7 +134,7 @@ class BranchHierarchyService : IBranchHierarchyService
             {
                 if (ancestor == b || b.Ancestors.Contains(ancestor))
                 { // A cycle, which the hierarchy should never have, but without this reading the repo
-                    // would never end. The branch is left out of the view (see ViewRepoCreater)
+                    // would never end. The branch is left out of the view (see ViewRepoCreator)
                     Log.Error($"Branch {b.Name} has circular ancestor {ancestor.Name}");
                     Log.Error("Ancestors: " + b.Ancestors.Select(a => a.Name).Join(","));
                     b.IsCircularAncestors = true;

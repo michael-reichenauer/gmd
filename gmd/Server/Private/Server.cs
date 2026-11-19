@@ -14,7 +14,7 @@ class Server : IServer
     readonly IDeletedBranchService deletedBranchService;
     readonly IMergedBranchService mergedBranches;
     readonly IViewRepoConverter converter;
-    readonly IViewRepoCreater viewRepoCreater;
+    readonly IViewRepoCreator viewRepoCreator;
     readonly IFileMonitor fileMonitor;
     readonly DiscardedChanges discarded;
 
@@ -27,7 +27,7 @@ class Server : IServer
         IDeletedBranchService deletedBranchService,
         IMergedBranchService mergedBranches,
         IViewRepoConverter converter,
-        IViewRepoCreater viewRepoCreater,
+        IViewRepoCreator viewRepoCreator,
         IFileMonitor fileMonitor,
         DiscardedChanges discarded
     )
@@ -41,7 +41,7 @@ class Server : IServer
         this.deletedBranchService = deletedBranchService;
         this.mergedBranches = mergedBranches;
         this.converter = converter;
-        this.viewRepoCreater = viewRepoCreater;
+        this.viewRepoCreator = viewRepoCreator;
         this.fileMonitor = fileMonitor;
         augmentedService.RepoChange += e => RepoChange?.Invoke(e);
         augmentedService.StatusChange += e => StatusChange?.Invoke(e);
@@ -85,7 +85,7 @@ class Server : IServer
             return repoResult.Error;
 
         // With what is known of the branches merged on origin, so that a refresh shows it at once
-        return viewRepoCreater.GetViewRepoAsync(mergedBranches.WithKnown(augmentedRepo), showBranches);
+        return viewRepoCreator.GetViewRepoAsync(mergedBranches.WithKnown(augmentedRepo), showBranches);
     }
 
     public async Task<Result<Repo>> GetUpdateStatusRepoAsync(Repo repo)
@@ -95,20 +95,20 @@ class Server : IServer
         var updated = await augmentedService.UpdateRepoStatusAsync(repo);
         if (updated is not Repo augmentedRepo)
             return updated.Error;
-        return viewRepoCreater.GetViewRepoAsync(augmentedRepo, branches);
+        return viewRepoCreator.GetViewRepoAsync(augmentedRepo, branches);
     }
 
     public async Task<Result<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount)
     {
         var terms = SearchTerms.Parse(filter);
         if (!terms.IsAskingGit)
-            return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount);
+            return viewRepoCreator.GetFilteredViewRepoAsync(repo, filter, maxCount);
 
         var idsResult = await GetIdsAskingGitAsync(repo, terms, maxCount);
         if (idsResult is not IReadOnlySet<string> ids)
             return new Error("Failed to search the changed files and the changes", idsResult.Error);
 
-        return viewRepoCreater.GetFilteredViewRepoAsync(repo, filter, maxCount, ids);
+        return viewRepoCreator.GetFilteredViewRepoAsync(repo, filter, maxCount, ids);
     }
 
     // The commits that changed files matching every one of the paths, and whose changes added or
@@ -248,7 +248,7 @@ class Server : IServer
             branchNames = branchNames.Concat(branch.AmbiguousBranchNames);
         }
 
-        return viewRepoCreater.GetViewRepoAsync(repo, branchNames.ToArray(), show, count);
+        return viewRepoCreator.GetViewRepoAsync(repo, branchNames.ToArray(), show, count);
     }
 
     public Repo HideBranch(Repo repo, string name, bool hideAllBranches = false)
@@ -257,7 +257,7 @@ class Server : IServer
 
         // The main branch is always shown, so it alone is left
         if (hideAllBranches)
-            return viewRepoCreater.GetViewRepoAsync(repo, [repo.AllBranches.First(b => b.IsMainBranch).Name]);
+            return viewRepoCreator.GetViewRepoAsync(repo, [repo.AllBranches.First(b => b.IsMainBranch).Name]);
 
         var branch = repo.BranchByName[name];
         branch = repo.BranchByName[branch.PrimaryName];
@@ -267,11 +267,11 @@ class Server : IServer
             .Select(b => b.Name)
             .ToArray();
 
-        return viewRepoCreater.GetViewRepoAsync(repo, branchNames);
+        return viewRepoCreator.GetViewRepoAsync(repo, branchNames);
     }
 
     public Repo SetShownBranches(Repo repo, IReadOnlyList<string> branchNames) =>
-        viewRepoCreater.GetViewRepoAsync(repo, branchNames);
+        viewRepoCreator.GetViewRepoAsync(repo, branchNames);
 
     // Not paused, see Paused
     public Task<Result> FetchAsync(string wd) => augmentedService.FetchAsync(wd);

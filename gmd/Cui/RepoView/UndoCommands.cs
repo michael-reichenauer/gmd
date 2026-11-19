@@ -209,7 +209,7 @@ class UndoCommands : IUndoCommands
     // What Restore would put back, shown modally, so the list comes back when it is closed
     async Task<Result> ShowDiscardedDiffAsync(DiscardedChange change)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var source = DiffSource.Single(n => server.GetDiscardedDiffAsync(change, n, repo.Path));
         var diffsResult = await source.Reload(DiffContext.Default);
         if (diffsResult is not CommitDiff[] diffs)
@@ -223,7 +223,7 @@ class UndoCommands : IUndoCommands
     // its one commit. Shown modally, so the list comes back when it is closed.
     async Task<Result> ShowDiffAsync(LostWork work)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var count = work.CommitIds.Count;
         var source =
             count == 1
@@ -249,5 +249,5 @@ class UndoCommands : IUndoCommands
         return Result.Ok;
     }
 
-    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
+    void Do(Func<IRepoSnapshot, Task<Result>> action) => context.Do(action);
 }

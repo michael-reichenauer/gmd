@@ -8,7 +8,7 @@ namespace gmdTest.Cui.RepoView;
 
 // The hoover is the branch, or the commit, that the pointer or the cursor is on, and is what most
 // keys of the repo view act on. These tests drive it over a real graph, i.e. the GraphBranch
-// columns GraphCreater lays out, since the whole of the hoover is where those columns are.
+// columns GraphCreator lays out, since the whole of the hoover is where those columns are.
 //
 // The repo used by most of them is ThreeBranches(), whose graph looks like this, with the branch
 // columns of each row written out to the right:
@@ -394,7 +394,7 @@ public class HooverTest
     static async Task<(Graph, Hoover)> ThreeBranchesGraph() =>
         (GraphOf(await ThreeBranches().ViewRepoAsync(ShowBranches.AllActive)), new Hoover());
 
-    static Graph GraphOf(Repo repo) => new GraphCreater(new BranchColorService(new FakeRepoConfig())).Create(repo);
+    static Graph GraphOf(Repo repo) => new GraphCreator(new BranchColorService(new FakeRepoConfig())).Create(repo);
 
     // main with two branches, dev and feat, both branched out of 'Second' and merged back
     static RepoBuilder ThreeBranches() =>

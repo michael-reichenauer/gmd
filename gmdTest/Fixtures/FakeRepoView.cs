@@ -12,24 +12,24 @@ namespace gmdTest.Fixtures;
 // rather than passing on nothing.
 class FakeRepoView : IRepoView
 {
-    readonly FakeViewRepo viewRepo;
+    readonly FakeRepoSnapshot snapshot;
 
-    public FakeRepoView(FakeViewRepo viewRepo)
+    public FakeRepoView(FakeRepoSnapshot snapshot)
     {
-        this.viewRepo = viewRepo;
+        this.snapshot = snapshot;
     }
 
     // A context for command classes and menus that act on the fake view, with no progress or status
     // line, which what the tests call never reaches
-    public static CommandContext Context(FakeViewRepo viewRepo, IServer? server = null) =>
-        new(new FakeRepoView(viewRepo), server!, null!, null!);
+    public static CommandContext Context(FakeRepoSnapshot snapshot, IServer? server = null) =>
+        new(new FakeRepoView(snapshot), server!, null!, null!);
 
-    public IViewRepo ViewRepo => viewRepo;
-    public int CurrentIndex => viewRepo.CurrentIndex;
+    public IRepoSnapshot Snapshot => snapshot;
+    public int CurrentIndex => snapshot.CurrentIndex;
     public Selection Selection { get; set; } = new(0, 0, 0, 0, 0);
-    public ShownHistory ShownHistory => viewRepo.ShownHistory;
-    public SearchMatches SearchMatches => viewRepo.SearchMatches;
-    public IReadOnlyList<HiddenBranchNews> HiddenNews => viewRepo.HiddenNews;
+    public ShownHistory ShownHistory => snapshot.ShownHistory;
+    public SearchMatches SearchMatches => snapshot.SearchMatches;
+    public IReadOnlyList<HiddenBranchNews> HiddenNews => snapshot.HiddenNews;
 
     public void ClearSelection() => Selection = new(0, 0, 0, 0, 0);
 

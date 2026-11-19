@@ -6,7 +6,7 @@ namespace gmd.Cui.RepoView;
 // The repo as the log view shows it at one moment, with the graph drawn from it and the cursor's
 // row: a snapshot, which every refresh, show and hide replaces, and which the menus are made with.
 // The command classes, made once, read the one shown when they run, see CommandContext.
-interface IViewRepo
+interface IRepoSnapshot
 {
     Repo Repo { get; }
     string Path { get; }
@@ -22,7 +22,7 @@ interface IViewRepo
     IReadOnlyList<Branch> GetCommitBranches(bool isAll);
 
     // The shows and hides Backspace can undo, and what the last search found, both of which
-    // outlive this view repo, see IRepoView
+    // outlive this snapshot, see IRepoView
     ShownHistory ShownHistory { get; }
     SearchMatches SearchMatches { get; }
 
@@ -30,13 +30,13 @@ interface IViewRepo
     IReadOnlyList<HiddenBranchNews> HiddenNews { get; }
 }
 
-class ViewRepo : IViewRepo
+class RepoSnapshot : IRepoSnapshot
 {
     readonly IRepoView repoView;
     readonly IServer server;
     readonly Repo serverRepo;
 
-    internal ViewRepo(IRepoView repoView, Repo serverRepo, IGraphCreater graphService, IServer server)
+    internal RepoSnapshot(IRepoView repoView, Repo serverRepo, IGraphCreator graphService, IServer server)
     {
         this.repoView = repoView;
         this.serverRepo = serverRepo;

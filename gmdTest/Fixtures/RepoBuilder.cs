@@ -490,11 +490,11 @@ class RepoBuilder
     // ancestors and related branches) and the commits on them. With no branches given, the
     // current branch is shown, and the main branch is always included.
     public async Task<Repo> ViewRepoAsync(params string[] showBranches) =>
-        NewViewRepoCreater().GetViewRepoAsync(await AugmentedRepoAsync(), showBranches);
+        NewViewRepoCreator().GetViewRepoAsync(await AugmentedRepoAsync(), showBranches);
 
     // The view repo for one of the show-all modes, e.g. all active branches
     public async Task<Repo> ViewRepoAsync(ShowBranches show, int count = 1, params string[] showBranches) =>
-        NewViewRepoCreater().GetViewRepoAsync(await AugmentedRepoAsync(), showBranches, show, count);
+        NewViewRepoCreator().GetViewRepoAsync(await AugmentedRepoAsync(), showBranches, show, count);
 
     // The view repo the filter dialog renders, i.e. only the commits matching the filter, on the
     // branches those commits are on. The default count is what FilterDlg passes.
@@ -502,7 +502,7 @@ class RepoBuilder
         string filter,
         int maxCount = 5000,
         IReadOnlySet<string>? onlyIds = null
-    ) => NewViewRepoCreater().GetFilteredViewRepoAsync(await AugmentedRepoAsync(), filter, maxCount, onlyIds);
+    ) => NewViewRepoCreator().GetFilteredViewRepoAsync(await AugmentedRepoAsync(), filter, maxCount, onlyIds);
 
     // The real server layer, with git, the file monitor and the config faked out. Needed for the
     // branch show/hide commands, which work on an already created view repo.
@@ -523,7 +523,7 @@ class RepoBuilder
             new DeletedBranchService(git, Config),
             new MergedBranchService(git, Config),
             new ViewRepoConverter(),
-            NewViewRepoCreater(),
+            NewViewRepoCreator(),
             monitor,
             new DiscardedChanges(git)
         );
@@ -547,7 +547,7 @@ class RepoBuilder
 
     FakeGit NewGit() => new FakeGit(status);
 
-    ViewRepoCreater NewViewRepoCreater() => new ViewRepoCreater(new ViewRepoConverter(), Config);
+    ViewRepoCreator NewViewRepoCreator() => new ViewRepoCreator(new ViewRepoConverter(), Config);
 
     // The real augmented service, which only git, the file monitor and the shared meta data are
     // faked out of. The repo is augmented from the built GitRepo rather than read via git, so

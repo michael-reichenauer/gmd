@@ -21,11 +21,11 @@ interface IRepoView
     Selection Selection { get; }
 
     // The shown repo, which is an immutable snapshot replaced on every refresh, so a command that
-    // refreshes and then needs the repo (or its command classes) has to read this again after.
-    IViewRepo ViewRepo { get; }
+    // refreshes and then needs the repo has to read this again after.
+    IRepoSnapshot Snapshot { get; }
 
     // The branches shown before each show and hide, for Backspace to go back to. Kept here since the
-    // view repo and its command classes are replaced on every refresh, and this has to outlive them.
+    // snapshot and its menus are replaced on every refresh, and this has to outlive them.
     ShownHistory ShownHistory { get; }
 
     // What the last search found, for n and Shift-N, kept here for the same reason
@@ -86,8 +86,8 @@ class RepoView : IRepoView, IRepoViewInputHost
     static readonly TimeSpan worktreeStatusInterval = TimeSpan.FromSeconds(30);
 
     readonly IServer server;
-    readonly Func<IRepoView, Repo, IViewRepo> newViewRepo;
-    readonly Func<IViewRepo, CommandContext, IRepoViewMenus> newMenuService;
+    readonly Func<IRepoView, Repo, IRepoSnapshot> newSnapshot;
+    readonly Func<IRepoSnapshot, CommandContext, IRepoViewMenus> newMenuService;
     readonly Config config;
     readonly IUpdater updater;
     readonly IRepoConfigService repoConfig;
@@ -117,7 +117,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     readonly CommandContext commands;
 
     // State data
-    IViewRepo repo; // Is set once the repo has been retrieved the first time in ShowRepo().
+    IRepoSnapshot repo; // Is set once the repo has been retrieved the first time in ShowRepo().
     ICommitCommands CommitCmds => commands.CommitCmds;
     IRepoViewMenus menuService = null!;
 
@@ -137,7 +137,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     internal RepoView(
         IServer server,
         IRepoWriter repoWriter,
-        Func<IRepoView, Repo, IViewRepo> newViewRepo,
+        Func<IRepoView, Repo, IRepoSnapshot> newSnapshot,
         Func<CommandContext, IRepoCommands> newRepoCommands,
         Func<CommandContext, ICommitCommands> newCommitCommands,
         Func<CommandContext, IBranchCommands> newBranchCommands,
@@ -145,7 +145,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         Func<CommandContext, IBranchPushPullCommands> newPushPullCommands,
         Func<CommandContext, IWorktreeCommands> newWorktreeCommands,
         Func<CommandContext, IUndoCommands> newUndoCommands,
-        Func<IViewRepo, CommandContext, IRepoViewMenus> newMenuService,
+        Func<IRepoSnapshot, CommandContext, IRepoViewMenus> newMenuService,
         Config config,
         IUpdater updater,
         IRepoConfigService repoConfig,
@@ -161,7 +161,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     {
         this.status = status;
         this.server = server;
-        this.newViewRepo = newViewRepo;
+        this.newSnapshot = newSnapshot;
         this.newMenuService = newMenuService;
         this.config = config;
         this.updater = updater;
@@ -189,7 +189,7 @@ class RepoView : IRepoView, IRepoViewInputHost
 
         this.repoWriter = repoWriter;
         commands = new CommandContext(this, server, progress, status);
-        repo = newViewRepo(this, Server.Repo.Empty);
+        repo = newSnapshot(this, Server.Repo.Empty);
         commands.RepoCmds = newRepoCommands(commands);
         commands.CommitCmds = newCommitCommands(commands);
         commands.BranchCmds = newBranchCommands(commands);
@@ -213,9 +213,9 @@ class RepoView : IRepoView, IRepoViewInputHost
 
     public Selection Selection => commitsView.Selection;
 
-    // What RepoViewInput needs from the view, see IRepoViewInputHost. The view repo and the menus
+    // What RepoViewInput needs from the view, see IRepoViewInputHost. The snapshot and the menus
     // are replaced every time a repo is shown, the command classes are made once.
-    public IViewRepo ViewRepo => repo;
+    public IRepoSnapshot Snapshot => repo;
     public ShownHistory ShownHistory => shownHistory;
     public SearchMatches SearchMatches => searchMatches;
     public IReadOnlyList<HiddenBranchNews> HiddenNews => hiddenNews;
@@ -785,7 +785,7 @@ class RepoView : IRepoView, IRepoViewInputHost
     void ShowRepo(Server.Repo serverRepo)
     {
         reads.Shown();
-        repo = newViewRepo(this, serverRepo);
+        repo = newSnapshot(this, serverRepo);
         currentBranchShown.Shown(serverRepo);
         menuService = newMenuService(repo, commands);
         hoover.FollowRepo(repo.Graph); // Redrawn below

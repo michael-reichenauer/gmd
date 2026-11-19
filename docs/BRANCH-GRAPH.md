@@ -98,7 +98,7 @@ The command is in `gmd/Common/ProgramCommands.cs`, and the page is made in `gmd/
 - `WebLogExport` reads the repo through the server, as the log view does, shows all active branches,
   hides the branches `--hide` names, leaves out each local branch that is at its remote branch's
   commit (the terminal draws it as a tip of its own beside the remote branch's, which on the page
-  only takes a column), and builds gmd's graph of it with `GraphCreater`.
+  only takes a column), and builds gmd's graph of it with `GraphCreator`.
 - `WebLogPage` writes the HTML: the branch list, a row per commit with its labels and links, the
   colors of gmd's dark palette as CSS, and a few lines of script that turn the times into
   "how long ago". It makes the GitHub links with `Git/WebLinks.cs`, which also knows GitLab,

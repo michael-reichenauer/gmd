@@ -19,7 +19,7 @@ interface IRepoMenu
 
 class RepoMenu : IRepoMenu
 {
-    readonly IViewRepo repo;
+    readonly IRepoSnapshot repo;
     readonly CommandContext commands;
     readonly IRepoCommands cmds;
     readonly Config config;
@@ -29,7 +29,7 @@ class RepoMenu : IRepoMenu
     // The Show Branch menu is the branch menu's, which is made after this one, since it nests this one
     // at its bottom, so it is reached through a function
     public RepoMenu(
-        IViewRepo repo,
+        IRepoSnapshot repo,
         CommandContext commands,
         Config config,
         IConfigDlg configDlg,

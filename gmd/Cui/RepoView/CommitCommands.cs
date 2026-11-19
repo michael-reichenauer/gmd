@@ -110,7 +110,7 @@ class CommitCommands : ICommitCommands
         IReadOnlyList<Server.Commit>? commits = null
     ) => repoView.RefreshAndCommit(addName, commitId, commits);
 
-    public bool CanUndoUncommitted() => !context.ViewRepo.Repo.Status.IsOk;
+    public bool CanUndoUncommitted() => !context.Snapshot.Repo.Status.IsOk;
 
     public void ToggleDetails() => repoView.ToggleDetails();
 
@@ -142,7 +142,7 @@ class CommitCommands : ICommitCommands
     // switch back off the target branch if the merge it staged there was actually committed.
     public async Task<Result<CommitResult>> CommitAsync(bool isAmend, IReadOnlyList<Commit>? commits = null)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         // Before the detached head check below, which a rebase would otherwise answer with
         // "create/switch to a branch first" — a rebase does leave HEAD detached, so that message is
         // both true and useless: the way out is to continue the rebase, not to make a branch.
@@ -235,7 +235,7 @@ class CommitCommands : ICommitCommands
         return Result.Ok;
     }
 
-    string CurrentBranchName() => context.ViewRepo.Repo.CurrentBranch().NiceNameUnique;
+    string CurrentBranchName() => context.Snapshot.Repo.CurrentBranch().NiceNameUnique;
 
     // A rebase, an 'am', and a cherry pick or revert of several commits are finished by continuing
     // them, not by committing: 'git commit' makes the commit git stopped on but leaves the
@@ -249,7 +249,7 @@ class CommitCommands : ICommitCommands
     // not be opened at all.
     bool OfferContinueInsteadOfCommit()
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (repo.Repo.Status.IsFinishedByCommit)
             return true;
 
@@ -272,7 +272,7 @@ class CommitCommands : ICommitCommands
 
     public void ShowCurrentRowDiff()
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var id1 = repo.RowCommit.Id;
         var id2 = "";
         var selection = repoView.Selection;
@@ -381,7 +381,7 @@ class CommitCommands : ICommitCommands
     // The log draws the mark, so it is drawn anew, the rows of both the old and the new mark
     public void MarkForDiff(string commitId)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         diffMark.Set(repo.Path, commitId);
         repoView.View.SetNeedsDraw();
         var sid = commitId.Sid();
@@ -392,7 +392,7 @@ class CommitCommands : ICommitCommands
 
     public void UnmarkForDiff()
     {
-        var sid = diffMark.IdIn(context.ViewRepo.Path).Sid();
+        var sid = diffMark.IdIn(context.Snapshot.Path).Sid();
         diffMark.Clear();
         repoView.View.SetNeedsDraw();
         status.Info($"Unmarked {sid} for a diff");
@@ -563,7 +563,7 @@ class CommitCommands : ICommitCommands
             return Result.Ok;
         });
 
-    public bool CanUndoCommit() => context.ViewRepo.Repo.Status.IsOk;
+    public bool CanUndoCommit() => context.Snapshot.Repo.Status.IsOk;
 
     public void UncommitLastCommit() =>
         Do(async repo =>
@@ -681,7 +681,7 @@ class CommitCommands : ICommitCommands
 
     async Task<Result> AmendOlderCommitAsync(string id)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var commit = repo.Repo.CommitById[id];
         if (CommitRewrite.WhyNotAmend(repo.Repo, commit) is var whyNot && whyNot != "")
             return new Notice(whyNot);
@@ -833,7 +833,7 @@ class CommitCommands : ICommitCommands
 
     public bool CanUncommitLastCommit()
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (!repo.Repo.ViewCommits.Any())
             return false;
 
@@ -872,7 +872,7 @@ class CommitCommands : ICommitCommands
 
     public async Task UndoUncommittedFilesAsync(IReadOnlyList<string> paths)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var failedPath = new List<string>();
         foreach (var path in paths)
         {
@@ -976,7 +976,7 @@ class CommitCommands : ICommitCommands
     // tags says, rather than whether the branch of its commit has a remote branch, as it used to
     async Task<Result> RemoveTagAsync(RepoTag tag)
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         if (!Confirm.RemoveTag(tag.Name, tag.IsOnOrigin))
             return Result.Ok;
 
@@ -1047,7 +1047,7 @@ class CommitCommands : ICommitCommands
     // picked. The uncommitted row has no tree of its own, so its branch supplies the files, and the
     // uncommitted changes are the ones listed first. Reading what a commit changed is only for the marks,
     // so a failure to is no reason not to offer its files.
-    async Task<Result<string>> PickFileAsync(IViewRepo repo, string title, string action)
+    async Task<Result<string>> PickFileAsync(IRepoSnapshot repo, string title, string action)
     {
         var commit = repo.RowCommit;
         var (reference, about, changedHeading) = commit.IsUncommitted
@@ -1096,11 +1096,11 @@ class CommitCommands : ICommitCommands
         return changes;
     }
 
-    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
+    void Do(Func<IRepoSnapshot, Task<Result>> action) => context.Do(action);
 
     async Task<bool> CheckBinaryOrLargeAddedFilesAsync()
     {
-        var repo = context.ViewRepo;
+        var repo = context.Snapshot;
         var addFiles = repo.Repo.Status.AddedFiles.ToList();
         var addAndModified = addFiles
             .Concat(repo.Repo.Status.ModifiedFiles)

@@ -12,7 +12,7 @@ namespace gmdTest.Server;
 //
 // These are characterization tests, pinning down what the code does today.
 [TestClass]
-public class ViewRepoCreaterTest
+public class ViewRepoCreatorTest
 {
     static string[] BranchNames(Repo repo) => repo.ViewBranches.Select(b => b.Name).ToArray();
 
@@ -329,9 +329,9 @@ public class ViewRepoCreaterTest
             var (branches, orders) = RandomBranches(random);
 
             var expected = branches.ToList();
-            Sorter.Sort(expected, (b1, b2) => ViewRepoCreater.CompareBranches(b1, b2, orders));
+            Sorter.Sort(expected, (b1, b2) => ViewRepoCreator.CompareBranches(b1, b2, orders));
             var actual = branches.ToList();
-            ViewRepoCreater.SortPrimaryBranches(actual, orders);
+            ViewRepoCreator.SortPrimaryBranches(actual, orders);
 
             CollectionAssert.AreEqual(
                 expected.Select(b => b.Name).ToList(),

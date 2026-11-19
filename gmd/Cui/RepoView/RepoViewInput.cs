@@ -9,10 +9,10 @@ using Terminal.Gui.ViewBase;
 namespace gmd.Cui.RepoView;
 
 // What the input handling needs from the repo view it drives, beyond what it does itself.
-// Implemented by RepoView, which replaces ViewRepo and Menus every time a repo is shown.
+// Implemented by RepoView, which replaces Snapshot and Menus every time a repo is shown.
 interface IRepoViewInputHost
 {
-    IViewRepo ViewRepo { get; }
+    IRepoSnapshot Snapshot { get; }
     IRepoViewMenus Menus { get; }
     CommandContext Commands { get; }
 
@@ -60,8 +60,8 @@ class RepoViewInput
 
     // The repo and the menus of the currently shown repo. Both are replaced every time a repo is
     // shown, so they are read from the host rather than stored.
-    IViewRepo Repo => host.ViewRepo;
-    Server.Repo ServerRepo => host.ViewRepo.Repo;
+    IRepoSnapshot Repo => host.Snapshot;
+    Server.Repo ServerRepo => host.Snapshot.Repo;
     IRepoViewMenus Menus => host.Menus;
     IRepoCommands Cmd => host.Commands.RepoCmds;
     ICommitCommands CommitCmds => host.Commands.CommitCmds;

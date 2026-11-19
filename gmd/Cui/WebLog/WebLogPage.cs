@@ -25,7 +25,7 @@ record PullRequest(
 // author and time, every commit linked to its page on the hosting service, every branch to its page
 // and its open pull request, and above it the branches, folded, the one changed last first. Made for a phone
 // or a tablet, to see what is going on in a repo where gmd cannot run, e.g. by a GitHub Action
-// publishing it to GitHub Pages. It is the log view's own graph, GraphCreater's and GraphWriter's,
+// publishing it to GitHub Pages. It is the log view's own graph, GraphCreator's and GraphWriter's,
 // drawn as SVG by GraphSvg, in the colors of gmd's own dark palette, as gmd is best known, whatever the device's mode.
 //
 // This is string work on a view repo and its graph, with no git or view, so it is tested with

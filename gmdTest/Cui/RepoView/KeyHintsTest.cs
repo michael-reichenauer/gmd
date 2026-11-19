@@ -183,11 +183,11 @@ public class KeyHintsTest
 
     static Color ColorOf(Text text, string part) => text.Fragments.First(f => f.Text.Contains(part)).Color;
 
-    static string Hints(FakeViewRepo view, Hoover? hoover = null, bool isDetailsShown = false) =>
+    static string Hints(FakeRepoSnapshot view, Hoover? hoover = null, bool isDetailsShown = false) =>
         Hints(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), isDetailsShown));
 
     // The line as drawn, colors and all
-    static Text Line(FakeViewRepo view, Hoover? hoover = null) =>
+    static Text Line(FakeRepoSnapshot view, Hoover? hoover = null) =>
         KeyHintLine.ToText(KeyHints.For(view, hoover ?? new Hoover(), new Selection(0, 0, 0, 0, 0), false), 140);
 
     // A hint with no key is a label, e.g. the branch the keys act on
@@ -195,7 +195,7 @@ public class KeyHintsTest
         string.Join("  ", hints.Select(h => h.Key == "" ? h.Text : $"{h.Key} {h.Text}"));
 
     // The cursor on the commit, and the branch hoovered there, as ← → leaves them
-    static Hoover HooverOn(FakeViewRepo view, string branchName, string commit)
+    static Hoover HooverOn(FakeRepoSnapshot view, string branchName, string commit)
     {
         view.CurrentIndex = view.Repo.CommitById[RepoBuilder.Sha(commit)].ViewIndex;
         var hoover = new Hoover();
@@ -203,8 +203,8 @@ public class KeyHintsTest
         return hoover;
     }
 
-    static async Task<FakeViewRepo> ViewOf(RepoBuilder builder, params string[] showBranches) =>
-        new FakeViewRepo(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
+    static async Task<FakeRepoSnapshot> ViewOf(RepoBuilder builder, params string[] showBranches) =>
+        new FakeRepoSnapshot(await builder.ViewRepoAsync(showBranches), builder.Config, builder.NewServer());
 
     // 'main' with 'dev' merged into it and hidden, synced with its remote
     static RepoBuilder Fixture() =>

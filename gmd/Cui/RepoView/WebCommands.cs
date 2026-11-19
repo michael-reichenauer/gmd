@@ -43,7 +43,7 @@ class WebCommands : IWebCommands
     public void OpenRepo() => Open("the repository", links => links.RepoUrl);
 
     public void OpenBranch(string name) =>
-        Open("a branch", links => links.Branch(RemoteName(context.ViewRepo.Repo, name)));
+        Open("a branch", links => links.Branch(RemoteName(context.Snapshot.Repo, name)));
 
     public void OpenCommit(string commitId) => Open("a commit", links => links.Commit(commitId));
 
@@ -53,7 +53,7 @@ class WebCommands : IWebCommands
 
     public void OpenNewPullRequest(string name) =>
         Open("a pull request", links =>
-            links.NewPullRequest(RemoteName(context.ViewRepo.Repo, name), PullRequestBase(context.ViewRepo.Repo, name))
+            links.NewPullRequest(RemoteName(context.Snapshot.Repo, name), PullRequestBase(context.Snapshot.Repo, name))
         );
 
     // The branch's name on the remote, i.e. its remote branch without 'origin/', empty when it has
@@ -154,5 +154,5 @@ class WebCommands : IWebCommands
         return Task.FromResult(Result.Ok);
     }
 
-    void Do(Func<IViewRepo, Task<Result>> action) => context.Do(action);
+    void Do(Func<IRepoSnapshot, Task<Result>> action) => context.Do(action);
 }
