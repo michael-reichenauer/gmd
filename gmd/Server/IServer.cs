@@ -13,6 +13,9 @@ interface IServer
     event Action<ChangeEvent> RepoChange;
     event Action<ChangeEvent> StatusChange;
 
+    // The top folder of the repository a path is in, or an error when it is in none
+    Result<string> RootPath(string path);
+
     Task<Result<Repo>> GetRepoAsync(string path, IReadOnlyList<string> showBranches);
     Task<Result<Repo>> GetUpdateStatusRepoAsync(Repo repo);
     Task<Result<Repo>> GetFilteredRepoAsync(Repo repo, string filter, int maxCount);
