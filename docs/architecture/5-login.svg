@@ -42,19 +42,19 @@
 <text x="440" y="350" font-size="14" fill="currentColor" font-weight="600">No channel: a background fetch (Askpass.NeverAsk)</text>
 <text x="440" y="369" font-size="12.5" fill="currentColor" fill-opacity="0.8">the askpass answers nothing and says why on stderr,</text>
 <text x="440" y="385" font-size="12.5" fill="currentColor" fill-opacity="0.8">where LoginError finds it; gmd says a login is needed</text>
-<rect x="363.975" y="84.8" width="62.05" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="395" y="97.8" font-size="11.5" fill="currentColor" text-anchor="middle">1 git push</text>
-<rect x="647.487" y="84.8" width="35.025" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="665" y="97.8" font-size="11.5" fill="currentColor" text-anchor="middle">2 ssh</text>
-<rect x="724.165" y="170" width="83.67" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="766" y="183" font-size="11.5" fill="currentColor" text-anchor="middle">3 the question</text>
-<rect x="821.97" y="162.5" width="72.86" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="858.4" y="175.5" font-size="11.5" fill="currentColor" text-anchor="middle">6 the answer</text>
+<rect x="361.272" y="84.8" width="67.455" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="395" y="97.8" font-size="11.5" fill="currentColor" text-anchor="middle">1. git push</text>
+<rect x="644.785" y="84.8" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="665" y="97.8" font-size="11.5" fill="currentColor" text-anchor="middle">2. ssh</text>
+<rect x="721.462" y="170" width="89.075" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="766" y="183" font-size="11.5" fill="currentColor" text-anchor="middle">3. the question</text>
+<rect x="819.267" y="162.5" width="78.265" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="858.4" y="175.5" font-size="11.5" fill="currentColor" text-anchor="middle">6. the answer</text>
 <text x="858.4" y="190.5" font-size="11.5" fill="currentColor" text-anchor="middle">on stdout</text>
-<rect x="477.355" y="214.8" width="105.29" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="530" y="227.8" font-size="11.5" fill="currentColor" text-anchor="middle">4 question + token</text>
-<rect x="474.653" y="264" width="110.695" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="530" y="277" font-size="11.5" fill="currentColor" text-anchor="middle">5 answer, or Cancel</text>
+<rect x="474.653" y="214.8" width="110.695" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="530" y="227.8" font-size="11.5" fill="currentColor" text-anchor="middle">4. question + token</text>
+<rect x="471.95" y="264" width="116.1" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="530" y="277" font-size="11.5" fill="currentColor" text-anchor="middle">5. answer, or Cancel</text>
 <rect x="185.19" y="295" width="29.62" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
 <text x="200" y="308" font-size="11.5" fill="currentColor" text-anchor="middle">asks</text>
 <line x1="40" y1="470" x2="74" y2="470" stroke="var(--arch-main, #0969da)" stroke-width="2"/>

@@ -491,24 +491,24 @@ def runtime_view(c):
     d.card("reads", X + 690, 320, 230, "git log, status, ...", ["log, branches, tags, status,", "stashes, worktrees, reflog"], accent="main")
 
     ux = d.anchor("user", "t")[0]
-    d.arrow("user", "input", "1 a key", accent="main", frm="t", to="l", via=[(ux, d.anchor("input", "l")[1])],
+    d.arrow("user", "input", "1. a key", accent="main", frm="t", to="l", via=[(ux, d.anchor("input", "l")[1])],
             at=(ux, 200))
-    d.arrow("input", "cmds", "2 command", accent="main", frm="b", to="t", straight=True)
-    d.arrow("cmds", "paused", "3 write", accent="main", fs=0.5, ft=0.5, via=[(X + 325, 224), (X + 325, 114)],
+    d.arrow("input", "cmds", "2. command", accent="main", frm="b", to="t", straight=True)
+    d.arrow("cmds", "paused", "3. write", accent="main", fs=0.5, ft=0.5, via=[(X + 325, 224), (X + 325, 114)],
             at=(X + 325, 170))
-    d.arrow("paused", "write", "4 git", accent="main", straight=True, label_side="above")
+    d.arrow("paused", "write", "4. git", accent="main", straight=True, label_side="above")
     d.arrow("paused", "monitor", "pauses", accent="side", frm="b", to="t", fs=0.5, straight=True, dashed=True)
-    d.arrow("cmds", "refresh", "5 Refresh()", accent="main", frm="b", to="t", straight=True)
+    d.arrow("cmds", "refresh", "5. Refresh()", accent="main", frm="b", to="t", straight=True)
     d.arrow("other", "monitor", "files change", accent="side", frm="l", to="r", straight=True, label_side="above")
-    d.arrow("monitor", "refresh", "5 RepoChanged,\nposted to the UI", accent="side", frm="l", to="r", fs=0.75, ft=0.25,
+    d.arrow("monitor", "refresh", "5. RepoChanged,\nposted to the UI", accent="side", frm="l", to="r", fs=0.75, ft=0.25,
             via=[(X + 335, 241), (X + 335, 337)], at=(X + 325, 289))
-    d.arrow("refresh", "aug", "6 read", accent="main", fs=0.72, ft=0.72, straight=True, label_side="below")
-    d.arrow("aug", "reads", "7 git", accent="main", straight=True, label_side="above")
-    d.arrow("aug", "augmenter", "8 GitRepo", accent="main", frm="b", to="t", straight=True)
-    d.arrow("augmenter", "viewcreater", "9 Repo", accent="main", frm="b", to="t", straight=True)
-    d.arrow("viewcreater", "viewrepo", "10 view Repo", accent="main", frm="l", to="r", straight=True, label_side="above")
-    d.arrow("viewrepo", "draw", "11 rows", accent="main", frm="t", to="b", straight=True)
-    d.arrow("draw", "user", "12 the redrawn\nlog on screen", accent="main", frm="l", to="b",
+    d.arrow("refresh", "aug", "6. read", accent="main", fs=0.72, ft=0.72, straight=True, label_side="below")
+    d.arrow("aug", "reads", "7. git", accent="main", straight=True, label_side="above")
+    d.arrow("aug", "augmenter", "8. GitRepo", accent="main", frm="b", to="t", straight=True)
+    d.arrow("augmenter", "viewcreater", "9. Repo", accent="main", frm="b", to="t", straight=True)
+    d.arrow("viewcreater", "viewrepo", "10. view Repo", accent="main", frm="l", to="r", straight=True, label_side="above")
+    d.arrow("viewrepo", "draw", "11. rows", accent="main", frm="t", to="b", straight=True)
+    d.arrow("draw", "user", "12. the redrawn\nlog on screen", accent="main", frm="l", to="b",
             via=[(ux, d.anchor("draw", "l")[1])], at=(ux, 437))
     d.legend(X + 40, 704)
     return d
@@ -570,12 +570,12 @@ def login_view(c):
     d.card("askpass", 700, 210, 220, "gmd as the askpass", ["GMD_ASKPASS=1: Main calls", "Askpass.Answer at once"], accent="side")
     d.card("never", 430, 330, 490, "No channel: a background fetch (Askpass.NeverAsk)", ["the askpass answers nothing and says why on stderr,", "where LoginError finds it; gmd says a login is needed"], dashed=True)
 
-    d.arrow("cmd", "git", "1 git push", accent="main", fs=0.35, ft=0.35, straight=True, label_side="above")
-    d.arrow("git", "ssh", "2 ssh", accent="main", fs=0.35, ft=0.35, straight=True, label_side="above")
-    d.arrow("ssh", "askpass", "3 the question", accent="side", frm="b", to="t", fs=0.3, straight=True)
-    d.arrow("askpass", "ssh", "6 the answer\non stdout", accent="side", frm="t", to="b", fs=0.72, straight=True)
-    d.arrow("askpass", "server", "4 question + token", accent="side", frm="l", to="r", fs=0.35, ft=0.35, straight=True, label_side="above")
-    d.arrow("server", "askpass", "5 answer, or Cancel", accent="side", frm="r", to="l", fs=0.75, ft=0.75, straight=True, label_side="below")
+    d.arrow("cmd", "git", "1. git push", accent="main", fs=0.35, ft=0.35, straight=True, label_side="above")
+    d.arrow("git", "ssh", "2. ssh", accent="main", fs=0.35, ft=0.35, straight=True, label_side="above")
+    d.arrow("ssh", "askpass", "3. the question", accent="side", frm="b", to="t", fs=0.3, straight=True)
+    d.arrow("askpass", "ssh", "6. the answer\non stdout", accent="side", frm="t", to="b", fs=0.72, straight=True)
+    d.arrow("askpass", "server", "4. question + token", accent="side", frm="l", to="r", fs=0.35, ft=0.35, straight=True, label_side="above")
+    d.arrow("server", "askpass", "5. answer, or Cancel", accent="side", frm="r", to="l", fs=0.75, ft=0.75, straight=True, label_side="below")
     d.arrow("server", "dialog", "asks", accent="side", frm="b", to="t", fs=0.5, straight=True)
     d.arrow("askpass", "never", "", frm="b", to="t", fs=0.5, ft=0.836, straight=True, dashed=True)
     d.legend(40, 470)
