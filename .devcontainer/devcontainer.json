@@ -4,8 +4,10 @@
 	// The GitHub CLI, installed with the image at every rebuild, so that the CI runs can be read from
 	// here (gh run view <id> --log-failed) without a step by hand. Its login is kept in a volume, see
 	// mounts below, so 'gh auth login' is needed once, not after every rebuild.
+	// gmd itself, the released one, from this repository's own feature (devcontainer-feature/).
 	"features": {
-		"ghcr.io/devcontainers/features/github-cli:1": {}
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/michael-reichenauer/gmd/gmd:1": {}
 	},
 	"customizations": {
 		"vscode": {

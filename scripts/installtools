@@ -53,10 +53,6 @@ echo "Install claude ..."
 curl -fsSL https://claude.ai/install.sh | bash
 
 echo ""
-echo "Install gmd ..."
-curl -sL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
-
-echo ""
 echo "The .NET SDKs of the image (global.json pins the one gmd builds with) ..."
 dotnet --list-sdks
 
