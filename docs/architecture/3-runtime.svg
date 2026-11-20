@@ -79,37 +79,37 @@
 <text x="850" y="340" font-size="14" fill="currentColor" font-weight="600">git log, status, ...</text>
 <text x="850" y="359" font-size="12.5" fill="currentColor" fill-opacity="0.8">log, branches, tags, status,</text>
 <text x="850" y="375" font-size="12.5" fill="currentColor" fill-opacity="0.8">stashes, worktrees, reflog</text>
-<rect x="62.0825" y="191" width="45.835" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="85" y="204" font-size="11.5" fill="currentColor" text-anchor="middle">1 a key</text>
-<rect x="286.678" y="152" width="56.645" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="315" y="165" font-size="11.5" fill="currentColor" text-anchor="middle">2 command</text>
-<rect x="452.082" y="161" width="45.835" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="475" y="174" font-size="11.5" fill="currentColor" text-anchor="middle">3 write</text>
-<rect x="782.487" y="95" width="35.025" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="800" y="108" font-size="11.5" fill="currentColor" text-anchor="middle">4 git</text>
+<rect x="59.38" y="191" width="51.24" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="85" y="204" font-size="11.5" fill="currentColor" text-anchor="middle">1. a key</text>
+<rect x="283.975" y="152" width="62.05" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="315" y="165" font-size="11.5" fill="currentColor" text-anchor="middle">2. command</text>
+<rect x="449.38" y="161" width="51.24" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="475" y="174" font-size="11.5" fill="currentColor" text-anchor="middle">3. write</text>
+<rect x="779.785" y="95" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="800" y="108" font-size="11.5" fill="currentColor" text-anchor="middle">4. git</text>
 <rect x="614.785" y="160" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
 <text x="635" y="173" font-size="11.5" fill="currentColor" text-anchor="middle">pauses</text>
-<rect x="281.272" y="280" width="67.455" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="315" y="293" font-size="11.5" fill="currentColor" text-anchor="middle">5 Refresh()</text>
+<rect x="278.57" y="280" width="72.86" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="315" y="293" font-size="11.5" fill="currentColor" text-anchor="middle">5. Refresh()</text>
 <rect x="763.57" y="205" width="72.86" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
 <text x="800" y="218" font-size="11.5" fill="currentColor" text-anchor="middle">files change</text>
 <rect x="427.76" y="272.5" width="94.48" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="475" y="285.5" font-size="11.5" fill="currentColor" text-anchor="middle">5 RepoChanged,</text>
+<text x="475" y="285.5" font-size="11.5" fill="currentColor" text-anchor="middle">5. RepoChanged,</text>
 <text x="475" y="300.5" font-size="11.5" fill="currentColor" text-anchor="middle">posted to the UI</text>
-<rect x="454.785" y="371.96" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="475" y="384.96" font-size="11.5" fill="currentColor" text-anchor="middle">6 read</text>
-<rect x="782.487" y="335" width="35.025" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="800" y="348" font-size="11.5" fill="currentColor" text-anchor="middle">7 git</text>
-<rect x="606.678" y="410" width="56.645" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="635" y="423" font-size="11.5" fill="currentColor" text-anchor="middle">8 GitRepo</text>
-<rect x="614.785" y="535" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="635" y="548" font-size="11.5" fill="currentColor" text-anchor="middle">9 Repo</text>
-<rect x="438.57" y="585" width="72.86" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="475" y="598" font-size="11.5" fill="currentColor" text-anchor="middle">10 view Repo</text>
-<rect x="292.082" y="535" width="45.835" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="315" y="548" font-size="11.5" fill="currentColor" text-anchor="middle">11 rows</text>
-<rect x="43.165" y="420.5" width="83.67" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
-<text x="85" y="433.5" font-size="11.5" fill="currentColor" text-anchor="middle">12 the redrawn</text>
+<rect x="452.082" y="371.96" width="45.835" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="475" y="384.96" font-size="11.5" fill="currentColor" text-anchor="middle">6. read</text>
+<rect x="779.785" y="335" width="40.43" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="800" y="348" font-size="11.5" fill="currentColor" text-anchor="middle">7. git</text>
+<rect x="603.975" y="410" width="62.05" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="635" y="423" font-size="11.5" fill="currentColor" text-anchor="middle">8. GitRepo</text>
+<rect x="612.082" y="535" width="45.835" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="635" y="548" font-size="11.5" fill="currentColor" text-anchor="middle">9. Repo</text>
+<rect x="435.868" y="585" width="78.265" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="475" y="598" font-size="11.5" fill="currentColor" text-anchor="middle">10. view Repo</text>
+<rect x="289.38" y="535" width="51.24" height="18" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="315" y="548" font-size="11.5" fill="currentColor" text-anchor="middle">11. rows</text>
+<rect x="40.4625" y="420.5" width="89.075" height="33" rx="3" fill="var(--arch-bg, #ffffff)" fill-opacity="0.92"/>
+<text x="85" y="433.5" font-size="11.5" fill="currentColor" text-anchor="middle">12. the redrawn</text>
 <text x="85" y="448.5" font-size="11.5" fill="currentColor" text-anchor="middle">log on screen</text>
 <line x1="190" y1="704" x2="224" y2="704" stroke="var(--arch-main, #0969da)" stroke-width="2"/>
 <text x="232" y="708" font-size="11.5" fill="currentColor" fill-opacity="0.8">the main path</text>

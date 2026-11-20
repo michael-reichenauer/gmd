@@ -120,7 +120,7 @@ others must be marked `[SingleInstance]` or each gets a copy.
 
 The log is never patched in place. Whatever changes, gmd reads the repository again, infers the
 branches again, and replaces the snapshot it draws. The diagram follows one round trip, from the
-developer's key (1) to the log they see redrawn (12). There are two ways in.
+developer's key (step 1) to the log they see redrawn (step 12). There are two ways in.
 
 **A key** goes to `RepoViewInput`, which finds the command in one of the `*Commands` classes
 (`CommitCommands`, `BranchCommands`, ...). `CommandRunner.Do` runs it asynchronously on the UI thread, git working
