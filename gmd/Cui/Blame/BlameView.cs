@@ -131,6 +131,7 @@ class BlameView : IBlameView
 
         contentView = new ContentView(OnGetContent)
         {
+            IsLetterArrows = true,
             X = 0,
             Y = 2,
             Width = Dim.Fill(),

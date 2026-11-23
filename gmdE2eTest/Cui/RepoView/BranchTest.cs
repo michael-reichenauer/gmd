@@ -922,4 +922,24 @@ public class BranchTest
         Assert.AreEqual(zeta, (await repo.GitAsync("rev-parse fix origin/fix")).Split('\n')[0].Trim());
         Assert.AreEqual(zeta, (await repo.GitAsync("rev-parse origin/fix")).Trim(), "Published");
     }
+
+    // On a keyboard with no arrow keys, e.g. the iPad's on the screen, ',' highlights a branch as ←
+    // does, and 'v' opens the Show Branch menu as Shift-→ does
+    [TestMethod]
+    public async Task TestLetterKeysStandInForTheArrowKeys()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send(","); // Hoovers main, as Left does
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Branch: main");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Branch: main");
+
+        gmd.Send("v");
+        gmd.WaitFor("type to find");
+    }
 }

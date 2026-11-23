@@ -108,6 +108,10 @@ class ContentView : View
     public bool IsInputHeld { get; set; } = false;
     public IReadOnlySet<Key> KeysWhileHeld { get; set; } = new HashSet<Key>();
 
+    // Takes j k J K , . as the arrow keys, for a keyboard with none, see LetterArrows. Not in a menu
+    // or a list dialog, where a letter picks an item.
+    public bool IsLetterArrows { get; set; } = false;
+
     public int FirstIndex => scroll.FirstIndex;
     public int TotalCount => scroll.TotalCount;
     public int CurrentIndex => scroll.CurrentIndex;
@@ -202,6 +206,8 @@ class ContentView : View
     protected override bool OnKeyDown(Key key)
     {
         // Log.Info($"Key: {key}");
+        if (IsLetterArrows)
+            key = LetterArrows.ArrowOf(key);
         if (IsInputHeld && !KeysWhileHeld.Contains(key))
             return true;
 

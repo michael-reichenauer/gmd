@@ -709,7 +709,7 @@ public class LogViewTest
                      │Branches                              >││●   main                    >│
                      │Repo Menu                          ⇧m >││    dev                     >│
                      ╰───────────────────────────────────────╯│─────────────────────────────│
-                                                              │Show Branch              ⇧→ >│
+                                                              │Show Branch           ⇧→, v >│
                                                               │Hide All Branches            │
                                                               │Undo Show 'dev'   Backspace  │
                                                               ╰─────────────────────────────╯
@@ -741,7 +741,7 @@ public class LogViewTest
                      │Branches                              >││●   main                    >││───────────────────────────────────│
                      │Repo Menu                          ⇧m >││    dev                     >││Diff Branch to                  d >│
                      ╰───────────────────────────────────────╯│─────────────────────────────││Open Branch in Browser             │
-                                                              │Show Branch              ⇧→ >││Create Pull Request in Browser     │
+                                                              │Show Branch           ⇧→, v >││Create Pull Request in Browser     │
                                                               │Hide All Branches            ││───────────────────────────────────│
                                                               │Undo Show 'dev'   Backspace  ││Hide Branch                     h  │
                                                               ╰─────────────────────────────╯│Change Branch Color             g  │

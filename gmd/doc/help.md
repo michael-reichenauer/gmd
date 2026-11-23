@@ -250,6 +250,8 @@ menus and the line at the bottom write `⇧p`, ⇧ being Shift.
 | Shift-M    | The repo menu, e.g. to continue or abort a rebase          |
 | ← →        | Highlight the branch to the left or right, or the commit   |
 | Shift-→    | Show Branch menu: type part of a name to find a branch     |
+| j k , .    | The arrow keys, for a keyboard without them (see below)    |
+| v          | Show Branch menu, as Shift-→                               |
 | Enter      | Toggle commit details (on a branch: show/hide branches)    |
 | Tab        | Move between the log and the commit details                |
 | c          | Commit the uncommitted changes                             |
@@ -304,6 +306,16 @@ views), double-click switches to a branch (or toggles the details of a
 commit), and middle-click merges a branch into the current branch, after
 asking. The items in the top bar can be clicked as well: `▲` and `▼` open
 a menu to push or pull the current branch or all of them.
+
+On a keyboard with no arrow keys, such as the one on the screen of an iPad
+in a terminal in the browser, `j` and `k` move down and up, `J` and `K`
+select rows as `Shift-↓` and `Shift-↑` do, and `,` and `.` are `←` and `→`.
+They work in the log, the diff, the blame, the conflict resolver, the start
+page and the log of gmd itself; in the log, `v` opens the Show Branch menu as
+`Shift-→` does. `Space` pages down, and `q` closes the diff and blame views.
+A tap works as a click: on a row it moves the cursor there, on the line of a
+branch passing the row it highlights the branch, so that `m` opens its
+menu, and on a menu item or a button it picks it.
 
 On macOS, the Terminal app sends `Shift-↑` and `Shift-↓` as a plain `↑` and
 `↓`, so they move the cursor rather than select rows. Add the two keys in
