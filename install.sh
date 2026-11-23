@@ -72,7 +72,7 @@ mv -f ~/gmd/gmd.download ~/gmd/gmd
 
 # A piped script cannot change the PATH of the shell that ran it, so gmd is linked into a folder
 # that is on that PATH already, which makes it a command at once, in this shell and in every other.
-# The user's own folders first, then /usr/local/bin when it can be written without sudo, as root.
+# The user's own folders first, then /usr/local/bin when it can be written without sudo, e.g. as root.
 # The binary stays the user's in ~/gmd, beside which gmd updates itself, finding it through the link.
 is_on_path() {
   case ":$PATH:" in
@@ -85,8 +85,13 @@ link_gmd() {
   local DIR="$1"
   local LINK="$DIR/gmd"
   is_on_path "$DIR" || return 1
-  # Never over a gmd that is not a link, one installed some other way
-  if [ -e "$LINK" ] && [ ! -L "$LINK" ]; then
+  # Never over another gmd: a file, or a link to one installed some other way (the dev container
+  # feature's in /usr/local/bin), only over a link of this script's or one that leads nowhere
+  if [ -L "$LINK" ]; then
+    if [ -e "$LINK" ] && [ "$(readlink "$LINK")" != "$HOME/gmd/gmd" ]; then
+      return 1
+    fi
+  elif [ -e "$LINK" ]; then
     return 1
   fi
   if [ -d "$DIR" ] && [ -w "$DIR" ]; then
