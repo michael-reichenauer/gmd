@@ -70,6 +70,53 @@ fi
 chmod +x ~/gmd/gmd.download
 mv -f ~/gmd/gmd.download ~/gmd/gmd
 
+# A piped script cannot change the PATH of the shell that ran it, so gmd is linked into a folder
+# that is on that PATH already, which makes it a command at once, in this shell and in every other.
+# The user's own folders first, then /usr/local/bin, which takes root or a sudo that needs no
+# password (as in a dev container), since a script whose input is the pipe must never ask for one.
+# The binary stays the user's in ~/gmd, beside which gmd updates itself, finding it through the link.
+is_on_path() {
+  case ":$PATH:" in
+    *":$1:"*) return 0 ;;
+  esac
+  return 1
+}
+
+link_gmd() {
+  local DIR="$1"
+  local LINK="$DIR/gmd"
+  is_on_path "$DIR" || return 1
+  # Never over a gmd that is not a link, one installed some other way
+  if [ -e "$LINK" ] && [ ! -L "$LINK" ]; then
+    return 1
+  fi
+  if [ -d "$DIR" ] && [ -w "$DIR" ]; then
+    ln -sf "$HOME/gmd/gmd" "$LINK" 2>/dev/null
+  elif [ ! -e "$DIR" ] && [ "${DIR#"$HOME"/}" != "$DIR" ]; then
+    mkdir -p "$DIR" 2>/dev/null && ln -sf "$HOME/gmd/gmd" "$LINK" 2>/dev/null
+  elif [ -d "$DIR" ] && command -v sudo >/dev/null && sudo -n true 2>/dev/null; then
+    echo "Linking $LINK with sudo"
+    sudo -n ln -sf "$HOME/gmd/gmd" "$LINK" 2>/dev/null
+  else
+    return 1
+  fi
+}
+
+LINKED=""
+for DIR in "$HOME/.local/bin" "$HOME/bin" /usr/local/bin; do
+  if link_gmd "$DIR"; then
+    LINKED="$DIR/gmd"
+    break
+  fi
+done
+
+echo "gmd version: $(~/gmd/gmd --version)"
+if [ -n "$LINKED" ]; then
+  echo "gmd is ready to use, linked as $LINKED"
+  exit 0
+fi
+
+# No folder on the PATH could take the link, so ~/gmd is added to the PATH of the shells to come
 for PROFILE_FILE in "${PROFILE_FILES[@]}"; do
   if [ -f "$PROFILE_FILE" ] && grep -q 'export PATH=$PATH:~/gmd' "$PROFILE_FILE"; then
     continue
@@ -77,5 +124,4 @@ for PROFILE_FILE in "${PROFILE_FILES[@]}"; do
   echo 'export PATH=$PATH:~/gmd' >>"$PROFILE_FILE"
 done
 
-echo "gmd version: $(~/gmd/gmd --version)"
 echo "To enable, run: . ${PROFILE_FILES[0]}"
