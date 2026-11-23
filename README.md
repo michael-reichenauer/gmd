@@ -269,9 +269,12 @@ Without Homebrew, this one command picks the right file for your OS and CPU:
 curl -fsSL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/install.sh | bash
 ```
 
-It downloads gmd to `~/gmd/gmd`, checks it against the release's checksums, and adds `~/gmd` to
-the `PATH` in `~/.profile` (and on macOS in `~/.zprofile` and `~/.bash_profile` as well). Then
-open a new terminal, or run `. ~/.profile` (`. ~/.zprofile` on macOS).
+It downloads gmd to `~/gmd/gmd`, checks it against the release's checksums, and links it into a
+folder already on your `PATH`, so `gmd` works at once, in the terminal you ran it in too: `~/.local/bin`
+or `~/bin` when the `PATH` has them, or else `/usr/local/bin` when you can write to it, e.g. as root.
+It never uses `sudo`. With none of those, it adds `~/gmd` to the `PATH`
+in `~/.profile` (and on macOS in `~/.zprofile` and `~/.bash_profile` as well) instead; then open a
+new terminal, or run `. ~/.profile` (`. ~/.zprofile` on macOS).
 
 To install by hand instead, use the file for your platform from the table above:
 
