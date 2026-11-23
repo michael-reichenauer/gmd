@@ -72,8 +72,7 @@ mv -f ~/gmd/gmd.download ~/gmd/gmd
 
 # A piped script cannot change the PATH of the shell that ran it, so gmd is linked into a folder
 # that is on that PATH already, which makes it a command at once, in this shell and in every other.
-# The user's own folders first, then /usr/local/bin, which takes root or a sudo that needs no
-# password (as in a dev container), since a script whose input is the pipe must never ask for one.
+# The user's own folders first, then /usr/local/bin when it can be written without sudo, as root.
 # The binary stays the user's in ~/gmd, beside which gmd updates itself, finding it through the link.
 is_on_path() {
   case ":$PATH:" in
@@ -94,9 +93,6 @@ link_gmd() {
     ln -sf "$HOME/gmd/gmd" "$LINK" 2>/dev/null
   elif [ ! -e "$DIR" ] && [ "${DIR#"$HOME"/}" != "$DIR" ]; then
     mkdir -p "$DIR" 2>/dev/null && ln -sf "$HOME/gmd/gmd" "$LINK" 2>/dev/null
-  elif [ -d "$DIR" ] && command -v sudo >/dev/null && sudo -n true 2>/dev/null; then
-    echo "Linking $LINK with sudo"
-    sudo -n ln -sf "$HOME/gmd/gmd" "$LINK" 2>/dev/null
   else
     return 1
   fi

@@ -271,8 +271,8 @@ curl -fsSL https://raw.githubusercontent.com/michael-reichenauer/gmd/main/instal
 
 It downloads gmd to `~/gmd/gmd`, checks it against the release's checksums, and links it into a
 folder already on your `PATH`, so `gmd` works at once, in the terminal you ran it in too: `~/.local/bin`
-or `~/bin` when the `PATH` has them, or else `/usr/local/bin` when you are root or have a `sudo`
-that asks for no password, as in a dev container. With none of those, it adds `~/gmd` to the `PATH`
+or `~/bin` when the `PATH` has them, or else `/usr/local/bin` when you are root. It never uses
+`sudo`. With none of those, it adds `~/gmd` to the `PATH`
 in `~/.profile` (and on macOS in `~/.zprofile` and `~/.bash_profile` as well) instead; then open a
 new terminal, or run `. ~/.profile` (`. ~/.zprofile` on macOS).
 
