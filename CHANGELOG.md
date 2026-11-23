@@ -8,6 +8,17 @@ what is merged but in no preview yet. The next release heads it with its version
 
 ## [Unreleased]
 
+### New
+- Gmd can now be used on a keyboard with no arrow keys, such as the iPad's on-screen one: `j` and `k` move down and up, `J` and `K` select rows as `Shift-↓` and `Shift-↑` do, and `,` and `.` work as `←` and `→`, in the log, the diff, the blame, the conflict resolver, the commit details, the start page and the log of gmd itself
+- `v` in the log opens the **Show Branch** menu, as `Shift-→` does
+
+### Improved
+- A click or a tap on the line of another branch passing a row now highlights that branch, so that `m` opens its menu
+- The install script (`install.sh`) now links gmd into a folder already on the `PATH` (`~/.local/bin`, `~/bin`, or `/usr/local/bin` when it can be written to), so `gmd` works at once, in the terminal that ran it too; it never uses `sudo`, never replaces another gmd, and adds `~/gmd` to the profile as before only when there is no such folder
+
+### Fixed
+- A local branch behind its remote, with uncommitted changes, is no longer drawn with a line starting in empty space below the commit it branched from
+
 ## [v1.21.1481.487] - 2026-11-19
 
 ### Improved
