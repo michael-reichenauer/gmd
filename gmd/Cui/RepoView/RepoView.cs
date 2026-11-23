@@ -173,6 +173,7 @@ class RepoView : IRepoView, IRepoViewInputHost
         this.filterDlg = filterDlg;
         commitsView = new ContentView(OnGetContent)
         {
+            IsLetterArrows = true,
             X = 0,
             Y = 2,
             Width = Dim.Fill(),

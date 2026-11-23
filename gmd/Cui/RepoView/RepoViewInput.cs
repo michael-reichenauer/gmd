@@ -99,6 +99,9 @@ class RepoViewInput
         commitsView.RegisterKeyHandler(Key.PageUp, () => ScrollDetails(-DetailsPage));
         commitsView.RegisterKeyHandler(Key.PageDown, () => ScrollDetails(DetailsPage));
         commitsView.RegisterKeyHandler(Key.CursorRight.WithShift, OnKeyShiftCursorRight);
+        // Shift-→ for a keyboard with no arrows, as the log takes j k , . for them (see LetterArrows):
+        // 'v' for view, since '>', Shift-'.', is a key of its own on the iPad's keyboard on the screen
+        commitsView.RegisterKeyHandler(Key.V, OnKeyShiftCursorRight);
 
         commitsView.RegisterKeyHandler(Key.R, () => host.RefreshAndFetch());
         commitsView.RegisterKeyHandler(Key.F5, () => host.RefreshAndFetch());
@@ -543,10 +546,8 @@ class RepoViewInput
             return;
         commitsView.SetCurrentIndex(index);
 
-        if (
-            Repo.Graph.TryGetBranchByPos(x, index, out var branch)
-            && Repo.RowCommit.BranchPrimaryName == branch.B.PrimaryName
-        )
+        var isBranch = Repo.Graph.TryGetBranchByPos(x, index, out var branch);
+        if (isBranch && Repo.RowCommit.BranchPrimaryName == branch.B.PrimaryName)
         { // Clicked on a branch, try to show/hide branch if point is a e.g. a merge, branch-out commit
             TryShowHideCommitBranch(x, y);
             return;
@@ -557,6 +558,11 @@ class RepoViewInput
             ClearHoover();
             return;
         }
+
+        // Clicked on another branch's line: highlight it, as hovering over it does, since a tap on a
+        // touch screen moves no pointer over it first, and the branch keys and 'm' then act on it
+        if (isBranch)
+            SetHooverBranch(branch, index);
     }
 
     void OnClickedMiddle(int x, int y)

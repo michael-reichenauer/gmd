@@ -922,4 +922,40 @@ public class BranchTest
         Assert.AreEqual(zeta, (await repo.GitAsync("rev-parse fix origin/fix")).Split('\n')[0].Trim());
         Assert.AreEqual(zeta, (await repo.GitAsync("rev-parse origin/fix")).Trim(), "Published");
     }
+
+    // On a keyboard with no arrow keys, e.g. the iPad's on the screen, ',' highlights a branch as ←
+    // does, and 'v' opens the Show Branch menu as Shift-→ does
+    [TestMethod]
+    public async Task TestLetterKeysStandInForTheArrowKeys()
+    {
+        using var repo = await E2eRepo.CreateAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        gmd.WaitFor("Initial");
+
+        gmd.Send(","); // Hoovers main, as Left does
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Branch: main");
+        gmd.Send("Escape");
+        gmd.WaitUntilGone("Branch: main");
+
+        gmd.Send("v");
+        gmd.WaitFor("type to find");
+    }
+
+    // A click on the line of another branch than the row's highlights that branch, as hovering over
+    // it does, since a tap on a touch screen moves no pointer over it first: 'm' then opens its menu
+    [TestMethod]
+    public async Task TestClickingABranchLineHighlightsTheBranch()
+    {
+        using var repo = await E2eRepo.CreateWithUnmergedBranchAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        var (_, y) = TmuxSession.PositionOf(gmd.WaitFor("Add gamma"), "Add gamma");
+
+        // 'main' is the leftmost column of the graph, passing the row of dev's commit below main's
+        gmd.Click(0, y + 1);
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Branch: main");
+    }
 }

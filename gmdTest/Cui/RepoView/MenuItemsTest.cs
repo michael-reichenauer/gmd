@@ -291,7 +291,7 @@ public class MenuItemsTest
             ●   main >
                 dev >
             ---
-            Show Branch >  [⇧→]
+            Show Branch >  [⇧→, v]
             Hide All Branches
             Undo Show or Hide  [Backspace]  (disabled)
             """,
@@ -359,7 +359,7 @@ public class MenuItemsTest
                 alpha >
                 feature >
             ---
-            Show Branch >  [⇧→]
+            Show Branch >  [⇧→, v]
             Hide All Branches
             Undo Show or Hide  [Backspace]  (disabled)
             """,
@@ -471,7 +471,7 @@ public class MenuItemsTest
             """
             Pull All Branches  [⇧u]  (disabled)
             Push All Branches  [⇧p]  (disabled)
-            Show Branch >  [⇧→]
+            Show Branch >  [⇧→, v]
             Search ...  [f]
             Next Match  [n]  (disabled)
             Previous Match  [⇧n]  (disabled)

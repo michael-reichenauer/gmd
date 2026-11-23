@@ -231,6 +231,7 @@ class ConflictView : IConflictView
         listView.RegisterMouseHandler(MouseFlags.LeftButtonPressed, (_, y) => OnListClick(y));
         contentView = new ContentView(OnGetContent)
         {
+            IsLetterArrows = true,
             X = listWidth,
             Y = 2,
             Width = Dim.Fill(),

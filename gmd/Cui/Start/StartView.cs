@@ -85,6 +85,7 @@ class StartView : IStartView
 
         view = new ContentView(OnGetContent)
         {
+            IsLetterArrows = true,
             X = 0,
             Y = 2,
             Width = Dim.Fill(),

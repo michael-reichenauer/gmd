@@ -707,7 +707,8 @@ class BranchMenu : IBranchMenu
     void FindBranch(string text) => cmds.FindBranch(text);
 
     // The same menu as ShowOpenBranchMenu, as a sub menu, where typing finds a branch as well
-    public SubMenu GetShowBranchSubMenu() => new("Show Branch", "⇧→", GetShowBranchItems()) { OnTypeText = FindBranch };
+    public SubMenu GetShowBranchSubMenu() =>
+        new("Show Branch", "⇧→, v", GetShowBranchItems()) { OnTypeText = FindBranch };
 
     IEnumerable<MenuItem> ToHierarchicalBranchesItems(
         IEnumerable<Branch> branches,

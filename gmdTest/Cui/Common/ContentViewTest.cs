@@ -233,6 +233,54 @@ public class ContentViewTest
         Assert.IsTrue(view.FirstIndex <= 250 && 250 < view.FirstIndex + 10, $"In sight, from {view.FirstIndex}");
     }
 
+    // j and k move the cursor as ↓ and ↑ do, and J selects as Shift-↓, in a view that takes them, for
+    // a keyboard with no arrow keys; a view that does not, a menu, leaves the letters to its items
+    [TestMethod]
+    public void TestLetterArrowsMoveTheCursorWhereTaken()
+    {
+        var view = NewView(100);
+        view.IsLetterArrows = true;
+
+        view.NewKeyDownEvent(Key.J);
+        view.NewKeyDownEvent(Key.J);
+        Assert.AreEqual(2, view.CurrentIndex);
+        view.NewKeyDownEvent(Key.K);
+        Assert.AreEqual(1, view.CurrentIndex);
+        view.NewKeyDownEvent(Key.J.WithShift);
+        var byLetter = (view.CurrentIndex, view.SelectStartIndex, view.SelectCount);
+        var arrows = NewView(100);
+        arrows.NewKeyDownEvent(Key.CursorDown);
+        arrows.NewKeyDownEvent(Key.CursorDown.WithShift);
+        Assert.AreEqual(
+            (arrows.CurrentIndex, arrows.SelectStartIndex, arrows.SelectCount),
+            byLetter,
+            "J selects, as Shift-↓ does"
+        );
+        Assert.IsTrue(view.SelectCount > 0, $"Selected {byLetter}");
+
+        var other = NewView(100);
+        other.NewKeyDownEvent(Key.J);
+        Assert.AreEqual(0, other.CurrentIndex, "Not taken by a view that did not ask for them");
+    }
+
+    // A key the view registered for an arrow is run for its letter too
+    [TestMethod]
+    public void TestLetterArrowsRunTheArrowsHandlers()
+    {
+        var view = NewView(100);
+        view.IsLetterArrows = true;
+        var lefts = 0;
+        var rights = 0;
+        view.RegisterKeyHandler(Key.CursorLeft, () => lefts++);
+        view.RegisterKeyHandler(Key.CursorRight, () => rights++);
+
+        view.NewKeyDownEvent((Key)',');
+        view.NewKeyDownEvent((Key)'.');
+        view.NewKeyDownEvent((Key)'.');
+        Assert.AreEqual(1, lefts);
+        Assert.AreEqual(2, rights);
+    }
+
     static ContentView NewView(int rowCount, int width = 20, int height = 10)
     {
         var rows = Enumerable.Range(0, rowCount).Select(i => Text.White($"row {i}").ToText()).ToList();

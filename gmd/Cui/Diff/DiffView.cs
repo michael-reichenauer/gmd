@@ -212,6 +212,7 @@ class DiffView : IDiffView
         listView.RegisterMouseHandler(MouseFlags.LeftButtonPressed, (_, y) => OnListClick(y));
         contentView = new ContentView(OnGetContent)
         {
+            IsLetterArrows = true,
             X = listWidth,
             Y = 0,
             Width = Dim.Fill(),
