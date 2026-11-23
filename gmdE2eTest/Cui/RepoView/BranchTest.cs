@@ -942,4 +942,20 @@ public class BranchTest
         gmd.Send("v");
         gmd.WaitFor("type to find");
     }
+
+    // A click on the line of another branch than the row's highlights that branch, as hovering over
+    // it does, since a tap on a touch screen moves no pointer over it first: 'm' then opens its menu
+    [TestMethod]
+    public async Task TestClickingABranchLineHighlightsTheBranch()
+    {
+        using var repo = await E2eRepo.CreateWithUnmergedBranchAsync();
+        using var gmd = TmuxSession.StartGmd(repo);
+        var (_, y) = TmuxSession.PositionOf(gmd.WaitFor("Add gamma"), "Add gamma");
+
+        // 'main' is the leftmost column of the graph, passing the row of dev's commit below main's
+        gmd.Click(0, y + 1);
+        gmd.WaitForStable();
+        gmd.Send("m");
+        gmd.WaitFor("Branch: main");
+    }
 }

@@ -49,6 +49,7 @@ class CommitDetailsView : ICommitDetailsView
             IsScrollMode = true,
             IsFocus = false,
             IsKeysForwarded = true, // By the log, and by the blame
+            IsLetterArrows = true, // As a click gives it the focus of its own
         };
 
         this.branchColorService = branchColorService;
