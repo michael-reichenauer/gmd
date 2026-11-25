@@ -1,6 +1,6 @@
 ---
 name: release
-description: Make a gmd preview (from dev) or release (from main) - write the user-facing notes in CHANGELOG.md's Unreleased section, get the user's go, and run the Release workflow. Use when asked to make, publish or cut a preview, pre-release or release, and for a dry run: when asked what is unreleased or for the draft notes of the next release, without publishing.
+description: Make a gmd preview (from dev) or release (from main) - write the user-facing notes in CHANGELOG.md's Unreleased section and run the Release workflow, the user's ask being the go. Use when asked to make, publish or cut a preview, pre-release or release, and for a dry run: when asked what is unreleased or for the draft notes of the next release, without publishing.
 ---
 
 # Make a preview or a release

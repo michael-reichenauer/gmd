@@ -21,9 +21,9 @@ of one area are in the files beside this one, which load with the files they are
   for users where it does, which the `release` skill reads as raw material. The `Co-Authored-By`
   line stays last.
 - **Releases are made by the Release workflow only, when the user asks** (the `release` skill,
-  docs/RELEASING.md): it writes the notes in `CHANGELOG.md`'s `## [Unreleased]` on `dev` and runs
-  the workflow at once, the user's ask being the go, which makes the version commits and the `--no-ff` merge into
-  `main`. Never merge into `main` or push it by hand, and never merge `main` into `dev`: the
+  docs/RELEASING.md), the user's ask being the go: it writes the notes in `CHANGELOG.md`'s
+  `## [Unreleased]` on `dev` and runs the workflow at once, which makes the version commits and the
+  `--no-ff` merge into `main`. Never merge into `main` or push it by hand, and never merge `main` into `dev`: the
   workflow raises dev's minor itself, so there is nothing to bring back.
 - **A release re-records the README's pictures first**, unasked: `scripts/demo` on `dev` writes
   `gmd/doc/Animation.gif`, `GitLog.gif` and `GmdLog.gif`, committed on `dev` before the workflow
