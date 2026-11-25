@@ -9,8 +9,8 @@ docs/RELEASING.md is the process and the style of the notes; read it first. You 
 would: write the notes, then run the workflow. The workflow does all the git work of a release (the
 version commit, the merge into main, the minor raised after), so never do it by hand.
 
-A preview or a release cannot be taken back once published: show the notes and get the user's go
-before step 5, every time, even when they asked for the release.
+Asking for a preview or a release is the go: write the notes and publish without showing them first
+or asking again. Show them in the report, with the release's link.
 
 ## Dry run: the notes alone
 
@@ -58,7 +58,7 @@ internal work left out; a later change folded into its feature's item; keys and 
 items as the help writes them; spelling checked. Compare with the latest releases in `CHANGELOG.md`
 for tone and length. Do not invent: a change you cannot place goes to the user as a question.
 
-## 3. Check before asking
+## 3. Check before publishing
 
 - For a release: the version on `dev` (`MajorVersion`, `MinorVersion` in `gmd/Program.cs`) is above
   the latest release's major.minor; if not, say so rather than raise it yourself.
@@ -68,21 +68,16 @@ for tone and length. Do not invent: a change you cannot place goes to the user a
   architecture document") and commit it on `dev` if anything changed.
 - CI on `dev`'s tip is green (the Build workflow), or say what is red.
 
-## 4. Ask
-
-Show the user the notes as they will be published, the kind (preview or release) and the version
-it will have (`<major>.<minor>.<days>.<minutes>`, the last two from the build time). Wait for a go.
-Change the notes as they ask, and show them again if the change is more than a word.
-
-## 5. Publish
+## 4. Publish
 
 - Commit the notes on `dev`, `Write the notes of the next release` (or `... of v<major>.<minor>`), and
-  push `dev`. That is the one push to `dev` this makes; the user's go covers it.
+  push `dev`. That is the one push to `dev` this makes; the user's request covers it.
 - Run the workflow on `dev`: the GitHub tools' workflow run (`release.yml`, inputs `kind`, `publish`)
   or `gh workflow run release.yml --ref dev -f kind=<preview|release>`.
 - Follow the run to its end. When it fails, read the failed step's log, say what failed, and fix
   what is yours (the notes, the version); a release that failed before its push changed nothing and
   can simply be run again. One that failed after it has moved dev and main without publishing:
   docs/RELEASING.md says how to finish it; ask the user before doing so.
-- Report the release's link and its version. After a release, `dev` is at the next minor, and
+- Report the release's link, its version and the notes. A change the user asks for afterwards goes
+  into `CHANGELOG.md` on `dev`; the published notes on GitHub are edited there by hand. After a release, `dev` is at the next minor, and
   `origin/dev` has the workflow's two commits: pull before working on `dev` again.

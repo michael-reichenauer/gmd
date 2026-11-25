@@ -26,10 +26,9 @@ CLAUDE.md, "Running the TUI from a non-interactive shell", has the basics.
 
 - **A slow or fake git for a hand experiment**, e.g. to see what the UI shows while a command runs:
   put a `git` script beside the built binary (`<copy>/gmd/bin/Debug/net11.0/git`), since .NET's
-  `Process` looks for a bare file name in the executable's own folder before `PATH`. A wrapper folder
-  put first on `PATH` with `tmux new-session -e PATH=…` did nothing: the pane had it, but gmd's git
-  was still the real one, which cost two runs that proved nothing. Delete the script before running
-  tests from that copy.
+  `Process` looks for a bare file name in the executable's own folder before `PATH`, so a wrapper
+  folder put first on `PATH` (`tmux new-session -e PATH=…`) does not reach gmd's git. Delete the
+  script before running tests from that copy.
 - **In a test** that route is closed, and `TempRepo` sets `core.hooksPath no-hooks`: a slow commit is
   a sleeping pre-commit hook under `.git/` that `core.hooksPath` points at
   (`CommitTest.SlowDownCommitsAsync`).

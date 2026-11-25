@@ -13,7 +13,7 @@ asks for one, with the **Release** workflow (`.github/workflows/release.yml`). M
    `gh workflow run release.yml --ref dev -f kind=preview` (or `kind=release`).
 
 With Claude, ask it to "make a preview" or "make a release": it writes the notes from what changed
-since the latest release, shows them to you, commits them and runs the workflow (the `release`
+since the latest release, commits them and runs the workflow, and reports the notes with the link (the `release`
 skill, `.claude/skills/release/SKILL.md`). Ask it "what's unreleased?" for the notes alone, with nothing
 committed or published, in two sections: what is new since the latest preview (the next preview's),
 and the whole notes since the latest release (the next release's).
