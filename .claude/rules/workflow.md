@@ -12,15 +12,18 @@ of one area are in the files beside this one, which load with the files they are
   with each fix). Skip it only when those commits were reviewed already. Fix the findings that hold
   up on the branch, as commits of their own, run `scripts/test` again, and only then merge. Say what
   the review found and what was fixed, and ask the user about the findings that are judgment calls.
+- **A branch reaches `dev` through a pull request, merged when the user asks**, and the merge is
+  Claude's own: `git merge --no-ff` of the branch into `dev`, pushed, which GitHub takes as merging
+  the pull request; not GitHub's merge button.
 - **Merge messages describe the change; they are no longer the release notes.** A merge into `dev`
   (`git merge --no-ff <branch> -F <file>`, the message written to the file first, since
   `git merge -F -` does not read stdin) has a body of `- ` lines saying what the branch changes,
   for users where it does, which the `release` skill reads as raw material. The `Co-Authored-By`
   line stays last.
 - **Releases are made by the Release workflow only, when the user asks** (the `release` skill,
-  docs/RELEASING.md): it writes the notes in `CHANGELOG.md`'s `## [Unreleased]` on `dev`, gets the
-  user's go, and runs the workflow, which makes the version commits and the `--no-ff` merge into
-  `main`. Never merge into `main` or push it by hand, and never merge `main` into `dev`: the
+  docs/RELEASING.md), the user's ask being the go: it writes the notes in `CHANGELOG.md`'s
+  `## [Unreleased]` on `dev` and runs the workflow at once, which makes the version commits and the
+  `--no-ff` merge into `main`. Never merge into `main` or push it by hand, and never merge `main` into `dev`: the
   workflow raises dev's minor itself, so there is nothing to bring back.
 - **A release re-records the README's pictures first**, unasked: `scripts/demo` on `dev` writes
   `gmd/doc/Animation.gif`, `GitLog.gif` and `GmdLog.gif`, committed on `dev` before the workflow

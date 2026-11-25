@@ -18,7 +18,7 @@ knowledge lives in `gmd/Git/`, and everything the user sees that git itself does
 ```bash
 scripts/run [args]     # dotnet run --project gmd/gmd.csproj -- "$@"
 scripts/test [args]    # dotnet test gmd.slnx "$@": gmdTest and gmdE2eTest (~1 min with the build)
-                       #   --filter "TestCategory!=Integration"  fast tests only (~1100 tests, ~1 s)
+                       #   --filter "TestCategory!=Integration"  fast tests only (a few seconds)
                        #   --filter "TestCategory=E2e"           the tmux end-to-end UI tests (~55 s)
                        #   --stress   the end-to-end tier on two CPUs, loaded as CI is, to find flaky tests
 scripts/build          # full release: test + package audit + publish all platforms into artifacts/
@@ -118,7 +118,7 @@ that is no sign of trouble.
   `www.microsoft.com` (the revocation checks of NuGet's package signatures), and
   `release-assets.githubusercontent.com` (where GitHub serves agg and the fonts from). .NET's
   telemetry (`*.applicationinsights.azure.com`, `169.254.169.254`) can stay blocked.
-- A session started on `dev` or `main` first creates a branch of its own, `mr/<topic>`, and works
+- A session started on `dev` or `main` first creates a branch of its own, `mr/<topic>` or `claude/<topic>`, and works
   there. The GitHub proxy does not restrict which branches a push updates, so this rule is the only
   guard of `dev` and `main`: they move only through merges, when the user asks for one, and the
   Release workflow (`.claude/rules/workflow.md`). Push the branch at the end of each turn or larger
@@ -765,9 +765,9 @@ is how "the caret is back in the text field after the menu closed" is asserted.
 Run them with `scripts/test --filter "TestCategory=E2e"`; they also carry `Integration`, so the fast
 filter above excludes them. They run **in parallel**, eight at a time (`[assembly: Parallelize]` in
 `gmdE2eTest/TestSetup.cs`), which took the tier from about four minutes to about thirty seconds —
-a test is nearly all waiting for a screen to settle, not CPU. It has since grown to some 160 tests
-and about a minute, so a run is bound by the total spread over eight workers again rather than by
-its longest test, the thirty second worktree re-read. `-- MSTest.Parallelize.Workers=1` after the
+a test is nearly all waiting for a screen to settle, not CPU. It has since grown, so a run is bound
+by the total spread over eight workers again rather than by its longest test, the thirty second
+worktree re-read. `-- MSTest.Parallelize.Workers=1` after the
 other arguments runs them one at a time again. Nine things they do that matter, and that a new
 test must keep doing:
 
